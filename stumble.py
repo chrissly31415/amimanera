@@ -40,8 +40,8 @@ def prepareDatasets(vecType='hV',useSVD=0):
     Load Data into pandas and Preprocess Features
     """
     print "Reading dataset..."
-    X = pd.read_csv('data/train.tsv', sep="\t", na_values=['?'], index_col=1)
-    X_test = pd.read_csv('data/test.tsv', sep="\t", na_values=['?'], index_col=1)
+    X = pd.read_csv('../stumbled_upon/data/train.tsv', sep="\t", na_values=['?'], index_col=1)
+    X_test = pd.read_csv('../stumbled_upon/data/test.tsv', sep="\t", na_values=['?'], index_col=1)
     y = X['label']
     X = X.drop(['label'], axis=1)
     # Combine test and train while we do our preprocessing
@@ -332,8 +332,9 @@ def pyGridSearch(lmodel,lXs,ly):
     Grid search with sklearn internal tool
     """ 
     print "Grid search..."
+    parameters = {'C':[1000,10000,100], 'gamma':[0.001,0.0001]}
     #parameters = {'max_depth':[2,3, 4], 'learning_rate':[0.01, 0.001],'n_estimators':[2000,3000]}#gbm
-    parameters = {'max_depth':[3,4], 'learning_rate':[0.001,0.01],'n_estimators':[1000]}#gbm
+    #parameters = {'max_depth':[3,4], 'learning_rate':[0.001,0.01],'n_estimators':[1000]}#gbm
     #parameters = {'n_estimators':[1000,1500], 'max_features':[5,8,10,12]}#rf
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=5,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXs,ly)
@@ -374,11 +375,11 @@ if __name__=="__main__":
     #model = LogisticRegression(penalty='l2', tol=0.0001, C=.5)#opt
     #model = RandomizedLogisticRegression(C=1, scaling=0.5, sample_fraction=0.75, n_resampling=200, selection_threshold=0.25, tol=0.001, fit_intercept=True, verbose=False, normalize=True, random_state=42)
     #model = KNeighborsClassifier(n_neighbors=10)
-    #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)
+    model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)
     #model = RandomForestClassifier(n_estimators=3000,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features=10,oob_score=False,random_state=42)
     #model = ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1,random_state=42)
-    model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=2000, subsample=1.0, min_samples_split=2, min_samples_leaf=1, max_depth=3, init=None, random_state=42,verbose=False)
+    #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=2000, subsample=1.0, min_samples_split=2, min_samples_leaf=1, max_depth=3, init=None, random_state=42,verbose=False)
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)  
     #modelEvaluation(model,Xs,y)
     model=pyGridSearch(model,Xs,y)
@@ -387,6 +388,6 @@ if __name__=="__main__":
     #fit final model    
     model = buildModel(model,Xs,y)
     #rfFeatureImportance(model)
-    makePredictions(model,Xs_test,data_indices,'sub3008a.csv')	            
+    makePredictions(model,Xs_test,data_indices,'../stumbled_upon/submissions/sub3008a.csv')	            
     print("Model building done in %fs" % (time() - t0))
     plt.show()
