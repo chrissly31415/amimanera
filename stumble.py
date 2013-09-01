@@ -68,9 +68,9 @@ def prepareDatasets(vecType='hV',useSVD=0):
     #vectorize data
     #vectorizer = HashingVectorizer(ngram_range=(1,2), non_negative=True)
     if vecType=='hV':
-	vectorizer = HashingVectorizer(stop_words='english',ngram_range=(1,1), non_negative=True, norm='l2', n_features=2**18)
+	vectorizer = HashingVectorizer(stop_words='english',ngram_range=(1,2), non_negative=True, norm='l2', n_features=2**19)
     elif vecType=='tV':
-	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,1),stop_words='english',max_features=2**18)
+	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words='english',max_features=2**14,binary=True)
     else:
 	vectorizer = CountVectorizer(ngram_range=(1,2),analyzer=u'word',max_features=2**19)
    
@@ -209,7 +209,7 @@ def modelEvaluation(lmodel,lXs,ly):
 	    #print "AUC: %0.2f " % (scores[i])
 	    #save oobpredictions
 	print "Iteration:",j," parameter:",p,
-	print " <AUC>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std() * 2),
+	print " <AUC>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
 	print " AUC oob: %0.3f" %(roc_auc_score(ly,oobpreds[:,j]))
     scores=[roc_auc_score(ly,oobpreds[:,j]) for j in xrange(len(parameters))]
     plt.plot(parameters,scores,'ro')
@@ -283,7 +283,7 @@ def ensembleBuilding(lXs,ly):
 	    #print "AUC: %0.2f " % (scores[i])
 	    #save oobpredictions
 	print "Iteration:",j," model:",key,
-	print " <AUC>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std() * 2),
+	print " <AUC>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
 	print " AUC oob: %0.3f" %(roc_auc_score(ly,oobpreds[:,j]))
     scores=[roc_auc_score(ly,oobpreds[:,j]) for j in xrange(len(classifiers))]
     #simple averaging of blending
@@ -301,7 +301,7 @@ def ensembleBuilding(lXs,ly):
 	blender.fit(Xtrain, ly[train])
 	blend_oob[test] = blender.predict_proba(Xtest)[:,1]
 	blend_scores[i]=roc_auc_score(ly[test],blend_oob[test])
-    print " <AUC>: %0.3f (+/- %0.3f)" % (blend_scores.mean(), blend_scores.std() * 2),
+    print " <AUC>: %0.3f (+/- %0.3f)" % (blend_scores.mean(), blend_scores.std()),
     print " AUC oob after blending: %0.3f" %(roc_auc_score(ly,blend_oob))
     print "Coefficients:",blender.coef_
     
@@ -333,9 +333,9 @@ def pyGridSearch(lmodel,lXs,ly):
     """ 
     print "Grid search..."
     #parameters = {'C':[1000,10000,100], 'gamma':[0.001,0.0001]}
-    parameters = {'max_depth':[5], 'learning_rate':[0.001],'n_estimators':[3000,5000,10000]}#gbm
+    #parameters = {'max_depth':[5], 'learning_rate':[0.001],'n_estimators':[3000,5000,10000]}#gbm
     #parameters = {'max_depth':[3,4], 'learning_rate':[0.001,0.01],'n_estimators':[1000]}#gbm
-    #parameters = {'n_estimators':[1000,1500], 'max_features':[5,8,10,12]}#rf
+    parameters = {'n_estimators':[2000], 'max_features':[20,15]}#rf
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=5,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXs,ly)
     print type(clf_opt.grid_scores_)
@@ -351,7 +351,7 @@ def buildModel(lmodel,lXs,ly,feature_names=None):
     """ 
     print "Final Xval..."
     scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=5, scoring='roc_auc',n_jobs=4)
-    print "AUC: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std() * 2)
+    print "AUC: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std())
     print "Build final model..."
     lmodel.fit(lXs,ly)
     #analyzeModel(lmodel,feature_names)
@@ -389,18 +389,18 @@ if __name__=="__main__":
     #model = RandomizedLogisticRegression(C=1, scaling=0.5, sample_fraction=0.75, n_resampling=200, selection_threshold=0.25, tol=0.001, fit_intercept=True, verbose=False, normalize=True, random_state=42)
     #model = KNeighborsClassifier(n_neighbors=10)
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)
-    #model = RandomForestClassifier(n_estimators=3000,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features=10,oob_score=False,random_state=42)
+    model = RandomForestClassifier(n_estimators=2000,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features=10,oob_score=False,random_state=42)
     #model = ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1,random_state=42)
-    model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=2000, subsample=1.0, min_samples_split=2, min_samples_leaf=1, max_depth=3, init=None, random_state=42,verbose=False)
+    #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=2000, subsample=1.0, min_samples_split=2, min_samples_leaf=1, max_depth=3, init=None, random_state=42,verbose=False)
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)  
     #modelEvaluation(model,Xs,y)
-    model=pyGridSearch(model,Xs,y)
+    #model=pyGridSearch(model,Xs,y)
     #(gclassifiers,gblender)=ensembleBuilding(Xs,y)
     #ensemblePredictions(gclassifiers,gblender,Xs_test,data_indices,'sub2808a.csv')
     #fit final model    
-    #model = buildModel(model,Xs,y)
+    model = buildModel(model,Xs,y)
     #rfFeatureImportance(model)
-    makePredictions(model,Xs_test,data_indices,'../stumbled_upon/submissions/sub3008a.csv')	            
+    makePredictions(model,Xs_test,data_indices,'../stumbled_upon/submissions/sub0209a.csv')	            
     print("Model building done in %fs" % (time() - t0))
     plt.show()
