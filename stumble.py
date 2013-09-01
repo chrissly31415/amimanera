@@ -332,8 +332,8 @@ def pyGridSearch(lmodel,lXs,ly):
     Grid search with sklearn internal tool
     """ 
     print "Grid search..."
-    parameters = {'C':[1000,10000,100], 'gamma':[0.001,0.0001]}
-    #parameters = {'max_depth':[2,3, 4], 'learning_rate':[0.01, 0.001],'n_estimators':[2000,3000]}#gbm
+    #parameters = {'C':[1000,10000,100], 'gamma':[0.001,0.0001]}
+    parameters = {'max_depth':[5], 'learning_rate':[0.001],'n_estimators':[3000,5000,10000]}#gbm
     #parameters = {'max_depth':[3,4], 'learning_rate':[0.001,0.01],'n_estimators':[1000]}#gbm
     #parameters = {'n_estimators':[1000,1500], 'max_features':[5,8,10,12]}#rf
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=5,scoring='roc_auc',n_jobs=4,verbose=1)
@@ -356,7 +356,20 @@ def buildModel(lmodel,lXs,ly,feature_names=None):
     lmodel.fit(lXs,ly)
     #analyzeModel(lmodel,feature_names)
     return(lmodel)
- 
+
+    #https://www.kaggle.com/c/amazon-employee-access-challenge/forums/t/4838/python-code-to-achieve-0-90-auc-with-logistic-regression?page=12
+def group_data(data, degree=3, hash=hash):
+    """ 
+    numpy.array -> numpy.array
+    
+    Groups all columns of data into all combinations of triples
+    """
+    new_data = []
+    m,n = data.shape
+    for indicies in combinations(range(n), degree):
+        new_data.append([hash(tuple(v)) for v in data[:,indicies]])
+    return array(new_data).T
+    
 if __name__=="__main__":
     """   
     MAIN PART
@@ -375,18 +388,18 @@ if __name__=="__main__":
     #model = LogisticRegression(penalty='l2', tol=0.0001, C=.5)#opt
     #model = RandomizedLogisticRegression(C=1, scaling=0.5, sample_fraction=0.75, n_resampling=200, selection_threshold=0.25, tol=0.001, fit_intercept=True, verbose=False, normalize=True, random_state=42)
     #model = KNeighborsClassifier(n_neighbors=10)
-    model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)
+    #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)
     #model = RandomForestClassifier(n_estimators=3000,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features=10,oob_score=False,random_state=42)
     #model = ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1,random_state=42)
-    #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=2000, subsample=1.0, min_samples_split=2, min_samples_leaf=1, max_depth=3, init=None, random_state=42,verbose=False)
+    model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=2000, subsample=1.0, min_samples_split=2, min_samples_leaf=1, max_depth=3, init=None, random_state=42,verbose=False)
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)  
     #modelEvaluation(model,Xs,y)
     model=pyGridSearch(model,Xs,y)
     #(gclassifiers,gblender)=ensembleBuilding(Xs,y)
     #ensemblePredictions(gclassifiers,gblender,Xs_test,data_indices,'sub2808a.csv')
     #fit final model    
-    model = buildModel(model,Xs,y)
+    #model = buildModel(model,Xs,y)
     #rfFeatureImportance(model)
     makePredictions(model,Xs_test,data_indices,'../stumbled_upon/submissions/sub3008a.csv')	            
     print("Model building done in %fs" % (time() - t0))
