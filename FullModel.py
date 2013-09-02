@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# Chrissly31415 August 2013
+
 class FullModel:
    """
    class holds classifier plus train and test set for later use in ensemble building
