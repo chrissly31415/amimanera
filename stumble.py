@@ -34,6 +34,7 @@ from sklearn.svm import SVC
 #TODO build class containing classifiers + dataset
 #TODO remove infrequent sparse features to new class
 #TODO look at amazon challenge winners
+#TODO dicretize continous data by cut and qcut
    
 def prepareDatasets(vecType='hV',useSVD=0):
     """
@@ -70,7 +71,8 @@ def prepareDatasets(vecType='hV',useSVD=0):
     if vecType=='hV':
 	vectorizer = HashingVectorizer(stop_words='english',ngram_range=(1,2), non_negative=True, norm='l2', n_features=2**19)
     elif vecType=='tV':
-	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words='english',max_features=2**14,binary=True)
+	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,1),stop_words='english',max_features=2**14,binary=True)
+	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,1),stop_words='english',max_features=2**19,binary=True)
     else:
 	vectorizer = CountVectorizer(ngram_range=(1,2),analyzer=u'word',max_features=2**19)
    
@@ -114,11 +116,11 @@ def prepareDatasets(vecType='hV',useSVD=0):
 	print "X_rest:",X_rest
 	X_svd=np.concatenate((X_rest,X_svd), axis=1)
 	#add alchemy category again, but now one hot encode, bringt nichts
-	#X_alcat=pd.DataFrame(X_all['alchemy_category'])
-	#X_alcat=X_alcat.fillna('NA')
-	#X_alcat = one_hot_encoder(X_alcat, ['alchemy_category'], replace=True) 
+	X_alcat=pd.DataFrame(X_all['alchemy_category'])
+	X_alcat=X_alcat.fillna('NA')
+	X_alcat = one_hot_encoder(X_alcat, ['alchemy_category'], replace=True) 
 	#print "X_alcat_",X_alcat
-	#X_svd=np.concatenate((X_svd,X_alcat), axis=1)
+	X_svd=np.concatenate((X_svd,X_alcat), axis=1)
 	
 	#X_rest=X_svd
 	print "Dim: X_svd:",X_svd.shape    
@@ -224,38 +226,7 @@ def sigmoid(x):
   return(y)
     
 
-def rfFeatureImportance(forest,Xold,Xold_test,n):
-    if not hasattr(forest,'feature_importances_'): return
-    importances = forest.feature_importances_
-    std = np.std([tree.feature_importances_ for tree in forest.estimators_],
-             axis=0)
-    indices = np.argsort(importances)[::-1]
-    print indices.shape
-    print importances.shape
-    # Print the feature ranking
-    print("Feature ranking:")
 
-    for f in range(len(indices)):
-	print("%d. feature %d (%f)" % (f + 1, indices[f], importances[indices[f]]))
-
-    # Plot the feature importances of the forest  
-    plt.bar(left=np.arange(len(indices)),height=importances[indices] , width=0.35, color='r')
-    plt.ylabel('Importance')
-    plt.title("Feature importances")
-    print type(Xold)
-    print type(Xold_test)
-    #stack train and test data
-    Xreduced=np.vstack((Xold,Xold_test))
-    #sorting features
-    Xreduced=Xreduced[:,indices[0:n]]   
-    print Xreduced.shape
-    #split train and test data
-    Xreduced_test = Xreduced[:Xold_test.shape[0]]
-    Xreduced = Xreduced[Xold_test.shape[0]:]
-    print Xreduced.shape
-    print Xreduced_test.shape
-    
-    return(Xreduced,Xreduced_test)
 
     
     
@@ -350,7 +321,7 @@ def pyGridSearch(lmodel,lXs,ly):
     #parameters = {'C':[1000,10000,100], 'gamma':[0.001,0.0001]}
     #parameters = {'max_depth':[5], 'learning_rate':[0.001],'n_estimators':[3000,5000,10000]}#gbm
     #parameters = {'max_depth':[3,4], 'learning_rate':[0.001,0.01],'n_estimators':[1000]}#gbm
-    parameters = {'n_estimators':[100], 'max_features':[10]}#rf
+    parameters = {'n_estimators':[500,1000], 'max_features':[5,10,15]}#rf
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=10,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXs,ly)
     print type(clf_opt.grid_scores_)
@@ -364,10 +335,10 @@ def buildModel(lmodel,lXs,ly,feature_names=None):
     """   
     Final model building part
     """ 
-    print "Final Xval..."
+    print "Xvalidation..."
     scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=5, scoring='roc_auc',n_jobs=4)
     print "AUC: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std())
-    print "Build final model..."
+    print "Building model..."
     lmodel.fit(lXs,ly)
     #analyzeModel(lmodel,feature_names)
     return(lmodel)
@@ -384,6 +355,36 @@ def group_data(data, degree=3, hash=hash):
     for indicies in combinations(range(n), degree):
         new_data.append([hash(tuple(v)) for v in data[:,indicies]])
     return array(new_data).T
+
+    
+def rfFeatureImportance(forest,Xold,Xold_test,n):
+    """ 
+    Selects n best features from a model which has the attribute feature_importances_
+    """
+    print
+    if not hasattr(forest,'feature_importances_'): return
+    importances = forest.feature_importances_
+    #std = np.std([tree.feature_importances_ for tree in forest.estimators_],axis=0)#perhas we need it later
+    indices = np.argsort(importances)[::-1]
+    # Print the feature ranking
+    print("Feature ranking:")
+
+    for f in range(len(indices)):
+	print("%d. feature %d (%f)" % (f + 1, indices[f], importances[indices[f]]))
+
+    # Plot the feature importances of the forest  
+    plt.bar(left=np.arange(len(indices)),height=importances[indices] , width=0.35, color='r')
+    plt.ylabel('Importance')
+    plt.title("Feature importances")
+    #stack train and test data
+    Xreduced=np.vstack((Xold_test,Xold))
+    #sorting features
+    Xtmp=Xreduced[:,indices[0:n]] 
+    #split train and test data
+    Xreduced_test = Xtmp[:Xold_test.shape[0]]
+    Xreduced = Xtmp[Xold_test.shape[0]:]
+    return(Xreduced,Xreduced_test)
+
     
 if __name__=="__main__":
     """   
@@ -393,7 +394,7 @@ if __name__=="__main__":
     t0 = time()
     np.random.seed(1234)
     #variables
-    (Xs,y,Xs_test,data_indices) = prepareDatasets('tV',useSVD=20)
+    (Xs,y,Xs_test,data_indices) = prepareDatasets('tV',useSVD=30)
     print "Dim X (training):",Xs.shape
     print "Type X:",type(Xs)
     # Fit a model and predict
@@ -404,19 +405,19 @@ if __name__=="__main__":
     #model = RandomizedLogisticRegression(C=1, scaling=0.5, sample_fraction=0.75, n_resampling=200, selection_threshold=0.25, tol=0.001, fit_intercept=True, verbose=False, normalize=True, random_state=42)
     #model = KNeighborsClassifier(n_neighbors=10)
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)
-    model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='entropy', max_features=15,oob_score=False,random_state=42)
+    model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features=10,oob_score=False,random_state=42)
     #model = ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1,random_state=42)
     #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=2000, subsample=1.0, min_samples_split=2, min_samples_leaf=1, max_depth=3, init=None, random_state=42,verbose=False)
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)  
     #modelEvaluation(model,Xs,y)
-    #model=pyGridSearch(model,Xs,y)
+    model=pyGridSearch(model,Xs,y)
     #(gclassifiers,gblender)=ensembleBuilding(Xs,y)
     #ensemblePredictions(gclassifiers,gblender,Xs_test,data_indices,'sub2808a.csv')
     #fit final model
-    model = buildModel(model,Xs,y)
-    (Xs,Xs_test)=rfFeatureImportance(model,Xs,Xs_test,30)
-    model = buildModel(model,Xs,y)
+    #model = buildModel(model,Xs,y)
+    #(Xs,Xs_test)=rfFeatureImportance(model,Xs,Xs_test,30)
+    #model = buildModel(model,Xs,y)
     makePredictions(model,Xs_test,data_indices,'../stumbled_upon/submissions/sub0209a.csv')	            
     print("Model building done in %fs" % (time() - t0))
     plt.show()
