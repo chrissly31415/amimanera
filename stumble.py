@@ -4,6 +4,7 @@
 """
 
 from time import time
+import itertools
 
 import json
 import numpy as np
@@ -35,12 +36,12 @@ from sklearn.svm import SVC
 #TODO remove infrequent sparse features to new class
 #TODO look at amazon challenge winners
 #TODO dicretize continous data by cut and qcut
-   
-def prepareDatasets(vecType='hV',useSVD=0):
+
+def prepareDatasets(vecType='hV',useSVD=0,useJson=True):
     """
-    Load Data into pandas and Preprocess Features
+    Load Data into pandas and preprocess features
     """
-    print "Reading dataset..."
+    print "loading dataset..."
     X = pd.read_csv('../stumbled_upon/data/train.tsv', sep="\t", na_values=['?'], index_col=1)
     X_test = pd.read_csv('../stumbled_upon/data/test.tsv', sep="\t", na_values=['?'], index_col=1)
     y = X['label']
@@ -48,56 +49,65 @@ def prepareDatasets(vecType='hV',useSVD=0):
     # Combine test and train while we do our preprocessing
     X_all = pd.concat([X_test, X])
     
-    #take only boilerplate data
-    X_all['boilerplate'] = X_all['boilerplate'].apply(json.loads)
-
-    #print X_all['boilerplate']
-    #print X_all['boilerplate'][2]
-    # Initialize the data as a unicode string
-    X_all['body'] = u'empty'
-    extractBody = lambda x: x['body'] if x.has_key('body') and x['body'] is not None else u'empty'
-    X_all['body'] = X_all['boilerplate'].map(extractBody)
-    
-    X_all['title'] = u'empty'
-    extractBody = lambda x: x['title'] if x.has_key('title') and x['title'] is not None else u'empty'
-    X_all['title'] = X_all['boilerplate'].map(extractBody)
-    
-    X_all['url'] = u'empty'
-    extractBody = lambda x: x['url'] if x.has_key('url') and x['url'] is not None else u'empty'
-    X_all['url'] = X_all['boilerplate'].map(extractBody)
-    
     #vectorize data
     #vectorizer = HashingVectorizer(ngram_range=(1,2), non_negative=True)
     if vecType=='hV':
 	vectorizer = HashingVectorizer(stop_words='english',ngram_range=(1,2), non_negative=True, norm='l2', n_features=2**19)
     elif vecType=='tV':
-	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,1),stop_words='english',max_features=2**14,binary=True)
-	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,1),stop_words='english',max_features=2**19,binary=True)
+	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=True)
+	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,1),stop_words='english',binary=False,max_features=2**14)
+	#vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), use_idf=1,smooth_idf=1,sublinear_tf=1)
     else:
 	vectorizer = CountVectorizer(ngram_range=(1,2),analyzer=u'word',max_features=2**19)
-   
-    body_counts = vectorizer.fit_transform(X_all['body'])
-    print "Dim after body:",body_counts.shape
     
-    title_counts = vectorizer.fit_transform(X_all['title'])
-    print "Dim after title:",title_counts.shape
-    
-    url_counts = vectorizer.fit_transform(X_all['url'])
-    print "Dim after url:",url_counts.shape
-    
-    body_counts = sparse.hstack((body_counts,title_counts),format="csr")
-    body_counts = sparse.hstack((body_counts,url_counts),format="csr")
-    print "Final dim:",body_counts.shape
-    
-    
-    
-    feature_names = None
+    #transform data using json
+    if useJson:
+	print "Creating dataset using json..."
+	#take only boilerplate data
+	X_all['boilerplate'] = X_all['boilerplate'].apply(json.loads)
+
+	#print X_all['boilerplate']
+	#print X_all['boilerplate'][2]
+	# Initialize the data as a unicode string
+	X_all['body'] = u'empty'
+	extractBody = lambda x: x['body'] if x.has_key('body') and x['body'] is not None else u'empty'
+	X_all['body'] = X_all['boilerplate'].map(extractBody)
+	
+	X_all['title'] = u'empty'
+	extractBody = lambda x: x['title'] if x.has_key('title') and x['title'] is not None else u'empty'
+	X_all['title'] = X_all['boilerplate'].map(extractBody)
+	
+	X_all['url'] = u'empty'
+	extractBody = lambda x: x['url'] if x.has_key('url') and x['url'] is not None else u'empty'
+	X_all['url'] = X_all['boilerplate'].map(extractBody)
+	
+	body_counts = vectorizer.fit_transform(X_all['body'])
+	print "Dim after body:",body_counts.shape
+	
+	title_counts = vectorizer.fit_transform(X_all['title'])
+	print "Dim after title:",title_counts.shape
+	
+	url_counts = vectorizer.fit_transform(X_all['url'])
+	print "Dim after url:",url_counts.shape
+	
+	body_counts = sparse.hstack((body_counts,title_counts),format="csr")
+	body_counts = sparse.hstack((body_counts,url_counts),format="csr")
+	print "Final dim:",body_counts.shape
+    #simple transform
+    else:
+        print "Creating dataset by simple method..."
+        body_counts=list(X_all['boilerplate'])
+	body_counts = vectorizer.fit_transform(body_counts)
+	print "Final dim:",body_counts.shape	
+    #feature_names = None
     #if hasattr(vectorizer, 'get_feature_names'):
-    #	feature_names = np.asarray(vectorizer.get_feature_names())
+    	#feature_names = np.asarray(vectorizer.get_feature_names())
     #X & X_test are converted to sparse matrix
     
     #bringt seltsamerweise nichts
-    
+    #X_alcat=pd.DataFrame(X_all['alchemy_category'])
+    #X_alcat=X_alcat.fillna('NA')
+    #X_alcat = one_hot_encoder(X_alcat, ['alchemy_category'], replace=True)
     #print X_alcat
     #X_alcat=sparse.csr_matrix(pd.np.array(X_alcat))
     #body_counts = sparse.hstack((body_counts,X_alcat),format="csr")
@@ -105,11 +115,15 @@ def prepareDatasets(vecType='hV',useSVD=0):
     y = pd.np.array(y)
     if useSVD>1:
 	#SVD of text data (LSA)
+	print "SVD of sparse data with n=",useSVD
 	tsvd=TruncatedSVD(n_components=useSVD, algorithm='randomized', n_iterations=5, random_state=42, tol=0.0)
 	X_svd=tsvd.fit_transform(body_counts)
 	X_svd=pd.DataFrame(np.asarray(X_svd))
 	print "X_svd:",X_svd
-	X_rest= X_all.drop(['body','url','alchemy_category','boilerplate','title'], axis=1)
+	if useJson: 
+	    X_rest= X_all.drop(['body','url','alchemy_category','boilerplate','title'], axis=1)
+	else:
+	    X_rest= X_all.drop(['url','alchemy_category','boilerplate'], axis=1)
 	X_rest = X_rest.astype(float)
 	#print X_rest   
 	X_rest=X_rest.fillna(X_rest.mean())
@@ -176,16 +190,20 @@ def analyzeModel(lmodel,feature_names):
 	  for i in xrange(top10.shape[0]):
 	      print("Top %2d: coef: %0.3f %20s" % (i+1,lmodel.coef_[0,top10[i]],feature_names[top10[i]]))
 
+
+	      
+	      
+	      
 def modelEvaluation(lmodel,lXs,ly):
     """
     MODEL EVALUATION
     """
     print "Model evaluation..."
-    folds=5
+    folds=8
     #parameters=np.logspace(-14, -7, num=8, base=2.0)#SDG
-    #parameters=np.logspace(-7, 0, num=8, base=2.0)#LG
+    parameters=np.logspace(-7, 0, num=8, base=2.0)#LG
     #parameters=[250,500,1000,2000]#rf
-    parameters=[2,3,4,5]#gbm
+    #parameters=[2,3,4,5]#gbm
     #parameters=np.logspace(-7, -0, num=8, base=2.0)
     print "Parameter space:",parameters
     #feature selection within xvalidation
@@ -196,10 +214,10 @@ def modelEvaluation(lmodel,lXs,ly):
 	if isinstance(lmodel,LogisticRegression) or isinstance(lmodel,SVC):
 	    lmodel.set_params(C=p)
 	if isinstance(lmodel,RandomForestClassifier) :
-	    lmodel.set_params(n_estimators=p)
+	    lmodel.set_params(max_features=p)
 	if isinstance(lmodel,GradientBoostingClassifier):
 	    lmodel.set_params(max_depth=p)
-        print lmodel.get_params()
+        #print lmodel.get_params()
         cv = StratifiedKFold(ly, n_folds=folds, indices=True)
 	scores=np.zeros(folds)	
 	for i, (train, test) in enumerate(cv):
@@ -322,7 +340,7 @@ def pyGridSearch(lmodel,lXs,ly):
     #parameters = {'max_depth':[5], 'learning_rate':[0.001],'n_estimators':[3000,5000,10000]}#gbm
     #parameters = {'max_depth':[3,4], 'learning_rate':[0.001,0.01],'n_estimators':[1000]}#gbm
     parameters = {'n_estimators':[500,1000], 'max_features':[5,10,15]}#rf
-    clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=10,scoring='roc_auc',n_jobs=4,verbose=1)
+    clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXs,ly)
     print type(clf_opt.grid_scores_)
     
@@ -336,7 +354,7 @@ def buildModel(lmodel,lXs,ly,feature_names=None):
     Final model building part
     """ 
     print "Xvalidation..."
-    scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=5, scoring='roc_auc',n_jobs=4)
+    scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=8, scoring='roc_auc',n_jobs=4)
     print "AUC: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std())
     print "Building model..."
     lmodel.fit(lXs,ly)
@@ -344,24 +362,65 @@ def buildModel(lmodel,lXs,ly,feature_names=None):
     return(lmodel)
 
     #https://www.kaggle.com/c/amazon-employee-access-challenge/forums/t/4838/python-code-to-achieve-0-90-auc-with-logistic-regression?page=12
-def group_data(data, degree=3, hash=hash):
+def group_data(Xold,Xold_test, degree=2, hash=hash,append=True):
     """ 
     numpy.array -> numpy.array
     
     Groups all columns of data into all combinations of triples
     """
-    new_data = []
-    m,n = data.shape
-    for indicies in combinations(range(n), degree):
-        new_data.append([hash(tuple(v)) for v in data[:,indicies]])
-    return array(new_data).T
+    print "Grouping data..."
+    Xtmp=sparse.vstack((Xold_test,Xold),format="csr")
+    print Xtmp.shape
+    print "Non-zeros:",Xtmp.nnz
+    #turn into pandas dataframe for grouping
+    Xtmp=pd.DataFrame(np.asarray(Xtmp.todense()))
+    new_data=None
+    m,n = Xtmp.shape
+    for indices in itertools.combinations(range(n), degree):
+	col1,col2 =indices
+	tmp = Xtmp.columns[list(indices)]
+	if not isinstance(new_data,pd.DataFrame):
+	    new_data=pd.DataFrame(Xtmp[tmp].apply(np.max, axis=1))
+	    #print 'col1',Xtmp[col1]
+	    #print 'col2',Xtmp[col2]
+	    #print 'new_data',new_data
+	else:
+	    
+	    new_data = pd.concat([new_data, pd.DataFrame(Xtmp[tmp].apply(np.max, axis=1))],axis=1)
+	print new_data.shape
+    
+    #bring data into sparse format again
+    Xtmp=np.array(new_data)
+    Xtmp=sparse.csr_matrix(Xtmp)
+    
+    #print Xtmp
+    print Xtmp.shape
+    print "Non-zeros:",Xtmp.nnz
+    
+    
+    #makting test data
+    Xreduced_test = Xtmp[:Xold_test.shape[0]]
+    if append: 
+	Xreduced_test=sparse.hstack((Xold_test,Xreduced_test),format="csr")
+    print type(Xreduced_test)
+    print Xreduced_test.shape
+    
+    #making train data
+    Xreduced = Xtmp[Xold_test.shape[0]:]
+    if append:
+	Xreduced=sparse.hstack((Xold,Xreduced),format="csr")
+    print type(Xreduced)
+    print Xreduced.shape
+    
+    return(Xreduced,Xreduced_test)
+
 
     
 def rfFeatureImportance(forest,Xold,Xold_test,n):
     """ 
     Selects n best features from a model which has the attribute feature_importances_
     """
-    print
+    print "Feature importance..."
     if not hasattr(forest,'feature_importances_'): return
     importances = forest.feature_importances_
     #std = np.std([tree.feature_importances_ for tree in forest.estimators_],axis=0)#perhas we need it later
@@ -385,6 +444,32 @@ def rfFeatureImportance(forest,Xold,Xold_test,n):
     Xreduced = Xtmp[Xold_test.shape[0]:]
     return(Xreduced,Xreduced_test)
 
+def linearFeatureSelection(lmodel,Xold,Xold_test,n):
+    """
+    Analysis of data if coef_ are available
+    """
+    print "Selecting features based on important coefficients..."
+    if hasattr(lmodel, 'coef_') and isinstance(Xold,sparse.csr.csr_matrix): 
+	print("Analysis of data...")
+	print("Dimensionality: %d" % lmodel.coef_.shape[1])
+	print("Density: %f" % density(lmodel.coef_))
+	indices = np.argsort(lmodel.coef_)[0,-n:][::-1]
+	#print model.coef_[top10b]
+	#for i in xrange(indices.shape[0]):
+	#    print("Top %2d: coef: %0.3f col: %2d" % (i+1,lmodel.coef_[0,indices[i]], indices[i]))
+	plt.bar(left=np.arange(len(indices)),height=lmodel.coef_[0,indices] , width=0.35, color='r')
+	plt.ylabel('Importance')
+	#stack train and test data
+	#Xreduced=np.vstack((Xold_test,Xold))
+	Xreduced=sparse.vstack((Xold_test,Xold),format="csr")
+	#sorting features
+	#print indices[0:n]
+	Xtmp=Xreduced[:,indices[0:n]] 
+	#split train and test data
+	Xreduced_test = Xtmp[:Xold_test.shape[0]]
+	Xreduced = Xtmp[Xold_test.shape[0]:]
+	return(Xreduced,Xreduced_test)
+	
     
 if __name__=="__main__":
     """   
@@ -393,31 +478,39 @@ if __name__=="__main__":
     # Set a seed for consistant results
     t0 = time()
     np.random.seed(1234)
+    print "pandas:",pd.__version__
     #variables
-    (Xs,y,Xs_test,data_indices) = prepareDatasets('tV',useSVD=30)
+    (Xs,y,Xs_test,data_indices) = prepareDatasets('tV',useSVD=0,useJson=False)
+    #(Xs,y,Xs_test,data_indices) = prepareSimpleData()
     print "Dim X (training):",Xs.shape
     print "Type X:",type(Xs)
     # Fit a model and predict
     #model = BernoulliNB(alpha=1.0)
     #model = SGDClassifier(alpha=.0001, n_iter=50,penalty='elasticnet',l1_ratio=0.2,shuffle=True,random_state=42,loss='log')
-    #model = SGDClassifier(alpha=0.00048828125, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l2')#opt
-    #model = LogisticRegression(penalty='l2', tol=0.0001, C=.5)#opt
+    #model = SGDClassifier(alpha=0.0005, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l2',n_jobs=4)#opt  
+    #model = SGDClassifier(alpha=0.0001, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l2',n_jobs=4)#opt simple processing
+    model = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)#opt
+    #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, 
+    #                         C=1, fit_intercept=True, intercept_scaling=1.0, 
+    #                         class_weight=None, random_state=None)#kaggle params
     #model = RandomizedLogisticRegression(C=1, scaling=0.5, sample_fraction=0.75, n_resampling=200, selection_threshold=0.25, tol=0.001, fit_intercept=True, verbose=False, normalize=True, random_state=42)
     #model = KNeighborsClassifier(n_neighbors=10)
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)
-    model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features=10,oob_score=False,random_state=42)
+    #model = RandomForestClassifier(n_estimators=1000,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
     #model = ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1,random_state=42)
     #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=2000, subsample=1.0, min_samples_split=2, min_samples_leaf=1, max_depth=3, init=None, random_state=42,verbose=False)
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)  
     #modelEvaluation(model,Xs,y)
-    model=pyGridSearch(model,Xs,y)
+    #model=pyGridSearch(model,Xs,y)
     #(gclassifiers,gblender)=ensembleBuilding(Xs,y)
     #ensemblePredictions(gclassifiers,gblender,Xs_test,data_indices,'sub2808a.csv')
     #fit final model
-    #model = buildModel(model,Xs,y)
     #(Xs,Xs_test)=rfFeatureImportance(model,Xs,Xs_test,30)
-    #model = buildModel(model,Xs,y)
-    makePredictions(model,Xs_test,data_indices,'../stumbled_upon/submissions/sub0209a.csv')	            
+    model = buildModel(model,Xs,y)
+    (Xs,Xs_test) = linearFeatureSelection(model,Xs,Xs_test,10)
+    (Xs,Xs_test) = group_data(Xs,Xs_test)
+    model = buildModel(model,Xs,y)
+    #makePredictions(model,Xs_test,data_indices,'../stumbled_upon/submissions/sub0209a.csv')	            
     print("Model building done in %fs" % (time() - t0))
     plt.show()
