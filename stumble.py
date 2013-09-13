@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python 
 # -*- coding: utf-8 -*-
 """  Modified starter code from BSMan@Kaggle
 """
@@ -10,6 +10,7 @@ import json
 import numpy as np
 import numpy.random as nprnd
 import pandas as pd
+import scipy as sp
 from scipy import sparse
 
 import matplotlib.pyplot as plt
@@ -32,15 +33,151 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import LinearSVC
 from sklearn.svm import SVC
 
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 #TODO build class containing classifiers + dataset
 #TODO remove infrequent sparse features to new class
 #TODO look at amazon challenge winners
 #TODO dicretize continous data by cut and qcut
+#TODO search specific general tokesn with regex
+#TODO remove some of normal features
+#TODO replace NAs for is_news news_front_page
+#TODO tokenize url1 by -_./ 
+
+def featureEngineering(olddf):
+    """
+    Creates new features
+    """
+    print "Feature engineering..."
+    #lower
+    olddf['url']=olddf.url.str.lower()
+    olddf['embed_ratio']=olddf.embed_ratio.replace(-1.0,0.0)
+    olddf['image_ratio']=olddf.image_ratio.replace(-1.0,0.0)
+    olddf['is_news']=olddf['is_news'].fillna(0)
+    olddf['news_front_page']=olddf['news_front_page'].fillna(0)
+    #print olddf['news_front_page'].tail(30)
+    #print olddf['image_ratio'].head(20)
+    #print olddf['url'].describe()
+    #olddf= pd.concat([olddf, tmpdf],axis=1)
+    #url length
+    tmpdf=olddf.url.str.len()
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['url_length']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #boiler plate length
+    tmpdf=olddf.boilerplate.str.len()
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['boilerplate_length']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #contains .com
+    tmpdf=olddf.url.str.contains('\.com')
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['url_contains_com']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+     #endswith .com
+    tmpdf=olddf.url.str.contains('com.$')
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['url_endswith_com']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #contains .org
+    tmpdf=olddf.url.str.contains('\.org')
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['url_contains_org']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #contains .org
+    tmpdf=olddf.url.str.contains('\.net')
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['url_contains_net']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #contains .co.uk
+    tmpdf=olddf.url.str.contains('\.co\.uk')
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['url_contains_couk']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #contains blog
+    tmpdf=olddf.url.str.contains('blog')
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['url_contains_blog']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+     #contains recipe & co.
+    tmpdf=olddf.url.str.contains('recipe|food|meal|kitchen|cake|baking|diet|cook|apple|apetite|meal')
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['url_contains_foodstuff']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+     #contains recipe & co.
+    tmpdf=olddf.url.str.contains('recipe')
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['url_contains_recipe']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+     #contains health
+    tmpdf=olddf.url.str.contains('health')
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['url_contains_health']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #contains www
+    tmpdf=olddf.url.str.contains('www')
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['url_contains_www']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #contains youtube
+    tmpdf=olddf.url.str.contains('youtube')
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['url_contains_youtube']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #contains news
+    tmpdf=olddf.url.str.contains('news|cnn')
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['url_contains_news']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #contains technology
+    tmpdf=olddf.url.str.contains('tech|technology')
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['url_contains_tech']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #contains games
+    tmpdf=olddf.url.str.contains('game|play')
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['url_contains_game']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #contains girl
+    tmpdf=olddf.url.str.contains('girl|sex|nude|naked')
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['url_contains_girl']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+    
+    return olddf
+
+    
+def dfinfo(X_all):
+    print "##Basic data##\n",X_all
+    print "##Details##\n",X_all.ix[:,0:2].describe()
+    print "##Details##\n",X_all.ix[:,2:3].describe()
+    print "##Details##\n",X_all.ix[:,3:7].describe()
 
 def prepareDatasets(vecType='hV',useSVD=0,useJson=True):
     """
     Load Data into pandas and preprocess features
     """
+    pd.set_printoptions(max_rows=200, max_columns=5)
+    
     print "loading dataset..."
     X = pd.read_csv('../stumbled_upon/data/train.tsv', sep="\t", na_values=['?'], index_col=1)
     X_test = pd.read_csv('../stumbled_upon/data/test.tsv', sep="\t", na_values=['?'], index_col=1)
@@ -48,15 +185,17 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True):
     X = X.drop(['label'], axis=1)
     # Combine test and train while we do our preprocessing
     X_all = pd.concat([X_test, X])
+    X_all = featureEngineering(X_all)
+    print X_all
     
     #vectorize data
     #vectorizer = HashingVectorizer(ngram_range=(1,2), non_negative=True)
     if vecType=='hV':
 	vectorizer = HashingVectorizer(stop_words='english',ngram_range=(1,2), non_negative=True, norm='l2', n_features=2**19)
     elif vecType=='tV':
-	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=True)
-	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,1),stop_words='english',binary=False,max_features=2**14)
-	#vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), use_idf=1,smooth_idf=1,sublinear_tf=1)
+	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=True,min_df=4,strip_accents='unicode')
+	#vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4)
+	#vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True)#opt
     else:
 	vectorizer = CountVectorizer(ngram_range=(1,2),analyzer=u'word',max_features=2**19)
     
@@ -77,9 +216,9 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True):
 	extractBody = lambda x: x['title'] if x.has_key('title') and x['title'] is not None else u'empty'
 	X_all['title'] = X_all['boilerplate'].map(extractBody)
 	
-	X_all['url'] = u'empty'
+	X_all['url2'] = u'empty'
 	extractBody = lambda x: x['url'] if x.has_key('url') and x['url'] is not None else u'empty'
-	X_all['url'] = X_all['boilerplate'].map(extractBody)
+	X_all['url2'] = X_all['boilerplate'].map(extractBody)
 	
 	body_counts = vectorizer.fit_transform(X_all['body'])
 	print "Dim after body:",body_counts.shape
@@ -87,7 +226,7 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True):
 	title_counts = vectorizer.fit_transform(X_all['title'])
 	print "Dim after title:",title_counts.shape
 	
-	url_counts = vectorizer.fit_transform(X_all['url'])
+	url_counts = vectorizer.fit_transform(X_all['url2'])
 	print "Dim after url:",url_counts.shape
 	
 	body_counts = sparse.hstack((body_counts,title_counts),format="csr")
@@ -119,7 +258,7 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True):
 	tsvd=TruncatedSVD(n_components=useSVD, algorithm='randomized', n_iterations=5, random_state=42, tol=0.0)
 	X_svd=tsvd.fit_transform(body_counts)
 	X_svd=pd.DataFrame(np.asarray(X_svd))
-	print "X_svd:",X_svd
+	print "##X_svd##\n",X_svd
 	if useJson: 
 	    X_rest= X_all.drop(['body','url','alchemy_category','boilerplate','title'], axis=1)
 	else:
@@ -127,7 +266,8 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True):
 	X_rest = X_rest.astype(float)
 	#print X_rest   
 	X_rest=X_rest.fillna(X_rest.mean())
-	print "X_rest:",X_rest
+	print "##X_rest##\n",X_rest
+	
 	X_svd=np.concatenate((X_rest,X_svd), axis=1)
 	#add alchemy category again, but now one hot encode, bringt nichts
 	X_alcat=pd.DataFrame(X_all['alchemy_category'])
@@ -244,28 +384,24 @@ def sigmoid(x):
   return(y)
     
 
-
-
-    
-    
 def ensembleBuilding(lXs,ly):
     """
     train ensemble
     """
     print "Ensemble training..."
-    folds=10
-    parameters=np.logspace(-14, -7, num=50, base=2.0)
+    folds=8
+    parameters=np.logspace(-14, -7, num=10, base=2.0)
     #parameters=nprnd.choice(parameters, 8)
     classifiers = {}
     for p in parameters:
         l1ratio=nprnd.ranf()
-	dic ={'SDG_alpha'+str(p)+'_L1'+str(l1ratio): SGDClassifier(alpha=p, n_iter=50,penalty='elasticnet',l1_ratio=l1ratio,shuffle=True,random_state=round(42*l1ratio),loss='log')}
+	dic ={'SDG_alpha'+str(p)+'_L1'+str(l1ratio): SGDClassifier(alpha=p, n_iter=50,penalty='elasticnet',l1_ratio=l1ratio,shuffle=True,random_state=np.random.randint(0,100),loss='log')}
 	classifiers.update(dic)
-    #dic ={'NB': BernoulliNB(alpha=1.0)}
-    #classifiers.update(dic)
-    dic ={'LG1': LogisticRegression(penalty='l2', tol=0.0001, C=.25,random_state=42)}
+    dic ={'NB': BernoulliNB(alpha=1.0)}
     classifiers.update(dic)
-    dic ={'SDG1': SGDClassifier(alpha=0.0005, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l2')}
+    dic ={'LG1': LogisticRegression(penalty='l2', tol=0.0001, C=1.0,random_state=42)}
+    classifiers.update(dic)
+    dic ={'SDG1': SGDClassifier(alpha=0.0001, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l2')}
     classifiers.update(dic)
     #dic ={'SDG2': SGDClassifier(alpha=0.0005, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l1')}
     #classifiers.update(dic)
@@ -290,7 +426,9 @@ def ensembleBuilding(lXs,ly):
 	    #save oobpredictions
 	print "Iteration:",j," model:",key,
 	print " <AUC>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
-	print " AUC oob: %0.3f" %(roc_auc_score(ly,oobpreds[:,j]))
+	oobscore=roc_auc_score(ly,oobpreds[:,j])
+	print " AUC oob: %0.3f" %(oobscore)
+	
     scores=[roc_auc_score(ly,oobpreds[:,j]) for j in xrange(len(classifiers))]
     #simple averaging of blending
     oob_avg=np.mean(oobpreds,axis=1)
@@ -340,6 +478,7 @@ def pyGridSearch(lmodel,lXs,ly):
     #parameters = {'max_depth':[5], 'learning_rate':[0.001],'n_estimators':[3000,5000,10000]}#gbm
     #parameters = {'max_depth':[3,4], 'learning_rate':[0.001,0.01],'n_estimators':[1000]}#gbm
     parameters = {'n_estimators':[500,1000], 'max_features':[5,10,15]}#rf
+    parameters = {'n_estimators':[1000], 'max_features':[10],'min_samples_leaf':[5,10,15]}#rf
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXs,ly)
     print type(clf_opt.grid_scores_)
@@ -361,60 +500,98 @@ def buildModel(lmodel,lXs,ly,feature_names=None):
     #analyzeModel(lmodel,feature_names)
     return(lmodel)
 
-    #https://www.kaggle.com/c/amazon-employee-access-challenge/forums/t/4838/python-code-to-achieve-0-90-auc-with-logistic-regression?page=12
-def group_data(Xold,Xold_test, degree=2, hash=hash,append=True):
-    """ 
-    numpy.array -> numpy.array
     
-    Groups all columns of data into all combinations of triples
+def density(m):
+    entries=m.shape[0]*m.shape[1]
+    return m.nnz/float(entries)
+    
+    
+def group_sparse_old(Xold,Xold_test, degree=2,append=True):
+    """ 
+    multiply columns of sparse data
     """
-    print "Grouping data..."
-    Xtmp=sparse.vstack((Xold_test,Xold),format="csr")
-    print Xtmp.shape
-    print "Non-zeros:",Xtmp.nnz
+    print "Grouping sparse data..."
+    #only for important data
+    (lXs,lXs_test) = linearFeatureSelection(model,Xold,Xold_test,200)
+    #also transform old data
+    #(Xold,Xold_test) = linearFeatureSelection(model,Xold,Xold_test,5000)
+    
+    Xtmp=sparse.vstack((lXs_test,lXs),format="csr")
     #turn into pandas dataframe for grouping
-    Xtmp=pd.DataFrame(np.asarray(Xtmp.todense()))
     new_data=None
     m,n = Xtmp.shape
     for indices in itertools.combinations(range(n), degree):
+        #print "idx:",indices
 	col1,col2 =indices
-	tmp = Xtmp.columns[list(indices)]
-	if not isinstance(new_data,pd.DataFrame):
-	    new_data=pd.DataFrame(Xtmp[tmp].apply(np.max, axis=1))
-	    #print 'col1',Xtmp[col1]
-	    #print 'col2',Xtmp[col2]
-	    #print 'new_data',new_data
-	else:
-	    
-	    new_data = pd.concat([new_data, pd.DataFrame(Xtmp[tmp].apply(np.max, axis=1))],axis=1)
-	print new_data.shape
-    
-    #bring data into sparse format again
-    Xtmp=np.array(new_data)
-    Xtmp=sparse.csr_matrix(Xtmp)
-    
-    #print Xtmp
-    print Xtmp.shape
-    print "Non-zeros:",Xtmp.nnz
-    
-    
+	out1 = Xtmp.tocsc()[:,col1]
+	out1 = out1.transpose(copy=False)
+	out2 = Xtmp.tocsc()[:,col2]
+	tmp = np.ravel(np.asarray(out2.todense()))
+	diag2 = sparse.spdiags(tmp,[0],out2.shape[0],out2.shape[0],format="csc")
+	#out1+diag2-max(out1,diag2)
+	prod = out1*diag2
+	prod = prod.transpose()
+	dens=density(prod)
+	#print " Non-zeros: %4.3f " %(dens)
+	if new_data is None:  
+	    new_data=sparse.csc_matrix(prod)
+	elif dens>0.0:
+	    new_data=sparse.hstack((new_data,prod),format="csr")
+	
+    print "Shape of interactions matrix:",new_data.shape,
+    print " Non-zeros: %4.3f " %(density(new_data))
+
     #makting test data
-    Xreduced_test = Xtmp[:Xold_test.shape[0]]
+    Xreduced_test = new_data[:Xold_test.shape[0]]
     if append: 
 	Xreduced_test=sparse.hstack((Xold_test,Xreduced_test),format="csr")
-    print type(Xreduced_test)
-    print Xreduced_test.shape
+    print "New test data:",Xreduced_test.shape
     
     #making train data
-    Xreduced = Xtmp[Xold_test.shape[0]:]
+    Xreduced = new_data[Xold_test.shape[0]:]
     if append:
 	Xreduced=sparse.hstack((Xold,Xreduced),format="csr")
-    print type(Xreduced)
-    print Xreduced.shape
+    print "New test data:",Xreduced.shape
     
     return(Xreduced,Xreduced_test)
 
-
+def group_sparse(Xold,Xold_test, degree=2,append=True):
+    """ 
+    multiply columns of sparse data
+    """
+    print "Columnwise min of data..."
+    #only for important data
+    (lXs,lXs_test) = linearFeatureSelection(model,Xold,Xold_test,10)
+    #also transform old data
+    #(Xold,Xold_test) = linearFeatureSelection(model,Xold,Xold_test,5000)
+    Xtmp=sparse.vstack((lXs_test,lXs),format="csc")
+    Xtmp=pd.DataFrame(np.asarray(Xtmp.todense()))
+    new_data = None
+    m,n = Xtmp.shape
+    for indices in itertools.combinations(range(n), degree):
+	indices=Xtmp.columns[list(indices)]
+	print indices
+	if not isinstance(new_data,pd.DataFrame):
+	  new_data=pd.DataFrame(Xtmp[indices].apply(np.min, axis=1))
+	else:
+	  new_data = pd.concat([new_data, pd.DataFrame(Xtmp[indices].apply(np.min, axis=1))],axis=1)
+	print new_data.shape
+    
+    
+    #making test data
+    Xreduced_test = new_data[:Xold_test.shape[0]]
+    if append: 
+	Xreduced_test=sparse.hstack((Xold_test,Xreduced_test),format="csr")
+    print "New test data:",Xreduced_test.shape
+    
+    #making train data
+    Xreduced = new_data[Xold_test.shape[0]:]
+    if append:
+	Xreduced=sparse.hstack((Xold,Xreduced),format="csr")
+    print "New test data:",Xreduced.shape
+    
+    return(Xreduced,Xreduced_test)
+    
     
 def rfFeatureImportance(forest,Xold,Xold_test,n):
     """ 
@@ -450,9 +627,7 @@ def linearFeatureSelection(lmodel,Xold,Xold_test,n):
     """
     print "Selecting features based on important coefficients..."
     if hasattr(lmodel, 'coef_') and isinstance(Xold,sparse.csr.csr_matrix): 
-	print("Analysis of data...")
-	print("Dimensionality: %d" % lmodel.coef_.shape[1])
-	print("Density: %f" % density(lmodel.coef_))
+	print("Dimensionality before: %d" % lmodel.coef_.shape[1])
 	indices = np.argsort(lmodel.coef_)[0,-n:][::-1]
 	#print model.coef_[top10b]
 	#for i in xrange(indices.shape[0]):
@@ -465,11 +640,19 @@ def linearFeatureSelection(lmodel,Xold,Xold_test,n):
 	#sorting features
 	#print indices[0:n]
 	Xtmp=Xreduced[:,indices[0:n]] 
+	print("Dimensionality after: %d" % Xtmp.shape[1])
 	#split train and test data
 	Xreduced_test = Xtmp[:Xold_test.shape[0]]
 	Xreduced = Xtmp[Xold_test.shape[0]:]
 	return(Xreduced,Xreduced_test)
+
 	
+def iterativeFeatureSelection(lmodel,Xold,Xold_test):
+	"""
+	Iterative Feature Selection
+	"""
+  
+  
     
 if __name__=="__main__":
     """   
@@ -478,9 +661,11 @@ if __name__=="__main__":
     # Set a seed for consistant results
     t0 = time()
     np.random.seed(1234)
+    print "numpy:",np.__version__
     print "pandas:",pd.__version__
+    print "scipy:",sp.__version__
     #variables
-    (Xs,y,Xs_test,data_indices) = prepareDatasets('tV',useSVD=0,useJson=False)
+    (Xs,y,Xs_test,data_indices) = prepareDatasets('tV',useSVD=50,useJson=False)
     #(Xs,y,Xs_test,data_indices) = prepareSimpleData()
     print "Dim X (training):",Xs.shape
     print "Type X:",type(Xs)
@@ -489,14 +674,14 @@ if __name__=="__main__":
     #model = SGDClassifier(alpha=.0001, n_iter=50,penalty='elasticnet',l1_ratio=0.2,shuffle=True,random_state=42,loss='log')
     #model = SGDClassifier(alpha=0.0005, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l2',n_jobs=4)#opt  
     #model = SGDClassifier(alpha=0.0001, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l2',n_jobs=4)#opt simple processing
-    model = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)#opt
+    #model = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)#opt
     #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, 
     #                         C=1, fit_intercept=True, intercept_scaling=1.0, 
     #                         class_weight=None, random_state=None)#kaggle params
     #model = RandomizedLogisticRegression(C=1, scaling=0.5, sample_fraction=0.75, n_resampling=200, selection_threshold=0.25, tol=0.001, fit_intercept=True, verbose=False, normalize=True, random_state=42)
     #model = KNeighborsClassifier(n_neighbors=10)
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)
-    #model = RandomForestClassifier(n_estimators=1000,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
+    model = RandomForestClassifier(n_estimators=1000,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features=10,oob_score=False,random_state=42)
     #model = ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1,random_state=42)
     #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=2000, subsample=1.0, min_samples_split=2, min_samples_leaf=1, max_depth=3, init=None, random_state=42,verbose=False)
@@ -504,13 +689,17 @@ if __name__=="__main__":
     #modelEvaluation(model,Xs,y)
     #model=pyGridSearch(model,Xs,y)
     #(gclassifiers,gblender)=ensembleBuilding(Xs,y)
-    #ensemblePredictions(gclassifiers,gblender,Xs_test,data_indices,'sub2808a.csv')
+    #ensemblePredictions(gclassifiers,gblender,Xs_test,data_indices,'sub1309a.csv')
     #fit final model
-    #(Xs,Xs_test)=rfFeatureImportance(model,Xs,Xs_test,30)
     model = buildModel(model,Xs,y)
-    (Xs,Xs_test) = linearFeatureSelection(model,Xs,Xs_test,10)
-    (Xs,Xs_test) = group_data(Xs,Xs_test)
+    (Xs,Xs_test)=rfFeatureImportance(model,Xs,Xs_test,70)
     model = buildModel(model,Xs,y)
-    #makePredictions(model,Xs_test,data_indices,'../stumbled_upon/submissions/sub0209a.csv')	            
+    #(Xs,Xs_test) = linearFeatureSelection(model,Xs,Xs_test,5000)
+    #print "Dim X (after feature selection):",Xs.shape
+    #model = buildModel(model,Xs,y)
+    #(Xs,Xs_test) = group_sparse(Xs,Xs_test)
+    #print "Dim X (after grouping):",Xs.shape
+    #model = buildModel(model,Xs,y)
+    makePredictions(model,Xs_test,data_indices,'../stumbled_upon/submissions/sub0209b.csv')	            
     print("Model building done in %fs" % (time() - t0))
     plt.show()

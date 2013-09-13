@@ -8,12 +8,11 @@ class FullModel:
    """
    modelcount = 0
 
-   def __init__(self, name,classifier,Xtrain,Xtest,y):
+   def __init__(self, name,classifier,Xtrain,Xtest):
       self.name = name
       self.classifier = classifier
       self.Xtrain=Xtrain
       self.Xtest=Xtest
-      self.y=y
       FullModel.modelcount += 1
 
    def summary(self):
