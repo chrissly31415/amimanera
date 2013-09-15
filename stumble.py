@@ -33,7 +33,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import LinearSVC
 from sklearn.svm import SVC
 
-from nltk import word_tokenize,wordpunct_tokenize,sent_tokenize
+from nltk import word_tokenize,sent_tokenize
 #from nltk.stem import SnowballStemmer # no english?
 from nltk.stem import WordNetLemmatizer
 from nltk.stem.lancaster import LancasterStemmer
@@ -42,20 +42,17 @@ from nltk.stem.wordnet import WordNetStemmer
 from nltk.stem.porter import PorterStemmer
 from nltk.stem.snowball import GermanStemmer
 #http://nltk.googlecode.com/svn/trunk/doc/howto/collocations.html
-
+import re
 
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 #TODO build class containing classifiers + dataset
 #TODO remove infrequent sparse features to new class
 #TODO look at amazon challenge winners
-#TODO dicretize continous data by cut and qcut
-#TODO search specific general tokesn with regex
-#TODO remove some of normal features
-#TODO tokenize url1 by -_./ 
-#TODO remove kommas etc.
+#TODO dicretize continous data by cut and qcut?
 #TODO use variable names for importance analysis
 #TODO #use tags
 #TODO feature_extraction.text.CountVectorizer(lowercase=False,analyzer='char',ngram_range=(1,5),)
@@ -65,6 +62,8 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 #TODO pipelining??
 #TODO look at wrong classified ones
 #TODO analyze misclassifications
+#TODO crawl raw data for linkedin facebook and twitter links
+#TODO look after like buttons
 
 
 class NLTKTokenizer(object):
@@ -74,7 +73,6 @@ class NLTKTokenizer(object):
     http://nltk.org/api/nltk.tokenize.html
     """
     def __init__(self):
-      #print(" ".join(SnowballStemmer.languages))
       #self.wnl = LancasterStemmer()
       self.wnl = PorterStemmer()#best so far
       #self.wnl = GermanStemmer()
@@ -116,17 +114,17 @@ def featureEngineering(olddf):
     #print tmpdf.describe()
     olddf= pd.concat([olddf, tmpdf],axis=1)
     #counts exclamation marks
-    tmpdf=olddf.body.str.count('!')
-    tmpdf=pd.DataFrame(tmpdf.astype(int))
-    tmpdf.columns=['excl_mark_number']
-    print tmpdf.describe()
-    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #tmpdf=olddf.body.str.count('!')
+    #tmpdf=pd.DataFrame(tmpdf.astype(int))
+    #tmpdf.columns=['excl_mark_number']
+    #print tmpdf.describe()
+    #olddf= pd.concat([olddf, tmpdf],axis=1)
     #counts exclamation marks
-    tmpdf=olddf.body.str.count('\\?')
-    tmpdf=pd.DataFrame(tmpdf.astype(int))
-    tmpdf.columns=['quest_mark_number']
-    print tmpdf.describe()
-    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #tmpdf=olddf.body.str.count('\\?')
+    #tmpdf=pd.DataFrame(tmpdf.astype(int))
+    #tmpdf.columns=['quest_mark_number']
+    #print tmpdf.describe()
+    #olddf= pd.concat([olddf, tmpdf],axis=1)
     #contains .com
     tmpdf=olddf.url.str.contains('\.com')
     tmpdf=pd.DataFrame(tmpdf.astype(int))
@@ -204,7 +202,13 @@ def featureEngineering(olddf):
     tmpdf=pd.DataFrame(tmpdf.astype(int))
     tmpdf.columns=['url_contains_news']
     #print tmpdf.describe()
-    olddf= pd.concat([olddf, tmpdf],axis=1)  
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #contains obscene
+    #tmpdf=olddf.url.str.contains('obscene|sex|nude|fuck|asshole')
+    #tmpdf=pd.DataFrame(tmpdf.astype(int))
+    #tmpdf.columns=['url_contains_obscene']
+    #print tmpdf.describe()
+    #olddf= pd.concat([olddf, tmpdf],axis=1)
     #girls
     #tmpdf=olddf.url.str.contains('girls|nude|sex|nipple')
     #tmpdf=pd.DataFrame(tmpdf.astype(int))
@@ -212,11 +216,11 @@ def featureEngineering(olddf):
     #print tmpdf.describe()
     #olddf= pd.concat([olddf, tmpdf],axis=1)
     #syria
-    tmpdf=olddf.boilerplate.str.contains('syria|damaskus|bashar|assad')
-    tmpdf=pd.DataFrame(tmpdf.astype(int))
-    tmpdf.columns=['body_contains_syria']
+    #tmpdf=olddf.boilerplate.str.contains('syria|damaskus|bashar|assad')
+    #tmpdf=pd.DataFrame(tmpdf.astype(int))
+    #tmpdf.columns=['body_contains_syria']
     #print tmpdf.describe()
-    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #olddf= pd.concat([olddf, tmpdf],axis=1)
     return olddf
 
     
@@ -245,15 +249,15 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True):
     #vectorizer = HashingVectorizer(ngram_range=(1,2), non_negative=True)
     if vecType=='hV':
 	vectorizer = HashingVectorizer(stop_words='english',ngram_range=(1,2),analyzer="word", non_negative=True, norm='l2', n_features=2**19)
-    elif vecType=='tV':
+    elif vecType=='tfidfV':
 	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=3,strip_accents='unicode',tokenizer=NLTKTokenizer())
 	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=True,min_df=5,strip_accents='unicode')
 	#vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4,tokenizer=NLTKTokenizer())
 	#vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4)
 	#vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True)#opt
     else:
-	#vectorizer = CountVectorizer(ngram_range=(1,2),analyzer=u'word',max_features=2**19)
-	vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(1,4),max_features=2**14)
+	vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**19)
+	#vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(3,3),max_features=2**14,stop_words='english')#slow and low score
     
     #transform data using json
     if useJson:
@@ -278,10 +282,8 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True):
 	
 	X_all['body'] = X_all.body+u' '+X_all.url2
 	X_all['body'] = X_all.body+u' '+X_all.title
-	print X_all['body'].head(10)
-	
-	X_all = featureEngineering(X_all)
-	print "Actual shape:",X_all.shape
+	#print X_all['body'].head(30).to_string()
+	#print X_all['body'].tail(30).to_string()
 		
 	body_counts = vectorizer.fit_transform(X_all['body'])
 	print "Dim after vectorizer:",body_counts.shape
@@ -307,6 +309,10 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True):
 
     y = pd.np.array(y)
     if useSVD>1:
+	X_raw=crawlRawData(X_all)
+	X_all=pd.concat([X_all,X_raw], axis=1)
+	X_all = featureEngineering(X_all)
+	print "Actual shape:",X_all.shape
 	#SVD of text data (LSA)
 	print "SVD of sparse data with n=",useSVD
 	tsvd=TruncatedSVD(n_components=useSVD, algorithm='randomized', n_iterations=5, random_state=42, tol=0.0)
@@ -381,10 +387,6 @@ def analyzeModel(lmodel,feature_names):
 	  #print model.coef_[top10b]
 	  for i in xrange(top10.shape[0]):
 	      print("Top %2d: coef: %0.3f %20s" % (i+1,lmodel.coef_[0,top10[i]],feature_names[top10[i]]))
-
-
-	      
-	      
 	      
 def modelEvaluation(lmodel,lXs,ly):
     """
@@ -393,18 +395,19 @@ def modelEvaluation(lmodel,lXs,ly):
     print "Model evaluation..."
     folds=8
     #parameters=np.logspace(-14, -7, num=8, base=2.0)#SDG
-    parameters=np.logspace(-7, 0, num=8, base=2.0)#LG
+    #parameters=np.logspace(-7, 0, num=8, base=2.0)#LG
     #parameters=[250,500,1000,2000]#rf
+    parameters=[5000,10000,16000,50000,100000,150000,'all']#chi2
     #parameters=[2,3,4,5]#gbm
     #parameters=np.logspace(-7, -0, num=8, base=2.0)
     print "Parameter space:",parameters
     #feature selection within xvalidation
     oobpreds=np.zeros((lXs.shape[0],len(parameters)))
     for j,p in enumerate(parameters):
-	if isinstance(lmodel,SGDClassifier):
-	    lmodel.set_params(alpha=p)
-	if isinstance(lmodel,LogisticRegression) or isinstance(lmodel,SVC):
-	    lmodel.set_params(C=p)
+	#if isinstance(lmodel,SGDClassifier):
+	#    lmodel.set_params(alpha=p)
+	#if (isinstance(lmodel,LogisticRegression) or isinstance(lmodel,SVC)) and p<1000:
+	#    lmodel.set_params(C=p)
 	if isinstance(lmodel,RandomForestClassifier) :
 	    lmodel.set_params(max_features=p)
 	if isinstance(lmodel,GradientBoostingClassifier):
@@ -413,12 +416,12 @@ def modelEvaluation(lmodel,lXs,ly):
         cv = StratifiedKFold(ly, n_folds=folds, indices=True)
 	scores=np.zeros(folds)	
 	for i, (train, test) in enumerate(cv):
-	    #print("Extracting %d best features by a chi-squared test" % n_features)
-	    #ch2 = SelectKBest(chi2, k=7500)
-	    #Xtrain = ch2.fit_transform(lXs[train], ly[train])
-	    #Xtest = ch2.transform(lXs[test])  
-	    Xtrain = lXs[train]
-	    Xtest = lXs[test]
+	    print("Extracting %s best features by a chi-squared test" % p)
+	    ch2 = SelectKBest(chi2, k=p)
+	    Xtrain = ch2.fit_transform(lXs[train], ly[train])
+	    Xtest = ch2.transform(lXs[test]) 
+	    #Xtrain = lXs[train]
+	    #Xtest = lXs[test]
 	    lmodel.fit(Xtrain, ly[train])
 	    oobpreds[test,j] = lmodel.predict_proba(Xtest)[:,1]
 	    scores[i]=roc_auc_score(ly[test],oobpreds[test,j])
@@ -531,6 +534,7 @@ def pyGridSearch(lmodel,lXs,ly):
     parameters = {'max_depth':[2], 'learning_rate':[0.01,0.001],'n_estimators':[3000]}#gbm
     #parameters = {'n_estimators':[500,1000], 'max_features':[5,10,15]}#rf
     #parameters = {'n_estimators':[1000], 'max_features':[10],'min_samples_leaf':[5,10,15]}#rf
+    parameters = {'C':[0.1,1,10]}#SVC
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXs,ly)
     print type(clf_opt.grid_scores_)
@@ -713,8 +717,82 @@ def iterativeFeatureSelection(lmodel,Xold,Xold_test):
 	"""
 	Iterative Feature Selection
 	"""
-  
-  
+	
+def crawlRawData(lXall):
+      """
+      crawling raw data
+      """
+      print "Crawling raw data..."
+      basedir='../stumbled_upon/raw_content/'
+      pfacebook = re.compile("www.+facebook.+com")
+      pfacebook2 = re.compile("facebook")
+      plinkedin = re.compile("linkedin.com")
+      ptwitter = re.compile("https:.+twitter.+com.+share")
+      prss=re.compile("rss")
+      pgooglep=re.compile("apis.+google.+com")
+      pstumble=re.compile("stumbleupon.+com")
+      #https://twitter.com/share
+      #https://apis.google.com/js/plusone.js
+      #https://platform.stumbleupon.com/1/widgets.js
+      tutto=[]
+      for ind in lXall.index:
+	  row=[]
+	  with open(basedir+str(ind), 'r') as content_file:
+	    content = content_file.read()
+	    #print "id:",ind,
+	    row.append(ind)
+	    m = pfacebook.search(content)	    
+	    if m:
+		#print "1",
+		row.append(1)
+	    else:
+		#print "0",
+		row.append(0)
+	    res = pfacebook2.findall(content)	    
+	    row.append(len(res))
+	    
+	    m = plinkedin.search(content)	    
+	    if m:
+		#print "1",
+		row.append(1)
+	    else:
+		#print "0",
+		row.append(0)
+	    m = ptwitter.search(content)	    
+	    if m:
+		#print "1",
+		row.append(1)
+	    else:
+		#print "0",
+		row.append(0)
+	    m = prss.search(content)	    
+	    if m:
+		#print "1",
+		row.append(1)
+	    else:
+		#print "0",
+		row.append(0)
+	    m = pgooglep.search(content)	    
+	    if m:
+		#print "1",
+		row.append(1)
+	    else:
+		#print "0",
+		row.append(0)
+	    m = pstumble.search(content)	    
+	    if m:
+		#print "1",
+		row.append(1)
+	    else:
+		#print "0",
+		row.append(0)
+	  #print ""
+	  tutto.append(row)
+      newdf=pd.DataFrame(tutto).set_index(0)
+      newdf.columns=['facebook_lnk','facebook_count','linkedin_lnk','twitter_lnk','rss_lnk','gplus_lnk','stumble_lnk']
+      print newdf.head(20)
+      print newdf.describe()
+      return newdf
     
 if __name__=="__main__":
     """   
@@ -725,9 +803,11 @@ if __name__=="__main__":
     np.random.seed(1234)
     print "numpy:",np.__version__
     print "pandas:",pd.__version__
+    #print pd.util.terminal.get_terminal_size()
+    pd.set_printoptions(max_rows=200, max_columns=7)
     print "scipy:",sp.__version__
     #variables
-    (Xs,y,Xs_test,data_indices) = prepareDatasets('tV',useSVD=50,useJson=True)#opt SVD=100
+    (Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True)#opt SVD=50
     #(Xs,y,Xs_test,data_indices) = prepareSimpleData()
     print "Dim X (training):",Xs.shape
     print "Type X:",type(Xs)
@@ -743,8 +823,10 @@ if __name__=="__main__":
     #                         class_weight=None, random_state=None)#kaggle params
     #model = RandomizedLogisticRegression(C=1, scaling=0.5, sample_fraction=0.75, n_resampling=200, selection_threshold=0.25, tol=0.001, fit_intercept=True, verbose=False, normalize=True, random_state=42)
     #model = KNeighborsClassifier(n_neighbors=10)
+    #model=SVC(C=0.3,kernel='linear',probability=True)
+    #model=LinearSVC(penalty='l2', loss='l2', dual=True, tol=0.0001, C=1.0)#no proba
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)
-    model = RandomForestClassifier(n_estimators=1000,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=10,oob_score=False,random_state=42)
+    model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=10,oob_score=False,random_state=42)
     #model = ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1,random_state=42)
     #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=5000, subsample=1.0, min_samples_split=2, min_samples_leaf=10, max_depth=3, init=None, random_state=42,verbose=False)
