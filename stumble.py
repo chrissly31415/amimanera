@@ -21,13 +21,13 @@ from sklearn import metrics
 from sklearn import cross_validation,grid_search
 from sklearn.cross_validation import StratifiedKFold
 from sklearn.metrics import roc_auc_score
-from sklearn.utils.extmath import density
+#from sklearn.utils.extmath import density
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.decomposition import TruncatedSVD
 
 from sklearn.feature_selection import SelectKBest, chi2, f_classif
 from sklearn.naive_bayes import BernoulliNB
-from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron
+from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor
 from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import LinearSVC
@@ -42,7 +42,10 @@ from nltk.stem.wordnet import WordNetStemmer
 from nltk.stem.porter import PorterStemmer
 from nltk.stem.snowball import GermanStemmer
 #http://nltk.googlecode.com/svn/trunk/doc/howto/collocations.html
-import re
+
+
+from crawldata import *
+from featureDesign import *
 
 
 import warnings
@@ -64,7 +67,13 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 #TODO analyze misclassifications
 #TODO crawl raw data for linkedin facebook and twitter links
 #TODO look after like buttons
-
+#TODO remove duplicate features boilerplate length & food stuff
+#TODO analyse html raw data
+#TODO boruta with rf features
+#TODO implement char ngram with SVD
+#TODO ngram of text within <>
+#TODO SDGregressor
+#TODO http://nltk.org/book/ch05.html
 
 class NLTKTokenizer(object):
     """
@@ -88,141 +97,6 @@ class NLTKTokenizer(object):
       words=[self.wnl.stem(t) for t in words]
       #print words
       return words
-
-
-def featureEngineering(olddf):
-    """
-    Creates new features
-    """
-    print "Feature engineering..."
-    #lower
-    olddf['url']=olddf.url.str.lower()
-    olddf['embed_ratio']=olddf.embed_ratio.replace(-1.0,0.0)
-    olddf['image_ratio']=olddf.image_ratio.replace(-1.0,0.0)
-    olddf['is_news']=olddf['is_news'].fillna(0)
-    olddf['news_front_page']=olddf['news_front_page'].fillna(0)
-    #url length
-    tmpdf=olddf.url.str.len()
-    tmpdf=pd.DataFrame(tmpdf.astype(int))
-    tmpdf.columns=['url_length']
-    #print tmpdf.describe()
-    olddf= pd.concat([olddf, tmpdf],axis=1)
-    #boiler plate length
-    tmpdf=olddf.body.str.len()
-    tmpdf=pd.DataFrame(tmpdf.astype(int))
-    tmpdf.columns=['boilerplate_length']
-    #print tmpdf.describe()
-    olddf= pd.concat([olddf, tmpdf],axis=1)
-    #counts exclamation marks
-    #tmpdf=olddf.body.str.count('!')
-    #tmpdf=pd.DataFrame(tmpdf.astype(int))
-    #tmpdf.columns=['excl_mark_number']
-    #print tmpdf.describe()
-    #olddf= pd.concat([olddf, tmpdf],axis=1)
-    #counts exclamation marks
-    #tmpdf=olddf.body.str.count('\\?')
-    #tmpdf=pd.DataFrame(tmpdf.astype(int))
-    #tmpdf.columns=['quest_mark_number']
-    #print tmpdf.describe()
-    #olddf= pd.concat([olddf, tmpdf],axis=1)
-    #contains .com
-    tmpdf=olddf.url.str.contains('\.com')
-    tmpdf=pd.DataFrame(tmpdf.astype(int))
-    tmpdf.columns=['url_contains_com']
-    #print tmpdf.describe()
-    olddf= pd.concat([olddf, tmpdf],axis=1)
-    #contains .org
-    #tmpdf=olddf.url.str.contains('\.org')
-    #tmpdf=pd.DataFrame(tmpdf.astype(int))
-    #tmpdf.columns=['url_contains_org']
-    #print tmpdf.describe()
-    #olddf= pd.concat([olddf, tmpdf],axis=1)
-    #contains .co.uk
-    tmpdf=olddf.url.str.contains('\.co\.uk')
-    tmpdf=pd.DataFrame(tmpdf.astype(int))
-    tmpdf.columns=['url_contains_co_uk']
-    #print tmpdf.describe()
-    olddf= pd.concat([olddf, tmpdf],axis=1)
-     #endswith .com
-    #tmpdf=olddf.url.str.contains('com.$')
-    #tmpdf=pd.DataFrame(tmpdf.astype(int))
-    #tmpdf.columns=['url_endswith_com']
-    #print tmpdf.describe()
-    #olddf= pd.concat([olddf, tmpdf],axis=1)
-    #contains blog
-    #tmpdf=olddf.url.str.contains('blog')
-    #tmpdf=pd.DataFrame(tmpdf.astype(int))
-    #tmpdf.columns=['url_contains_blog']
-    #print tmpdf.describe()
-    #olddf= pd.concat([olddf, tmpdf],axis=1)
-     #contains recipe & co.
-    tmpdf=olddf.url.str.contains('recipe|food|meal|kitchen|cook|apetite|meal')
-    tmpdf=pd.DataFrame(tmpdf.astype(int))
-    tmpdf.columns=['url_contains_foodstuff']
-    #print tmpdf.describe()
-    olddf= pd.concat([olddf, tmpdf],axis=1)
-     #contains recipe & co.
-    tmpdf=olddf.url.str.contains('recipe')
-    tmpdf=pd.DataFrame(tmpdf.astype(int))
-    tmpdf.columns=['url_contains_recipe']
-    #print tmpdf.describe()
-    olddf= pd.concat([olddf, tmpdf],axis=1)
-    #contains sweet stuff
-    tmpdf=olddf.url.str.contains('cake|baking|apple|sweet|cookie|brownie|chocolat')
-    tmpdf=pd.DataFrame(tmpdf.astype(int))
-    tmpdf.columns=['url_contains_sweetstuff']
-    #print tmpdf.describe()
-    olddf= pd.concat([olddf, tmpdf],axis=1)
-    #contains diet
-    #tmpdf=olddf.url.str.contains('diet|calorie|nutrition|weight')
-    #tmpdf=pd.DataFrame(tmpdf.astype(int))
-    #tmpdf.columns=['url_contains_diet']
-    #print tmpdf.describe()
-    #olddf= pd.concat([olddf, tmpdf],axis=1)
-     #contains recipe & co.
-    #tmpdf=olddf.url.str.contains('recipe')
-    #tmpdf=pd.DataFrame(tmpdf.astype(int))
-    #tmpdf.columns=['url_contains_recipe']
-    #print tmpdf.describe()
-    #olddf= pd.concat([olddf, tmpdf],axis=1)
-     #contains health
-    tmpdf=olddf.url.str.contains('health|fitness|exercise')
-    tmpdf=pd.DataFrame(tmpdf.astype(int))
-    tmpdf.columns=['url_contains_health']
-    #print tmpdf.describe()
-    olddf= pd.concat([olddf, tmpdf],axis=1)
-    #contains www
-    tmpdf=olddf.url.str.contains('www')
-    tmpdf=pd.DataFrame(tmpdf.astype(int))
-    tmpdf.columns=['url_contains_www']
-    #print tmpdf.describe()
-    olddf= pd.concat([olddf, tmpdf],axis=1)
-    #contains news
-    tmpdf=olddf.url.str.contains('news|cnn')
-    tmpdf=pd.DataFrame(tmpdf.astype(int))
-    tmpdf.columns=['url_contains_news']
-    #print tmpdf.describe()
-    olddf= pd.concat([olddf, tmpdf],axis=1)
-    #contains obscene
-    #tmpdf=olddf.url.str.contains('obscene|sex|nude|fuck|asshole')
-    #tmpdf=pd.DataFrame(tmpdf.astype(int))
-    #tmpdf.columns=['url_contains_obscene']
-    #print tmpdf.describe()
-    #olddf= pd.concat([olddf, tmpdf],axis=1)
-    #girls
-    #tmpdf=olddf.url.str.contains('girls|nude|sex|nipple')
-    #tmpdf=pd.DataFrame(tmpdf.astype(int))
-    #tmpdf.columns=['url_contains_girls']
-    #print tmpdf.describe()
-    #olddf= pd.concat([olddf, tmpdf],axis=1)
-    #syria
-    #tmpdf=olddf.boilerplate.str.contains('syria|damaskus|bashar|assad')
-    #tmpdf=pd.DataFrame(tmpdf.astype(int))
-    #tmpdf.columns=['body_contains_syria']
-    #print tmpdf.describe()
-    #olddf= pd.concat([olddf, tmpdf],axis=1)
-    return olddf
-
     
 def dfinfo(X_all):
     print "##Basic data##\n",X_all
@@ -230,7 +104,7 @@ def dfinfo(X_all):
     print "##Details##\n",X_all.ix[:,2:3].describe()
     print "##Details##\n",X_all.ix[:,3:7].describe()
 
-def prepareDatasets(vecType='hV',useSVD=0,useJson=True):
+def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True):
     """
     Load Data into pandas and preprocess features
     """
@@ -250,18 +124,27 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True):
     if vecType=='hV':
 	vectorizer = HashingVectorizer(stop_words='english',ngram_range=(1,2),analyzer="word", non_negative=True, norm='l2', n_features=2**19)
     elif vecType=='tfidfV':
-	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=3,strip_accents='unicode',tokenizer=NLTKTokenizer())
+	print "Using tfidfV..."
+	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=3,strip_accents='unicode',tokenizer=NLTKTokenizer())
 	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=True,min_df=5,strip_accents='unicode')
 	#vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4,tokenizer=NLTKTokenizer())
-	#vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4)
+	vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4)#fast
 	#vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True)#opt
     else:
-	vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**19)
-	#vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(3,3),max_features=2**14,stop_words='english')#slow and low score
+	#vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**18)
+	#vectorizer = CountVectorizer(lowercase=False,analyzer="char_wb",ngram_range=(4,4),max_features=2**14,stop_words='english')#AUC = 0.781
+	#vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(4,4),max_features=2**14,stop_words='english')#AUC= 0.786
+	#vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(4,4),max_features=2**18,stop_words='english')#AUC= 0.798
+	#vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(5,5),max_features=2**14,stop_words='english')#slow and low score 0.786
+	#vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(5,5),max_features=2**18,stop_words='english')#AUC=  0.815 1400s
+	#vectorizer = CountVectorizer(lowercase=True,analyzer="char",ngram_range=(5,5),max_features=2**18,stop_words='english')#AUC= 0.813  1400s
+	#vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(4,5),max_features=2**18,stop_words='english')#AUC=   aufgehängt memory?
+	vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(5,5),max_features=2**16,stop_words='english')#AUC= 0.806 682s
+    
     
     #transform data using json
     if useJson:
-	print "Creating dataset using json..."
+	print "Xtracting data using json..."
 	#take only boilerplate data
 	X_all['boilerplate'] = X_all['boilerplate'].apply(json.loads)
 	
@@ -283,10 +166,12 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True):
 	X_all['body'] = X_all.body+u' '+X_all.url2
 	X_all['body'] = X_all.body+u' '+X_all.title
 	#print X_all['body'].head(30).to_string()
-	#print X_all['body'].tail(30).to_string()
-		
+	#print X_all['body'].tail(30).to_string()		
 	body_counts = vectorizer.fit_transform(X_all['body'])
-	print "Dim after vectorizer:",body_counts.shape
+	
+	#body_counts = body_counts.tocsr()
+	print "body,title+url, dim:",body_counts.shape
+	print "density:",density(body_counts)		
 
     #simple transform
     else:
@@ -309,27 +194,53 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True):
 
     y = pd.np.array(y)
     if useSVD>1:
-	X_raw=crawlRawData(X_all)
-	X_all=pd.concat([X_all,X_raw], axis=1)
-	X_all = featureEngineering(X_all)
+	if useAddFeatures==True:
+	    X_raw=crawlRawData(X_all)
+	    X_all=pd.concat([X_all,X_raw], axis=1)
+	    X_all = featureEngineering(X_all)
+	
 	print "Actual shape:",X_all.shape
 	#SVD of text data (LSA)
 	print "SVD of sparse data with n=",useSVD
 	tsvd=TruncatedSVD(n_components=useSVD, algorithm='randomized', n_iterations=5, random_state=42, tol=0.0)
 	X_svd=tsvd.fit_transform(body_counts)
 	X_svd=pd.DataFrame(np.asarray(X_svd),index=X_all.index)
+	#char_ngrams
+	if useHTMLtag:
+	    #char ngrams
+	    X_raw=crawlHTML(X_all)
+	    #char_vectorizer=CountVectorizer(lowercase=False,analyzer="char",ngram_range=(5,5),max_features=2**18,stop_words=None)
+	    char_vectorizer=CountVectorizer(lowercase=True,analyzer="char",ngram_range=(5,5),max_features=2**18,stop_words=None)
+	    char_ngrams = char_vectorizer.fit_transform(X_raw['htmltag'])
+	    #char_ngrams = char_vectorizer.fit_transform(X_all['body'])
+	    print "char ngrams, dim:",char_ngrams.shape
+	    print "density:",density(char_ngrams)
+	    useSVD2=10
+	    print "SVD of char ngrams data with n=",useSVD2
+	    tsvd=TruncatedSVD(n_components=useSVD2, algorithm='randomized', n_iterations=5, random_state=42, tol=0.0)
+	    X_char=tsvd.fit_transform(char_ngrams)
+	    X_char=pd.DataFrame(np.asarray(X_char),index=X_all.index,columns=["char"+str(x) for x in xrange(useSVD2)])
+	    print "X_char",X_char
+	    X_svd=pd.concat([X_svd,X_char], axis=1)
+	
+	if usePosTag:
+	    posTagging(X_all)
+	
 	#print "##X_svd##\n",X_svd
+	X_all= X_all.drop(['body','url2','title','boilerplate','url'], axis=1)
+	X_all= X_all.drop(['hasDomainLink','framebased','news_front_page','embed_ratio'], axis=1)
 	if useJson: 
-	    X_rest= X_all.drop(['body','url','alchemy_category','boilerplate','title','url2'], axis=1)
+	    X_rest= X_all.drop(['alchemy_category'], axis=1)
 	else:
 	    X_rest= X_all.drop(['url','alchemy_category','boilerplate'], axis=1)
 	X_rest = X_rest.astype(float)
-	X_rest=X_rest.fillna(X_rest.mean())	
+	X_rest=X_rest.fillna(X_rest.median())	
+	X_rest.corr().to_csv("corr.csv")
 	X_svd=pd.concat([X_rest,X_svd], axis=1)
 	#print "##X_svd,int##\n",X_svd
 	#add alchemy category again, but now one hot encode, bringt nichts...
 	X_alcat=pd.DataFrame(X_all['alchemy_category'])
-	X_alcat=X_alcat.fillna('NA')
+	X_alcat=X_alcat.fillna('unknown')
 	X_alcat = one_hot_encoder(X_alcat, ['alchemy_category'], replace=True)
 	X_alcat = pd.DataFrame(X_alcat)
 	#X_svd=pd.concat([X_svd,X_alcat], axis=1)
@@ -381,7 +292,7 @@ def analyzeModel(lmodel,feature_names):
     if hasattr(lmodel, 'coef_'): 
 	print("Analysis of data...")
 	print("Dimensionality: %d" % lmodel.coef_.shape[1])
-	print("Density: %f" % density(lmodel.coef_))
+	print("Density: %4.3f" % density(lmodel.coef_))
 	if feature_names is not None:
 	  top10 = np.argsort(lmodel.coef_)[0,-10:][::-1]
 	  #print model.coef_[top10b]
@@ -531,10 +442,10 @@ def pyGridSearch(lmodel,lXs,ly):
     print "Grid search..."
     #parameters = {'C':[1000,10000,100], 'gamma':[0.001,0.0001]}
     #parameters = {'max_depth':[5], 'learning_rate':[0.001],'n_estimators':[3000,5000,10000]}#gbm
-    parameters = {'max_depth':[2], 'learning_rate':[0.01,0.001],'n_estimators':[3000]}#gbm
-    #parameters = {'n_estimators':[500,1000], 'max_features':[5,10,15]}#rf
-    #parameters = {'n_estimators':[1000], 'max_features':[10],'min_samples_leaf':[5,10,15]}#rf
-    parameters = {'C':[0.1,1,10]}#SVC
+    #parameters = {'max_depth':[2], 'learning_rate':[0.01,0.001],'n_estimators':[3000]}#gbm
+    #parameters = {'n_estimators':[500], 'max_features':[5,10,15]}#rf
+    parameters = {'n_estimators':[500], 'max_features':[10,15,20],'min_samples_leaf':[8,10,12]}#rf
+    #parameters = {'C':[0.1,1,10]}#SVC
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXs,ly)
     print type(clf_opt.grid_scores_)
@@ -713,86 +624,15 @@ def linearFeatureSelection(lmodel,Xold,Xold_test,n):
 	return(Xreduced,Xreduced_test)
 
 	
-def iterativeFeatureSelection(lmodel,Xold,Xold_test):
+def iterativeFeatureSelection(lmodel,Xold,Xold_test,ly,iterations,nrfeats):
 	"""
 	Iterative Feature Selection
 	"""
-	
-def crawlRawData(lXall):
-      """
-      crawling raw data
-      """
-      print "Crawling raw data..."
-      basedir='../stumbled_upon/raw_content/'
-      pfacebook = re.compile("www.+facebook.+com")
-      pfacebook2 = re.compile("facebook")
-      plinkedin = re.compile("linkedin.com")
-      ptwitter = re.compile("https:.+twitter.+com.+share")
-      prss=re.compile("rss")
-      pgooglep=re.compile("apis.+google.+com")
-      pstumble=re.compile("stumbleupon.+com")
-      #https://twitter.com/share
-      #https://apis.google.com/js/plusone.js
-      #https://platform.stumbleupon.com/1/widgets.js
-      tutto=[]
-      for ind in lXall.index:
-	  row=[]
-	  with open(basedir+str(ind), 'r') as content_file:
-	    content = content_file.read()
-	    #print "id:",ind,
-	    row.append(ind)
-	    m = pfacebook.search(content)	    
-	    if m:
-		#print "1",
-		row.append(1)
-	    else:
-		#print "0",
-		row.append(0)
-	    res = pfacebook2.findall(content)	    
-	    row.append(len(res))
-	    
-	    m = plinkedin.search(content)	    
-	    if m:
-		#print "1",
-		row.append(1)
-	    else:
-		#print "0",
-		row.append(0)
-	    m = ptwitter.search(content)	    
-	    if m:
-		#print "1",
-		row.append(1)
-	    else:
-		#print "0",
-		row.append(0)
-	    m = prss.search(content)	    
-	    if m:
-		#print "1",
-		row.append(1)
-	    else:
-		#print "0",
-		row.append(0)
-	    m = pgooglep.search(content)	    
-	    if m:
-		#print "1",
-		row.append(1)
-	    else:
-		#print "0",
-		row.append(0)
-	    m = pstumble.search(content)	    
-	    if m:
-		#print "1",
-		row.append(1)
-	    else:
-		#print "0",
-		row.append(0)
-	  #print ""
-	  tutto.append(row)
-      newdf=pd.DataFrame(tutto).set_index(0)
-      newdf.columns=['facebook_lnk','facebook_count','linkedin_lnk','twitter_lnk','rss_lnk','gplus_lnk','stumble_lnk']
-      print newdf.head(20)
-      print newdf.describe()
-      return newdf
+	for i in xrange(iterations):
+	    print ">>>Iteration: ",i,"<<<"
+	    lmodel = buildModel(model,Xold,ly)
+	    (Xold,Xold_test)=rfFeatureImportance(model,Xold,Xold_test,nrfeats)
+	return(Xold,Xold_test)
     
 if __name__=="__main__":
     """   
@@ -804,10 +644,13 @@ if __name__=="__main__":
     print "numpy:",np.__version__
     print "pandas:",pd.__version__
     #print pd.util.terminal.get_terminal_size()
-    pd.set_printoptions(max_rows=200, max_columns=7)
+    pd.set_printoptions(max_rows=300, max_columns=8)
     print "scipy:",sp.__version__
     #variables
-    (Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True)#opt SVD=50
+    (Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=True)#opt SVD=50
+    Xs.to_csv("../stumbled_upon/data/Xsvd.csv")
+    Xs_test.to_csv("../stumbled_upon/data/Xsvd_test.csv")
+    
     #(Xs,y,Xs_test,data_indices) = prepareSimpleData()
     print "Dim X (training):",Xs.shape
     print "Type X:",type(Xs)
@@ -826,8 +669,8 @@ if __name__=="__main__":
     #model=SVC(C=0.3,kernel='linear',probability=True)
     #model=LinearSVC(penalty='l2', loss='l2', dual=True, tol=0.0001, C=1.0)#no proba
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)
-    model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=10,oob_score=False,random_state=42)
-    #model = ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
+    model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=15,oob_score=False,random_state=42)
+    #model = ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=15,oob_score=False,random_state=42)
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1,random_state=42)
     #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=5000, subsample=1.0, min_samples_split=2, min_samples_leaf=10, max_depth=3, init=None, random_state=42,verbose=False)
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)  
@@ -836,16 +679,8 @@ if __name__=="__main__":
     #(gclassifiers,gblender)=ensembleBuilding(Xs,y)
     #ensemblePredictions(gclassifiers,gblender,Xs_test,data_indices,'sub1309a.csv')
     #fit final model
-    model = buildModel(model,Xs,y)
-    (Xs,Xs_test)=rfFeatureImportance(model,Xs,Xs_test,10)
-    model = buildModel(model,Xs,y)
-    #(Xs,Xs_test)=rfFeatureImportance(model,Xs,Xs_test,125)
-    #model = buildModel(model,Xs,y)
-    #(Xs,Xs_test)=rfFeatureImportance(model,Xs,Xs_test,120)
-    #model = buildModel(model,Xs,y)
-    #(Xs,Xs_test) = linearFeatureSelection(model,Xs,Xs_test,5000)
-    #print "Dim X (after feature selection):",Xs.shape
-    #model = buildModel(model,Xs,y)
+    (Xs,Xs_test)=iterativeFeatureSelection(model,Xs,Xs_test,y,1,10)
+    model = buildModel(model,Xs,y)  
     #(Xs,Xs_test) = group_sparse(Xs,Xs_test)
     #print "Dim X (after grouping):",Xs.shape
     makePredictions(model,Xs_test,data_indices,'../stumbled_upon/submissions/sub1509b.csv')	            

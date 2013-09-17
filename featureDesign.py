@@ -4,6 +4,58 @@
 """
 
 import pandas as pd
+from nltk.tag import pos_tag
+from nltk.tag.simplify import simplify_wsj_tag
+from nltk.tokenize import word_tokenize
+from nltk import FreqDist
+import random
+
+def posTagging(olddf):
+    """
+    Creates new features
+    """
+    print "Use nltk postagging..."
+    tutto=[]
+    taglist=['N','NP','ADJ','ADV','PRO','V','NUM','VD','DET','P','WH','MOD','TO','VG','CNJ']
+    #taglist=['N','NP','ADJ','ADV']
+    
+    #olddf = olddf.ix[random.sample(olddf.index, 10)]
+    olddf=pd.DataFrame(olddf['body'])
+    
+    print type(olddf)
+    for ind in olddf.index:
+	  print ind
+	  row=[]
+	  row.append(ind)
+	  text=olddf.ix[ind,'body']
+	  tagged=pos_tag(word_tokenize(text))
+	  tagged = [(word, simplify_wsj_tag(tag)) for word, tag in tagged]
+	  tag_fd = FreqDist(tag for (word, tag) in tagged)
+	  #print tagged
+	  #print len(tagged)
+	  
+	  for l in taglist:
+	      f= tag_fd[l]/float(len(tagged))
+	      #print f
+	      row.append(f)
+	
+	 #tag_fd.plot(cumulative=False)
+	 # raw_input("HITKEY")
+    
+    
+    #for index,row in pd.DataFrame(olddf['body']).iterrows():
+	#tagged=pos_tag(word_tokenize(str(row)))
+	#tag_fd = FreqDist(tag for (word, tag) in tagged)
+	#print tag_fd.keys()
+	
+	#tag_fd.plot(cumulative=True)
+	  tutto.append(row)
+    newdf=pd.DataFrame(tutto).set_index(0)
+    newdf.columns=taglist
+    print newdf.head(20)
+    print newdf.describe()
+    newdf.to_csv("../stumbled_upon/data/postagged.csv")
+
 
 def featureEngineering(olddf):
     """
@@ -22,12 +74,18 @@ def featureEngineering(olddf):
     tmpdf.columns=['url_length']
     #print tmpdf.describe()
     olddf= pd.concat([olddf, tmpdf],axis=1)
-    #boiler plate length
+    #body plate length
     tmpdf=olddf.body.str.len()
     tmpdf=pd.DataFrame(tmpdf.astype(int))
-    tmpdf.columns=['boilerplate_length']
+    tmpdf.columns=['body_length']
     #print tmpdf.describe()
     olddf= pd.concat([olddf, tmpdf],axis=1)
+    #boiler plate length
+    #tmpdf=olddf.boilerplate.str.len()
+    #tmpdf=pd.DataFrame(tmpdf.astype(int))
+    #tmpdf.columns=['boilerplate_length']
+    #print tmpdf.describe()
+    #olddf= pd.concat([olddf, tmpdf],axis=1)
     #counts exclamation marks
     #tmpdf=olddf.body.str.count('!')
     #tmpdf=pd.DataFrame(tmpdf.astype(int))
@@ -107,11 +165,11 @@ def featureEngineering(olddf):
     #print tmpdf.describe()
     olddf= pd.concat([olddf, tmpdf],axis=1)
     #contains www
-    tmpdf=olddf.url.str.contains('www')
-    tmpdf=pd.DataFrame(tmpdf.astype(int))
-    tmpdf.columns=['url_contains_www']
+    #tmpdf=olddf.url.str.contains('www')
+    #tmpdf=pd.DataFrame(tmpdf.astype(int))
+    #tmpdf.columns=['url_contains_www']
     #print tmpdf.describe()
-    olddf= pd.concat([olddf, tmpdf],axis=1)
+    #olddf= pd.concat([olddf, tmpdf],axis=1)
     #contains news
     tmpdf=olddf.url.str.contains('news|cnn')
     tmpdf=pd.DataFrame(tmpdf.astype(int))
