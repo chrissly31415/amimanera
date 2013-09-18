@@ -19,7 +19,7 @@ import pylab as pl
 from sklearn.feature_extraction.text import CountVectorizer,HashingVectorizer,TfidfVectorizer
 from sklearn import metrics
 from sklearn import cross_validation,grid_search
-from sklearn.cross_validation import StratifiedKFold
+from sklearn.cross_validation import StratifiedKFold,KFold
 from sklearn.metrics import roc_auc_score
 #from sklearn.utils.extmath import density
 from sklearn.feature_extraction import DictVectorizer
@@ -74,6 +74,8 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 #TODO ngram of text within <>
 #TODO SDGregressor
 #TODO http://nltk.org/book/ch05.html
+#TODO http://scikit-learn.org/stable/auto_examples/plot_rfe_with_cross_validation.html#example-plot-rfe-with-cross-validation-py
+#TODO weka
 
 class NLTKTokenizer(object):
     """
@@ -104,7 +106,7 @@ def dfinfo(X_all):
     print "##Details##\n",X_all.ix[:,2:3].describe()
     print "##Details##\n",X_all.ix[:,3:7].describe()
 
-def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True):
+def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False):
     """
     Load Data into pandas and preprocess features
     """
@@ -210,7 +212,7 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	    #char ngrams
 	    X_raw=crawlHTML(X_all)
 	    #char_vectorizer=CountVectorizer(lowercase=False,analyzer="char",ngram_range=(5,5),max_features=2**18,stop_words=None)
-	    char_vectorizer=CountVectorizer(lowercase=True,analyzer="char",ngram_range=(5,5),max_features=2**18,stop_words=None)
+	    char_vectorizer=CountVectorizer(lowercase=True,analyzer="char",ngram_range=(5,5),max_features=2**14,stop_words=None)
 	    char_ngrams = char_vectorizer.fit_transform(X_raw['htmltag'])
 	    #char_ngrams = char_vectorizer.fit_transform(X_all['body'])
 	    print "char ngrams, dim:",char_ngrams.shape
@@ -224,7 +226,9 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	    X_svd=pd.concat([X_svd,X_char], axis=1)
 	
 	if usePosTag:
-	    posTagging(X_all)
+	    #posTagging(X_all)
+	    X_pos=pd.read_csv('../stumbled_upon/data/postagged.csv', sep=",", na_values=['?'], index_col=0)
+	    X_svd=pd.concat([X_svd,X_pos], axis=1)
 	
 	#print "##X_svd##\n",X_svd
 	X_all= X_all.drop(['body','url2','title','boilerplate','url'], axis=1)
@@ -239,11 +243,12 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	X_svd=pd.concat([X_rest,X_svd], axis=1)
 	#print "##X_svd,int##\n",X_svd
 	#add alchemy category again, but now one hot encode, bringt nichts...
-	X_alcat=pd.DataFrame(X_all['alchemy_category'])
-	X_alcat=X_alcat.fillna('unknown')
-	X_alcat = one_hot_encoder(X_alcat, ['alchemy_category'], replace=True)
-	X_alcat = pd.DataFrame(X_alcat)
-	#X_svd=pd.concat([X_svd,X_alcat], axis=1)
+	if useAlcat:
+	    X_alcat=pd.DataFrame(X_all['alchemy_category'])
+	    X_alcat=X_alcat.fillna('unknown')
+	    X_alcat = one_hot_encoder(X_alcat, ['alchemy_category'], replace=True)
+	    X_alcat = pd.DataFrame(X_alcat)
+	    X_svd=pd.concat([X_svd,X_alcat], axis=1)
 	print "##X_svd,final##\n",X_svd
 	#X_rest=X_svd
 	print "Dim: X_svd:",X_svd.shape   
@@ -264,9 +269,22 @@ def one_hot_encoder(data, cols, replace=False):
     and the fitted vectorizor.
     credits to https://gist.github.com/kljensen/5452382
     """
+    #temporarily out of order...?
     vec = DictVectorizer()
-    mkdict = lambda row: dict((col, row[col]) for col in cols)
-    vecData = pd.DataFrame(vec.fit_transform(data[cols].apply(mkdict, axis=1)).toarray())
+#    def mkdict(row):
+#	  d={}
+#	  for col in cols:
+#	      print "col",col
+#	      print "row",row[col]
+#	      d.update({col: row[col]})
+#	  print d
+#	  return d
+    #mkdict = lambda row: dict((col, row[col]) for col in cols)
+    tmp=data[cols].apply(mkdict, axis=1)
+    print "tmp",tmp
+    tmp=vec.fit_transform(tmp).toarray()
+    print type(tmp)
+    vecData = pd.DataFrame(tmp)
     vecData.columns = vec.get_feature_names()
     vecData.index = data.index
     if replace is True:
@@ -324,7 +342,7 @@ def modelEvaluation(lmodel,lXs,ly):
 	if isinstance(lmodel,GradientBoostingClassifier):
 	    lmodel.set_params(max_depth=p)
         #print lmodel.get_params()
-        cv = StratifiedKFold(ly, n_folds=folds, indices=True)
+        cv = StratifiedKFold(lXs.shape[0], n_folds=folds,indices=True)
 	scores=np.zeros(folds)	
 	for i, (train, test) in enumerate(cv):
 	    print("Extracting %s best features by a chi-squared test" % p)
@@ -633,6 +651,105 @@ def iterativeFeatureSelection(lmodel,Xold,Xold_test,ly,iterations,nrfeats):
 	    lmodel = buildModel(model,Xold,ly)
 	    (Xold,Xold_test)=rfFeatureImportance(model,Xold,Xold_test,nrfeats)
 	return(Xold,Xold_test)
+
+
+
+def removeInstances(lXs,ly,preds,t):
+	#now remove examples from train
+	res=np.abs(ly-preds)
+	d={'abs_err' : pd.Series(res)}
+	res=pd.DataFrame(d)
+	res=pd.DataFrame(d)
+	res.index=lXs.index
+	lXs_reduced=pd.concat([lXs,res], axis=1)
+	boolindex=lXs_reduced['abs_err']<t
+	lXs_reduced=lXs_reduced[boolindex]
+	#ninst[i]=len(Xtrain.index)-len(lXs_reduced.index)
+	lXs_reduced = lXs_reduced.drop(['abs_err'], axis=1)
+	#print "New dim:",lXs_reduced.shape
+	ly_reduced=ly[np.asarray(boolindex)]
+	return (lXs_reduced,ly_reduced)
+
+	
+def getOOBCVPredictions(lmodel,lXs,lXs_test,ly,folds=8,repeats=1):
+	"""
+	Get cv oob predictions for classifiers
+	"""
+	print "Computing oob predictions..."
+	if isinstance(lmodel,RandomForestClassifier) or isinstance(lmodel,SGDClassifier):
+		lmodel.set_params(n_jobs=4)
+	oobpreds=np.zeros((lXs.shape[0],repeats))
+	for j in xrange(repeats):
+	    #print lmodel.get_params()
+	    cv = KFold(lXs.shape[0], n_folds=folds, indices=True,random_state=j,shuffle=True)
+	    scores=np.zeros(folds)	
+	    for i, (train, test) in enumerate(cv):
+		Xtrain = lXs.iloc[train]
+		Xtest = lXs.iloc[test]
+		#print Xtest['avglinksize'].head(3)
+		lmodel.fit(Xtrain, ly[train])
+		oobpreds[test,j] = lmodel.predict_proba(Xtest)[:,1]
+		scores[i]=roc_auc_score(ly[test],oobpreds[test,j])
+		#print "AUC: %0.2f " % (scores[i])
+		#save oobpredictions
+	    print "Iteration:",j,
+	    print " <AUC>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
+	    oobscore=roc_auc_score(ly,oobpreds[:,j])
+	    print " AUC,oob: %0.3f" %(oobscore)
+	scores=[roc_auc_score(ly,oobpreds[:,j]) for j in xrange(repeats)]
+	#simple averaging of blending
+	oob_avg=np.mean(oobpreds,axis=1)
+	print "Summary: <AUC,oob>: %0.3f (%d repeats)" %(roc_auc_score(ly,oob_avg),repeats,)
+	return(oob_avg)
+	
+	
+def filterClassNoise(lmodel,lXs,lXs_test,ly):
+	"""
+	Removes training samples which could be class noise
+	Done in outer XVal loop
+	precision: Wieviel falsche habe ich erwischt
+	recall: wieviele richtige sind durch die Lappen gegangen
+	"""
+	threshhold=[0.68,0.70,0.72,0.75,0.8]
+	folds=8
+	print "Filter strongly misclassified classes..."
+	#rdidx=random.sample(xrange(1000), 20)
+	#print rdidx
+	#lXs = lXs.iloc[rdidx]
+	#ly = ly[rdidx]
+	preds=getOOBCVPredictions(model,Xs,Xs_test,y,8,5)
+	#print "stdev:",std
+	#should be oob or cvalidated!!!!
+	#preds = lmodel.predict_proba(lXs)[:,1]
+	scores=np.zeros((folds,len(threshhold)))
+	for j,t in enumerate(threshhold):
+	    #XValidation
+	    cv = KFold(lXs.shape[0], n_folds=folds, indices=True,random_state=j,shuffle=True)	    	    
+	    ninst=np.zeros(folds)
+	    oobpreds=np.zeros((lXs.shape[0],1))
+	    for i, (train, test) in enumerate(cv):
+		Xtrain = lXs.iloc[train]
+		ytrain=  ly[train]		
+		#now remove examples from train
+		lXs_reduced,ly_reduced = removeInstances(Xtrain,ytrain,preds[train],t)
+		ninst[i]=len(Xtrain.index)-len(lXs_reduced.index)
+		lmodel.fit(lXs_reduced, ly_reduced)
+		
+		#testing data, not manipulated
+		Xtest = lXs.iloc[test]
+		oobpreds[test,0] = lmodel.predict_proba(Xtest)[:,1]
+		scores[i,j]=roc_auc_score(ly[test],oobpreds[test,0])
+
+	    print "Threshhold: %0.3f  <AUC>: %0.3f (+/- %0.3f) removed instances: %4.2f" % (t, scores[:,j].mean(), scores[:,j].std(), ninst.mean() ),
+	    print " AUC oob: %0.3f" %(roc_auc_score(ly,oobpreds[:,0]))
+	scores=np.mean(scores,axis=0)
+	print scores
+	plt.plot(threshhold,scores,'ro')
+	    #scores = cross_validation.cross_val_score(lmodel, lXs_reduced, ly_reduced, cv=8, scoring='roc_auc',n_jobs=4)
+	    #print "Threshhold: %0.3f AUC: %0.3f (+/- %0.3f)" % (t,scores.mean(), scores.std())
+	
+	return(lXs,lXs_test,ly)
+
     
 if __name__=="__main__":
     """   
@@ -647,9 +764,9 @@ if __name__=="__main__":
     pd.set_printoptions(max_rows=300, max_columns=8)
     print "scipy:",sp.__version__
     #variables
-    (Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=True)#opt SVD=50
-    Xs.to_csv("../stumbled_upon/data/Xsvd.csv")
-    Xs_test.to_csv("../stumbled_upon/data/Xsvd_test.csv")
+    (Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=True,useAlcat=False)#opt SVD=50
+    Xs.to_csv("../stumbled_upon/data/Xlarge.csv")
+    Xs_test.to_csv("../stumbled_upon/data/XXlarge_test.csv")
     
     #(Xs,y,Xs_test,data_indices) = prepareSimpleData()
     print "Dim X (training):",Xs.shape
@@ -669,7 +786,7 @@ if __name__=="__main__":
     #model=SVC(C=0.3,kernel='linear',probability=True)
     #model=LinearSVC(penalty='l2', loss='l2', dual=True, tol=0.0001, C=1.0)#no proba
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)
-    model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=15,oob_score=False,random_state=42)
+    model = RandomForestClassifier(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=15,oob_score=False,random_state=42)
     #model = ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=15,oob_score=False,random_state=42)
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1,random_state=42)
     #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=5000, subsample=1.0, min_samples_split=2, min_samples_leaf=10, max_depth=3, init=None, random_state=42,verbose=False)
@@ -679,10 +796,14 @@ if __name__=="__main__":
     #(gclassifiers,gblender)=ensembleBuilding(Xs,y)
     #ensemblePredictions(gclassifiers,gblender,Xs_test,data_indices,'sub1309a.csv')
     #fit final model
-    (Xs,Xs_test)=iterativeFeatureSelection(model,Xs,Xs_test,y,1,10)
-    model = buildModel(model,Xs,y)  
+    model = buildModel(model,Xs,y) 
+    
+    (Xs,Xs_test,y)=filterClassNoise(model,Xs,Xs_test,y)
+    #model = buildModel(model,Xs,y) 
+    #(Xs,Xs_test)=iterativeFeatureSelection(model,Xs,Xs_test,y,1,10)
+    #model = buildModel(model,Xs,y)  
     #(Xs,Xs_test) = group_sparse(Xs,Xs_test)
     #print "Dim X (after grouping):",Xs.shape
-    makePredictions(model,Xs_test,data_indices,'../stumbled_upon/submissions/sub1509b.csv')	            
+    #makePredictions(model,Xs_test,data_indices,'../stumbled_upon/submissions/sub1509b.csv')	            
     print("Model building done in %fs" % (time() - t0))
     plt.show()
