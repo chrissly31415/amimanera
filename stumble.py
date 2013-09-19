@@ -127,10 +127,10 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	vectorizer = HashingVectorizer(stop_words='english',ngram_range=(1,2),analyzer="word", non_negative=True, norm='l2', n_features=2**19)
     elif vecType=='tfidfV':
 	print "Using tfidfV..."
-	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=3,strip_accents='unicode',tokenizer=NLTKTokenizer())
+	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=3,strip_accents='unicode',tokenizer=NLTKTokenizer())
 	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=True,min_df=5,strip_accents='unicode')
 	#vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4,tokenizer=NLTKTokenizer())
-	vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4)#fast
+	#vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4)#fast
 	#vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True)#opt
     else:
 	#vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**18)
@@ -710,7 +710,7 @@ def filterClassNoise(lmodel,lXs,lXs_test,ly):
 	precision: Wieviel falsche habe ich erwischt
 	recall: wieviele richtige sind durch die Lappen gegangen
 	"""
-	threshhold=[0.68,0.70,0.72,0.75,0.8]
+	threshhold=[0.8,0.83,0.84,0.85,0.86,0.88,0.89,0.9]
 	folds=8
 	print "Filter strongly misclassified classes..."
 	#rdidx=random.sample(xrange(1000), 20)
@@ -745,10 +745,11 @@ def filterClassNoise(lmodel,lXs,lXs_test,ly):
 	scores=np.mean(scores,axis=0)
 	print scores
 	plt.plot(threshhold,scores,'ro')
-	    #scores = cross_validation.cross_val_score(lmodel, lXs_reduced, ly_reduced, cv=8, scoring='roc_auc',n_jobs=4)
-	    #print "Threshhold: %0.3f AUC: %0.3f (+/- %0.3f)" % (t,scores.mean(), scores.std())
-	
-	return(lXs,lXs_test,ly)
+	top = np.argsort(scores)[0]
+	optt = threshhold[top]
+	print "opt threshhold %4.2f" %(optt)
+	lXs_reduced,ly_reduced = removeInstances(lXs,ly,preds,optt)	
+	return(lXs_reduced,lXs_test,ly_reduced)
 
     
 if __name__=="__main__":
@@ -764,7 +765,7 @@ if __name__=="__main__":
     pd.set_printoptions(max_rows=300, max_columns=8)
     print "scipy:",sp.__version__
     #variables
-    (Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=True,useAlcat=False)#opt SVD=50
+    (Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False)#opt SVD=50
     Xs.to_csv("../stumbled_upon/data/Xlarge.csv")
     Xs_test.to_csv("../stumbled_upon/data/XXlarge_test.csv")
     
@@ -786,7 +787,7 @@ if __name__=="__main__":
     #model=SVC(C=0.3,kernel='linear',probability=True)
     #model=LinearSVC(penalty='l2', loss='l2', dual=True, tol=0.0001, C=1.0)#no proba
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)
-    model = RandomForestClassifier(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=15,oob_score=False,random_state=42)
+    model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=15,oob_score=False,random_state=42)
     #model = ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=15,oob_score=False,random_state=42)
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1,random_state=42)
     #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=5000, subsample=1.0, min_samples_split=2, min_samples_leaf=10, max_depth=3, init=None, random_state=42,verbose=False)
@@ -799,7 +800,7 @@ if __name__=="__main__":
     model = buildModel(model,Xs,y) 
     
     (Xs,Xs_test,y)=filterClassNoise(model,Xs,Xs_test,y)
-    #model = buildModel(model,Xs,y) 
+    model = buildModel(model,Xs,y) 
     #(Xs,Xs_test)=iterativeFeatureSelection(model,Xs,Xs_test,y,1,10)
     #model = buildModel(model,Xs,y)  
     #(Xs,Xs_test) = group_sparse(Xs,Xs_test)
