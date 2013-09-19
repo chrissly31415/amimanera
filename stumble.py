@@ -35,12 +35,12 @@ from sklearn.svm import SVC
 
 from nltk import word_tokenize,sent_tokenize
 #from nltk.stem import SnowballStemmer # no english?
-from nltk.stem import WordNetLemmatizer
-from nltk.stem.lancaster import LancasterStemmer
-from nltk.stem.wordnet import WordNetStemmer
+#from nltk.stem import WordNetLemmatizer
+#from nltk.stem.lancaster import LancasterStemmer
+#from nltk.stem.wordnet import WordNetStemmer
 #nltk.stem.porter.PorterStemmer(ignore_stopwords=False)
 from nltk.stem.porter import PorterStemmer
-from nltk.stem.snowball import GermanStemmer
+#from nltk.stem.snowball import GermanStemmer
 #http://nltk.googlecode.com/svn/trunk/doc/howto/collocations.html
 
 
@@ -76,6 +76,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 #TODO http://nltk.org/book/ch05.html
 #TODO http://scikit-learn.org/stable/auto_examples/plot_rfe_with_cross_validation.html#example-plot-rfe-with-cross-validation-py
 #TODO weka
+#TODO use logistic regression with adaboost http://scikit-learn.org/stable/auto_examples/ensemble/plot_adaboost_hastie_10_2.html
 
 class NLTKTokenizer(object):
     """
@@ -127,10 +128,10 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	vectorizer = HashingVectorizer(stop_words='english',ngram_range=(1,2),analyzer="word", non_negative=True, norm='l2', n_features=2**19)
     elif vecType=='tfidfV':
 	print "Using tfidfV..."
-	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=3,strip_accents='unicode',tokenizer=NLTKTokenizer())
+	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=3,strip_accents='unicode',tokenizer=NLTKTokenizer())
 	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=True,min_df=5,strip_accents='unicode')
 	#vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4,tokenizer=NLTKTokenizer())
-	#vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4)#fast
+	vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4)#fast
 	#vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True)#opt
     else:
 	#vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**18)
@@ -212,7 +213,7 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	    #char ngrams
 	    X_raw=crawlHTML(X_all)
 	    #char_vectorizer=CountVectorizer(lowercase=False,analyzer="char",ngram_range=(5,5),max_features=2**18,stop_words=None)
-	    char_vectorizer=CountVectorizer(lowercase=True,analyzer="char",ngram_range=(5,5),max_features=2**14,stop_words=None)
+	    char_vectorizer=CountVectorizer(lowercase=True,analyzer="char",ngram_range=(4,4),max_features=2**14,stop_words=None)
 	    char_ngrams = char_vectorizer.fit_transform(X_raw['htmltag'])
 	    #char_ngrams = char_vectorizer.fit_transform(X_all['body'])
 	    print "char ngrams, dim:",char_ngrams.shape
@@ -462,7 +463,8 @@ def pyGridSearch(lmodel,lXs,ly):
     #parameters = {'max_depth':[5], 'learning_rate':[0.001],'n_estimators':[3000,5000,10000]}#gbm
     #parameters = {'max_depth':[2], 'learning_rate':[0.01,0.001],'n_estimators':[3000]}#gbm
     #parameters = {'n_estimators':[500], 'max_features':[5,10,15]}#rf
-    parameters = {'n_estimators':[500], 'max_features':[10,15,20],'min_samples_leaf':[8,10,12]}#rf
+    #parameters = {'n_estimators':[500], 'max_features':[10,15,20],'min_samples_leaf':[8,10,12]}#rf
+    parameters = {'n_estimators':[500,1000], 'learning_rate':[0.01,0.1]}#adaboost
     #parameters = {'C':[0.1,1,10]}#SVC
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXs,ly)
@@ -765,7 +767,7 @@ if __name__=="__main__":
     pd.set_printoptions(max_rows=300, max_columns=8)
     print "scipy:",sp.__version__
     #variables
-    (Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False)#opt SVD=50
+    (Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=True,useAlcat=False)#opt SVD=50
     Xs.to_csv("../stumbled_upon/data/Xlarge.csv")
     Xs_test.to_csv("../stumbled_upon/data/XXlarge_test.csv")
     
@@ -787,20 +789,20 @@ if __name__=="__main__":
     #model=SVC(C=0.3,kernel='linear',probability=True)
     #model=LinearSVC(penalty='l2', loss='l2', dual=True, tol=0.0001, C=1.0)#no proba
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)
-    model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=15,oob_score=False,random_state=42)
+    #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=15,oob_score=False,random_state=42)
     #model = ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=15,oob_score=False,random_state=42)
-    #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1,random_state=42)
+    model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1,random_state=42)
     #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=5000, subsample=1.0, min_samples_split=2, min_samples_leaf=10, max_depth=3, init=None, random_state=42,verbose=False)
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)  
     #modelEvaluation(model,Xs,y)
-    #model=pyGridSearch(model,Xs,y)
+    model=pyGridSearch(model,Xs,y)
     #(gclassifiers,gblender)=ensembleBuilding(Xs,y)
     #ensemblePredictions(gclassifiers,gblender,Xs_test,data_indices,'sub1309a.csv')
     #fit final model
-    model = buildModel(model,Xs,y) 
+    #model = buildModel(model,Xs,y) 
     
-    (Xs,Xs_test,y)=filterClassNoise(model,Xs,Xs_test,y)
-    model = buildModel(model,Xs,y) 
+    #(Xs,Xs_test,y)=filterClassNoise(model,Xs,Xs_test,y)
+    #model = buildModel(model,Xs,y) 
     #(Xs,Xs_test)=iterativeFeatureSelection(model,Xs,Xs_test,y,1,10)
     #model = buildModel(model,Xs,y)  
     #(Xs,Xs_test) = group_sparse(Xs,Xs_test)
