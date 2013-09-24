@@ -107,7 +107,7 @@ def dfinfo(X_all):
     print "##Details##\n",X_all.ix[:,2:3].describe()
     print "##Details##\n",X_all.ix[:,3:7].describe()
 
-def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False):
+def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False):
     """
     Load Data into pandas and preprocess features
     """
@@ -128,11 +128,11 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	vectorizer = HashingVectorizer(stop_words='english',ngram_range=(1,2),analyzer="word", non_negative=True, norm='l2', n_features=2**19)
     elif vecType=='tfidfV':
 	print "Using tfidfV..."
-	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=3,strip_accents='unicode',tokenizer=NLTKTokenizer())
+	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=3,strip_accents='unicode',tokenizer=NLTKTokenizer())
 	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=True,min_df=5,strip_accents='unicode')
 	#vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4,tokenizer=NLTKTokenizer())
-	#vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4)#fast
-	#vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True)#opt
+	vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4)#fast
+	#vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True, norm=u'l2')#opt
     else:
 	#vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**18)
 	#vectorizer = CountVectorizer(lowercase=False,analyzer="char_wb",ngram_range=(4,4),max_features=2**14,stop_words='english')#AUC = 0.781
@@ -232,12 +232,12 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	    X_svd=pd.concat([X_svd,X_pos], axis=1)
 	
 	#print "##X_svd##\n",X_svd
-	X_all= X_all.drop(['body','url2','title','boilerplate','url'], axis=1)
+	X_all= X_all.drop(['boilerplate','url'], axis=1)
 	X_all= X_all.drop(['hasDomainLink','framebased','news_front_page','embed_ratio'], axis=1)
 	if useJson: 
-	    X_rest= X_all.drop(['alchemy_category'], axis=1)
+	    X_rest= X_all.drop(['body','url2','title','alchemy_category'], axis=1)	    
 	else:
-	    X_rest= X_all.drop(['url','alchemy_category','boilerplate'], axis=1)
+	    X_rest= X_all.drop(['alchemy_category'], axis=1)
 	X_rest = X_rest.astype(float)
 	X_rest=X_rest.fillna(X_rest.median())	
 	X_rest.corr().to_csv("corr.csv")
@@ -250,9 +250,20 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	    X_alcat = one_hot_encoder(X_alcat, ['alchemy_category'], replace=True)
 	    X_alcat = pd.DataFrame(X_alcat)
 	    X_svd=pd.concat([X_svd,X_alcat], axis=1)
+	   
+	
+	if useGreedyFilter:
+	    print X_svd
+	    print X_svd.columns
+	    X_svd=X_svd.loc[:,[1,4,3,8,5,'linkwordscore',6,'char2',9,'url_contains_foodstuff',22,26,'MOD',33,'alchemy_category_score',24,45,'spelling_errors_ratio',43]]
+	    #X_svd=X_svd.loc[:,[1,4,3,8,5,'linkwordscore',6,'char2',9,'url_contains_foodstuff',22,26,'MOD',33,'alchemy_category_score',24,45,'spelling_errors_ratio',43,'frameTagRatio',19,21,25,0,'url_length',48,'TO','char5','url_contains_news','compression_ratio',37,'VD','twitter_ratio',49,'is_news','url_contains_sweetstuff',42,17,'url_contains_health',20,'char4',16,'DET',23,'commonlinkratio_2',41,'image_ratio',7,'wwwfacebook_ratio','char0']]
+	    #X_svd=X_svd.loc[:,[1,4,3,8,5,u'linkwordscore']]
+	    print X_svd
+	
+	
 	print "##X_svd,final##\n",X_svd
 	#X_rest=X_svd
-	print "Dim: X_svd:",X_svd.shape   
+	print "Dim: X_svd:",X_svd.shape    
 	X_svd_train = X_svd[len(X_test.index):]
 	X_svd_test = X_svd[:len(X_test.index)]
 	return(X_svd_train,y,X_svd_test,X_test.index)
@@ -463,8 +474,8 @@ def pyGridSearch(lmodel,lXs,ly):
     #parameters = {'max_depth':[5], 'learning_rate':[0.001],'n_estimators':[3000,5000,10000]}#gbm
     #parameters = {'max_depth':[2], 'learning_rate':[0.01,0.001],'n_estimators':[3000]}#gbm
     #parameters = {'n_estimators':[500], 'max_features':[5,10,15]}#rf
-    #parameters = {'n_estimators':[500,1000], 'learning_rate':[0.01,0.1]}#adaboost
-    parameters = {'n_estimators':[500], 'max_features':[10,15,20],'min_samples_leaf':[8,10,12]}#rf
+    parameters = {'n_estimators':[250,100,50], 'learning_rate':[0.1,0.01,0.5]}#adaboost
+    #parameters = {'n_estimators':[500,1000], 'max_features':[1,2,3,4,5],'min_samples_leaf':[5,8,10,12]}#rf
     #parameters = {'C':[0.1,1,10]}#SVC
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXs,ly)
@@ -757,7 +768,21 @@ def filterClassNoise(lmodel,lXs,lXs_test,ly):
 	lXs_reduced,ly_reduced = removeInstances(lXs,ly,preds,optt)	
 	return(lXs_reduced,lXs_test,ly_reduced)
 
+  
+def createBooster(lmodel,lXs,lXs_test,ly):
+    n_estimators = 500
+    # A learning rate of 1. may not be optimal for both SAMME and SAMME.R
+    learning_rate = 0.1
+    #lmodel = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
+    ada_real = AdaBoostClassifier(base_estimator=lmodel,learning_rate=learning_rate,n_estimators=n_estimators,algorithm="SAMME.R")
+    #scores = cross_validation.cross_val_score(ada_real, lXs, ly, cv=8, scoring='roc_auc',n_jobs=4)
+    #print "AUC: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std())
     
+    
+  
+    return(ada_real)
+
+
 if __name__=="__main__":
     """   
     MAIN PART
@@ -771,9 +796,9 @@ if __name__=="__main__":
     pd.set_printoptions(max_rows=300, max_columns=8)
     print "scipy:",sp.__version__
     #variables
-    (Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False)#opt SVD=50
-    Xs.to_csv("../stumbled_upon/data/Xlarge.csv")
-    Xs_test.to_csv("../stumbled_upon/data/XXlarge_test.csv")
+    (Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True)#opt SVD=50
+    #Xs.to_csv("../stumbled_upon/data/Xlarge.csv")
+    #Xs_test.to_csv("../stumbled_upon/data/XXlarge_test.csv")
     
     #(Xs,y,Xs_test,data_indices) = prepareSimpleData()
     print "Dim X (training):",Xs.shape
@@ -792,26 +817,29 @@ if __name__=="__main__":
     #model = KNeighborsClassifier(n_neighbors=10)
     #model=SVC(C=0.3,kernel='linear',probability=True)
     #model=LinearSVC(penalty='l2', loss='l2', dual=True, tol=0.0001, C=1.0)#no proba
-    #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)
-    model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=15,oob_score=False,random_state=42)
+    #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='linear', probability=True, shrinking=True,tol=0.001, verbose=False)
+    #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False,random_state=42)
+    #model = RandomForestClassifier(n_estimators=1000,max_depth=None,min_samples_leaf=12,n_jobs=1,criterion='entropy', max_features=4,oob_score=False,random_state=42)#opt greedy approach
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1,random_state=42)
-    #model = ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=15,oob_score=False,random_state=42)
-    #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1,random_state=42)
-    #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=5000, subsample=1.0, min_samples_split=2, min_samples_leaf=10, max_depth=3, init=None, random_state=42,verbose=False)
+    #model = ExtraTreesClassifier(n_estimators=50,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False,random_state=42)
+    #model = AdaBoostClassifier(n_estimators=50,learning_rate=0.1,random_state=42)
+    #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.001, n_estimators=5000, subsample=1.0, min_samples_split=2, min_samples_leaf=10, max_depth=20, init=None, random_state=42,verbose=False)
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)  
     #modelEvaluation(model,Xs,y)
     #model=pyGridSearch(model,Xs,y)
     #(gclassifiers,gblender)=ensembleBuilding(Xs,y)
     #ensemblePredictions(gclassifiers,gblender,Xs_test,data_indices,'sub1309a.csv')
     #fit final model
-    model = buildModel(model,Xs,y) 
+    #model=createBooster(model,Xs,Xs_test,y)
+    #model=pyGridSearch(model,Xs,y)
+    #model = buildModel(model,Xs,y) 
     
-    (Xs,Xs_test,y)=filterClassNoise(model,Xs,Xs_test,y)
+    #(Xs,Xs_test,y)=filterClassNoise(model,Xs,Xs_test,y)
     model = buildModel(model,Xs,y) 
-    (Xs,Xs_test)=iterativeFeatureSelection(model,Xs,Xs_test,y,30,1)
-    model = buildModel(model,Xs,y)  
+    #(Xs,Xs_test)=iterativeFeatureSelection(model,Xs,Xs_test,y,30,1)
+    #model = buildModel(model,Xs,y)  
     #(Xs,Xs_test) = group_sparse(Xs,Xs_test)
     #print "Dim X (after grouping):",Xs.shape
-    makePredictions(model,Xs_test,data_indices,'../stumbled_upon/submissions/sub1909b.csv')	            
+    #makePredictions(model,Xs_test,data_indices,'../stumbled_upon/submissions/sub1909b.csv')	            
     print("Model building done in %fs" % (time() - t0))
     plt.show()
