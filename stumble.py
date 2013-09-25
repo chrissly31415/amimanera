@@ -46,7 +46,7 @@ from nltk.stem.snowball import GermanStemmer
 
 from crawldata import *
 from featureDesign import *
-
+from FullModel import *
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -77,7 +77,9 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 #TODO http://scikit-learn.org/stable/auto_examples/plot_rfe_with_cross_validation.html#example-plot-rfe-with-cross-validation-py
 #TODO weka
 #TODO use logistic regression with adaboost http://scikit-learn.org/stable/auto_examples/ensemble/plot_adaboost_hastie_10_2.html
-
+#TODO using LDA with gensim: http://blog.kaggle.com/2012/07/17/getting-started-with-the-wordpress-competition/
+#TODO recursive feature engineering
+#TODO top:SDG_alpha0.000136463620667_L10.992081466188
 class NLTKTokenizer(object):
     """
     http://scikit-learn.org/stable/modules/feature_extraction.html
@@ -128,10 +130,10 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	vectorizer = HashingVectorizer(stop_words='english',ngram_range=(1,2),analyzer="word", non_negative=True, norm='l2', n_features=2**19)
     elif vecType=='tfidfV':
 	print "Using tfidfV..."
-	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=3,strip_accents='unicode',tokenizer=NLTKTokenizer())
+	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=3,strip_accents='unicode',tokenizer=NLTKTokenizer())
 	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=True,min_df=5,strip_accents='unicode')
 	#vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4,tokenizer=NLTKTokenizer())
-	vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4)#fast
+	#vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4)#fast
 	#vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True, norm=u'l2')#opt
     else:
 	#vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**18)
@@ -386,7 +388,7 @@ def ensembleBuilding(lXs,ly):
     """
     print "Ensemble training..."
     folds=8
-    parameters=np.logspace(-14, -7, num=10, base=2.0)
+    parameters=np.logspace(-14, -7, num=200, base=2.0)
     #parameters=nprnd.choice(parameters, 8)
     classifiers = {}
     for p in parameters:
@@ -401,16 +403,17 @@ def ensembleBuilding(lXs,ly):
     classifiers.update(dic)
     #dic ={'SDG2': SGDClassifier(alpha=0.0005, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l1')}
     #classifiers.update(dic)
-    #dic ={'LG2': LogisticRegression(penalty='l1', tol=0.0001, C=1.0,random_state=42)}
-    #classifiers.update(dic)
-    #dic ={'KNN': KNeighborsClassifier(n_neighbors=5)}
-    #classifiers.update(dic)  
+    dic ={'LG2': LogisticRegression(penalty='l1', tol=0.0001, C=1.0,random_state=42)}
+    classifiers.update(dic)
+    dic ={'KNN': KNeighborsClassifier(n_neighbors=5)}
+    classifiers.update(dic)  
     #dic ={'SDG3': SGDClassifier(alpha=.0001220703125, n_iter=50,penalty='elasticnet',l1_ratio=0.2,shuffle=True,random_state=42,loss='log')}
     #classifiers.update(dic)
     oobpreds=np.zeros((lXs.shape[0],len(classifiers)))
     for j,(key, lmodel) in enumerate(classifiers.iteritems()):
         #print lmodel.get_params()
-        cv = StratifiedKFold(ly, n_folds=folds, indices=True)
+        #cv = StratifiedKFold(ly, n_folds=folds, indices=True)
+        cv = KFold(lXs.shape[0], n_folds=folds, indices=True,random_state=j,shuffle=True)
 	scores=np.zeros(folds)	
 	for i, (train, test) in enumerate(cv):
 	    Xtrain = lXs[train]
@@ -449,7 +452,7 @@ def ensembleBuilding(lXs,ly):
     return(classifiers,blender)
     
 
-def ensemblePredictions(classifiers,blender,lXs_test,lidx,filename):
+def ensemblePredictions(classifiers,blender,lXs,ly,lXs_test,lidx,filename):
     """   
     Makes prediction
     """ 
@@ -457,6 +460,7 @@ def ensemblePredictions(classifiers,blender,lXs_test,lidx,filename):
     #make prediction for each classifiers
     preds=np.zeros((lXs_test.shape[0],len(classifiers)))
     for j,(key, lmodel) in enumerate(classifiers.iteritems()):
+        lmodel.fit(lXs,ly)
 	preds[:,j]=lmodel.predict_proba(lXs_test)[:,1]
     #blend results
     finalpred=blender.predict_proba(preds)[:,1]   
@@ -770,16 +774,13 @@ def filterClassNoise(lmodel,lXs,lXs_test,ly):
 
   
 def createBooster(lmodel,lXs,lXs_test,ly):
-    n_estimators = 500
+    n_estimators = 10
     # A learning rate of 1. may not be optimal for both SAMME and SAMME.R
     learning_rate = 0.1
     #lmodel = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
     ada_real = AdaBoostClassifier(base_estimator=lmodel,learning_rate=learning_rate,n_estimators=n_estimators,algorithm="SAMME.R")
     #scores = cross_validation.cross_val_score(ada_real, lXs, ly, cv=8, scoring='roc_auc',n_jobs=4)
     #print "AUC: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std())
-    
-    
-  
     return(ada_real)
 
 
@@ -796,7 +797,9 @@ if __name__=="__main__":
     pd.set_printoptions(max_rows=300, max_columns=8)
     print "scipy:",sp.__version__
     #variables
-    (Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True)#opt SVD=50
+    #(Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True)#opt SVD=50
+    #(Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=True)#opt SVD=50
+    (Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=0,useJson=True)#opt SVD=50
     #Xs.to_csv("../stumbled_upon/data/Xlarge.csv")
     #Xs_test.to_csv("../stumbled_upon/data/XXlarge_test.csv")
     
@@ -810,10 +813,9 @@ if __name__=="__main__":
     #model = SGDClassifier(alpha=0.0005, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l2',n_jobs=4)#opt  
     #model = SGDClassifier(alpha=0.0001, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l2',n_jobs=4)#opt simple processing
     #model = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)#opt
-    #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, 
-    #                         C=1, fit_intercept=True, intercept_scaling=1.0, 
-    #                         class_weight=None, random_state=None)#kaggle params
-    #model = RandomizedLogisticRegression(C=1, scaling=0.5, sample_fraction=0.75, n_resampling=200, selection_threshold=0.25, tol=0.001, fit_intercept=True, verbose=False, normalize=True, random_state=42)
+    #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=None)#kaggle params
+    #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=None)
+    #model = RandomizedLogisticRegression(C=1, scaling=0.5, sample_fraction=0.75, n_resampling=20, selection_threshold=0.25, tol=0.001, fit_intercept=True, verbose=False, normalize=True, random_state=42)
     #model = KNeighborsClassifier(n_neighbors=10)
     #model=SVC(C=0.3,kernel='linear',probability=True)
     #model=LinearSVC(penalty='l2', loss='l2', dual=True, tol=0.0001, C=1.0)#no proba
@@ -827,15 +829,15 @@ if __name__=="__main__":
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)  
     #modelEvaluation(model,Xs,y)
     #model=pyGridSearch(model,Xs,y)
-    #(gclassifiers,gblender)=ensembleBuilding(Xs,y)
-    #ensemblePredictions(gclassifiers,gblender,Xs_test,data_indices,'sub1309a.csv')
+    (gclassifiers,gblender)=ensembleBuilding(Xs,y)
+    ensemblePredictions(gclassifiers,gblender,Xs,y,Xs_test,data_indices,'sub2409a.csv')
     #fit final model
     #model=createBooster(model,Xs,Xs_test,y)
     #model=pyGridSearch(model,Xs,y)
     #model = buildModel(model,Xs,y) 
     
     #(Xs,Xs_test,y)=filterClassNoise(model,Xs,Xs_test,y)
-    model = buildModel(model,Xs,y) 
+    #model = buildModel(model,Xs,y) 
     #(Xs,Xs_test)=iterativeFeatureSelection(model,Xs,Xs_test,y,30,1)
     #model = buildModel(model,Xs,y)  
     #(Xs,Xs_test) = group_sparse(Xs,Xs_test)
