@@ -18,12 +18,12 @@ class XModel:
       self.classifier = classifier
       self.Xtrain=Xtrain
       self.Xtest=Xtest
-      if isinstance(Xtrain,sp.sparse.csr.csr_matrix):
+      if isinstance(Xtrain,sp.sparse.csr.csr_matrix) or isinstance(Xtrain,sp.sparse.csc.csc_matrix):
 	self.sparse=True
       else:
 	self.sparse=False
       self.oobpreds=np.zeros((Xtrain.shape[0],1))
-      self.pres=np.zeros((Xtest.shape[0],1))
+      self.preds=np.zeros((Xtest.shape[0],1))
 	
       XModel.modelcount += 1
 

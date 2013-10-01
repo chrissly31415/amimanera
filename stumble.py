@@ -24,11 +24,12 @@ from sklearn.metrics import roc_auc_score
 #from sklearn.utils.extmath import density
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.decomposition import TruncatedSVD
+from sklearn.pipeline import Pipeline
 
-from sklearn.feature_selection import SelectKBest, chi2, f_classif
+from sklearn.feature_selection import SelectKBest,SelectPercentile, chi2, f_classif
 from sklearn.naive_bayes import BernoulliNB
 from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor
-from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier
+from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import LinearSVC
 from sklearn.svm import SVC
@@ -54,32 +55,24 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 #TODO build class containing classifiers + dataset
 #TODO remove infrequent sparse features to new class
-#TODO look at amazon challenge winners
 #TODO dicretize continous data by cut and qcut?
-#TODO use variable names for importance analysis
 #TODO #use tags
-#TODO feature_extraction.text.CountVectorizer(lowercase=False,analyzer='char',ngram_range=(1,5),)
 #TODO https://github.com/cbrew/Insults/blob/master/Insults/insults.py
-#TODO Univariate Feature Selection sparse matrix
 #TODO winner code insults
-#TODO pipelining??
 #TODO look at wrong classified ones
 #TODO analyze misclassifications
-#TODO crawl raw data for linkedin facebook and twitter links
-#TODO look after like buttons
 #TODO remove duplicate features boilerplate length & food stuff
-#TODO analyse html raw data
-#TODO boruta with rf features
-#TODO implement char ngram with SVD
-#TODO ngram of text within <>
-#TODO SDGregressor
 #TODO http://nltk.org/book/ch05.html
 #TODO http://scikit-learn.org/stable/auto_examples/plot_rfe_with_cross_validation.html#example-plot-rfe-with-cross-validation-py
 #TODO weka
-#TODO use logistic regression with adaboost http://scikit-learn.org/stable/auto_examples/ensemble/plot_adaboost_hastie_10_2.html
 #TODO using LDA with gensim: http://blog.kaggle.com/2012/07/17/getting-started-with-the-wordpress-competition/
 #TODO recursive feature engineering
 #TODO top:SDG_alpha0.000136463620667_L10.992081466188
+#TODO bumping
+#TODO calibration of AUC by reducing uncertain webpages to p=0.5
+#TODO use meta features....
+#TODO transformation of variable log of length variables, standardize
+
 class NLTKTokenizer(object):
     """
     http://scikit-learn.org/stable/modules/feature_extraction.html
@@ -94,13 +87,11 @@ class NLTKTokenizer(object):
       #self.wnl = WordNetStemmer()
     def __call__(self, doc):
       words=[word_tokenize(t) for t in sent_tokenize(doc)]
-      #flatten list
       words=[item for sublist in words for item in sublist]
-      #print words
-      #print words
-      #words=[self.wnl.lemmatize(t) for t in words]
-      words=[self.wnl.stem(t) for t in words]
-      #print words
+      if hasattr(self.wnl,'stem'):
+	  words=[self.wnl.stem(t) for t in words]
+      else:
+	  words=[self.wnl.lemmatize(t) for t in words]
       return words
     
 def dfinfo(X_all):
@@ -109,7 +100,7 @@ def dfinfo(X_all):
     print "##Details##\n",X_all.ix[:,2:3].describe()
     print "##Details##\n",X_all.ix[:,3:7].describe()
 
-def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False):
+def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False,char_ngram=5):
     """
     Load Data into pandas and preprocess features
     """
@@ -130,10 +121,10 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	vectorizer = HashingVectorizer(stop_words='english',ngram_range=(1,2),analyzer="word", non_negative=True, norm='l2', n_features=2**19)
     elif vecType=='tfidfV':
 	print "Using tfidfV..."
-	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=3,strip_accents='unicode',tokenizer=NLTKTokenizer())
+	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=4,strip_accents='unicode',tokenizer=NLTKTokenizer())
 	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=True,min_df=5,strip_accents='unicode')
-	#vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4,tokenizer=NLTKTokenizer())
-	#vectorizer = TfidfVectorizer(ngram_range=(1,1),stop_words=None,max_features=2**14,sublinear_tf=True,min_df=4)#fast
+	#vectorizer = TfidfVectorizer(ngram_range=(1,1),max_features=2**14,sublinear_tf=True,min_df=3,tokenizer=NLTKTokenizer(),stop_words=None)
+	#vectorizer = TfidfVectorizer(ngram_range=(1,1),max_features=2**14,sublinear_tf=True,min_df=2,stop_words=None)#fast
 	#vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True, norm=u'l2')#opt
     else:
 	#vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**18)
@@ -141,10 +132,10 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	#vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(4,4),max_features=2**14,stop_words='english')#AUC= 0.786
 	#vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(4,4),max_features=2**18,stop_words='english')#AUC= 0.798
 	#vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(5,5),max_features=2**14,stop_words='english')#slow and low score 0.786
-	#vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(5,5),max_features=2**18,stop_words='english')#AUC=  0.815 1400s
+	vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(char_ngram,char_ngram),max_features=2**18,stop_words=None)#AUC=  0.815 1400s
 	#vectorizer = CountVectorizer(lowercase=True,analyzer="char",ngram_range=(5,5),max_features=2**18,stop_words='english')#AUC= 0.813  1400s
 	#vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(4,5),max_features=2**18,stop_words='english')#AUC=   aufgehängt memory?
-	vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(5,5),max_features=2**16,stop_words='english')#AUC= 0.806 682s
+	#vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(5,5),max_features=2**16,stop_words=None)#AUC= 0.806 682s
     
     
     #transform data using json
@@ -268,12 +259,12 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	print "Dim: X_svd:",X_svd.shape    
 	X_svd_train = X_svd[len(X_test.index):]
 	X_svd_test = X_svd[:len(X_test.index)]
-	return(X_svd_train,y,X_svd_test,X_test.index)
+	return(X_svd_train,y,X_svd_test,X_test.index,X.index)
     else:
 	Xs = body_counts[len(X_test.index):]
 	Xs_test = body_counts[:len(X_test.index)]
 	#conversion to array necessary to work with integer indexing, .iloc does not work with this version
-	return (Xs,y,Xs_test,X_test.index)
+	return (Xs,y,Xs_test,X_test.index,X.index)
 	
     
 
@@ -340,7 +331,7 @@ def modelEvaluation(lmodel,lXs,ly):
     #parameters=np.logspace(-14, -7, num=8, base=2.0)#SDG
     #parameters=np.logspace(-7, 0, num=8, base=2.0)#LG
     #parameters=[250,500,1000,2000]#rf
-    parameters=[5000,10000,16000,50000,100000,150000,'all']#chi2
+    parameters=[80,85,90,95,100]#chi2
     #parameters=[2,3,4,5]#gbm
     #parameters=np.logspace(-7, -0, num=8, base=2.0)
     print "Parameter space:",parameters
@@ -356,11 +347,12 @@ def modelEvaluation(lmodel,lXs,ly):
 	if isinstance(lmodel,GradientBoostingClassifier):
 	    lmodel.set_params(max_depth=p)
         #print lmodel.get_params()
-        cv = StratifiedKFold(lXs.shape[0], n_folds=folds,indices=True)
+        cv = KFold(lXs.shape[0], n_folds=folds,indices=True, random_state=j)
 	scores=np.zeros(folds)	
 	for i, (train, test) in enumerate(cv):
-	    print("Extracting %s best features by a chi-squared test" % p)
-	    ch2 = SelectKBest(chi2, k=p)
+	    #print("Extracting %s best features by a chi-squared test" % p)
+	    #ch2 = SelectKBest(chi2, k=p)
+	    ch2 = SelectPercentile(chi2,percentile=p)
 	    Xtrain = ch2.fit_transform(lXs[train], ly[train])
 	    Xtest = ch2.transform(lXs[test]) 
 	    #Xtrain = lXs[train]
@@ -388,27 +380,28 @@ def ensembleBuilding(lXs,ly):
     """
     print "Ensemble training..."
     folds=8
-    parameters=np.logspace(-14, -7, num=200, base=2.0)
-    #parameters=nprnd.choice(parameters, 8)
+    #parameters=np.logspace(-14, -7, num=10, base=2.0)
+    parameters=[10,20,30,40,50]
+    parameters=nprnd.choice(parameters, 20)
     classifiers = {}
     for p in parameters:
         l1ratio=nprnd.ranf()
-	dic ={'SDG_alpha'+str(p)+'_L1'+str(l1ratio): SGDClassifier(alpha=p, n_iter=50,penalty='elasticnet',l1_ratio=l1ratio,shuffle=True,random_state=np.random.randint(0,100),loss='log')}
+        perc=75.0+nprnd.ranf()*25.0
+	#dic ={'SDG_alpha'+str(p)+'_L1'+str(l1ratio): SGDClassifier(alpha=p, n_iter=50,penalty='elasticnet',l1_ratio=l1ratio,shuffle=True,random_state=np.random.randint(0,100),loss='log')}
+	dic ={'PIP_SDG_iter'+str(p)+'_perc'+str(perc): Pipeline([('filter', SelectPercentile(chi2, percentile=perc)), ('model', SGDClassifier(alpha=0.00014, n_iter=p,shuffle=True,random_state=p,loss='log',penalty='elasticnet',l1_ratio=0.99))])}
 	classifiers.update(dic)
-    dic ={'NB': BernoulliNB(alpha=1.0)}
-    classifiers.update(dic)
+    #dic ={'NB': BernoulliNB(alpha=1.0)}
+    #classifiers.update(dic)
     dic ={'LG1': LogisticRegression(penalty='l2', tol=0.0001, C=1.0,random_state=42)}
     classifiers.update(dic)
     dic ={'SDG1': SGDClassifier(alpha=0.0001, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l2')}
     classifiers.update(dic)
-    #dic ={'SDG2': SGDClassifier(alpha=0.0005, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l1')}
-    #classifiers.update(dic)
+    dic ={'SDG2': SGDClassifier(alpha=0.00014, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='elasticnet',l1_ratio=0.99)}
+    classifiers.update(dic)
     dic ={'LG2': LogisticRegression(penalty='l1', tol=0.0001, C=1.0,random_state=42)}
     classifiers.update(dic)
-    dic ={'KNN': KNeighborsClassifier(n_neighbors=5)}
-    classifiers.update(dic)  
-    #dic ={'SDG3': SGDClassifier(alpha=.0001220703125, n_iter=50,penalty='elasticnet',l1_ratio=0.2,shuffle=True,random_state=42,loss='log')}
-    #classifiers.update(dic)
+    #dic ={'KNN': KNeighborsClassifier(n_neighbors=10,weights='uniform')}
+    #classifiers.update(dic)  
     oobpreds=np.zeros((lXs.shape[0],len(classifiers)))
     for j,(key, lmodel) in enumerate(classifiers.iteritems()):
         #print lmodel.get_params()
@@ -434,19 +427,26 @@ def ensembleBuilding(lXs,ly):
     print " AUC oob, simple mean: %0.3f" %(roc_auc_score(ly,oob_avg))
     
     #do another crossvalidation for weights
-    blender=LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
-    cv = StratifiedKFold(ly, n_folds=folds, indices=True)
+    #blender=LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
+    blender=AdaBoostClassifier(learning_rate=0.1,n_estimators=150,algorithm="SAMME.R")
+    #blender=ExtraTreesRegressor(n_estimators=200,max_depth=None,n_jobs=1, max_features='auto',oob_score=False,random_state=42)
+    #blender=ExtraTreesClassifier(n_estimators=200,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
+    cv = KFold(lXs.shape[0], n_folds=folds, indices=True,random_state=42)
     blend_scores=np.zeros(folds)
     blend_oob=np.zeros((lXs.shape[0]))
     for i, (train, test) in enumerate(cv):
 	Xtrain = oobpreds[train]
 	Xtest = oobpreds[test]
 	blender.fit(Xtrain, ly[train])
-	blend_oob[test] = blender.predict_proba(Xtest)[:,1]
+	if hasattr(blender,'predict_proba'):
+	    blend_oob[test] = blender.predict_proba(Xtest)[:,1]
+	else:
+	    blend_oob[test] = blender.predict(Xtest)
 	blend_scores[i]=roc_auc_score(ly[test],blend_oob[test])
     print " <AUC>: %0.3f (+/- %0.3f)" % (blend_scores.mean(), blend_scores.std()),
     print " AUC oob after blending: %0.3f" %(roc_auc_score(ly,blend_oob))
-    print "Coefficients:",blender.coef_
+    if hasattr(blender,'coef_'):
+      print "Coefficients:",blender.coef_
     
     plt.plot(range(len(classifiers)),scores,'ro')
     return(classifiers,blender)
@@ -478,15 +478,16 @@ def pyGridSearch(lmodel,lXs,ly):
     #parameters = {'max_depth':[5], 'learning_rate':[0.001],'n_estimators':[3000,5000,10000]}#gbm
     #parameters = {'max_depth':[2], 'learning_rate':[0.01,0.001],'n_estimators':[3000]}#gbm
     #parameters = {'n_estimators':[500], 'max_features':[5,10,15]}#rf
-    parameters = {'n_estimators':[250,100,50], 'learning_rate':[0.1,0.01,0.5]}#adaboost
+    #parameters = {'n_estimators':[250,100,50], 'learning_rate':[0.1,0.01,0.5]}#adaboost
     #parameters = {'n_estimators':[500,1000], 'max_features':[1,2,3,4,5],'min_samples_leaf':[5,8,10,12]}#rf
     #parameters = {'C':[0.1,1,10]}#SVC
+    parameters = {'filter__percentile': [100,80], 'model__n_estimators': [500], 'model__max_features':[20], 'model__min_samples_leaf':[1,5,10,12] }#rf
+    #parameters = {'filter__percentile': [1.0,95,95,80,70,60], 'model__C': [0.5,1.0, 10.0] }#pipeline
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXs,ly)
-    print type(clf_opt.grid_scores_)
     
     for params, mean_score, scores in clf_opt.grid_scores_:
-        print("%0.3f (+/-%0.03f) for %r"
+        print("%0.3f (+/- %0.3f) for %r"
               % (mean_score.mean(), scores.std(), params))
     return(clf_opt.best_estimator_)
     
@@ -797,9 +798,9 @@ if __name__=="__main__":
     pd.set_printoptions(max_rows=300, max_columns=8)
     print "scipy:",sp.__version__
     #variables
-    #(Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True)#opt SVD=50
-    #(Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=True)#opt SVD=50
-    (Xs,y,Xs_test,data_indices) = prepareDatasets('tfidfV',useSVD=0,useJson=True)#opt SVD=50
+    (Xs,y,Xs_test,data_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False)#opt SVD=50
+    #(Xs,y,Xs_test,data_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=True)#opt SVD=50
+    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=0,useJson=True)#opt SVD=50
     #Xs.to_csv("../stumbled_upon/data/Xlarge.csv")
     #Xs_test.to_csv("../stumbled_upon/data/XXlarge_test.csv")
     
@@ -812,15 +813,17 @@ if __name__=="__main__":
     #model = SGDClassifier(alpha=.0001, n_iter=50,penalty='elasticnet',l1_ratio=0.2,shuffle=True,random_state=42,loss='log')
     #model = SGDClassifier(alpha=0.0005, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l2',n_jobs=4)#opt  
     #model = SGDClassifier(alpha=0.0001, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l2',n_jobs=4)#opt simple processing
+    #model = SGDClassifier(alpha=0.00014, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='elasticnet',l1_ratio=0.99)
     #model = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)#opt
-    #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=None)#kaggle params
-    #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=None)
+    #model = Pipeline([('filter', SelectPercentile(chi2, percentile=97)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=1.0))])
+    #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=None)#opt kaggle params
     #model = RandomizedLogisticRegression(C=1, scaling=0.5, sample_fraction=0.75, n_resampling=20, selection_threshold=0.25, tol=0.001, fit_intercept=True, verbose=False, normalize=True, random_state=42)
     #model = KNeighborsClassifier(n_neighbors=10)
     #model=SVC(C=0.3,kernel='linear',probability=True)
     #model=LinearSVC(penalty='l2', loss='l2', dual=True, tol=0.0001, C=1.0)#no proba
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='linear', probability=True, shrinking=True,tol=0.001, verbose=False)
     #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False,random_state=42)
+    model = Pipeline([('filter', SelectPercentile(f_classif, percentile=80)), ('model', RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=12,n_jobs=1,criterion='entropy', max_features=20,oob_score=False,random_state=42))])
     #model = RandomForestClassifier(n_estimators=1000,max_depth=None,min_samples_leaf=12,n_jobs=1,criterion='entropy', max_features=4,oob_score=False,random_state=42)#opt greedy approach
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1,random_state=42)
     #model = ExtraTreesClassifier(n_estimators=50,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False,random_state=42)
@@ -829,12 +832,14 @@ if __name__=="__main__":
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)  
     #modelEvaluation(model,Xs,y)
     #model=pyGridSearch(model,Xs,y)
-    (gclassifiers,gblender)=ensembleBuilding(Xs,y)
-    ensemblePredictions(gclassifiers,gblender,Xs,y,Xs_test,data_indices,'sub2409a.csv')
+    #(gclassifiers,gblender)=ensembleBuilding(Xs,y)
+    #ensemblePredictions(gclassifiers,gblender,Xs,y,Xs_test,data_indices,'sub2709a.csv')
     #fit final model
     #model=createBooster(model,Xs,Xs_test,y)
-    #model=pyGridSearch(model,Xs,y)
-    #model = buildModel(model,Xs,y) 
+    model=pyGridSearch(model,Xs,y)
+    
+    #print model
+    model = buildModel(model,Xs,y) 
     
     #(Xs,Xs_test,y)=filterClassNoise(model,Xs,Xs_test,y)
     #model = buildModel(model,Xs,y) 
