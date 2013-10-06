@@ -6,7 +6,7 @@ August,September 2013
 """
 
 from stumble import *
-from scipy.optimize import fmin
+from scipy.optimize import fmin,fmin_cobyla
 
 train_indices=[]
 test_indices=[]
@@ -39,10 +39,15 @@ def createModels():
     #xmodel = XModel("sgd2",model,Xs,Xs_test)
     #ensemble.append(xmodel)
     
+    #naive bayes
+    #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)
+    #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=25)), ('model', BernoulliNB(alpha=0.1))])#opt dense 0.855
+    #xmodel = XModel("naiveB1",model,X,X_test)
+    #ensemble.append(xmodel)
     
-    #rf, using SVD
+    #rf, using SVD, using 41 variables selectd by rf feature selection ~Auc,cv=0.882
     #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True)
-    #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=12,n_jobs=1,criterion='entropy', max_features=4,oob_score=False,random_state=42)
+    #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
     #xmodel = XModel("randomf1",model,X,X_test)
     #ensemble.append(xmodel)
     
@@ -51,6 +56,22 @@ def createModels():
     #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=12,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
     #xmodel = XModel("randomf2",model,X,X_test)
     #ensemble.append(xmodel)
+    
+    #rf, using brute force sparse to dense...takes VERY LONG ~0.870
+    """
+    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV_small',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False)
+    X=pd.DataFrame(Xs.todense())
+    X_test=pd.DataFrame(Xs_test.todense())
+    model= RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features=100,oob_score=False,random_state=42)
+    xmodel = XModel("randomf3",model,X,X_test)
+    ensemble.append(xmodel)
+    """
+    
+    #KNN fastest model 0.870
+    (X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=True)  
+    model= Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', KNeighborsClassifier(n_neighbors=150))])
+    xmodel = XModel("knn1",model,X,X_test)
+    ensemble.append(xmodel)
     
     #xrf, using SVD
     #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=True,useAlcat=False,useGreedyFilter=False)
@@ -64,45 +85,40 @@ def createModels():
     #xmodel = XModel("gradboost1",model,X,X_test)
     #ensemble.append(xmodel)
     
-    """1,1character ngrams
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('cV',useSVD=0,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=1)  
+    """1,1character ngrams  
+    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=1)  
     model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=42)
-    xmodel = XModel("lr_char11",model,Xs,Xs_test)
+    xmodel = XModel("lr_char11_hV",model,Xs,Xs_test)
+    ensemble.append(xmodel)
+    """
+       
+    """2,2 character ngrams  
+    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=2)  
+    model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=42)
+    xmodel = XModel("lr_char22_hV",model,Xs,Xs_test)
     ensemble.append(xmodel)
     """
     
-    
-    """2,2 character ngrams
-    """
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('cV',useSVD=0,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=2)  
+    """3,3 character ngrams  
+    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=3)  
     model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=42)
-    xmodel = XModel("lr_char22",model,Xs,Xs_test)
+    xmodel = XModel("lr_char33_hV",model,Xs,Xs_test)
     ensemble.append(xmodel)
-
-    
-    """3,3 character ngrams
     """
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('cV',useSVD=0,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=3)  
-    model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=42)
-    xmodel = XModel("lr_char33",model,Xs,Xs_test)
-    ensemble.append(xmodel)
-
     
-    """4,4 character ngrams
-    """
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('cV',useSVD=0,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=4)  
+    """4,4 character ngrams   
+    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=4)  
     model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=42)
-    xmodel = XModel("lr_char44",model,Xs,Xs_test)
+    xmodel = XModel("lr_char44_hV",model,Xs,Xs_test)
     ensemble.append(xmodel)
-  
+    """
     
     """5,5 character ngrams
-    """
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('cV',useSVD=0,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=5)  
+    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=5)  
     model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=42)
-    xmodel = XModel("lr_char55",model,Xs,Xs_test)
+    xmodel = XModel("lr_char55_hV",model,Xs,Xs_test)
     ensemble.append(xmodel)
-    
+    """
     
     #collect them
     for m in ensemble:
@@ -160,9 +176,11 @@ def trainEnsemble(addMetaFeatures=False):
     test_indices = pd.read_csv('../stumbled_upon/data/test.tsv', sep="\t", na_values=['?'], index_col=1).index
     y = np.asarray(pd.read_csv('../stumbled_upon/data/train.tsv', sep="\t", na_values=['?'], index_col=1)['label'])
     #ensemble=["logreg1","sgd1","randomf1","randomf2","randomf3","gradboost1","gbmR"]
-    ensemble=["logreg1","logreg2_cv","sgd1","sgd2","randomf1","randomf2","gradboost1","extrarf1","gbmR","lof"]
-    ensemble=["logreg1","logreg2_cv","sgd2","randomf1","randomf2","gradboost1","gbmR"]#best so far 0.885
-    #ensemble=["logreg1","logreg2_cv","sgd2","randomf1","randomf2","gradboost1","gbmR","lof"]
+    #ensemble=["logreg1","logreg2_cv","sgd1","sgd2","randomf1","randomf2","gradboost1","extrarf1","gbmR","lof"]
+    #ensemble=["logreg1","logreg2_cv","sgd2","randomf1","randomf2","gradboost1","gbmR"]#best so far 0.885
+    ensemble=["logreg1","logreg2_cv","sgd1","sgd2","naiveB1","knn1","randomf1","randomf2","randomf3","extrarf1","gradboost1","gbmR","gbmR2","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char11","lr_char22","lr_char33","lr_char44","lr_char55"]
+    #ensemble=["logreg1","randomf1","gbmR","lr_char55_hV"]
+    #ensemble=["lr_char11_hV","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV"]
     for i,model in enumerate(ensemble):
 	print "Loading model:",i," name:",model
 	if i>0:
@@ -189,11 +207,13 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices):
     folds=8
     #do another crossvalidation for weights
     blender=LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
-    #blender=SGDClassifier(alpha=.005, n_iter=50,penalty='l2',shuffle=True,random_state=42,loss='log')
-    #blender=AdaBoostClassifier(learning_rate=0.1,n_estimators=100,algorithm="SAMME.R")
-    #blender=ExtraTreesRegressor(n_estimators=200,max_depth=None,n_jobs=1, max_features='auto',oob_score=False,random_state=42)
+    #blender = Pipeline([('filter', SelectPercentile(f_regression, percentile=90)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=1.0))])
+    #blender = BernoulliNB(alpha=1.0)
+    #blender=SGDClassifier(alpha=.001, n_iter=50,penalty='l2',shuffle=True,random_state=42,loss='log')
+    #blender=AdaBoostClassifier(learning_rate=0.1,n_estimators=100,algorithm="SAMME.R",max_depth=3)
+    #blender=RandomForestClassifier(n_estimators=50,max_depth=3,n_jobs=1, max_features='auto',oob_score=False,random_state=42)
     #blender=ExtraTreesClassifier(n_estimators=50,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
-    cv = KFold(oobpreds.shape[0], n_folds=folds, indices=True,random_state=42)
+    cv = KFold(oobpreds.shape[0], n_folds=folds, indices=True,random_state=123)
     blend_scores=np.zeros(folds)
     blend_oob=np.zeros((oobpreds.shape[0]))
     for i, (train, test) in enumerate(cv):
@@ -210,26 +230,44 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices):
     if hasattr(blender,'coef_'):
       print blender.coef_
       for i,model in enumerate(ensemble):
-	print "%-16s   coef: %4.4f" %(model,blender.coef_[0][i])
+	fpr, tpr, thresholds = metrics.roc_curve(ly, oobpreds.iloc[:,i])
+	auc=metrics.auc(fpr, tpr)
+	print "%-16s  auc: %4.3f coef: %4.3f" %(model,auc,blender.coef_[0][i])
       print "Sum: %4.4f"%(np.sum(blender.coef_))
-
-    
     #plt.plot(range(len(ensemble)),scores,'ro')
     
     #Prediction
-
+    print "Make final ensemble prediction..."
+    #make prediction for each classifiers
+    preds=blender.fit(oobpreds,ly)
+    #blend results
+    preds=blender.predict_proba(testset)[:,1]   
+    preds=pd.DataFrame(preds,columns=["label"],index=test_indices)
+    preds.to_csv('../stumbled_upon/submissions/sub0210a.csv')
+    print preds
 
 
 def aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False):
     #http://www.kaggle.com/c/amazon-employee-access-challenge/forums/t/4928/combining-the-results-of-various-models?page=3
-    def fopt(pars):
-	fpr, tpr, thresholds = metrics.roc_curve(y, np.dot(Xtrain,pars))
+    def fopt(params):
+	# nxm  * m*1 ->n*1
+	fpr, tpr, thresholds = metrics.roc_curve(y, np.dot(Xtrain,params))
 	auc=metrics.auc(fpr, tpr)
 	#print "auc:",auc
 	return -auc
+    
+    def constr0(params):
+	return params[0]
+    def constr1(params):
+	return params[1]
+    def constr2(params):
+	return params[2]
+    
+    
     n_models=len(ensemble)
     x0 = np.ones((n_models, 1)) / n_models
-    xopt = fmin(fopt, x0)
+    #xopt = fmin(fopt, x0)
+    xopt = fmin_cobyla(fopt, x0,[constr0,constr1,constr2],rhoend=1e-7)
     if takeMean==True:
 	xopt=x0
 	
@@ -242,17 +280,20 @@ def aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False):
 	print "->AUC,opt: %4.4f" %(auc)
     
     for i,model in enumerate(ensemble):
-	print "%-16s   coef: %4.4f" %(model,xopt[i])
+	fpr, tpr, thresholds = metrics.roc_curve(y, Xtrain.iloc[:,i])
+	auc=metrics.auc(fpr, tpr)
+	print "%-16s   auc: %4.3f  coef: %4.3f" %(model,auc,xopt[i])
     print "Sum: %4.4f"%(np.sum(xopt))
-    
+    #prediction
     preds=pd.DataFrame(np.dot(Xtest,xopt),columns=["label"],index=test_indices)
-    preds.to_csv('../stumbled_upon/submissions/sub2809a.csv')
+    preds.to_csv('../stumbled_upon/submissions/sub0110a.csv')
     print preds
+    print preds.describe()
   
 
 
 if __name__=="__main__":
-    ensemble,y=createModels()
-    ensemble=createOOBdata(ensemble,y,10)
-    #trainEnsemble()
+    #ensemble,y=createModels()
+    #ensemble=createOOBdata(ensemble,y,10)
+    trainEnsemble()
     

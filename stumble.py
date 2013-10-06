@@ -16,6 +16,7 @@ from scipy import sparse
 import matplotlib.pyplot as plt
 import pylab as pl
 
+from sklearn.preprocessing import StandardScaler
 from sklearn.feature_extraction.text import CountVectorizer,HashingVectorizer,TfidfVectorizer
 from sklearn import metrics
 from sklearn import cross_validation,grid_search
@@ -26,13 +27,15 @@ from sklearn.feature_extraction import DictVectorizer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.pipeline import Pipeline
 
-from sklearn.feature_selection import SelectKBest,SelectPercentile, chi2, f_classif
+from sklearn.feature_selection import SelectKBest,SelectPercentile, chi2, f_classif,f_regression
 from sklearn.naive_bayes import BernoulliNB
 from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor
 from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import LinearSVC
 from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+
 
 from nltk import word_tokenize,sent_tokenize
 #from nltk.stem import SnowballStemmer # no english?
@@ -72,6 +75,8 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 #TODO calibration of AUC by reducing uncertain webpages to p=0.5
 #TODO use meta features....
 #TODO transformation of variable log of length variables, standardize
+#TODO calibration-> lof>x then  p=0.5+
+#TODO log transform!
 
 class NLTKTokenizer(object):
     """
@@ -100,25 +105,37 @@ def dfinfo(X_all):
     print "##Details##\n",X_all.ix[:,2:3].describe()
     print "##Details##\n",X_all.ix[:,3:7].describe()
 
-def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False,char_ngram=5):
+def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False,char_ngram=5,loadTemp=False):
     """
     Load Data into pandas and preprocess features
     """
     #pd.set_printoptions(max_rows=200, max_columns=5)
     
+    
+    
     print "loading dataset..."
     X = pd.read_csv('../stumbled_upon/data/train.tsv', sep="\t", na_values=['?'], index_col=1)
     X_test = pd.read_csv('../stumbled_upon/data/test.tsv', sep="\t", na_values=['?'], index_col=1)
     y = X['label']
+    y = pd.np.array(y)
     X = X.drop(['label'], axis=1)
     # Combine test and train while we do our preprocessing
     X_all = pd.concat([X_test, X])
     print "Original shape:",X_all.shape
     
-    #vectorize data
+    if loadTemp:
+	Xs = pd.read_csv('../stumbled_upon/data/Xtemp.csv', sep=",", index_col=0)
+	Xs_test = pd.read_csv('../stumbled_upon/data/Xtemp_test.csv', sep=",", index_col=0)
+	
+	return (Xs,y,Xs_test,X_test.index,X.index)
+    
+    #vectorize data#
     #vectorizer = HashingVectorizer(ngram_range=(1,2), non_negative=True)
     if vecType=='hV':
-	vectorizer = HashingVectorizer(stop_words='english',ngram_range=(1,2),analyzer="word", non_negative=True, norm='l2', n_features=2**19)
+	warnings.filterwarnings("ignore", category=UserWarning)
+	print "Using hashing vectorizer..."
+	#vectorizer = HashingVectorizer(stop_words='english',ngram_range=(1,2),analyzer="word", non_negative=True, norm='l2', n_features=2**19)
+	vectorizer = HashingVectorizer(stop_words=None,ngram_range=(char_ngram,char_ngram),analyzer="char", non_negative=True, norm='l2', n_features=2**18)
     elif vecType=='tfidfV':
 	print "Using tfidfV..."
 	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=4,strip_accents='unicode',tokenizer=NLTKTokenizer())
@@ -126,7 +143,10 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	#vectorizer = TfidfVectorizer(ngram_range=(1,1),max_features=2**14,sublinear_tf=True,min_df=3,tokenizer=NLTKTokenizer(),stop_words=None)
 	#vectorizer = TfidfVectorizer(ngram_range=(1,1),max_features=2**14,sublinear_tf=True,min_df=2,stop_words=None)#fast
 	#vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True, norm=u'l2')#opt
+    elif vecType=='tfidfV_small':
+	vectorizer = TfidfVectorizer(ngram_range=(1,2),max_features=2**12,sublinear_tf=True,min_df=4,stop_words=None)#fast
     else:
+	print "Using count vectorizer..."
 	#vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**18)
 	#vectorizer = CountVectorizer(lowercase=False,analyzer="char_wb",ngram_range=(4,4),max_features=2**14,stop_words='english')#AUC = 0.781
 	#vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(4,4),max_features=2**14,stop_words='english')#AUC= 0.786
@@ -188,7 +208,7 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
     #X_alcat=sparse.csr_matrix(pd.np.array(X_alcat))
     #body_counts = sparse.hstack((body_counts,X_alcat),format="csr")
 
-    y = pd.np.array(y)
+    
     if useSVD>1:
 	if useAddFeatures==True:
 	    X_raw=crawlRawData(X_all)
@@ -247,9 +267,10 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	
 	if useGreedyFilter:
 	    print X_svd
-	    print X_svd.columns
-	    X_svd=X_svd.loc[:,[1,4,3,8,5,'linkwordscore',6,'char2',9,'url_contains_foodstuff',22,26,'MOD',33,'alchemy_category_score',24,45,'spelling_errors_ratio',43]]
+	    #print X_svd.columns
+	    #X_svd=X_svd.loc[:,[1,4,3,8,5,'linkwordscore',6,'char2',9,'url_contains_foodstuff',22,26,'MOD',33,'alchemy_category_score',24,45,'spelling_errors_ratio',43]]#Rgreedy
 	    #X_svd=X_svd.loc[:,[1,4,3,8,5,'linkwordscore',6,'char2',9,'url_contains_foodstuff',22,26,'MOD',33,'alchemy_category_score',24,45,'spelling_errors_ratio',43,'frameTagRatio',19,21,25,0,'url_length',48,'TO','char5','url_contains_news','compression_ratio',37,'VD','twitter_ratio',49,'is_news','url_contains_sweetstuff',42,17,'url_contains_health',20,'char4',16,'DET',23,'commonlinkratio_2',41,'image_ratio',7,'wwwfacebook_ratio','char0']]
+	    X_svd=X_svd.loc[:,[1, 2, 4, u'url_contains_foodstuff', 9, 0, 8, u'CNJ', u'url_contains_recipe', 33, 6, u'non_markup_alphanum_characters', 10, u'body_length', 15, 5, 3, u'char2', 12, 11, 14, 21, 31, u'frameTagRatio', 7, 25, u'N', 22, 17, 16, 23, 19, 47, 18, u'linkwordscore', 29, 46, 30, u'V', 39, 32]]#rf feature importance sklearn
 	    #X_svd=X_svd.loc[:,[1,4,3,8,5,u'linkwordscore']]
 	    print X_svd
 	
@@ -268,32 +289,23 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	
     
 
-def one_hot_encoder(data, cols, replace=False):
+def one_hot_encoder(data, col, replace=False):
     """ Takes a dataframe and a list of columns that need to be encoded.
-    Returns a 3-tuple comprising the data, the vectorized data,
+    Returns a 3-tuple comprising the data, the vectorized data,{
     and the fitted vectorizor.
     credits to https://gist.github.com/kljensen/5452382
     """
-    #temporarily out of order...?
-    vec = DictVectorizer()
-#    def mkdict(row):
-#	  d={}
-#	  for col in cols:
-#	      print "col",col
-#	      print "row",row[col]
-#	      d.update({col: row[col]})
-#	  print d
-#	  return d
-    #mkdict = lambda row: dict((col, row[col]) for col in cols)
-    tmp=data[cols].apply(mkdict, axis=1)
-    print "tmp",tmp
+    vec=DictVectorizer()
+    tmp=[]
+    for row in data[col].itertuples():
+	d=dict({'cat': row[1]})
+	tmp.append(d)  
     tmp=vec.fit_transform(tmp).toarray()
-    print type(tmp)
     vecData = pd.DataFrame(tmp)
     vecData.columns = vec.get_feature_names()
     vecData.index = data.index
     if replace is True:
-	data = data.drop(cols, axis=1)
+	data = data.drop(col, axis=1)
 	data = data.join(vecData)
     return data
     
@@ -326,12 +338,13 @@ def modelEvaluation(lmodel,lXs,ly):
     """
     MODEL EVALUATION
     """
+    ly = np.asarray(ly)
     print "Model evaluation..."
     folds=8
     #parameters=np.logspace(-14, -7, num=8, base=2.0)#SDG
     #parameters=np.logspace(-7, 0, num=8, base=2.0)#LG
     #parameters=[250,500,1000,2000]#rf
-    parameters=[80,85,90,95,100]#chi2
+    parameters=[100.0,10.0,8.0,5.0,2.0,1.5,1.2]#chi2
     #parameters=[2,3,4,5]#gbm
     #parameters=np.logspace(-7, -0, num=8, base=2.0)
     print "Parameter space:",parameters
@@ -342,21 +355,21 @@ def modelEvaluation(lmodel,lXs,ly):
 	#    lmodel.set_params(alpha=p)
 	#if (isinstance(lmodel,LogisticRegression) or isinstance(lmodel,SVC)) and p<1000:
 	#    lmodel.set_params(C=p)
-	if isinstance(lmodel,RandomForestClassifier) :
-	    lmodel.set_params(max_features=p)
-	if isinstance(lmodel,GradientBoostingClassifier):
-	    lmodel.set_params(max_depth=p)
+	#if isinstance(lmodel,RandomForestClassifier) :
+	#    lmodel.set_params(max_features=p)
+	#if isinstance(lmodel,GradientBoostingClassifier):
+	#    lmodel.set_params(max_depth=p)
         #print lmodel.get_params()
         cv = KFold(lXs.shape[0], n_folds=folds,indices=True, random_state=j)
 	scores=np.zeros(folds)	
 	for i, (train, test) in enumerate(cv):
 	    #print("Extracting %s best features by a chi-squared test" % p)
 	    #ch2 = SelectKBest(chi2, k=p)
-	    ch2 = SelectPercentile(chi2,percentile=p)
-	    Xtrain = ch2.fit_transform(lXs[train], ly[train])
-	    Xtest = ch2.transform(lXs[test]) 
-	    #Xtrain = lXs[train]
-	    #Xtest = lXs[test]
+	    #ch2 = SelectPercentile(chi2,percentile=p)
+	    #Xtrain = ch2.fit_transform(lXs[train], ly[train])
+	    #Xtest = ch2.transform(lXs[test]) 
+	    Xtrain = lXs.iloc[train]
+	    Xtest = lXs.iloc[test]
 	    lmodel.fit(Xtrain, ly[train])
 	    oobpreds[test,j] = lmodel.predict_proba(Xtest)[:,1]
 	    scores[i]=roc_auc_score(ly[test],oobpreds[test,j])
@@ -365,6 +378,10 @@ def modelEvaluation(lmodel,lXs,ly):
 	print "Iteration:",j," parameter:",p,
 	print " <AUC>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
 	print " AUC oob: %0.3f" %(roc_auc_score(ly,oobpreds[:,j]))
+	#Filter data
+	#predmod=lofFilter(oobpreds[:,j],p)
+	#print " AUC calibrated: %0.3f" %(roc_auc_score(ly,predmod))
+	
     scores=[roc_auc_score(ly,oobpreds[:,j]) for j in xrange(len(parameters))]
     plt.plot(parameters,scores,'ro')
     
@@ -475,14 +492,17 @@ def pyGridSearch(lmodel,lXs,ly):
     """ 
     print "Grid search..."
     #parameters = {'C':[1000,10000,100], 'gamma':[0.001,0.0001]}
-    #parameters = {'max_depth':[5], 'learning_rate':[0.001],'n_estimators':[3000,5000,10000]}#gbm
+    #parameters = {'max_depth':[6,7,8], 'learning_rate':[0.005,0.01],'n_estimators':[200,1000]}#gbm
     #parameters = {'max_depth':[2], 'learning_rate':[0.01,0.001],'n_estimators':[3000]}#gbm
     #parameters = {'n_estimators':[500], 'max_features':[5,10,15]}#rf
     #parameters = {'n_estimators':[250,100,50], 'learning_rate':[0.1,0.01,0.5]}#adaboost
-    #parameters = {'n_estimators':[500,1000], 'max_features':[1,2,3,4,5],'min_samples_leaf':[5,8,10,12]}#rf
+    #parameters = {'n_estimators':[200,500,700], 'max_features':[50,100,200,500],'min_samples_leaf':[5]}#rf
     #parameters = {'C':[0.1,1,10]}#SVC
-    parameters = {'filter__percentile': [100,80], 'model__n_estimators': [500], 'model__max_features':[20], 'model__min_samples_leaf':[1,5,10,12] }#rf
-    #parameters = {'filter__percentile': [1.0,95,95,80,70,60], 'model__C': [0.5,1.0, 10.0] }#pipeline
+    #parameters = {'filter__percentile': [100,80,50,25] , 'model__alpha':[1.0,0.8,0.5,0.1]}#opt
+    parameters = {'filter__percentile': [16,15,14,13,12] , 'model__n_neighbors':[125,130,135,150,200]}#knn
+    #parameters = {'n_neighbors':[1,2,3,5,8,10]}#knn
+    #parameters = {'filter__percentile': [100,80,50], 'model__n_estimators': [200], 'model__max_features':['auto'], 'model__min_samples_leaf':[5] }#rf
+    #parameters = {'filter__percentile': [95,95,80,70,60], 'model__C': [0.5,1.0, 10.0] }#pipeline
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXs,ly)
     
@@ -629,7 +649,7 @@ def rfFeatureImportance(forest,Xold,Xold_test,n):
     pdrowidx=Xold_test.shape[0]-1
     Xreduced_test = Xtmp[:len(Xold_test.index)]
     Xreduced = Xtmp[len(Xold_test.index):]
-    print "Xreduced_test:",Xreduced_test
+    #print "Xreduced_test:",Xreduced_test
     print "Xreduced_test:",Xreduced_test.shape
     print "Xreduced_train:",Xreduced.shape
     return(Xreduced,Xreduced_test)
@@ -668,8 +688,8 @@ def iterativeFeatureSelection(lmodel,Xold,Xold_test,ly,iterations,nrfeats):
 	    print ">>>Iteration: ",i,"<<<"
 	    lmodel = buildModel(model,Xold,ly)
 	    (Xold,Xold_test)=rfFeatureImportance(model,Xold,Xold_test,nrfeats)
-	    Xold.to_csv("../stumbled_upon/data/Xlarge_"+str(i)+".csv")
-	    Xold_test.to_csv("../stumbled_upon/data/XXlarge_test_"+str(i)+".csv")
+	    #Xold.to_csv("../stumbled_upon/data/Xlarge_"+str(i)+".csv")
+	    #Xold_test.to_csv("../stumbled_upon/data/XXlarge_test_"+str(i)+".csv")
 	return(Xold,Xold_test)
 
 
@@ -722,6 +742,25 @@ def getOOBCVPredictions(lmodel,lXs,lXs_test,ly,folds=8,repeats=1):
 	print "Summary: <AUC,oob>: %0.3f (%d repeats)" %(roc_auc_score(ly,oob_avg),repeats,)
 	return(oob_avg)
 	
+
+def lofFilter(pred,threshhold=10.0,training=True):
+	"""
+	#filter data according to local outlier frequency.. bringt nichts...
+	"""
+	indices=[]
+	global test_indices
+	lof = pd.read_csv("../stumbled_upon/data/lof.csv", sep=",", index_col=0)
+	lof = lof[len(test_indices):]
+	avg=np.mean(pred)
+	for i in xrange(len(lof.index)):
+	    #print lof.iloc[i,0]
+	    if lof.iloc[i,0]>threshhold:
+		pred[i]=avg
+		indices.append(i)
+	#print indices
+	print "threshhold:,",threshhold,"n,changed:",len(indices)," mean:",avg
+	return pred
+	
 	
 def filterClassNoise(lmodel,lXs,lXs_test,ly):
 	"""
@@ -730,7 +769,7 @@ def filterClassNoise(lmodel,lXs,lXs_test,ly):
 	precision: Wieviel falsche habe ich erwischt
 	recall: wieviele richtige sind durch die Lappen gegangen
 	"""
-	threshhold=[0.87,0.075,0.88]
+	threshhold=[0.88,0.89,0.90,1.0]
 	folds=8
 	print "Filter strongly misclassified classes..."
 	#rdidx=random.sample(xrange(1000), 20)
@@ -746,8 +785,7 @@ def filterClassNoise(lmodel,lXs,lXs_test,ly):
 	for j,t in enumerate(threshhold):
 	    #XValidation
 	    cv = KFold(lXs.shape[0], n_folds=folds, indices=True,random_state=j,shuffle=True)	    	    
-	    ninst=np.zeros(folds)
-	    
+	    ninst=np.zeros(folds)	    
 	    for i, (train, test) in enumerate(cv):
 		Xtrain = lXs.iloc[train]
 		ytrain=  ly[train]		
@@ -759,6 +797,7 @@ def filterClassNoise(lmodel,lXs,lXs_test,ly):
 		#testing data, not manipulated
 		Xtest = lXs.iloc[test]
 		oobpreds[test,j] = lmodel.predict_proba(Xtest)[:,1]
+		
 		scores[i,j]=roc_auc_score(ly[test],oobpreds[test,j])
 
 	    print "Threshhold: %0.3f  <AUC>: %0.3f (+/- %0.3f) removed instances: %4.2f" % (t, scores[:,j].mean(), scores[:,j].std(), ninst.mean() ),
@@ -784,6 +823,32 @@ def createBooster(lmodel,lXs,lXs_test,ly):
     #print "AUC: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std())
     return(ada_real)
 
+def scaleData(lXs,lXs_test,cols=None):
+    """
+    standard+transformation scaling of data
+    """
+    print "Data scaling..."
+    
+    
+    lX_all = pd.concat([lXs_test, lXs])
+    
+    lX_all[cols].hist()
+    
+    lX_all[cols] = (lX_all[cols] - lX_all[cols].min()+10e-10) 
+    print lX_all[cols].describe()
+    
+    lX_all[cols]=lX_all[cols].apply(np.sqrt)
+    lX_all[cols] = (lX_all[cols] - lX_all[cols].mean()) / (lX_all[cols].max() - lX_all[cols].min()) 
+    print lX_all[cols].describe()
+    
+    lX_all[cols].hist()
+    plt.show()
+    
+    #divide again
+    lXs = lX_all[len(lXs_test.index):]
+    lXs_test = lX_all[:len(lXs_test.index)]
+    return (lXs,lXs_test)
+
 
 if __name__=="__main__":
     """   
@@ -798,55 +863,62 @@ if __name__=="__main__":
     pd.set_printoptions(max_rows=300, max_columns=8)
     print "scipy:",sp.__version__
     #variables
-    (Xs,y,Xs_test,data_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False)#opt SVD=50
-    #(Xs,y,Xs_test,data_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=True)#opt SVD=50
+    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#opt SVD=50
+    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV_small',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False)
+    #Xs=pd.DataFrame(Xs.todense())
+    #Xs_test=pd.DataFrame(Xs_test.todense())
+    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=True,useGreedyFilter=False,char_ngram=1,loadTemp=True)
+    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=True)#opt SVD=50
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=0,useJson=True)#opt SVD=50
-    #Xs.to_csv("../stumbled_upon/data/Xlarge.csv")
-    #Xs_test.to_csv("../stumbled_upon/data/XXlarge_test.csv")
-    
-    #(Xs,y,Xs_test,data_indices) = prepareSimpleData()
+    #Xs.to_csv("../stumbled_upon/data/Xtemp.csv")
+    #Xs_test.to_csv("../stumbled_upon/data/Xtemp_test.csv")
+
+    #(Xs,y,Xs_test,test_indices) = prepareSimpleData()
     print "Dim X (training):",Xs.shape
     print "Type X:",type(Xs)
     print "Dim X (test):",Xs_test.shape
     # Fit a model and predict
-    #model = BernoulliNB(alpha=1.0)
     #model = SGDClassifier(alpha=.0001, n_iter=50,penalty='elasticnet',l1_ratio=0.2,shuffle=True,random_state=42,loss='log')
     #model = SGDClassifier(alpha=0.0005, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l2',n_jobs=4)#opt  
     #model = SGDClassifier(alpha=0.0001, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l2',n_jobs=4)#opt simple processing
     #model = SGDClassifier(alpha=0.00014, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='elasticnet',l1_ratio=0.99)
     #model = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)#opt
-    #model = Pipeline([('filter', SelectPercentile(chi2, percentile=97)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=1.0))])
+    #model = Pipeline([('filter', SelectPercentile(chi2, percentile=70)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=1.0))])
+    model = Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', KNeighborsClassifier(n_neighbors=150))])
     #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=None)#opt kaggle params
-    #model = RandomizedLogisticRegression(C=1, scaling=0.5, sample_fraction=0.75, n_resampling=20, selection_threshold=0.25, tol=0.001, fit_intercept=True, verbose=False, normalize=True, random_state=42)
+    #model = LogisticRegressionMod(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=None)
     #model = KNeighborsClassifier(n_neighbors=10)
     #model=SVC(C=0.3,kernel='linear',probability=True)
     #model=LinearSVC(penalty='l2', loss='l2', dual=True, tol=0.0001, C=1.0)#no proba
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='linear', probability=True, shrinking=True,tol=0.001, verbose=False)
-    #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False,random_state=42)
-    model = Pipeline([('filter', SelectPercentile(f_classif, percentile=80)), ('model', RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=12,n_jobs=1,criterion='entropy', max_features=20,oob_score=False,random_state=42))])
-    #model = RandomForestClassifier(n_estimators=1000,max_depth=None,min_samples_leaf=12,n_jobs=1,criterion='entropy', max_features=4,oob_score=False,random_state=42)#opt greedy approach
+    #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
+    #model=   RandomForestClassifier(n_estimators=200,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
+    #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=25)), ('model', BernoulliNB(alpha=0.1))])#opt dense 0.855
+    #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=50)), ('model', BernoulliNB(alpha=0.1))])#opt sparse 0.849
+    #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=12,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)#opt greedy approach
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1,random_state=42)
     #model = ExtraTreesClassifier(n_estimators=50,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False,random_state=42)
     #model = AdaBoostClassifier(n_estimators=50,learning_rate=0.1,random_state=42)
-    #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.001, n_estimators=5000, subsample=1.0, min_samples_split=2, min_samples_leaf=10, max_depth=20, init=None, random_state=42,verbose=False)
+    #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=200, subsample=1.0, min_samples_split=2, min_samples_leaf=10, max_depth=6, init=None, random_state=42,verbose=False)#opt 0.878
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)  
     #modelEvaluation(model,Xs,y)
     #model=pyGridSearch(model,Xs,y)
     #(gclassifiers,gblender)=ensembleBuilding(Xs,y)
-    #ensemblePredictions(gclassifiers,gblender,Xs,y,Xs_test,data_indices,'sub2709a.csv')
+    #ensemblePredictions(gclassifiers,gblender,Xs,y,Xs_test,test_indices,'sub2709a.csv')
     #fit final model
     #model=createBooster(model,Xs,Xs_test,y)
-    model=pyGridSearch(model,Xs,y)
-    
+    #(Xs,Xs_test)=scaleData(Xs,Xs_test,['body_length','linkwordscore','frameTagRatio','non_markup_alphanum_characters'])
+    #Xs.hist()
     #print model
     model = buildModel(model,Xs,y) 
     
     #(Xs,Xs_test,y)=filterClassNoise(model,Xs,Xs_test,y)
     #model = buildModel(model,Xs,y) 
-    #(Xs,Xs_test)=iterativeFeatureSelection(model,Xs,Xs_test,y,30,1)
-    #model = buildModel(model,Xs,y)  
+    #(Xs,Xs_test)=iterativeFeatureSelection(model,Xs,Xs_test,y,25,100)
+    #model = buildModel(model,Xs,y) 
+    #lofFilter(y)
     #(Xs,Xs_test) = group_sparse(Xs,Xs_test)
     #print "Dim X (after grouping):",Xs.shape
-    #makePredictions(model,Xs_test,data_indices,'../stumbled_upon/submissions/sub1909b.csv')	            
+    makePredictions(model,Xs_test,test_indices,'../stumbled_upon/submissions/sub0410b.csv')	            
     print("Model building done in %fs" % (time() - t0))
     plt.show()

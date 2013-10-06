@@ -42,17 +42,25 @@ class XModel:
 Just a test for subclassing
 """
 class LogisticRegressionMod(LogisticRegression):
-      pass
       #subclassing init must repeat all keyword arguments...
       #def __init__(self):
-	#pass
-      
+	#pass	
       def fit(self, X, y,sample_weight=None):
-	return super(LogisticRegression, self).fit(X, y)
-	#pass
-	#print "Creating LR subclass..."
-	#print self
-	#super(LogisticRegression, self).__init__()
+	  N = X.shape[0]
+	  #print "N:",N
+	  #print type(X)
+	  if sample_weight is not None:
+	      print type(sample_weight)   
+	  else:
+	     sample_weight=np.ones(N)
+	  mat1 = sp.sparse.dia_matrix(([sample_weight], [0]), shape=(N, N))
+	  #multiply X with sample weights 
+	  Xmod = mat1 * X
+	  Xmod = Xmod.toarray()
+	  print type(Xmod)
+	  #print res.to_dense()
+	  return super(LogisticRegression, self).fit(Xmod,y)
+
 
         
         
