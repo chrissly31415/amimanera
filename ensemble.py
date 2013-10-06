@@ -179,6 +179,7 @@ def trainEnsemble(addMetaFeatures=False):
     #ensemble=["logreg1","logreg2_cv","sgd1","sgd2","randomf1","randomf2","gradboost1","extrarf1","gbmR","lof"]
     #ensemble=["logreg1","logreg2_cv","sgd2","randomf1","randomf2","gradboost1","gbmR"]#best so far 0.885
     ensemble=["logreg1","logreg2_cv","sgd1","sgd2","naiveB1","knn1","randomf1","randomf2","randomf3","extrarf1","gradboost1","gbmR","gbmR2","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char11","lr_char22","lr_char33","lr_char44","lr_char55"]
+    ensemble=["sgd1","naiveB1","randomf1","randomf2","gbmR","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char33"]
     #ensemble=["logreg1","randomf1","gbmR","lr_char55_hV"]
     #ensemble=["lr_char11_hV","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV"]
     for i,model in enumerate(ensemble):
@@ -243,7 +244,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices):
     #blend results
     preds=blender.predict_proba(testset)[:,1]   
     preds=pd.DataFrame(preds,columns=["label"],index=test_indices)
-    preds.to_csv('../stumbled_upon/submissions/sub0210a.csv')
+    preds.to_csv('../stumbled_upon/submissions/sub0610a.csv')
     print preds
 
 
@@ -251,23 +252,19 @@ def aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False):
     #http://www.kaggle.com/c/amazon-employee-access-challenge/forums/t/4928/combining-the-results-of-various-models?page=3
     def fopt(params):
 	# nxm  * m*1 ->n*1
-	fpr, tpr, thresholds = metrics.roc_curve(y, np.dot(Xtrain,params))
-	auc=metrics.auc(fpr, tpr)
+	auc=roc_auc_score(y, np.dot(Xtrain,params))
 	#print "auc:",auc
 	return -auc
-    
-    def constr0(params):
-	return params[0]
-    def constr1(params):
-	return params[1]
-    def constr2(params):
-	return params[2]
-    
-    
+   
+    constr=[lambda x,z=i: x[z] for i in range(len(ensemble))]
+
     n_models=len(ensemble)
     x0 = np.ones((n_models, 1)) / n_models
     #xopt = fmin(fopt, x0)
-    xopt = fmin_cobyla(fopt, x0,[constr0,constr1,constr2],rhoend=1e-7)
+    xopt = fmin_cobyla(fopt, x0,constr,rhoend=1e-8)
+    #normalize, not necessary for auc
+    xopt=xopt/np.sum(xopt)
+    
     if takeMean==True:
 	xopt=x0
 	
@@ -282,11 +279,11 @@ def aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False):
     for i,model in enumerate(ensemble):
 	fpr, tpr, thresholds = metrics.roc_curve(y, Xtrain.iloc[:,i])
 	auc=metrics.auc(fpr, tpr)
-	print "%-16s   auc: %4.3f  coef: %4.3f" %(model,auc,xopt[i])
+	print "%-16s   auc: %4.3f  coef: %4.4f" %(model,auc,xopt[i])
     print "Sum: %4.4f"%(np.sum(xopt))
     #prediction
     preds=pd.DataFrame(np.dot(Xtest,xopt),columns=["label"],index=test_indices)
-    preds.to_csv('../stumbled_upon/submissions/sub0110a.csv')
+    preds.to_csv('../stumbled_upon/submissions/sub0610a.csv')
     print preds
     print preds.describe()
   
