@@ -77,6 +77,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 #TODO transformation of variable log of length variables, standardize
 #TODO calibration-> lof>x then  p=0.5+
 #TODO log transform!
+#TODO checkout feauters: haslogin, hasSearch function, hasdavertisments, hasGoogleAd, culinary, pancakes, number of newlines (i.e. length...), contains captch code, color tags
 
 class NLTKTokenizer(object):
     """
