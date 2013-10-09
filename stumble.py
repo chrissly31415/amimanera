@@ -58,7 +58,6 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 #TODO build class containing classifiers + dataset
 #TODO remove infrequent sparse features to new class
-#TODO dicretize continous data by cut and qcut?
 #TODO #use tags
 #TODO https://github.com/cbrew/Insults/blob/master/Insults/insults.py
 #TODO winner code insults
@@ -72,12 +71,14 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 #TODO recursive feature engineering
 #TODO top:SDG_alpha0.000136463620667_L10.992081466188
 #TODO bumping
-#TODO calibration of AUC by reducing uncertain webpages to p=0.5
+#TODO calibration of AUC by reducing uncertain webpages to p=0.5 ->NO
+#TODO transformation of variable log of length variables, standardize ->NO
+#TODO calibration-> lof>x then  p=0.5+ - >NO
+#TODO log transform ->NO...!!
 #TODO use meta features....
-#TODO transformation of variable log of length variables, standardize
-#TODO calibration-> lof>x then  p=0.5+
-#TODO log transform!
 #TODO checkout feauters: haslogin, hasSearch function, hasdavertisments, hasGoogleAd, culinary, pancakes, number of newlines (i.e. length...), contains captch code, color tags
+#TODO make bubble plot of misclassifications
+#TODO dicretize continous data by cut and qcut to enlarge sparse matrix ...?
 
 class NLTKTokenizer(object):
     """
@@ -500,10 +501,10 @@ def pyGridSearch(lmodel,lXs,ly):
     #parameters = {'n_estimators':[200,500,700], 'max_features':[50,100,200,500],'min_samples_leaf':[5]}#rf
     #parameters = {'C':[0.1,1,10]}#SVC
     #parameters = {'filter__percentile': [100,80,50,25] , 'model__alpha':[1.0,0.8,0.5,0.1]}#opt
-    parameters = {'filter__percentile': [16,15,14,13,12] , 'model__n_neighbors':[125,130,135,150,200]}#knn
+    #parameters = {'filter__percentile': [16,15,14,13,12] , 'model__n_neighbors':[125,130,135,150,200]}#knn
     #parameters = {'n_neighbors':[1,2,3,5,8,10]}#knn
     #parameters = {'filter__percentile': [100,80,50], 'model__n_estimators': [200], 'model__max_features':['auto'], 'model__min_samples_leaf':[5] }#rf
-    #parameters = {'filter__percentile': [95,95,80,70,60], 'model__C': [0.5,1.0, 10.0] }#pipeline
+    parameters = {'filter__percentile': [100,95,80,70,60], 'model__C': [0.5,1.0, 10.0], 'model__intercept_scaling': [0.1,1.0,10,100,1000] }#pipeline
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXs,ly)
     
@@ -695,16 +696,19 @@ def iterativeFeatureSelection(lmodel,Xold,Xold_test,ly,iterations,nrfeats):
 
 
 
-def removeInstances(lXs,ly,preds,t):
+def removeInstances(lXs,ly,preds,t,returnSD=True):
 	#now remove examples from train
-	res=np.abs(ly-preds)
+	if returnSD:
+	    res=preds
+	else:
+	    res=np.abs(ly-preds)
 	d={'abs_err' : pd.Series(res)}
-	res=pd.DataFrame(d)
 	res=pd.DataFrame(d)
 	res.index=lXs.index
 	lXs_reduced=pd.concat([lXs,res], axis=1)
 	boolindex=lXs_reduced['abs_err']<t
 	lXs_reduced=lXs_reduced[boolindex]
+	#print lXs_reduced.shape
 	#ninst[i]=len(Xtrain.index)-len(lXs_reduced.index)
 	lXs_reduced = lXs_reduced.drop(['abs_err'], axis=1)
 	#print "New dim:",lXs_reduced.shape
@@ -712,7 +716,7 @@ def removeInstances(lXs,ly,preds,t):
 	return (lXs_reduced,ly_reduced)
 
 	
-def getOOBCVPredictions(lmodel,lXs,lXs_test,ly,folds=8,repeats=1):
+def getOOBCVPredictions(lmodel,lXs,lXs_test,ly,folds=8,repeats=1,returnSD=True):
 	"""
 	Get cv oob predictions for classifiers
 	"""
@@ -740,7 +744,9 @@ def getOOBCVPredictions(lmodel,lXs,lXs_test,ly,folds=8,repeats=1):
 	scores=[roc_auc_score(ly,oobpreds[:,j]) for j in xrange(repeats)]
 	#simple averaging of blending
 	oob_avg=np.mean(oobpreds,axis=1)
-	print "Summary: <AUC,oob>: %0.3f (%d repeats)" %(roc_auc_score(ly,oob_avg),repeats,)
+	print "Summary: <AUC,oob>: %0.3f (%d repeats)" %(roc_auc_score(ly,oob_avg),repeats,)	
+	if returnSD:
+	    oob_avg=np.std(oobpreds,axis=1)
 	return(oob_avg)
 	
 
@@ -770,14 +776,17 @@ def filterClassNoise(lmodel,lXs,lXs_test,ly):
 	precision: Wieviel falsche habe ich erwischt
 	recall: wieviele richtige sind durch die Lappen gegangen
 	"""
-	threshhold=[0.88,0.89,0.90,1.0]
-	folds=8
+	threshhold=[0.045,0.04,0.035]
+	folds=10
 	print "Filter strongly misclassified classes..."
 	#rdidx=random.sample(xrange(1000), 20)
 	#print rdidx
 	#lXs = lXs.iloc[rdidx]
 	#ly = ly[rdidx]
-	preds=getOOBCVPredictions(model,Xs,Xs_test,y,8,10)
+	preds=getOOBCVPredictions(lmodel,Xs,Xs_test,y,folds,10)
+	print preds
+	plt.hist(preds,bins=20)
+	plt.show()
 	#print "stdev:",std
 	#should be oob or cvalidated!!!!
 	#preds = lmodel.predict_proba(lXs)[:,1]
@@ -807,41 +816,54 @@ def filterClassNoise(lmodel,lXs,lXs_test,ly):
 	print scores
 	plt.plot(threshhold,scores,'ro')
 	top = np.argsort(scores)
-	print top
 	optt = threshhold[top[-1]]
-	print "opt threshhold %4.2f index: %d" %(optt,top[0])
+	print "Optimum threshhold %4.2f index: %d with score: %4.4f" %(optt,top[-1],scores[top[-1]])
 	lXs_reduced,ly_reduced = removeInstances(lXs,ly,preds,optt)	
 	return(lXs_reduced,lXs_test,ly_reduced)
 
-  
-def createBooster(lmodel,lXs,lXs_test,ly):
-    n_estimators = 10
-    # A learning rate of 1. may not be optimal for both SAMME and SAMME.R
-    learning_rate = 0.1
-    #lmodel = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
-    ada_real = AdaBoostClassifier(base_estimator=lmodel,learning_rate=learning_rate,n_estimators=n_estimators,algorithm="SAMME.R")
-    #scores = cross_validation.cross_val_score(ada_real, lXs, ly, cv=8, scoring='roc_auc',n_jobs=4)
-    #print "AUC: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std())
-    return(ada_real)
+
+def showMisclass(lXs,lXs_test,ly,t=0.95):
+    """
+    Show bubble plot of strongest misclassifications...
+    """
+    folds=8
+    print "Show strongly misclassified classes..."
+    preds=getOOBCVPredictions(model,Xs,Xs_test,y,4,2,returnSD=False)
+    res=np.abs(ly-preds)
+    err=pd.DataFrame({'abs_err' : pd.Series(res)})
+    ly=pd.DataFrame({'y' : pd.Series(y)})
+    preds=pd.DataFrame({'preds' : pd.Series(preds)})
+    lXs_plot=pd.concat([ly,preds,err], axis=1)
+    lXs_plot.index=lXs.index
+    lXs_plot=pd.concat([lXs_plot,lXs], axis=1)
+    boolindex=lXs_plot['abs_err']>t
+    lXs_plot=lXs_plot[boolindex]
+    print "Number of instances left:",lXs_plot.shape[0]
+    col1='1'
+    col2='2'
+    bubblesizes=lXs_plot['non_markup_alphanum_characters']
+    print bubblesizes
+    sct = plt.scatter(lXs_plot[col1], lXs_plot[col2],c=lXs_plot['y'],s=bubblesizes, linewidths=2, edgecolor='black')
+    sct.set_alpha(0.75)
+    for row_index, row in lXs_plot.iterrows():
+	plt.text(row[col1], row[col2],row_index,size=10,horizontalalignment='center')
+    plt.xlabel(col1)
+    plt.ylabel(col2)
+    plt.show()
+    #now got to page interactively
 
 def scaleData(lXs,lXs_test,cols=None):
     """
     standard+transformation scaling of data
     """
     print "Data scaling..."
-    
-    
-    lX_all = pd.concat([lXs_test, lXs])
-    
-    lX_all[cols].hist()
-    
+    lX_all = pd.concat([lXs_test, lXs])   
+    lX_all[cols].hist()   
     lX_all[cols] = (lX_all[cols] - lX_all[cols].min()+10e-10) 
     print lX_all[cols].describe()
-    
     lX_all[cols]=lX_all[cols].apply(np.sqrt)
     lX_all[cols] = (lX_all[cols] - lX_all[cols].mean()) / (lX_all[cols].max() - lX_all[cols].min()) 
     print lX_all[cols].describe()
-    
     lX_all[cols].hist()
     plt.show()
     
@@ -885,15 +907,18 @@ if __name__=="__main__":
     #model = SGDClassifier(alpha=0.00014, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='elasticnet',l1_ratio=0.99)
     #model = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)#opt
     #model = Pipeline([('filter', SelectPercentile(chi2, percentile=70)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=1.0))])
-    model = Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', KNeighborsClassifier(n_neighbors=150))])
+    #model = Pipeline([('filter', SelectPercentile(chi2, percentile=70)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=1.0))])
+    #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', KNeighborsClassifier(n_neighbors=150))])
     #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=None)#opt kaggle params
-    #model = LogisticRegressionMod(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=None)
+    #model = LogisticRegressionMod(penalty='l2', dual=False, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=None)#opt kaggle params
+    #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=100)), ('model', LogisticRegression(penalty='l2', dual=False, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=10.0, class_weight=None, random_state=None))])
+    #model = AdaBoostClassifier(base_estimator=LogisticRegressionMod(penalty='l2', dual=False, tol=0.0001, C=1, fit_intercept=True,intercept_scaling=1.0),learning_rate=0.1,n_estimators=50,algorithm="SAMME.R")
     #model = KNeighborsClassifier(n_neighbors=10)
     #model=SVC(C=0.3,kernel='linear',probability=True)
     #model=LinearSVC(penalty='l2', loss='l2', dual=True, tol=0.0001, C=1.0)#no proba
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='linear', probability=True, shrinking=True,tol=0.001, verbose=False)
     #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
-    #model=   RandomForestClassifier(n_estimators=200,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
+    model=   RandomForestClassifier(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=25)), ('model', BernoulliNB(alpha=0.1))])#opt dense 0.855
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=50)), ('model', BernoulliNB(alpha=0.1))])#opt sparse 0.849
     #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=12,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)#opt greedy approach
@@ -907,16 +932,17 @@ if __name__=="__main__":
     #(gclassifiers,gblender)=ensembleBuilding(Xs,y)
     #ensemblePredictions(gclassifiers,gblender,Xs,y,Xs_test,test_indices,'sub2709a.csv')
     #fit final model
-    #model=createBooster(model,Xs,Xs_test,y)
     #(Xs,Xs_test)=scaleData(Xs,Xs_test,['body_length','linkwordscore','frameTagRatio','non_markup_alphanum_characters'])
     #Xs.hist()
     #print model
-    model = buildModel(model,Xs,y) 
-    
+    #model = buildModel(model,Xs,y) 
+    #print model.estimator_errors_
+    #print model.estimator_weights_
+    showMisclass(Xs,Xs_test,y)
     #(Xs,Xs_test,y)=filterClassNoise(model,Xs,Xs_test,y)
     #model = buildModel(model,Xs,y) 
     #(Xs,Xs_test)=iterativeFeatureSelection(model,Xs,Xs_test,y,25,100)
-    #model = buildModel(model,Xs,y) 
+    model = buildModel(model,Xs,y) 
     #lofFilter(y)
     #(Xs,Xs_test) = group_sparse(Xs,Xs_test)
     #print "Dim X (after grouping):",Xs.shape

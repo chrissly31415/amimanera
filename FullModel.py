@@ -3,9 +3,11 @@
 # Chrissly31415 August 2013
 
 
+from sklearn.metrics import roc_auc_score
 from sklearn.linear_model import LogisticRegression
 import scipy as sp
 import numpy as np
+import pandas as pd
 
 class XModel:
    """
@@ -47,19 +49,28 @@ class LogisticRegressionMod(LogisticRegression):
 	#pass	
       def fit(self, X, y,sample_weight=None):
 	  N = X.shape[0]
-	  #print "N:",N
-	  #print type(X)
-	  if sample_weight is not None:
-	      print type(sample_weight)   
+	  #print "N:",N	 
+	  if sample_weight is None:
+	      sample_weight=np.ones(N) 
+	  #print "max weight:",np.max(sample_weight)
+	  #print "min weight:",np.min(sample_weight)
+	  #print "avg weight:",np.mean(sample_weight)
+	  #print sample_weight
+	  if isinstance(X,sp.sparse.csr.csr_matrix):
+	      mat1 = sp.sparse.dia_matrix(([sample_weight], [0]), shape=(N, N))
 	  else:
-	     sample_weight=np.ones(N)
-	  mat1 = sp.sparse.dia_matrix(([sample_weight], [0]), shape=(N, N))
-	  #multiply X with sample weights 
-	  Xmod = mat1 * X
-	  Xmod = Xmod.toarray()
-	  print type(Xmod)
-	  #print res.to_dense()
-	  return super(LogisticRegression, self).fit(Xmod,y)
+	      mat1 = np.diagflat([1.0/sample_weight])
+	  #* operator does not define a matrix multiplication with arrays
+	  Xmod = np.copy(X)
+	  Xmod = np.dot(mat1, Xmod)
+	  
+	  pd.DataFrame(Xmod).to_csv("Xmod.csv")
+	  pd.DataFrame(X).to_csv("X.csv")
+	  lmodel=super(LogisticRegression, self).fit(Xmod,y)
+	  #print lmodel.coef_
+	  pred=lmodel.predict_proba(Xmod)[:,1]
+	  print "AUC:",roc_auc_score(y,pred)	  
+	  return lmodel
 
 
         
