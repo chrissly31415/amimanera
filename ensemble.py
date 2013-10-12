@@ -68,10 +68,10 @@ def createModels():
     """
     
     #KNN fastest model 0.870
-    (X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=True)  
-    model= Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', KNeighborsClassifier(n_neighbors=150))])
-    xmodel = XModel("knn1",model,X,X_test)
-    ensemble.append(xmodel)
+    #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=True)  
+    #model= Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', KNeighborsClassifier(n_neighbors=150))])
+    #xmodel = XModel("knn1",model,X,X_test)
+    #ensemble.append(xmodel)
     
     #xrf, using SVD
     #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=True,useAlcat=False,useGreedyFilter=False)
@@ -79,11 +79,11 @@ def createModels():
     #xmodel = XModel("extrarf1",model,X,X_test)
     #ensemble.append(xmodel)
     
-    #gradient boosting, using SVD
-    #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False)
-    #model  = GradientBoostingClassifier(loss='deviance', learning_rate=0.1, n_estimators=150,verbose=False)
-    #xmodel = XModel("gradboost1",model,X,X_test)
-    #ensemble.append(xmodel)
+    #gradient boosting, using SVD 0.883, feature have been reduced to 60
+    (X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True,loadTemp=True)
+    model  = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=500, subsample=0.5, min_samples_split=6, min_samples_leaf=10, max_depth=5, init=None, random_state=123,verbose=False)
+    xmodel = XModel("gradboost2",model,X,X_test)
+    ensemble.append(xmodel)
     
     """1,1character ngrams  
     (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=1)  
@@ -178,8 +178,8 @@ def trainEnsemble(addMetaFeatures=False):
     #ensemble=["logreg1","sgd1","randomf1","randomf2","randomf3","gradboost1","gbmR"]
     #ensemble=["logreg1","logreg2_cv","sgd1","sgd2","randomf1","randomf2","gradboost1","extrarf1","gbmR","lof"]
     #ensemble=["logreg1","logreg2_cv","sgd2","randomf1","randomf2","gradboost1","gbmR"]#best so far 0.885
-    ensemble=["logreg1","logreg2_cv","sgd1","sgd2","naiveB1","knn1","randomf1","randomf2","randomf3","extrarf1","gradboost1","gbmR","gbmR2","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char11","lr_char22","lr_char33","lr_char44","lr_char55"]
-    ensemble=["sgd1","naiveB1","randomf1","randomf2","gbmR","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char33"]
+    ensemble=["lgblend","logreg1","logreg2_cv","sgd1","sgd2","naiveB1","knn1","randomf1","randomf2","randomf3","extrarf1","gradboost1","gradboost2","gbmR","gbmR2","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char11","lr_char22","lr_char33","lr_char44","lr_char55"]
+    #ensemble=["sgd1","naiveB1","randomf1","randomf2","gbmR","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char33"]
     #ensemble=["logreg1","randomf1","gbmR","lr_char55_hV"]
     #ensemble=["lr_char11_hV","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV"]
     for i,model in enumerate(ensemble):
@@ -244,7 +244,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices):
     #blend results
     preds=blender.predict_proba(testset)[:,1]   
     preds=pd.DataFrame(preds,columns=["label"],index=test_indices)
-    preds.to_csv('../stumbled_upon/submissions/sub0610a.csv')
+    preds.to_csv('../stumbled_upon/submissions/sub1210b.csv')
     print preds
 
 
@@ -291,6 +291,6 @@ def aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False):
 
 if __name__=="__main__":
     #ensemble,y=createModels()
-    #ensemble=createOOBdata(ensemble,y,10)
+    #ensemble=createOOBdata(ensemble,y,20)
     trainEnsemble()
     
