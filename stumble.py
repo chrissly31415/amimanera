@@ -76,6 +76,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 #TODO use meta features....
 #TODO dicretize continous data by cut and qcut to enlarge sparse matrix ...?
 #TODO use new features to train xtra rf
+#TODO pickle to save model + datasets
 
 class NLTKTokenizer(object):
     """
@@ -140,6 +141,9 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	#vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True, norm=u'l2')#opt
     elif vecType=='tfidfV_small':
 	vectorizer = TfidfVectorizer(ngram_range=(1,2),max_features=2**12,sublinear_tf=True,min_df=4,stop_words=None)#fast
+    elif vecType=='tfidfV_large':
+	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=2,strip_accents='unicode',tokenizer=NLTKTokenizer())
+	#vectorizer = TfidfVectorizer(min_df=2,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True, norm=u'l2')#opt
     else:
 	print "Using count vectorizer..."
 	#vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**18)
@@ -388,16 +392,21 @@ def ensembleBuilding(lXs,ly):
     print "Ensemble training..."
     folds=8
     parameters=np.logspace(-15, -10, num=200, base=2.0)
-    iterpos=[10,20,30,40,50]
-    parameters=nprnd.choice(parameters, 20)
+    #iterpos=[10,20,30,40,50]
+    #regula=[0.001,0.1,1.0,10.0,100.0]
+    parameters=nprnd.choice([0.1,10,1.0],10)
+    loss=['l2','l2']
+    #parameters=nprnd.choice(parameters, 20)
     classifiers = {}
     for p in parameters:
         l1ratio=nprnd.ranf()
-        perc=75.0+nprnd.ranf()*25.0
-        iterations=choice(iterpos)
+        perc=85.0+nprnd.ranf()*15.0
+        #iterations=choice(iterpos)
+        l1l2=choice(loss)
+	dic = {'LOG_C'+str(p)+'_perc'+str(perc)+'_loss'+str(l1l2): Pipeline([('filter', SelectPercentile(chi2, percentile=perc)), ('model', LogisticRegression(penalty=l1l2, tol=0.0001, C=p))])}
 	#dic ={'SDG_alpha'+str(p)+'_L1'+str(l1ratio): SGDClassifier(alpha=p, n_iter=choice(iterpos),penalty='elasticnet',l1_ratio=l1ratio,shuffle=True,random_state=np.random.randint(0,100),loss='log')}
 	#dic ={'PIP_SDG_iter'+str(p)+'_perc'+str(perc): Pipeline([('filter', SelectPercentile(chi2, percentile=perc)), ('model', SGDClassifier(alpha=0.00014, n_iter=p,shuffle=True,random_state=p,loss='log',penalty='elasticnet',l1_ratio=l1ratio))])}
-	dic ={'PIP_SDG_alpha'+str(p)+'_perc'+str(perc)+'_iter'+str(iterations): Pipeline([('filter', SelectPercentile(chi2, percentile=perc)),('model', SGDClassifier(alpha=p, n_iter=iterations,penalty='elasticnet',l1_ratio=l1ratio,shuffle=True,random_state=np.random.randint(0,100),loss='log'))])}
+	#dic ={'PIP_SDG_alpha'+str(p)+'_perc'+str(perc)+'_iter'+str(iterations): Pipeline([('filter', SelectPercentile(chi2, percentile=perc)),('model', SGDClassifier(alpha=p, n_iter=iterations,penalty='elasticnet',l1_ratio=l1ratio,shuffle=True,random_state=np.random.randint(0,100),loss='log'))])}
 	classifiers.update(dic)
     #dic ={'NB': BernoulliNB(alpha=1.0)}
     #classifiers.update(dic)
@@ -490,11 +499,11 @@ def pyGridSearch(lmodel,lXs,ly):
     """ 
     print "Grid search..."
     #parameters = {'C':[1000,10000,100], 'gamma':[0.001,0.0001]}
-    parameters = {'max_depth':[6,7], 'learning_rate':[0.010,0.008],'n_estimators':[300,500]}#gbm
+    #parameters = {'max_depth':[6,7], 'learning_rate':[0.010,0.008],'n_estimators':[300,500]}#gbm
     #parameters = {'max_depth':[2], 'learning_rate':[0.01,0.001],'n_estimators':[3000]}#gbm
     #parameters = {'n_estimators':[500], 'max_features':[5,10,15]}#rf
     #parameters = {'n_estimators':[250,100,50], 'learning_rate':[0.1,0.01,0.5]}#adaboost
-    #parameters = {'n_estimators':[200,500,700], 'max_features':[50,100,200,500],'min_samples_leaf':[5]}#rf
+    parameters = {'n_estimators':[400,600,800], 'max_features':[10,15,20],'min_samples_leaf':[10,20]}#rf
     #parameters = {'C':[0.1,1,10]}#SVC
     #parameters = {'filter__percentile': [100,80,50,25] , 'model__alpha':[1.0,0.8,0.5,0.1]}#opt
     #parameters = {'filter__percentile': [16,15,14,13,12] , 'model__n_neighbors':[125,130,135,150,200]}#knn
@@ -894,10 +903,11 @@ if __name__=="__main__":
     #Xs=pd.DataFrame(Xs.todense())
     #Xs_test=pd.DataFrame(Xs_test.todense())
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=True,useGreedyFilter=False,char_ngram=1,loadTemp=True)
-    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=True)#opt SVD=50
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=0,useJson=True)
-    #Xs.to_csv("../stumbled_upon/data/Xtemp.csv")
-    #Xs_test.to_csv("../stumbled_upon/data/Xtemp_test.csv")
+    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=300,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#opt SVD=50
+    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=2,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#
+    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV_large',useSVD=0,useJson=True)
+    Xs.to_csv("../stumbled_upon/data/Xtemp.csv")
+    Xs_test.to_csv("../stumbled_upon/data/Xtemp_test.csv")
     #Xs.to_csv("../stumbled_upon/data/Xlarge.csv")
     #Xs_test.to_csv("../stumbled_upon/data/Xlarge_test.csv")
 
@@ -928,19 +938,19 @@ if __name__=="__main__":
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=50)), ('model', BernoulliNB(alpha=0.1))])#opt sparse 0.849
     #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=12,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False)#opt greedy approach
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1)
-    #model = ExtraTreesClassifier(n_estimators=50,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
+    model = ExtraTreesClassifier(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features=20,oob_score=False)#opt
     #model = AdaBoostClassifier(n_estimators=50,learning_rate=0.1)
     #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=500, subsample=0.5, min_samples_split=6, min_samples_leaf=10, max_depth=5, init=None, random_state=123,verbose=False)#opt 0.883
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)  
     #modelEvaluation(model,Xs,y)
     #model=pyGridSearch(model,Xs,y)
-    (gclassifiers,gblender,oob_avg)=ensembleBuilding(Xs,y)
-    ensemblePredictions(gclassifiers,gblender,Xs,y,Xs_test,test_indices,train_indices,oob_avg,'../stumbled_upon/data/lgblend.csv')
+    #(gclassifiers,gblender,oob_avg)=ensembleBuilding(Xs,y)
+    #ensemblePredictions(gclassifiers,gblender,Xs,y,Xs_test,test_indices,train_indices,oob_avg,'../stumbled_upon/data/lgblend.csv')
     #fit final model
     #(Xs,Xs_test)=scaleData(Xs,Xs_test,['body_length','linkwordscore','frameTagRatio','non_markup_alphanum_characters'])
     #Xs.hist()
     #print model
-    #model = buildModel(model,Xs,y) 
+    model = buildModel(model,Xs,y) 
     #print model.estimator_errors_
     #print model.estimator_weights_
     #showMisclass(Xs,Xs_test,y)

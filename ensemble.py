@@ -51,9 +51,9 @@ def createModels():
     #xmodel = XModel("randomf1",model,X,X_test)
     #ensemble.append(xmodel)
     
-    #rf, using SVD
-    #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False)
-    #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=12,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
+    #rf, using SVD 0.884
+    #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True)
+    #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features=15,oob_score=False)
     #xmodel = XModel("randomf2",model,X,X_test)
     #ensemble.append(xmodel)
     
@@ -73,17 +73,17 @@ def createModels():
     #xmodel = XModel("knn1",model,X,X_test)
     #ensemble.append(xmodel)
     
-    #xrf, using SVD
-    #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=True,useAlcat=False,useGreedyFilter=False)
-    #model = ExtraTreesClassifier(n_estimators=500,max_depth=None,n_jobs=4,criterion='gini', max_features='auto',min_samples_leaf=10,oob_score=False,random_state=42)
-    #xmodel = XModel("extrarf1",model,X,X_test)
-    #ensemble.append(xmodel)
+    #xrf, using SVD 0.883
+    (X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True)
+    model = ExtraTreesClassifier(n_estimators=600,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features=20,oob_score=False)
+    xmodel = XModel("extrarf2",model,X,X_test)
+    ensemble.append(xmodel)
     
     #gradient boosting, using SVD 0.883, feature have been reduced to 60
-    (X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True,loadTemp=True)
-    model  = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=500, subsample=0.5, min_samples_split=6, min_samples_leaf=10, max_depth=5, init=None, random_state=123,verbose=False)
-    xmodel = XModel("gradboost2",model,X,X_test)
-    ensemble.append(xmodel)
+    #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True,loadTemp=True)
+    #model  = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=500, subsample=0.5, min_samples_split=6, min_samples_leaf=10, max_depth=5, init=None, random_state=123,verbose=False)
+    #xmodel = XModel("gradboost2",model,X,X_test)
+    #ensemble.append(xmodel)
     
     """1,1character ngrams  
     (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=1)  
@@ -178,10 +178,11 @@ def trainEnsemble(addMetaFeatures=False):
     #ensemble=["logreg1","sgd1","randomf1","randomf2","randomf3","gradboost1","gbmR"]
     #ensemble=["logreg1","logreg2_cv","sgd1","sgd2","randomf1","randomf2","gradboost1","extrarf1","gbmR","lof"]
     #ensemble=["logreg1","logreg2_cv","sgd2","randomf1","randomf2","gradboost1","gbmR"]#best so far 0.885
-    ensemble=["lgblend","logreg1","logreg2_cv","sgd1","sgd2","naiveB1","knn1","randomf1","randomf2","randomf3","extrarf1","gradboost1","gradboost2","gbmR","gbmR2","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char11","lr_char22","lr_char33","lr_char44","lr_char55"]
+    #ensemble=["lgblend","logreg1","logreg2_cv","sgd1","sgd2","naiveB1","randomf1","randomf2","randomf3","extrarf1","extrarf2","gradboost1","gradboost2","gbmR","gbmR2","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char11","lr_char22","lr_char33","lr_char44","lr_char55"]
+    ensemble=["naiveB1","extrarf2","sgd1","randomf2","gradboost2","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char33","gbmR","lof"]
+    #ensemble=["gradboost2","gbmR","randomf2","extrarf2"]
     #ensemble=["sgd1","naiveB1","randomf1","randomf2","gbmR","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char33"]
-    #ensemble=["logreg1","randomf1","gbmR","lr_char55_hV"]
-    #ensemble=["lr_char11_hV","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV"]
+
     for i,model in enumerate(ensemble):
 	print "Loading model:",i," name:",model
 	if i>0:
@@ -192,28 +193,40 @@ def trainEnsemble(addMetaFeatures=False):
 	    Xall = pd.read_csv("../stumbled_upon/data/"+model+".csv", sep=",", index_col=0)
 	    Xall.columns=[model]
     
-    if addMetaFeatures:
-	pass
+    
     
     Xtrain=Xall[len(test_indices):]
-    print Xtrain
     Xtest=Xall[:len(test_indices)]
+    #if we add metafeature we should not use aucMinimize...
+    if addMetaFeatures:
+	#(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=2,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=True)
+	Xs = pd.read_csv('../stumbled_upon/data/Xens.csv', sep=",", index_col=0)
+	Xs_test = pd.read_csv('../stumbled_upon/data/Xens_test.csv', sep=",", index_col=0)
+	useCols=['linkwordscore','non_markup_alphanum_characters','frameTagRatio']
+	Xs=Xs.loc[:,useCols]
+	Xs_test=Xs_test.loc[:,useCols]
+	Xtrain=pd.concat([Xtrain,Xs], axis=1)
+	Xtest=pd.concat([Xtest,Xs_test], axis=1)
+	pass
+    
+    
+    print Xtrain
     print Xtest
-    aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False)
-    #classicalBlend(ensemble,Xtrain,Xtest,y,test_indices)
+    #aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False)
+    classicalBlend(ensemble,Xtrain,Xtest,y,test_indices)
 
 
 def classicalBlend(ensemble,oobpreds,testset,ly,test_indices):
     #blending
     folds=8
     #do another crossvalidation for weights
-    blender=LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
+    #blender=LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
     #blender = Pipeline([('filter', SelectPercentile(f_regression, percentile=90)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=1.0))])
-    #blender = BernoulliNB(alpha=1.0)
     #blender=SGDClassifier(alpha=.001, n_iter=50,penalty='l2',shuffle=True,random_state=42,loss='log')
-    #blender=AdaBoostClassifier(learning_rate=0.1,n_estimators=100,algorithm="SAMME.R",max_depth=3)
-    #blender=RandomForestClassifier(n_estimators=50,max_depth=3,n_jobs=1, max_features='auto',oob_score=False,random_state=42)
+    blender=AdaBoostClassifier(learning_rate=0.1,n_estimators=100)
+    #blender=RandomForestClassifier(n_estimators=500,n_jobs=1, max_features='auto',oob_score=False,random_state=42)
     #blender=ExtraTreesClassifier(n_estimators=50,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
+    #blender=ExtraTreesRegressor(n_estimators=50,max_depth=None)
     cv = KFold(oobpreds.shape[0], n_folds=folds, indices=True,random_state=123)
     blend_scores=np.zeros(folds)
     blend_oob=np.zeros((oobpreds.shape[0]))
@@ -230,10 +243,10 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices):
     print " AUC oob after blending: %0.3f" %(roc_auc_score(ly,blend_oob))
     if hasattr(blender,'coef_'):
       print blender.coef_
-      for i,model in enumerate(ensemble):
+      for i,model in enumerate(oobpreds.columns):
 	fpr, tpr, thresholds = metrics.roc_curve(ly, oobpreds.iloc[:,i])
 	auc=metrics.auc(fpr, tpr)
-	print "%-16s  auc: %4.3f coef: %4.3f" %(model,auc,blender.coef_[0][i])
+	print "%-32s  auc: %4.3f coef: %4.3f" %(model,auc,blender.coef_[0][i])
       print "Sum: %4.4f"%(np.sum(blender.coef_))
     #plt.plot(range(len(ensemble)),scores,'ro')
     
@@ -244,7 +257,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices):
     #blend results
     preds=blender.predict_proba(testset)[:,1]   
     preds=pd.DataFrame(preds,columns=["label"],index=test_indices)
-    preds.to_csv('../stumbled_upon/submissions/sub1210b.csv')
+    preds.to_csv('../stumbled_upon/submissions/sub1310a.csv')
     print preds
 
 
@@ -283,7 +296,7 @@ def aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False):
     print "Sum: %4.4f"%(np.sum(xopt))
     #prediction
     preds=pd.DataFrame(np.dot(Xtest,xopt),columns=["label"],index=test_indices)
-    preds.to_csv('../stumbled_upon/submissions/sub0610a.csv')
+    preds.to_csv('../stumbled_upon/submissions/sub1310b.csv')
     print preds
     print preds.describe()
   
@@ -292,5 +305,5 @@ def aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False):
 if __name__=="__main__":
     #ensemble,y=createModels()
     #ensemble=createOOBdata(ensemble,y,20)
-    trainEnsemble()
+    trainEnsemble(addMetaFeatures=True)
     
