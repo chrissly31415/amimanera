@@ -29,7 +29,7 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.pipeline import Pipeline
 
 from sklearn.feature_selection import SelectKBest,SelectPercentile, chi2, f_classif,f_regression
-from sklearn.naive_bayes import BernoulliNB
+from sklearn.naive_bayes import BernoulliNB,MultinomialNB
 from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor
 from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor
 from sklearn.neighbors import KNeighborsClassifier
@@ -77,6 +77,9 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 #TODO dicretize continous data by cut and qcut to enlarge sparse matrix ...?
 #TODO use new features to train xtra rf
 #TODO pickle to save model + datasets
+#TODO mix features...https://github.com/tuzzeg/detect_insults/blob/master/README.md
+#TODO https://class.coursera.org/nlp/lecture/index and http://nlp.stanford.edu/~wcmac/papers/20050421-smoothing-tutorial.pdf
+
 
 class NLTKTokenizer(object):
     """
@@ -144,6 +147,10 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
     elif vecType=='tfidfV_large':
 	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=2,strip_accents='unicode',tokenizer=NLTKTokenizer())
 	#vectorizer = TfidfVectorizer(min_df=2,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True, norm=u'l2')#opt
+    elif vecType=='test':
+       print "Test mode..."
+       #vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**14,min_df=3,tokenizer=NLTKTokenizer(),stop_words=None)
+       vectorizer = HashingVectorizer(binary=False,stop_words=None,ngram_range=(char_ngram,char_ngram),analyzer="char", non_negative=True, norm='l2', n_features=2**18)    
     else:
 	print "Using count vectorizer..."
 	#vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**18)
@@ -282,6 +289,16 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	X_svd_test = X_svd[:len(X_test.index)]
 	return(X_svd_train,y,X_svd_test,X_test.index,X.index)
     else:
+	if usePosTag:
+           #posTagging(X_all)
+           X_pos=np.array(pd.read_csv('../stumbled_upon/data/postagged.csv', sep=",", na_values=['?'], index_col=0))
+           X_pos=sparse.csr_matrix(X_pos)
+           print type(X_pos)
+           print X_pos.shape
+           print type(body_counts)
+           print body_counts.shape
+           body_counts = sparse.hstack((body_counts,X_pos),format="csr")
+           print X_pos
 	Xs = body_counts[len(X_test.index):]
 	Xs_test = body_counts[:len(X_test.index)]
 	#conversion to array necessary to work with integer indexing, .iloc does not work with this version
@@ -904,7 +921,8 @@ if __name__=="__main__":
     #Xs_test=pd.DataFrame(Xs_test.todense())
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=True,useGreedyFilter=False,char_ngram=1,loadTemp=True)
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=300,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#opt SVD=50
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=2,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#
+    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=2,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#
+    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=True)
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV_large',useSVD=0,useJson=True)
     Xs.to_csv("../stumbled_upon/data/Xtemp.csv")
     Xs_test.to_csv("../stumbled_upon/data/Xtemp_test.csv")
@@ -924,6 +942,7 @@ if __name__=="__main__":
     #model = Pipeline([('filter', SelectPercentile(chi2, percentile=70)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=1.0))])
     #model = Pipeline([('filter', SelectPercentile(chi2, percentile=70)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=1.0))])
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', KNeighborsClassifier(n_neighbors=150))])
+    model = Pipeline([('filter', SelectPercentile(chi2, percentile=20)), ('model', MultinomialNB(alpha=0.1))])
     #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None)#opt kaggle params
     #model = LogisticRegressionMod(penalty='l2', dual=False, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None)#opt kaggle params
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=100)), ('model', LogisticRegression(penalty='l2', dual=False, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=10.0, class_weight=None))])
@@ -938,7 +957,8 @@ if __name__=="__main__":
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=50)), ('model', BernoulliNB(alpha=0.1))])#opt sparse 0.849
     #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=12,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False)#opt greedy approach
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1)
-    model = ExtraTreesClassifier(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features=20,oob_score=False)#opt
+
+    #model = ExtraTreesClassifier(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features=20,oob_score=False)#opt
     #model = AdaBoostClassifier(n_estimators=50,learning_rate=0.1)
     #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=500, subsample=0.5, min_samples_split=6, min_samples_leaf=10, max_depth=5, init=None, random_state=123,verbose=False)#opt 0.883
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)  
