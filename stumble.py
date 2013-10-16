@@ -108,7 +108,7 @@ def dfinfo(X_all):
     print "##Details##\n",X_all.ix[:,2:3].describe()
     print "##Details##\n",X_all.ix[:,3:7].describe()
 
-def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False,char_ngram=5,loadTemp=False):
+def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False,char_ngram=5,loadTemp=False,usewordtagSmoothing=False,usetagwordSmoothing=False):
     """
     Load Data into pandas and preprocess features
     """
@@ -290,15 +290,40 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	return(X_svd_train,y,X_svd_test,X_test.index,X.index)
     else:
 	if usePosTag:
-           #posTagging(X_all)
-           X_pos=np.array(pd.read_csv('../stumbled_upon/data/postagged.csv', sep=",", na_values=['?'], index_col=0))
-           X_pos=sparse.csr_matrix(X_pos)
-           print type(X_pos)
-           print X_pos.shape
-           print type(body_counts)
-           print body_counts.shape
-           body_counts = sparse.hstack((body_counts,X_pos),format="csr")
-           print X_pos
+	    #create new body with postag features!
+	    postagFeatures(X_all)
+	    X_pos=pd.read_csv('../stumbled_upon/data/postagfeats.csv', sep=",", na_values=['?'], index_col=0)
+	    
+	    #vectorize data
+	    vectorizer = CountVectorizer(ngram_range=(1,1),analyzer='word',max_features=2**10)
+	    poscounts=vectorizer.fit_transform(X_pos['postagfeats'])  
+	    print vectorizer.get_feature_names()
+	    print poscounts.shape
+	    print type(body_counts)
+	    print body_counts.shape
+	    body_counts = sparse.hstack((body_counts,poscounts),format="csr")
+	    
+	if usewordtagSmoothing or usetagwordSmoothing:
+	    #create tag-words and word-tag
+	    postagSmoothing(X_all)
+	    X_smoothed=pd.read_csv('../stumbled_upon/data/postagsmoothed.csv', sep=",", na_values=['?'], index_col=0,encoding='utf-8')
+	    print X_smoothed
+	    
+	    #word-tags
+	    vectorizer = CountVectorizer(ngram_range=(1,1),analyzer='word',max_features=2**10,token_pattern=r'\w{1,}')
+	    if usewordtagSmoothing:
+		col='wordtag'
+	    else:
+		col='tagword'
+	    poscounts=vectorizer.fit_transform(X_smoothed[col])  
+	    print "Feature names:",vectorizer.get_feature_names()
+	    print poscounts.shape
+	    print type(body_counts)
+	    print body_counts.shape
+	    body_counts = sparse.hstack((body_counts,poscounts),format="csr") 
+           
+           
+           
 	Xs = body_counts[len(X_test.index):]
 	Xs_test = body_counts[:len(X_test.index)]
 	#conversion to array necessary to work with integer indexing, .iloc does not work with this version
@@ -922,7 +947,7 @@ if __name__=="__main__":
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=True,useGreedyFilter=False,char_ngram=1,loadTemp=True)
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=300,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#opt SVD=50
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=2,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=True)
+    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=False,usewordtagSmoothing=True,usetagwordSmoothing=True)
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV_large',useSVD=0,useJson=True)
     Xs.to_csv("../stumbled_upon/data/Xtemp.csv")
     Xs_test.to_csv("../stumbled_upon/data/Xtemp_test.csv")
