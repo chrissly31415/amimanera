@@ -4,10 +4,12 @@
 """
 
 import pandas as pd
+import nltk as nltk
 from nltk.tag import pos_tag
 from nltk.tag.simplify import simplify_wsj_tag
 from nltk.tokenize import word_tokenize
 from nltk import FreqDist
+from nltk.probability import LidstoneProbDist
 import random
 
 def getStopwords(addRecipe=True):
@@ -43,8 +45,10 @@ def posTagging(olddf):
 	  text=olddf.ix[ind,'body']
 	  tagged=pos_tag(word_tokenize(text))
 	  tagged = [(word, simplify_wsj_tag(tag)) for word, tag in tagged]
+	  
 	  tag_fd = FreqDist(tag for (word, tag) in tagged)
-	  #print tagged
+	  
+	  print tagged
 	  #print len(tagged)
 	  
 	  for l in taglist:
@@ -52,8 +56,8 @@ def posTagging(olddf):
 	      #print f
 	      row.append(f)
 	
-	 #tag_fd.plot(cumulative=False)
-	 # raw_input("HITKEY")
+	  #tag_fd.plot(cumulative=False)
+	  #raw_input("HITKEY")
     
     
     #for index,row in pd.DataFrame(olddf['body']).iterrows():
@@ -67,9 +71,122 @@ def posTagging(olddf):
     newdf.columns=taglist
     print newdf.head(20)
     print newdf.describe()
-    newdf.to_csv("../stumbled_upon/data/postagged.csv")
+    newdf.to_csv("../stumbled_upon/data/postagged2.csv")
 
+    
+def postagFeatures(olddf):
+    """
+    Creates new features
+    """
+    print "Create POS tag as features..."
+    tutto=[]
+    olddf=pd.DataFrame(olddf['body'])
+    for ind in olddf.index:
+	  print ind
+	  row=[]
+	  row.append(ind)
+	  text=olddf.ix[ind,'body']
+	  tagged=pos_tag(word_tokenize(text))
+	  posbody=""
+	  for word, tag in tagged:
+	    posbody=posbody+tag+" "
+	  posbody=posbody+"."
+	  row.append(posbody)
+	  #print row
+	
+	  #tag_fd.plot(cumulative=False)
+	  #raw_input("HITKEY")
+    
+    
+    #for index,row in pd.DataFrame(olddf['body']).iterrows():
+	#tagged=pos_tag(word_tokenize(str(row)))
+	#tag_fd = FreqDist(tag for (word, tag) in tagged)
+	#print tag_fd.keys()
+	#tag_fd.plot(cumulative=True)
+	  tutto.append(row)
+    newdf=pd.DataFrame(tutto).set_index(0)
+    newdf.columns=["postagfeats"]
+    print newdf.head(20)
+    print newdf.describe()
+    newdf.to_csv("../stumbled_upon/data/postagfeats.csv")
+    
+def postagSmoothing(olddf):
+    """
+    Use postag to smooth data
+    """
+    print "Smoothing data via postag..."
+    tutto=[]    
+    #olddf = olddf.ix[random.sample(olddf.index, 10)]
+    #olddf = olddf.ix[olddf.index[0:9]]
+    olddf=pd.DataFrame(olddf['body'])
+    for ind in olddf.index:
+	  print ind
+	  row=[]
+	  row.append(ind)
+	  text=olddf.ix[ind,'body']
+	  tagged=pos_tag(word_tokenize(text))
+	  word_tag=u''
+	  tag_word=u''
+	  actual_tag=u'.'
+	  actual_word=u'.'
+	  print tagged
+	  for word, tag in tagged:
+	      tag=simplify_wsj_tag(tag)
+	      word=word.lower()
+	      word_tag=word_tag+actual_word+u"_"+tag+" "
+	      actual_word=word
+	      tag_word=tag_word+actual_tag+u"_"+word+" "
+	      actual_tag=tag
+	  print word_tag
+	  print tag_word
+	  row.append(word_tag)
+	  row.append(tag_word)
+	  tutto.append(row)
+    newdf=pd.DataFrame(tutto).set_index(0)
+    newdf.columns=[u'wordtag',u'tagword']
+    print newdf.head(20)
+    print newdf.describe()
+    newdf.to_csv("../stumbled_upon/data/postagsmoothed.csv",encoding="utf-8")
+    
+    
+def lidstoneProbDist(olddf):
+    """
+    Use nltk to create probdist
+    """
+    #http://www.inf.ed.ac.uk/teaching/courses/icl/nltk/probability.pdf
+    #https://github.com/tuzzeg/detect_insults/blob/master/README.md
+    print "Creating LidStone Probdist...",nltk.__version__
+    tutto=[]
+    
+    #olddf = olddf.ix[random.sample(olddf.index, 10)]
+    olddf=pd.DataFrame(olddf['body'])
+    
+    print type(olddf)
+    for ind in olddf.index:
+	  print ind
+	  row=[]
+	  row.append(ind)
+	  text=olddf.ix[ind,'body']
+	  tokens=word_tokenize(text)
+	  print tokens
+	  
+	  t_fd = FreqDist(tokens)
+	  pdist = LidstoneProbDist(t_fd,0.1)
+	  print pdist
+	  #t_fd.plot(cumulative=False)
+	  raw_input("HITKEY")
+	  row=tokens
+	  #print tagged
+	  #print len(tagged)
 
+	  tutto.append(row)
+    newdf=pd.DataFrame(tutto).set_index(0)
+    newdf.columns=taglist
+    print newdf.head(20)
+    print newdf.describe()
+    newdf.to_csv("../stumbled_upon/data/postagwordfeats.csv")
+    
+    
 def featureEngineering(olddf):
     """
     Creates new features
