@@ -80,6 +80,10 @@ def crawlRawData(lXall):
       phtml5=re.compile("html5",re.IGNORECASE)
       phuff=re.compile("www.huffingtonpost.com",re.IGNORECASE)
       pflash=re.compile("shockwave-flash",re.IGNORECASE)
+      pdynlink=re.compile("<a href.+?.+>")
+      pnofollow=re.compile("rel=\"nofollow\"",re.IGNORECASE)
+      pschemaorg=re.compile("schema\.org",re.IGNORECASE)
+      pmobileredirect=re.compile("mobile redirect",re.IGNORECASE)
       
       #pshare=re.compile("sharearticle|share.{1,20}article",re.IGNORECASE)
       plang=re.compile("en-US|en_US",re.IGNORECASE)
@@ -133,7 +137,20 @@ def crawlRawData(lXall):
 	    #row.append(len(res))
 	    
 	    res = pnewline.findall(content)	    
-	    row.append(math.log(1.0+len(res)))	 
+	    row.append(math.log(1.0+len(res)))
+	    
+	    #res = pdynlink.findall(content)	    
+	    #row.append(len(res))
+	    
+	    #res = pnofollow.findall(content)	    
+	    #row.append(len(res))
+	    
+	    #res = pschemaorg.findall(content)	    
+	    #row.append(len(res))
+	    
+	    #res = pmobileredirect.findall(content)	    
+	    #row.append(len(res))
+	    
 	    
 	    
 	    #m = pgooglead.search(content)

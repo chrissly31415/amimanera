@@ -82,7 +82,7 @@ def postagFeatures(olddf):
     tutto=[]
     olddf=pd.DataFrame(olddf['body'])
     for ind in olddf.index:
-	  print ind
+	  print "postag feats: ",ind
 	  row=[]
 	  row.append(ind)
 	  text=olddf.ix[ind,'body']
@@ -108,7 +108,7 @@ def postagFeatures(olddf):
     newdf.columns=["postagfeats"]
     print newdf.head(20)
     print newdf.describe()
-    newdf.to_csv("../stumbled_upon/data/postagfeats.csv")
+    newdf.to_csv("../stumbled_upon/data/postagfeats.csv",encoding="utf-8")
     
 def postagSmoothing(olddf):
     """
@@ -120,7 +120,7 @@ def postagSmoothing(olddf):
     #olddf = olddf.ix[olddf.index[0:9]]
     olddf=pd.DataFrame(olddf['body'])
     for ind in olddf.index:
-	  print ind
+	  print "Smoothing: ",ind
 	  row=[]
 	  row.append(ind)
 	  text=olddf.ix[ind,'body']
@@ -129,7 +129,7 @@ def postagSmoothing(olddf):
 	  tag_word=u''
 	  actual_tag=u'.'
 	  actual_word=u'.'
-	  print tagged
+	  #print tagged
 	  for word, tag in tagged:
 	      tag=simplify_wsj_tag(tag)
 	      word=word.lower()
@@ -137,8 +137,8 @@ def postagSmoothing(olddf):
 	      actual_word=word
 	      tag_word=tag_word+actual_tag+u"_"+word+" "
 	      actual_tag=tag
-	  print word_tag
-	  print tag_word
+	  #print word_tag
+	  #print tag_word
 	  row.append(word_tag)
 	  row.append(tag_word)
 	  tutto.append(row)
@@ -210,6 +210,19 @@ def featureEngineering(olddf):
     tmpdf.columns=['body_length']
     #print tmpdf.describe()
     olddf= pd.concat([olddf, tmpdf],axis=1)
+    
+    tmpdf=olddf.title.str.len()
+    tmpdf=pd.DataFrame(tmpdf.astype(int))
+    tmpdf.columns=['title_length']
+    #print tmpdf.describe()
+    olddf= pd.concat([olddf, tmpdf],axis=1)
+    
+    #tmpdf=olddf.title.str.split().len()
+    #tmpdf=pd.DataFrame(tmpdf.astype(int))
+    #tmpdf.columns=['title_word_count']
+    #print tmpdf.describe()
+    #olddf= pd.concat([olddf, tmpdf],axis=1)
+    
     #boiler plate length
     #tmpdf=olddf.boilerplate.str.len()
     #tmpdf=pd.DataFrame(tmpdf.astype(int))

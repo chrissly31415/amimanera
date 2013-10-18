@@ -79,6 +79,8 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 #TODO pickle to save model + datasets
 #TODO mix features...https://github.com/tuzzeg/detect_insults/blob/master/README.md
 #TODO https://class.coursera.org/nlp/lecture/index and http://nlp.stanford.edu/~wcmac/papers/20050421-smoothing-tutorial.pdf
+#TODO analyse alt= data!!!
+#TODO use lof as regular feature
 
 
 class NLTKTokenizer(object):
@@ -108,7 +110,7 @@ def dfinfo(X_all):
     print "##Details##\n",X_all.ix[:,2:3].describe()
     print "##Details##\n",X_all.ix[:,3:7].describe()
 
-def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False,char_ngram=5,loadTemp=False,usewordtagSmoothing=False,usetagwordSmoothing=False):
+def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False,char_ngram=5,loadTemp=False,usewordtagSmoothing=False,usetagwordSmoothing=False,usePosTagNew=False):
     """
     Load Data into pandas and preprocess features
     """
@@ -150,7 +152,8 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
     elif vecType=='test':
        print "Test mode..."
        #vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**14,min_df=3,tokenizer=NLTKTokenizer(),stop_words=None)
-       vectorizer = HashingVectorizer(binary=False,stop_words=None,ngram_range=(char_ngram,char_ngram),analyzer="char", non_negative=True, norm='l2', n_features=2**18)    
+       #vectorizer = HashingVectorizer(binary=False,stop_words=None,ngram_range=(char_ngram,char_ngram),analyzer="char", non_negative=True, norm='l2', n_features=2**18)
+       vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 1), sublinear_tf=True, norm=u'l2')
     else:
 	print "Using count vectorizer..."
 	#vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**18)
@@ -248,6 +251,10 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	    #posTagging(X_all)
 	    X_pos=pd.read_csv('../stumbled_upon/data/postagged.csv', sep=",", na_values=['?'], index_col=0)
 	    X_svd=pd.concat([X_svd,X_pos], axis=1)
+	    #new postag
+	if usePosTagNew:
+	    X_pos=pd.read_csv('../stumbled_upon/data/postagfeats.csv', sep=",", na_values=['?'], index_col=0)
+	    X_svd=pd.concat([X_svd,X_pos], axis=1)
 	
 	#print "##X_svd##\n",X_svd
 	X_all= X_all.drop(['boilerplate','url'], axis=1)
@@ -291,13 +298,14 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
     else:
 	if usePosTag:
 	    #create new body with postag features!
-	    postagFeatures(X_all)
+	    #postagFeatures(X_all)
 	    X_pos=pd.read_csv('../stumbled_upon/data/postagfeats.csv', sep=",", na_values=['?'], index_col=0)
 	    
 	    #vectorize data
-	    vectorizer = CountVectorizer(ngram_range=(1,1),analyzer='word',max_features=2**10)
+	    #vectorizer = CountVectorizer(ngram_range=(1,1),analyzer='word',max_features=2**10)
+	    vectorizer = HashingVectorizer(ngram_range=(1,1),analyzer='word',max_features=2**18,token_pattern=r'\w{1,}')
 	    poscounts=vectorizer.fit_transform(X_pos['postagfeats'])  
-	    print vectorizer.get_feature_names()
+	    #print vectorizer.get_feature_names()
 	    print poscounts.shape
 	    print type(body_counts)
 	    print body_counts.shape
@@ -305,22 +313,34 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	    
 	if usewordtagSmoothing or usetagwordSmoothing:
 	    #create tag-words and word-tag
-	    postagSmoothing(X_all)
+	    #postagSmoothing(X_all)
 	    X_smoothed=pd.read_csv('../stumbled_upon/data/postagsmoothed.csv', sep=",", na_values=['?'], index_col=0,encoding='utf-8')
 	    print X_smoothed
 	    
 	    #word-tags
-	    vectorizer = CountVectorizer(ngram_range=(1,1),analyzer='word',max_features=2**10,token_pattern=r'\w{1,}')
+	    #vectorizer = CountVectorizer(ngram_range=(1,1),analyzer='word',max_features=2**10,token_pattern=r'\w{1,}')
+	    #vectorizer = HashingVectorizer(ngram_range=(1,1),analyzer='word',max_features=2**18,token_pattern=r'\w{1,}')
+	    vectorizer = TfidfVectorizer(min_df=3,  max_features=2**18, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True, norm=u'l2')
 	    if usewordtagSmoothing:
+		print "Using word-tag smoothing..." 
 		col='wordtag'
-	    else:
+		wordtagcounts=vectorizer.fit_transform(X_smoothed[col])
+		print wordtagcounts.shape
+		body_counts=wordtagcounts
+		#body_counts = sparse.hstack((body_counts,wordtagcounts),format="csr")
+		
+	    if usetagwordSmoothing:
+		print "Using tag-word smoothing..."
 		col='tagword'
-	    poscounts=vectorizer.fit_transform(X_smoothed[col])  
-	    print "Feature names:",vectorizer.get_feature_names()
-	    print poscounts.shape
+		tagwordcounts=vectorizer.fit_transform(X_smoothed[col])
+		print tagwordcounts.shape
+		body_counts = sparse.hstack((body_counts,tagwordcounts),format="csr")	
+		
+	    #print "Feature names:",vectorizer.get_feature_names()
 	    print type(body_counts)
 	    print body_counts.shape
-	    body_counts = sparse.hstack((body_counts,poscounts),format="csr") 
+	    
+	    print "density:",density(body_counts)
            
            
            
@@ -545,13 +565,14 @@ def pyGridSearch(lmodel,lXs,ly):
     #parameters = {'max_depth':[2], 'learning_rate':[0.01,0.001],'n_estimators':[3000]}#gbm
     #parameters = {'n_estimators':[500], 'max_features':[5,10,15]}#rf
     #parameters = {'n_estimators':[250,100,50], 'learning_rate':[0.1,0.01,0.5]}#adaboost
-    parameters = {'n_estimators':[400,600,800], 'max_features':[10,15,20],'min_samples_leaf':[10,20]}#rf
+    #parameters = {'n_estimators':[400,600,800], 'max_features':[10,15,20],'min_samples_leaf':[10,20]}#rf
     #parameters = {'C':[0.1,1,10]}#SVC
     #parameters = {'filter__percentile': [100,80,50,25] , 'model__alpha':[1.0,0.8,0.5,0.1]}#opt
     #parameters = {'filter__percentile': [16,15,14,13,12] , 'model__n_neighbors':[125,130,135,150,200]}#knn
     #parameters = {'n_neighbors':[1,2,3,5,8,10]}#knn
     #parameters = {'filter__percentile': [100,80,50], 'model__n_estimators': [200], 'model__max_features':['auto'], 'model__min_samples_leaf':[5] }#rf
-    #parameters = {'filter__percentile': [100,95,80,70,60], 'model__C': [0.5,1.0, 10.0], 'model__intercept_scaling': [0.1,1.0,10,100,1000] }#pipeline
+    #parameters = {'filter__percentile': [100,95,80,70,60,50,25], 'model__C': [0.5,1.0, 10.0], 'model__intercept_scaling': [0.1,1.0,10,100,1000] }#pipeline
+    parameters = {'filter__percentile': [100,95,80,70,60,50,25], 'model__C': [0.5,1.0, 10.0] }#pipeline
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXs,ly)
     
@@ -945,12 +966,13 @@ if __name__=="__main__":
     #Xs=pd.DataFrame(Xs.todense())
     #Xs_test=pd.DataFrame(Xs_test.todense())
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=True,useGreedyFilter=False,char_ngram=1,loadTemp=True)
+    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False)#opt SVD=50
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=300,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#opt SVD=50
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=2,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=False,usewordtagSmoothing=True,usetagwordSmoothing=True)
+    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=False,usewordtagSmoothing=False,usetagwordSmoothing=True)
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV_large',useSVD=0,useJson=True)
-    Xs.to_csv("../stumbled_upon/data/Xtemp.csv")
-    Xs_test.to_csv("../stumbled_upon/data/Xtemp_test.csv")
+    #Xs.to_csv("../stumbled_upon/data/Xtemp.csv")
+    #Xs_test.to_csv("../stumbled_upon/data/Xtemp_test.csv")
     #Xs.to_csv("../stumbled_upon/data/Xlarge.csv")
     #Xs_test.to_csv("../stumbled_upon/data/Xlarge_test.csv")
 
@@ -964,10 +986,10 @@ if __name__=="__main__":
     #model = SGDClassifier(alpha=0.0001, n_iter=50,shuffle=True,loss='log',penalty='l2',n_jobs=4)#opt simple processing
     #model = SGDClassifier(alpha=0.00014, n_iter=50,shuffle=True,loss='log',penalty='elasticnet',l1_ratio=0.99)
     #model = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)#opt
-    #model = Pipeline([('filter', SelectPercentile(chi2, percentile=70)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=1.0))])
+    model = Pipeline([('filter', SelectPercentile(chi2, percentile=50)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=0.5))])
     #model = Pipeline([('filter', SelectPercentile(chi2, percentile=70)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=1.0))])
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', KNeighborsClassifier(n_neighbors=150))])
-    model = Pipeline([('filter', SelectPercentile(chi2, percentile=20)), ('model', MultinomialNB(alpha=0.1))])
+    #model = Pipeline([('filter', SelectPercentile(chi2, percentile=20)), ('model', MultinomialNB(alpha=0.1))])
     #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None)#opt kaggle params
     #model = LogisticRegressionMod(penalty='l2', dual=False, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None)#opt kaggle params
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=100)), ('model', LogisticRegression(penalty='l2', dual=False, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=10.0, class_weight=None))])
@@ -976,7 +998,6 @@ if __name__=="__main__":
     #model=SVC(C=0.3,kernel='linear',probability=True)
     #model=LinearSVC(penalty='l2', loss='l2', dual=True, tol=0.0001, C=1.0)#no proba
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='linear', probability=True, shrinking=True,tol=0.001, verbose=False)
-    #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False)
     #model=   RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False)
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=25)), ('model', BernoulliNB(alpha=0.1))])#opt dense 0.855
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=50)), ('model', BernoulliNB(alpha=0.1))])#opt sparse 0.849
@@ -988,20 +1009,20 @@ if __name__=="__main__":
     #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=500, subsample=0.5, min_samples_split=6, min_samples_leaf=10, max_depth=5, init=None, random_state=123,verbose=False)#opt 0.883
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)  
     #modelEvaluation(model,Xs,y)
-    #model=pyGridSearch(model,Xs,y)
+    model=pyGridSearch(model,Xs,y)
     #(gclassifiers,gblender,oob_avg)=ensembleBuilding(Xs,y)
     #ensemblePredictions(gclassifiers,gblender,Xs,y,Xs_test,test_indices,train_indices,oob_avg,'../stumbled_upon/data/lgblend.csv')
     #fit final model
     #(Xs,Xs_test)=scaleData(Xs,Xs_test,['body_length','linkwordscore','frameTagRatio','non_markup_alphanum_characters'])
     #Xs.hist()
     #print model
-    model = buildModel(model,Xs,y) 
+    #model = buildModel(model,Xs,y) 
     #print model.estimator_errors_
     #print model.estimator_weights_
     #showMisclass(Xs,Xs_test,y)
     #(Xs,Xs_test,y)=filterClassNoise(model,Xs,Xs_test,y)
-    #model = buildModel(model,Xs,y) 
-    #(Xs,Xs_test)=iterativeFeatureSelection(model,Xs,Xs_test,y,50,1)
+    model = buildModel(model,Xs,y) 
+    #(Xs,Xs_test)=iterativeFeatureSelection(model,Xs,Xs_test,y,1,1)
     #Xs.to_csv("../stumbled_upon/data/Xtemp.csv")
     #Xs_test.to_csv("../stumbled_upon/data/Xtemp_test.csv")
     #model = buildModel(model,Xs,y) 

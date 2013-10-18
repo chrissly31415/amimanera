@@ -27,6 +27,18 @@ def createModels():
     #xmodel = XModel("logreg2_cv",model,Xs,Xs_test)
     #ensemble.append(xmodel)
     
+    #logistic regression, tagword features
+    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=False,usewordtagSmoothing=False,usetagwordSmoothing=True)  
+    model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1.0, fit_intercept=True, intercept_scaling=1.0, class_weight=None)
+    xmodel = XModel("logreg_tagword",model,Xs,Xs_test)
+    ensemble.append(xmodel)
+    
+    #logistic regression, wordtag features
+    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=False,usewordtagSmoothing=True,usetagwordSmoothing=False)  
+    model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1.0, fit_intercept=True, intercept_scaling=1.0, class_weight=None)
+    xmodel = XModel("logreg_wordtag",model,Xs,Xs_test)
+    ensemble.append(xmodel)
+    
     #pipeline with sdg
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False)  
     #model = Pipeline([('filter', SelectPercentile(chi2, percentile=98)), ('model', SGDClassifier(alpha=0.00014, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='elasticnet',l1_ratio=0.99))])
@@ -74,10 +86,10 @@ def createModels():
     #ensemble.append(xmodel)
     
     #xrf, using SVD 0.883
-    (X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True)
-    model = ExtraTreesClassifier(n_estimators=600,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features=20,oob_score=False)
-    xmodel = XModel("extrarf2",model,X,X_test)
-    ensemble.append(xmodel)
+    #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True)
+    #model = ExtraTreesClassifier(n_estimators=600,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features=20,oob_score=False)
+    #xmodel = XModel("extrarf2",model,X,X_test)
+    #ensemble.append(xmodel)
     
     #gradient boosting, using SVD 0.883, feature have been reduced to 60
     #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True,loadTemp=True)
@@ -178,10 +190,11 @@ def trainEnsemble(addMetaFeatures=False):
     #ensemble=["logreg1","sgd1","randomf1","randomf2","randomf3","gradboost1","gbmR"]
     #ensemble=["logreg1","logreg2_cv","sgd1","sgd2","randomf1","randomf2","gradboost1","extrarf1","gbmR","lof"]
     #ensemble=["logreg1","logreg2_cv","sgd2","randomf1","randomf2","gradboost1","gbmR"]#best so far 0.885
-    #ensemble=["lgblend","logreg1","logreg2_cv","sgd1","sgd2","naiveB1","randomf1","randomf2","randomf3","extrarf1","extrarf2","gradboost1","gradboost2","gbmR","gbmR2","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char11","lr_char22","lr_char33","lr_char44","lr_char55"]
-    ensemble=["naiveB1","extrarf2","sgd1","randomf2","gradboost2","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char33","gbmR","lof"]
+    #ensemble=["lgblend","logreg1","logreg2_cv","logreg_wordtag","logreg_tagword","sgd1","sgd2","naiveB1","randomf1","randomf2","randomf3","extrarf1","extrarf2","gradboost1","gradboost2","gbmR","gbmR2","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char11","lr_char22","lr_char33","lr_char44","lr_char55"]
+    ensemble=["logreg_tagword","naiveB1","extrarf2","randomf2","gradboost2","lr_char33","lr_char44_hV","gbmR"]#AUC=0.8875
+    #ensemble=["extrarf2","randomf2","gradboost2","gbmR"]
     #ensemble=["gradboost2","gbmR","randomf2","extrarf2"]
-    #ensemble=["sgd1","naiveB1","randomf1","randomf2","gbmR","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char33"]
+    #ensemble=["logreg1","logreg_wordtag"]
 
     for i,model in enumerate(ensemble):
 	print "Loading model:",i," name:",model
@@ -202,18 +215,36 @@ def trainEnsemble(addMetaFeatures=False):
 	#(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=2,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=True)
 	Xs = pd.read_csv('../stumbled_upon/data/Xens.csv', sep=",", index_col=0)
 	Xs_test = pd.read_csv('../stumbled_upon/data/Xens_test.csv', sep=",", index_col=0)
-	useCols=['linkwordscore','non_markup_alphanum_characters','frameTagRatio']
+	useCols=['image_ratio','compression_ratio','commonlinkratio_1','frameTagRatio','html_ratio']
+	#useCols=['linkwordscore','non_markup_alphanum_characters','frameTagRatio']
+	#useCols=['body_length']
 	Xs=Xs.loc[:,useCols]
 	Xs_test=Xs_test.loc[:,useCols]
-	Xtrain=pd.concat([Xtrain,Xs], axis=1)
-	Xtest=pd.concat([Xtest,Xs_test], axis=1)
-	pass
+	print type(Xs.ix[:,0])
+	print Xtrain
+	#Xtrain=pd.concat([Xtrain,Xs], axis=1)
+	n=len(Xtrain.columns)
+	Xtrain=pd.concat([Xtrain,Xtrain.ix[:,0:n].mul(Xs.ix[:,0],axis=0)], axis=1)
+	#Xtrain=pd.concat([Xtrain,Xtrain.ix[:,0:n].mul(Xs.ix[:,1],axis=0)], axis=1)
+	#Xtrain=pd.concat([Xtrain,Xtrain.ix[:,0:n].mul(Xs.ix[:,2],axis=0)], axis=1)
+	#Xtrain=pd.concat([Xtrain,Xtrain.ix[:,0:n].mul(Xs.ix[:,3],axis=0)], axis=1)
+	
+	print Xtrain
+	#Xtrain=Xtrain.mul(Xs.ix[:,0],axis=0)
+	#Xtest=pd.concat([Xtest,Xs_test], axis=1)
+	Xtest=pd.concat([Xtest,Xtest.ix[:,0:n].mul(Xs_test.ix[:,0],axis=0)], axis=1)
+	#Xtest=pd.concat([Xtest,Xtest.ix[:,0:n].mul(Xs_test.ix[:,1],axis=0)], axis=1)
+	#Xtest=pd.concat([Xtest,Xtest.ix[:,0:n].mul(Xs_test.ix[:,2],axis=0)], axis=1)
+	#Xtest=pd.concat([Xtest,Xtest.ix[:,0:n].mul(Xs_test.ix[:,3],axis=0)], axis=1)
+	
+	print Xtest
+	#Xtest=Xtest.mul(Xs.ix[:,0],axis=0)
     
     
     print Xtrain
     print Xtest
-    #aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False)
-    classicalBlend(ensemble,Xtrain,Xtest,y,test_indices)
+    aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False)
+    #classicalBlend(ensemble,Xtrain,Xtest,y,test_indices)
 
 
 def classicalBlend(ensemble,oobpreds,testset,ly,test_indices):
@@ -221,10 +252,10 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices):
     folds=8
     #do another crossvalidation for weights
     #blender=LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
-    #blender = Pipeline([('filter', SelectPercentile(f_regression, percentile=90)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=1.0))])
+    #blender = Pipeline([('filter', SelectPercentile(f_regression, percentile=10)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=1.0))])
     #blender=SGDClassifier(alpha=.001, n_iter=50,penalty='l2',shuffle=True,random_state=42,loss='log')
-    blender=AdaBoostClassifier(learning_rate=0.1,n_estimators=100)
-    #blender=RandomForestClassifier(n_estimators=500,n_jobs=1, max_features='auto',oob_score=False,random_state=42)
+    #blender=AdaBoostClassifier(learning_rate=0.1,n_estimators=100)
+    blender=RandomForestClassifier(n_estimators=100,n_jobs=1, max_features='auto',oob_score=False)
     #blender=ExtraTreesClassifier(n_estimators=50,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
     #blender=ExtraTreesRegressor(n_estimators=50,max_depth=None)
     cv = KFold(oobpreds.shape[0], n_folds=folds, indices=True,random_state=123)
@@ -269,9 +300,10 @@ def aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False):
 	#print "auc:",auc
 	return -auc
    
-    constr=[lambda x,z=i: x[z] for i in range(len(ensemble))]
+    constr=[lambda x,z=i: x[z] for i in range(len(Xtrain.columns))]
+    #constr=[]
 
-    n_models=len(ensemble)
+    n_models=len(Xtrain.columns)
     x0 = np.ones((n_models, 1)) / n_models
     #xopt = fmin(fopt, x0)
     xopt = fmin_cobyla(fopt, x0,constr,rhoend=1e-8)
@@ -289,14 +321,14 @@ def aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False):
 	auc=metrics.auc(fpr, tpr)
 	print "->AUC,opt: %4.4f" %(auc)
     
-    for i,model in enumerate(ensemble):
+    for i,model in enumerate(Xtrain.columns):
 	fpr, tpr, thresholds = metrics.roc_curve(y, Xtrain.iloc[:,i])
 	auc=metrics.auc(fpr, tpr)
 	print "%-16s   auc: %4.3f  coef: %4.4f" %(model,auc,xopt[i])
     print "Sum: %4.4f"%(np.sum(xopt))
     #prediction
     preds=pd.DataFrame(np.dot(Xtest,xopt),columns=["label"],index=test_indices)
-    preds.to_csv('../stumbled_upon/submissions/sub1310b.csv')
+    preds.to_csv('../stumbled_upon/submissions/sub1710a.csv')
     print preds
     print preds.describe()
   
