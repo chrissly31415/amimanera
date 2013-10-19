@@ -87,6 +87,7 @@ def postagFeatures(olddf):
 	  row.append(ind)
 	  text=olddf.ix[ind,'body']
 	  tagged=pos_tag(word_tokenize(text))
+	  tagged = [(word, simplify_wsj_tag(tag)) for word, tag in tagged]
 	  posbody=""
 	  for word, tag in tagged:
 	    posbody=posbody+tag+" "
@@ -108,7 +109,7 @@ def postagFeatures(olddf):
     newdf.columns=["postagfeats"]
     print newdf.head(20)
     print newdf.describe()
-    newdf.to_csv("../stumbled_upon/data/postagfeats.csv",encoding="utf-8")
+    newdf.to_csv("../stumbled_upon/data/postagfeats_simple.csv",encoding="utf-8")
     
 def postagSmoothing(olddf):
     """

@@ -153,7 +153,8 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
        print "Test mode..."
        #vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**14,min_df=3,tokenizer=NLTKTokenizer(),stop_words=None)
        #vectorizer = HashingVectorizer(binary=False,stop_words=None,ngram_range=(char_ngram,char_ngram),analyzer="char", non_negative=True, norm='l2', n_features=2**18)
-       vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 1), sublinear_tf=True, norm=u'l2')
+       #vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True, norm=u'l2')
+       vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=2,strip_accents='unicode',tokenizer=NLTKTokenizer())
     else:
 	print "Using count vectorizer..."
 	#vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**18)
@@ -300,16 +301,18 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	    #create new body with postag features!
 	    #postagFeatures(X_all)
 	    X_pos=pd.read_csv('../stumbled_upon/data/postagfeats.csv', sep=",", na_values=['?'], index_col=0)
+	    #X_pos=pd.read_csv('../stumbled_upon/data/postagfeats_simple.csv', sep=",", na_values=['?'], index_col=0)
 	    
 	    #vectorize data
-	    #vectorizer = CountVectorizer(ngram_range=(1,1),analyzer='word',max_features=2**10)
-	    vectorizer = HashingVectorizer(ngram_range=(1,1),analyzer='word',max_features=2**18,token_pattern=r'\w{1,}')
+	    #vectorizer = CountVectorizer(ngram_range=(1,1),analyzer='word',max_features=2**14)
+	    #vectorizer = HashingVectorizer(ngram_range=(1,1),analyzer='word',token_pattern=r'\w{1,}')
+	    vectorizer =TfidfVectorizer(min_df=4,  max_features=2**18, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 7), sublinear_tf=True, norm=u'l2')
 	    poscounts=vectorizer.fit_transform(X_pos['postagfeats'])  
 	    #print vectorizer.get_feature_names()
 	    print poscounts.shape
-	    print type(body_counts)
-	    print body_counts.shape
+	    #print body_counts.shape
 	    body_counts = sparse.hstack((body_counts,poscounts),format="csr")
+	    #body_counts=poscounts
 	    
 	if usewordtagSmoothing or usetagwordSmoothing:
 	    #create tag-words and word-tag
@@ -334,6 +337,7 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 		col='tagword'
 		tagwordcounts=vectorizer.fit_transform(X_smoothed[col])
 		print tagwordcounts.shape
+		body_counts=wordtagcounts
 		body_counts = sparse.hstack((body_counts,tagwordcounts),format="csr")	
 		
 	    #print "Feature names:",vectorizer.get_feature_names()
@@ -572,7 +576,7 @@ def pyGridSearch(lmodel,lXs,ly):
     #parameters = {'n_neighbors':[1,2,3,5,8,10]}#knn
     #parameters = {'filter__percentile': [100,80,50], 'model__n_estimators': [200], 'model__max_features':['auto'], 'model__min_samples_leaf':[5] }#rf
     #parameters = {'filter__percentile': [100,95,80,70,60,50,25], 'model__C': [0.5,1.0, 10.0], 'model__intercept_scaling': [0.1,1.0,10,100,1000] }#pipeline
-    parameters = {'filter__percentile': [100,95,80,70,60,50,25], 'model__C': [0.5,1.0, 10.0] }#pipeline
+    parameters = {'filter__percentile': [100,98,95,80,70,60,50,25], 'model__C': [0.5,1.0, 10.0,0.1],'model__penalty': ['l1','l2'] }#pipeline
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXs,ly)
     
@@ -967,12 +971,12 @@ if __name__=="__main__":
     #Xs_test=pd.DataFrame(Xs_test.todense())
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=True,useGreedyFilter=False,char_ngram=1,loadTemp=True)
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False)#opt SVD=50
-    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=300,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#opt SVD=50
+    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=10,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#opt SVD=50
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=2,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=False,usewordtagSmoothing=False,usetagwordSmoothing=True)
+    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=False,usePosTag=True,usewordtagSmoothing=True,usetagwordSmoothing=False)
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV_large',useSVD=0,useJson=True)
-    #Xs.to_csv("../stumbled_upon/data/Xtemp.csv")
-    #Xs_test.to_csv("../stumbled_upon/data/Xtemp_test.csv")
+    #Xs.to_csv("../stumbled_upon/data/Xens.csv")
+    #Xs_test.to_csv("../stumbled_upon/data/Xens_test.csv")
     #Xs.to_csv("../stumbled_upon/data/Xlarge.csv")
     #Xs_test.to_csv("../stumbled_upon/data/Xlarge_test.csv")
 
@@ -981,12 +985,12 @@ if __name__=="__main__":
     print "Type X:",type(Xs)
     print "Dim X (test):",Xs_test.shape
     # Fit a model and predict
-    #model = SGDClassifier(alpha=.0001, n_iter=50,penalty='elasticnet',l1_ratio=0.2,shuffle=True,loss='log')
+    model = SGDClassifier(alpha=.0001, n_iter=50,penalty='elasticnet',l1_ratio=0.2,shuffle=True,loss='log')
     #model = SGDClassifier(alpha=0.0005, n_iter=50,shuffle=True,loss='log',penalty='l2',n_jobs=4)#opt  
     #model = SGDClassifier(alpha=0.0001, n_iter=50,shuffle=True,loss='log',penalty='l2',n_jobs=4)#opt simple processing
     #model = SGDClassifier(alpha=0.00014, n_iter=50,shuffle=True,loss='log',penalty='elasticnet',l1_ratio=0.99)
-    #model = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)#opt
-    model = Pipeline([('filter', SelectPercentile(chi2, percentile=50)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=0.5))])
+    #model = LogisticRegression(penalty='l1', tol=0.0001, C=1.0)#opt
+    #model = Pipeline([('filter', SelectPercentile(chi2, percentile=50)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=10.0))])
     #model = Pipeline([('filter', SelectPercentile(chi2, percentile=70)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=1.0))])
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', KNeighborsClassifier(n_neighbors=150))])
     #model = Pipeline([('filter', SelectPercentile(chi2, percentile=20)), ('model', MultinomialNB(alpha=0.1))])
@@ -1009,7 +1013,7 @@ if __name__=="__main__":
     #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=500, subsample=0.5, min_samples_split=6, min_samples_leaf=10, max_depth=5, init=None, random_state=123,verbose=False)#opt 0.883
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)  
     #modelEvaluation(model,Xs,y)
-    model=pyGridSearch(model,Xs,y)
+    #model=pyGridSearch(model,Xs,y)
     #(gclassifiers,gblender,oob_avg)=ensembleBuilding(Xs,y)
     #ensemblePredictions(gclassifiers,gblender,Xs,y,Xs_test,test_indices,train_indices,oob_avg,'../stumbled_upon/data/lgblend.csv')
     #fit final model
