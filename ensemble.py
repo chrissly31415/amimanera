@@ -39,10 +39,10 @@ def createModels():
     #xmodel = XModel("logreg_wordtag",model,Xs,Xs_test)
     #ensemble.append(xmodel)
     
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=True,usewordtagSmoothing=False,usetagwordSmoothing=False)
-    model = Pipeline([('filter', SelectPercentile(chi2, percentile=50)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=10.0))])
-    xmodel = XModel("logreg_postag",model,Xs,Xs_test)
-    ensemble.append(xmodel)
+    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=True,usewordtagSmoothing=False,usetagwordSmoothing=False)
+    #model = Pipeline([('filter', SelectPercentile(chi2, percentile=50)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=10.0))])
+    #xmodel = XModel("logreg_postag",model,Xs,Xs_test)
+    #ensemble.append(xmodel)
     
     #pipeline with sdg
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False)  
@@ -83,6 +83,13 @@ def createModels():
     xmodel = XModel("randomf3",model,X,X_test)
     ensemble.append(xmodel)
     """
+    
+    #rf, using SVD=2000
+    (X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=1000,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False)#opt SVD=50
+    model = Pipeline([('filter', SelectPercentile(f_classif, percentile=5)), ('model', RandomForestClassifier(n_estimators=1000,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='gini', max_features='auto',oob_score=False))])
+    xmodel = XModel("randomf_1000SVD",model,X,X_test)
+    ensemble.append(xmodel)
+    
     
     #KNN fastest model 0.870
     #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=True)  
@@ -195,7 +202,7 @@ def trainEnsemble(addMetaFeatures=False):
     #ensemble=["logreg1","sgd1","randomf1","randomf2","randomf3","gradboost1","gbmR"]
     #ensemble=["logreg1","logreg2_cv","sgd1","sgd2","randomf1","randomf2","gradboost1","extrarf1","gbmR","lof"]
     #ensemble=["logreg1","logreg2_cv","sgd2","randomf1","randomf2","gradboost1","gbmR"]#best so far 0.885
-    #ensemble=["logreg_postag","lgblend","logreg1","logreg2_cv","logreg_wordtag","logreg_tagword","sgd1","sgd2","naiveB1","randomf1","randomf2","randomf3","extrarf1","extrarf2","gradboost1","gradboost2","gbmR","gbmR2","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char11","lr_char22","lr_char33","lr_char44","lr_char55"]
+    #ensemble=["logreg_postag","lgblend","logreg1","logreg2_cv","logreg_wordtag","logreg_tagword","sgd1","sgd2","naiveB1","randomf1","randomf2","randomf3","randomf_1000SVD","extrarf1","extrarf2","gradboost1","gradboost2","gbmR","gbmR2","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char11","lr_char22","lr_char33","lr_char44","lr_char55"]
     #ensemble=["logreg_postag","logreg1"]
     ensemble=["logreg_postag","logreg_tagword","naiveB1","extrarf2","randomf2","gradboost2","lr_char33_hV","lr_char33","gbmR"]#AUC=0.8875
     #ensemble=["extrarf2","randomf2","gradboost2","lr_char33_hV","lr_char33","gbmR"]
@@ -231,7 +238,7 @@ def trainEnsemble(addMetaFeatures=False):
 	#print Xs_test
 	
 	#useCols=['lof','compression_ratio','linkwordscore','n_comment','image_ratio','logn_newline','spelling_errors_ratio']
-	useCols=['lof','compression_ratio','image_ratio','logn_newline','avglinksize','wwwfacebook_ratio']#0.888
+	useCols=['lof','compression_ratio','image_ratio','logn_newline','avglinksize','wwwfacebook_ratio','url_contains_recipe']#0.888
 	#useCols=['lof','compression_ratio','n_comment','logn_newline','spelling_errors_ratio']
 	#useCols=['lof']
 	Xs=Xs.loc[:,useCols]
@@ -355,7 +362,7 @@ def aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False):
     print "Sum: %4.4f"%(np.sum(xopt))
     #prediction
     preds=pd.DataFrame(np.dot(Xtest,xopt),columns=["label"],index=test_indices)
-    preds.to_csv('../stumbled_upon/submissions/sub1810b.csv')
+    preds.to_csv('../stumbled_upon/submissions/sub2010a.csv')
     print preds.describe()
   
 

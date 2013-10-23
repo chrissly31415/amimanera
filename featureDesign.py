@@ -6,11 +6,13 @@
 import pandas as pd
 import nltk as nltk
 from nltk.tag import pos_tag
-from nltk.tag.simplify import simplify_wsj_tag
+#from nltk.tag.simplify import simplify_wsj_tag
 from nltk.tokenize import word_tokenize
 from nltk import FreqDist
 from nltk.probability import LidstoneProbDist
 import random
+#from nltk.stem.wordnet import WordNetStemmer
+from nltk.stem.porter import PorterStemmer
 
 def getStopwords(addRecipe=True):
     stop_words=None
@@ -120,19 +122,21 @@ def postagSmoothing(olddf):
     #olddf = olddf.ix[random.sample(olddf.index, 10)]
     #olddf = olddf.ix[olddf.index[0:9]]
     olddf=pd.DataFrame(olddf['body'])
+    wnl = PorterStemmer()
     for ind in olddf.index:
 	  print "Smoothing: ",ind
 	  row=[]
 	  row.append(ind)
 	  text=olddf.ix[ind,'body']
-	  tagged=pos_tag(word_tokenize(text))
+	  text=[wnl.stem(t) for t in word_tokenize(text)]	  
+	  tagged=pos_tag(text)
 	  word_tag=u''
 	  tag_word=u''
 	  actual_tag=u'.'
 	  actual_word=u'.'
 	  #print tagged
 	  for word, tag in tagged:
-	      tag=simplify_wsj_tag(tag)
+	      #tag=simplify_wsj_tag(tag)
 	      word=word.lower()
 	      word_tag=word_tag+actual_word+u"_"+tag+" "
 	      actual_word=word
@@ -147,7 +151,7 @@ def postagSmoothing(olddf):
     newdf.columns=[u'wordtag',u'tagword']
     print newdf.head(20)
     print newdf.describe()
-    newdf.to_csv("../stumbled_upon/data/postagsmoothed.csv",encoding="utf-8")
+    newdf.to_csv("../stumbled_upon/data/postagsmoothed2.csv",encoding="utf-8")
     
     
 def lidstoneProbDist(olddf):
