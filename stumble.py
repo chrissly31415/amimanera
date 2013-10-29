@@ -84,6 +84,9 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 #TODO use separate model fpr foodstuff
 #TODO SVD number of iterations
 #TODO iterative selection of meta features...witihn xval loop!!!
+#TODO check predictions...
+#TODO scale ensemble!!!!!
+#TODO anneal for best ensemble: http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.anneal.html#scipy.optimize.anneal
 
 
 class NLTKTokenizer(object):
@@ -113,7 +116,7 @@ def dfinfo(X_all):
     print "##Details##\n",X_all.ix[:,2:3].describe()
     print "##Details##\n",X_all.ix[:,3:7].describe()
 
-def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False,char_ngram=5,loadTemp=False,usewordtagSmoothing=False,usetagwordSmoothing=False,usePosTagNew=False):
+def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False,char_ngram=5,loadTemp=False,usewordtagSmoothing=False,usetagwordSmoothing=False,usePosTagNew=False,useNLTKprob=False):
     """
     Load Data into pandas and preprocess features
     """
@@ -316,7 +319,10 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	    #print body_counts.shape
 	    body_counts = sparse.hstack((body_counts,poscounts),format="csr")
 	    #body_counts=poscounts
-	    
+	 
+	if useNLTKprob:
+	    lidstoneProbDist(X_all)
+	
 	if usewordtagSmoothing or usetagwordSmoothing:
 	    #create tag-words and word-tag
 	    #postagSmoothing(X_all)
@@ -1015,15 +1021,15 @@ if __name__=="__main__":
     #Xs=pd.DataFrame(Xs.todense())
     #Xs_test=pd.DataFrame(Xs_test.todense())
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=True,useGreedyFilter=False,char_ngram=1,loadTemp=True)
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=1000,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#opt SVD=50
+    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=1000,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#opt SVD=50
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,loadTemp=True)#opt SVD=50
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=2,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#
-    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=False,usewordtagSmoothing=True,usetagwordSmoothing=False)
+    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=False,usewordtagSmoothing=False,usetagwordSmoothing=False,useNLTKprob=True)
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV_large',useSVD=0,useJson=True)
     #Xs.to_csv("../stumbled_upon/data/Xens.csv")
     #Xs_test.to_csv("../stumbled_upon/data/Xens_test.csv")
-    Xs.to_csv("../stumbled_upon/data/Xlarge.csv")
-    Xs_test.to_csv("../stumbled_upon/data/Xlarge_test.csv")
+    #Xs.to_csv("../stumbled_upon/data/Xlarge.csv")
+    #Xs_test.to_csv("../stumbled_upon/data/Xlarge_test.csv")
 
     #(Xs,y,Xs_test,test_indices) = prepareSimpleData()
     print "Dim X (training):",Xs.shape

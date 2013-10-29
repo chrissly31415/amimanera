@@ -173,11 +173,13 @@ def lidstoneProbDist(olddf):
 	  row.append(ind)
 	  text=olddf.ix[ind,'body']
 	  tokens=word_tokenize(text)
-	  print tokens
+	  #print tokens
 	  
 	  t_fd = FreqDist(tokens)
 	  pdist = LidstoneProbDist(t_fd,0.1)
-	  print pdist
+	  print pdist.samples()
+	  #for tok in tokens:
+	  #    print pdist[3][tok]
 	  #t_fd.plot(cumulative=False)
 	  raw_input("HITKEY")
 	  row=tokens
@@ -189,7 +191,7 @@ def lidstoneProbDist(olddf):
     newdf.columns=taglist
     print newdf.head(20)
     print newdf.describe()
-    newdf.to_csv("../stumbled_upon/data/postagwordfeats.csv")
+    newdf.to_csv("../stumbled_upon/data/lidstone.csv")
     
     
 def featureEngineering(olddf):
