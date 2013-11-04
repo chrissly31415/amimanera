@@ -111,6 +111,13 @@ def createModels():
     #xmodel = XModel("gradboost2",model,X,X_test)
     #ensemble.append(xmodel)
     
+    #ADAboost
+    (X,y,X_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=1,loadTemp=True)
+    model = Pipeline([('filter', SelectPercentile(f_classif, percentile=80)), ('model', AdaBoostClassifier(n_estimators=200,learning_rate=0.1))])
+    xmodel = XModel("ada",model,X,X_test)
+    ensemble.append(xmodel)
+    
+    
     """1,1character ngrams  
     (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=1)  
     model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=42)
@@ -260,7 +267,7 @@ def trainEnsemble(ensemble=None,useCols=None,addMetaFeatures=False):
     
     #scale data
     X_all=pd.concat([Xtest,Xtrain])
-    X_all=removeCorrelations(X_all,0.99)
+    X_all=removeCorrelations(X_all,0.992)
     
     
     X_all = (X_all - X_all.min()) / (X_all.max() - X_all.min())
@@ -270,11 +277,12 @@ def trainEnsemble(ensemble=None,useCols=None,addMetaFeatures=False):
     print "New shape",Xtrain.shape
     #print Xtrain
     #print Xtest
-    Xtrain,Xtest = aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False,removeZeroModels=0.002)
-    Xtrain,Xtest = aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False,removeZeroModels=0.002)
-    auc=aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False)
-    #auc=classicalBlend(ensemble,Xtrain,Xtest,y,test_indices)
+    #Xtrain,Xtest = aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False,removeZeroModels=0.0001)
+    #Xtrain,Xtest = aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False,removeZeroModels=0.0001)
+    #auc=aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False)
+    auc=classicalBlend(ensemble,Xtrain,Xtest,y,test_indices)
     return(auc)
+
 
 def removeCorrelations(X_all,threshhold):
     #filter correlated data
@@ -300,12 +308,12 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices):
     #blending
     folds=8
     #do another crossvalidation for weights
-    #blender=LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
+    blender=LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
     #blender = Pipeline([('filter', SelectPercentile(f_regression, percentile=25)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=0.1))])
     #blender=SGDClassifier(alpha=.01, n_iter=50,penalty='l2',loss='log')
     #blender=AdaBoostClassifier(learning_rate=0.01,n_estimators=200)
     #blender=RandomForestClassifier(n_estimators=100,n_jobs=1, max_features='auto',oob_score=False)
-    blender=ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False)
+    #blender=ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False)
     #blender=RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
     #blender=ExtraTreesRegressor(n_estimators=500,max_depth=None)
     cv = KFold(oobpreds.shape[0], n_folds=folds, indices=True,random_state=123)
@@ -338,7 +346,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices):
     #blend results
     preds=blender.predict_proba(testset)[:,1]   
     preds=pd.DataFrame(preds,columns=["label"],index=test_indices)
-    preds.to_csv('../stumbled_upon/submissions/sub1910a.csv')
+    preds.to_csv('../stumbled_upon/submissions/sub0111a.csv')
     print preds
     return(oob_auc)
 
@@ -357,14 +365,16 @@ def aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False,removeZeroMo
 	return -auc
    
     #we need constraints to avoid overfitting...
+    #constr=[lambda x,z=i: x[z] for i in range(len(Xtrain.columns))]
     constr=[lambda x,z=i: x[z] for i in range(len(Xtrain.columns))]
-    constr=[lambda x,z=i: 0.1-x[z] for i in range(len(Xtrain.columns))]
+    #constr2=[lambda x,z=i: 0.3-x[z] for i in range(len(Xtrain.columns))]
+    #constr=constr+constr2
 
     n_models=len(Xtrain.columns)
     x0 = np.ones((n_models, 1)) / n_models
     #x0= np.random.random_sample((n_models,1))
     #xopt = fmin(fopt, x0)
-    xopt = fmin_cobyla(fopt, x0,constr,rhoend=1e-10)
+    xopt = fmin_cobyla(fopt, x0,constr,rhoend=1e-12)
     #normalize, not necessary for auc
     xopt=xopt/np.sum(xopt)
     if np.isnan(np.sum(xopt)):
@@ -398,7 +408,7 @@ def aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False,removeZeroMo
     #prediction
     preds=pd.DataFrame(np.dot(Xtest,xopt),columns=["label"],index=test_indices)
     preds = (preds - preds.min()) / (preds.max() - preds.min())
-    preds.to_csv('../stumbled_upon/submissions/sub2910b.csv')
+    preds.to_csv('../stumbled_upon/submissions/sub3110b.csv')
     print preds.describe()
     return(oob_auc)
   
@@ -445,21 +455,25 @@ def selectModels():
 if __name__=="__main__":
     np.random.seed(123)
     #ensemble,y=createModels()
-    #ensemble=createOOBdata(ensemble,y,20)
+    #ensemble=createOOBdata(ensemble,y,10)
     #ensemble=["logreg1","sgd1","randomf1","randomf2","randomf3","gradboost1","gbmR"]
     #ensemble=["logreg1","logreg2_cv","sgd1","sgd2","randomf1","randomf2","gradboost1","extrarf1","gbmR","lof"]
     #ensemble=["logreg1","logreg2_cv","sgd2","randomf1","randomf2","gradboost1","gbmR"]#best so far 0.885
-    ensemble=["nnet","logreg_postag","rfR","gradboost2","gbmR","gbmR2","gbmR4","randomf2","randomf1","randomf3","randomf_1000SVD","lgblend","logreg1","logreg2_cv","logreg_wordtag","logreg_tagword","sgd1","sgd2","naiveB1","extrarf1","extrarf2","gradboost1","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char11","lr_char22","lr_char33","lr_char44","lr_char55"]
+    #ensemble=["logreg_postag","rfR","gradboost2","gbmR","gbmR2","gbmR4","randomf2","randomf1","randomf3","randomf_1000SVD","lgblend","logreg1","logreg2_cv","logreg_wordtag","logreg_tagword","sgd1","sgd2","naiveB1","extrarf1","extrarf2","gradboost1","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char11","lr_char22","lr_char33","lr_char44","lr_char55","nnet_old"]
+    #ensemble=["ada","knn1","logreg_postag","rfR","gradboost2","gbmR","gbmR2","randomf2","randomf1","randomf3","lgblend","logreg1","logreg2_cv","logreg_tagword","naiveB1","extrarf1","gradboost1","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char11","lr_char22","lr_char33","lr_char44","lr_char55","gbmR4"]
     #ensemble=["logreg_postag","logreg1"]
-    #ensemble=["logreg_postag","logreg_tagword","naiveB1","extrarf2","randomf2","gradboost2","lr_char33_hV","lr_char33","gbmR","gbmR4","rfR"]#AUC=0.8875
+    #ensemble=["logreg_postag","logreg_tagword","naiveB1","extrarf2","randomf2","gradboost2","lr_char33_hV","lr_char33","gbmR","gbmR4","rfR",'nnet_old']#AUC=0.8875
     #ensemble=["randomf2","gradboost2","rfR"]
-    #ensemble=["gradboost2","gbmR","randomf2","extrarf2"]
+    #ensemble=["logreg1","gradboost2","gbmR","randomf2","nnet_old","extrarf2","randomf_1000SVD",'naiveB1','knn1']
     #ensemble=["gbmR4","rfR"]
-    #ensemble=[ 'gradboost2', 'naiveB1', 'extrarf2','lr_char33', 'gbmR', 'gbmR4', 'rfR','logreg_tagword','logreg_postag', 'lr_char55_hV']#TOP 0.8882
-    #ensemble=['nnet','logreg_postag', 'logreg_tagword', 'naiveB1', 'extrarf2', 'gradboost2', 'lr_char33', 'gbmR', 'gbmR4', 'rfR', 'lr_char55_hV']
+    #ensemble=[ 'gradboost2', 'naiveB1', 'extrarf2','lr_char33', 'gbmR', 'gbmR4', 'rfR','logreg_tagword','logreg_postag', 'lr_char55_hV','nnet_old']#TOP 0.8882
+    ensemble=["randomf2",'nnet_old','logreg_postag', 'logreg_tagword', 'naiveB1', 'extrarf2', 'gradboost2', 'lr_char33', 'gbmR', 'gbmR4', 'rfR', 'lr_char55_hV','naiveB1']
     #ensemble=['nnet','gradboost2']
     #ensemble=["randomf1","randomf2","gradboost2","randomf_1000SVD"]
     useCols=['lof', 'compression_ratio', 'image_ratio', 'logn_newline', 'avglinksize', 'wwwfacebook_ratio', 'linkwordscore']#TOP 0.8882
+    #useCols=[u'url_contains_foodstuff', u'CNJ', u'linkwordscore', u'non_markup_alphanum_characters', u'frameTagRatio', u'P', u'DET', u'logn_newline', u'char0', u'url_length', u'body_length', u'avglinksize', u'compression_ratio', u'ADJ', u'char1', u'char4', u'char8']
+    #useCols=['lof','compression_ratio','image_ratio','logn_newline','avglinksize','wwwfacebook_ratio','url_contains_recipe','n_comment','spelling_errors_ratio','linkwordscore']#0.8880
+    #ensemble=['logreg_postag', 'logreg_tagword', 'naiveB1', 'extrarf2', 'gradboost2', 'lr_char33', 'gbmR', 'gbmR4', 'rfR', 'lr_char55_hV']#TOP 0.8882
     trainEnsemble(ensemble,useCols,addMetaFeatures=True)
     #selectModels()
     

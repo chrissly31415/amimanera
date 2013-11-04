@@ -289,9 +289,9 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	    #print X_svd.columns
 	    #X_svd=X_svd.loc[:,[1,4,3,8,5,'linkwordscore',6,'char2',9,'url_contains_foodstuff',22,26,'MOD',33,'alchemy_category_score',24,45,'spelling_errors_ratio',43]]#Rgreedy
 	    #X_svd=X_svd.loc[:,[1,4,3,8,5,'linkwordscore',6,'char2',9,'url_contains_foodstuff',22,26,'MOD',33,'alchemy_category_score',24,45,'spelling_errors_ratio',43,'frameTagRatio',19,21,25,0,'url_length',48,'TO','char5','url_contains_news','compression_ratio',37,'VD','twitter_ratio',49,'is_news','url_contains_sweetstuff',42,17,'url_contains_health',20,'char4',16,'DET',23,'commonlinkratio_2',41,'image_ratio',7,'wwwfacebook_ratio','char0']]
-	    #X_svd=X_svd.loc[:,[1, 2, 4, u'url_contains_foodstuff', 9, 0, 8, u'CNJ', u'url_contains_recipe', 33, 6, u'non_markup_alphanum_characters', 10, u'body_length', 15, 5, 3, u'char2', 12, 11, 14, 21, 31, u'frameTagRatio', 7, 25, u'N', 22, 17, 16, 23, 19, 47, 18, u'linkwordscore', 29, 46, 30, u'V', 39, 32]]#rf feature importance sklearn
+	    X_svd=X_svd.loc[:,[1, 2, 4, u'url_contains_foodstuff', 9, 0, 8, u'CNJ', u'url_contains_recipe', 33, 6, u'non_markup_alphanum_characters', 10, u'body_length', 15, 5, 3, u'char2', 12, 11, 14, 21, 31, u'frameTagRatio', 7, 25, u'N', 22, 17, 16, 23, 19, 47, 18, u'linkwordscore', 29, 46, 30, u'V', 39, 32]]#rf feature importance sklearn
 	    #X_svd=X_svd.loc[:,[1, 4, 9, 8, 0, u'url_contains_foodstuff', 2, 58, 67, 75, 71, u'CNJ', 44, 21, u'non_markup_alphanum_characters', 15, 42, u'linkwordscore', u'frameTagRatio', 36, u'logn_newline', 65, 47, 29, 33, 64, u'body_length', u'DET', 73, 56, 12, u'P', 14, 6, u'char0', 97, 37, 52, 83, 79, 17, u'avglinksize', u'char8', 22, 39, u'char4', u'wwwfacebook_ratio', u'url_length', u'ADJ', u'char1', 85, 30, 72, 62, 49, 28, 11, 59, 89, u'n_comment', 78, 55, 53, u'MOD', u'compression_ratio', 54, u'spelling_errors_ratio', u'commonlinkratio_1']]#GBM feature selection
-	    X_svd=X_svd.loc[:,[1, 4, 9, 8, 0, 2, u'url_contains_foodstuff', 58, 67, 75, u'CNJ', u'linkwordscore', 21, 64, 15, u'non_markup_alphanum_characters', u'frameTagRatio', 44, 47, 42, u'P', 29, 36, 33, 73, u'DET', 97, 12, 56, 71, 52, 65, 59, 37, u'logn_newline', 6, 85, u'char0', 22, 83, u'url_length', u'body_length', 14, 17, 30, u'avglinksize', 62, u'compression_ratio', 39, u'ADJ', u'char1', 53, 78, 49, 11, 54, 79, 89, u'char4', u'char8']]#GBM feature selection
+	    #X_svd=X_svd.loc[:,[1, 4, 9, 8, 0, 2, u'url_contains_foodstuff', 58, 67, 75, u'CNJ', u'linkwordscore', 21, 64, 15, u'non_markup_alphanum_characters', u'frameTagRatio', 44, 47, 42, u'P', 29, 36, 33, 73, u'DET', 97, 12, 56, 71, 52, 65, 59, 37, u'logn_newline', 6, 85, u'char0', 22, 83, u'url_length', u'body_length', 14, 17, 30, u'avglinksize', 62, u'compression_ratio', 39, u'ADJ', u'char1', 53, 78, 49, 11, 54, 79, 89, u'char4', u'char8']]#GBM feature selection
 	    #X_svd=X_svd.loc[:,[1,4,3,8,5,u'linkwordscore']]
 	    print X_svd
 	
@@ -577,16 +577,17 @@ def pyGridSearch(lmodel,lXs,ly):
     #parameters = {'max_depth':[6,7], 'learning_rate':[0.010,0.008],'n_estimators':[300,500]}#gbm
     #parameters = {'max_depth':[2], 'learning_rate':[0.01,0.001],'n_estimators':[3000]}#gbm
     #parameters = {'n_estimators':[500], 'max_features':[5,10,15]}#rf
-    #parameters = {'n_estimators':[250,100,50], 'learning_rate':[0.1,0.01,0.5]}#adaboost
+    #parameters = {'n_estimators':[2000,3000], 'learning_rate':[0.08,0.04,0.02]}#adaboost
     #parameters = {'n_estimators':[400,600,800], 'max_features':[10,15,20],'min_samples_leaf':[10,20]}#rf
     #parameters = {'C':[0.1,1,10]}#SVC
     #parameters = {'filter__percentile': [100,80,50,25] , 'model__alpha':[1.0,0.8,0.5,0.1]}#opt
     #parameters = {'filter__percentile': [16,15,14,13,12] , 'model__n_neighbors':[125,130,135,150,200]}#knn
     #parameters = {'n_neighbors':[1,2,3,5,8,10]}#knn
-    parameters = {'filter__percentile': [6,5,4,3,2,1], 'model__n_estimators': [500], 'model__max_features':['auto'], 'model__min_samples_leaf':[10] }#rf
+    #parameters = {'filter__percentile': [6,5,4,3,2,1], 'model__n_estimators': [500], 'model__max_features':['auto'], 'model__min_samples_leaf':[10] }#rf
     #parameters = {'filter__percentile': [100,95,80,70,60,50,25], 'model__C': [0.5,1.0, 10.0], 'model__intercept_scaling': [0.1,1.0,10,100,1000] }#pipeline
     #parameters = {'filter__percentile': [100,98,95,80,70,60,50,25], 'model__C': [0.5,1.0, 10.0,0.1],'model__penalty': ['l1','l2'] }#pipeline
-    clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
+    parameters = {'filter__percentile': [90,80], 'model__n_estimators': [600,500],'model__learning_rate': [0.1] }#pipeline
+    clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=2,verbose=1)
     clf_opt.fit(lXs,ly)
     
     for params, mean_score, scores in clf_opt.grid_scores_:
@@ -1016,15 +1017,15 @@ if __name__=="__main__":
     print "scipy:",sp.__version__
     print "nltk:",nltk.__version__
     #variables
-    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#opt SVD=50
+    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=500,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#opt SVD=50
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV_small',useSVD=50,useJson=True,useHTMLtag=False,useAddFeatures=True,usePosTag=False,useAlcat=False,useGreedyFilter=False)
     #Xs=pd.DataFrame(Xs.todense())
     #Xs_test=pd.DataFrame(Xs_test.todense())
-    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=True,useGreedyFilter=False,char_ngram=1,loadTemp=True)
+    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=1,loadTemp=True)
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=1000,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#opt SVD=50
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,loadTemp=True)#opt SVD=50
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=2,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=False,usewordtagSmoothing=False,usetagwordSmoothing=False,useNLTKprob=True)
+    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=False,usewordtagSmoothing=False,usetagwordSmoothing=False,useNLTKprob=True)
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV_large',useSVD=0,useJson=True)
     #Xs.to_csv("../stumbled_upon/data/Xens.csv")
     #Xs_test.to_csv("../stumbled_upon/data/Xens_test.csv")
@@ -1040,7 +1041,7 @@ if __name__=="__main__":
     #model = SGDClassifier(alpha=0.0005, n_iter=50,shuffle=True,loss='log',penalty='l2',n_jobs=4)#opt  
     #model = SGDClassifier(alpha=0.0001, n_iter=50,shuffle=True,loss='log',penalty='l2',n_jobs=4)#opt simple processing
     #model = SGDClassifier(alpha=0.00014, n_iter=50,shuffle=True,loss='log',penalty='elasticnet',l1_ratio=0.99)
-    model = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)#opt
+    #model = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)#opt
     #model = Pipeline([('filter', SelectPercentile(chi2, percentile=50)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=1.0))])
     #model = Pipeline([('filter', SelectPercentile(chi2, percentile=70)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=1.0))])
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', KNeighborsClassifier(n_neighbors=150))])
@@ -1054,18 +1055,18 @@ if __name__=="__main__":
     #model=LinearSVC(penalty='l2', loss='l2', dual=True, tol=0.0001, C=1.0)#no proba
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='linear', probability=True, shrinking=True,tol=0.001, verbose=False)
     #model=   RandomForestClassifier(n_estimators=200,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False)
-    #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=25)), ('model', BernoulliNB(alpha=0.1))])#opt dense 0.855
+    model = Pipeline([('filter', SelectPercentile(f_classif, percentile=80)), ('model', AdaBoostClassifier(n_estimators=100,learning_rate=0.1))])
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=50)), ('model', BernoulliNB(alpha=0.1))])#opt sparse 0.849
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=50)), ('model', RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False))])
     #opt greedy approach
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1)
 
     #model = ExtraTreesClassifier(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features=20,oob_score=False)#opt
-    #model = AdaBoostClassifier(n_estimators=50,learning_rate=0.1)
+    #model = AdaBoostClassifier(n_estimators=100,learning_rate=0.1)
     #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=500, subsample=0.5, min_samples_split=6, min_samples_leaf=10, max_depth=5, init=None, random_state=123,verbose=False)#opt 0.883
     #model = SVC(C=1, cache_size=200, class_weight='auto', gamma=0.0, kernel='rbf', probability=True, shrinking=True,tol=0.001, verbose=False)  
     #modelEvaluation(model,Xs,y)
-    #model=pyGridSearch(model,Xs,y)
+    model=pyGridSearch(model,Xs,y)
     #splitModel(model,Xs,Xs_test,y)
     #(gclassifiers,gblender,oob_avg)=ensembleBuilding(Xs,y)
     #ensemblePredictions(gclassifiers,gblender,Xs,y,Xs_test,test_indices,train_indices,oob_avg,'../stumbled_upon/data/lgblend.csv')
@@ -1082,7 +1083,7 @@ if __name__=="__main__":
     #(Xs,Xs_test)=iterativeFeatureSelection(model,Xs,Xs_test,y,1,1)
     #Xs.to_csv("../stumbled_upon/data/Xtemp.csv")
     #Xs_test.to_csv("../stumbled_upon/data/Xtemp_test.csv")
-    model = buildModel(model,Xs,y) 
+    #model = buildModel(model,Xs,y) 
     #lofFilter(y)
     #(Xs,Xs_test) = group_sparse(Xs,Xs_test)
     #print "Dim X (after grouping):",Xs.shape
