@@ -19,18 +19,18 @@ import pylab as pl
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.feature_extraction.text import CountVectorizer,HashingVectorizer,TfidfVectorizer
-from sklearn import metrics
+#from sklearn import metrics
 from sklearn import cross_validation,grid_search
 from sklearn.cross_validation import StratifiedKFold,KFold
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score,classification_report,f1_score
 #from sklearn.utils.extmath import density
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.pipeline import Pipeline
 
 from sklearn.feature_selection import SelectKBest,SelectPercentile, chi2, f_classif,f_regression
-from sklearn.naive_bayes import BernoulliNB,MultinomialNB
-from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor
+from sklearn.naive_bayes import BernoulliNB,MultinomialNB,GaussianNB
+from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier
 from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import LinearSVC
@@ -248,20 +248,22 @@ def pyGridSearch(lmodel,lXs,ly):
     """ 
     print "Grid search..."
     #parameters = {'C':[1000,10000,100], 'gamma':[0.001,0.0001]}
-    #parameters = {'max_depth':[6,7], 'learning_rate':[0.010,0.008],'n_estimators':[300,500]}#gbm
+    #parameters = {'max_depth':[3,6,9], 'learning_rate':[0.5,0.1,0.01,0.05],'n_estimators':[150,300,500]}#gbm
     #parameters = {'max_depth':[2], 'learning_rate':[0.01,0.001],'n_estimators':[3000]}#gbm
     #parameters = {'n_estimators':[500], 'max_features':[5,10,15]}#rf
     #parameters = {'n_estimators':[2000,3000], 'learning_rate':[0.08,0.04,0.02]}#adaboost
     #parameters = {'n_estimators':[400,600,800], 'max_features':[10,15,20],'min_samples_leaf':[10,20]}#rf
+    parameters = {'alpha':[0.0001,0.001,0.01,0.1],'n_iter':[5,10,100,150],'penalty':['l1','l2']}#SGD
     #parameters = {'C':[0.1,1,10]}#SVC
     #parameters = {'filter__percentile': [100,80,50,25] , 'model__alpha':[1.0,0.8,0.5,0.1]}#opt
     #parameters = {'filter__percentile': [16,15,14,13,12] , 'model__n_neighbors':[125,130,135,150,200]}#knn
     #parameters = {'n_neighbors':[1,2,3,5,8,10]}#knn
     #parameters = {'filter__percentile': [6,5,4,3,2,1], 'model__n_estimators': [500], 'model__max_features':['auto'], 'model__min_samples_leaf':[10] }#rf
-    parameters = {'filter__percentile': [100,95,80,70,60,50,25], 'model__C': [0.5,1.0, 10.0], 'model__intercept_scaling': [0.1,1.0,10,100,1000] }#pipeline
+    #parameters = {'filter__percentile': [100,95,80,70,60,50,25], 'model__C': [0.5,1.0, 10.0], 'model__intercept_scaling': [0.1,1.0,10,100,1000] }#pipeline
     #parameters = {'filter__percentile': [100,98,95,80,70,60,50,25], 'model__C': [0.5,1.0, 10.0,0.1],'model__penalty': ['l1','l2'] }#pipeline
     #parameters = {'filter__percentile': [90,80], 'model__n_estimators': [600,500],'model__learning_rate': [0.1] }#pipeline
-    clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=2,verbose=1)
+    
+    clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXs,ly)
     
     for params, mean_score, scores in clf_opt.grid_scores_:
@@ -270,21 +272,27 @@ def pyGridSearch(lmodel,lXs,ly):
     return(clf_opt.best_estimator_)
     
     
-def buildModel(lmodel,lXs,ly,feature_names=None):
+def buildModel(lmodel,lXs,ly,sweights=None,feature_names=None):
     """   
     Final model building part
     """ 
     print "Xvalidation..."
-    scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=8, scoring='roc_auc',n_jobs=4)
+    scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=5, scoring='roc_auc',n_jobs=4)
     print "AUC: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
     print "Building model with all instances..."
     if isinstance(lmodel,RandomForestClassifier) or isinstance(lmodel,SGDClassifier):
 	    lmodel.set_params(n_jobs=4)
-    lmodel.fit(lXs,ly)
+	    lmodel.fit(lXs,ly,sample_weight=sweights)
+    else:
+	    lmodel.fit(lXs,ly)
+    
     #analyzeModel(lmodel,feature_names)
     return(lmodel)
     
 def density(m):
+    """
+    For sparse matrices
+    """
     entries=m.shape[0]*m.shape[1]
     return m.nnz/float(entries)
   
@@ -611,7 +619,7 @@ def showMisclass(lXs,lXs_test,ly,t=0.95):
     
 def scaleData(lXs,lXs_test,cols=None):
     """
-    standard+transformation scaling of data, also possible with sklean StandardScaler
+    standard+transformation scaling of data, also possible with sklearn StandardScaler
     """
     print "Data scaling..."
     lX_all = pd.concat([lXs_test, lXs])   
