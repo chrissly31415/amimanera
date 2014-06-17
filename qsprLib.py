@@ -22,7 +22,7 @@ from sklearn.feature_extraction.text import CountVectorizer,HashingVectorizer,Tf
 #from sklearn import metrics
 from sklearn import cross_validation,grid_search
 from sklearn.cross_validation import StratifiedKFold,KFold
-from sklearn.metrics import roc_auc_score,classification_report,f1_score
+from sklearn.metrics import roc_auc_score,classification_report,make_scorer,f1_score
 #from sklearn.utils.extmath import density
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.decomposition import TruncatedSVD
@@ -31,11 +31,12 @@ from sklearn.pipeline import Pipeline
 from sklearn.feature_selection import SelectKBest,SelectPercentile, chi2, f_classif,f_regression
 from sklearn.naive_bayes import BernoulliNB,MultinomialNB,GaussianNB
 from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier
-from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor
+from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import LinearSVC
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.learning_curve import learning_curve
 
 def one_hot_encoder(data, col, replace=False):
     """ Takes a dataframe and a list of columns that need to be encoded.
@@ -255,7 +256,7 @@ def pyGridSearch(lmodel,lXs,ly):
     #parameters = {'n_estimators':[400,600,800], 'max_features':[10,15,20],'min_samples_leaf':[10,20]}#rf
     parameters = {'alpha':[0.0001,0.001,0.01,0.1],'n_iter':[5,10,100,150],'penalty':['l1','l2']}#SGD
     #parameters = {'C':[0.1,1,10]}#SVC
-    #parameters = {'filter__percentile': [100,80,50,25] , 'model__alpha':[1.0,0.8,0.5,0.1]}#opt
+    #parameters = {'filter__percentile': [100,80,50,25] , 'model__alpha':[1.0,0.8,0.5,0.1]}#opt nb
     #parameters = {'filter__percentile': [16,15,14,13,12] , 'model__n_neighbors':[125,130,135,150,200]}#knn
     #parameters = {'n_neighbors':[1,2,3,5,8,10]}#knn
     #parameters = {'filter__percentile': [6,5,4,3,2,1], 'model__n_estimators': [500], 'model__max_features':['auto'], 'model__min_samples_leaf':[10] }#rf
@@ -636,3 +637,61 @@ def scaleData(lXs,lXs_test,cols=None):
     lXs = lX_all[len(lXs_test.index):]
     lXs_test = lX_all[:len(lXs_test.index)]
     return (lXs,lXs_test)
+    
+       
+def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, scoring=f1_score, train_sizes=np.linspace(.1, 1.0, 5)):
+    """
+    Generate a simple plot of the test and traning learning curve.
+
+    Parameters
+    ----------
+    estimator : object type that implements the "fit" and "predict" methods
+        An object of that type which is cloned for each validation.
+
+    title : string
+        Title for the chart.
+
+    X : array-like, shape (n_samples, n_features)
+        Training vector, where n_samples is the number of samples and
+        n_features is the number of features.
+
+    y : array-like, shape (n_samples) or (n_samples, n_features), optional
+        Target relative to X for classification or regression;
+        None for unsupervised learning.
+
+    ylim : tuple, shape (ymin, ymax), optional
+        Defines minimum and maximum yvalues plotted.
+
+    cv : integer, cross-validation generator, optional
+        If an integer is passed, it is the number of folds (defaults to 3).
+        Specific cross-validation objects can be passed, see
+        sklearn.cross_validation module for the list of possible objects
+
+    n_jobs : integer, optional
+        Number of jobs to run in parallel (default 1).
+    """
+    plt.figure()
+    plt.title(title)
+    if ylim is not None:
+        plt.ylim(*ylim)
+    plt.xlabel("Training examples")
+    plt.ylabel("Score")
+    train_sizes, train_scores, test_scores = learning_curve(estimator, X, y, cv=cv, n_jobs=n_jobs,scoring=scoring, train_sizes=train_sizes)
+    train_scores_mean = np.mean(train_scores, axis=1)
+    train_scores_std = np.std(train_scores, axis=1)
+    test_scores_mean = np.mean(test_scores, axis=1)
+    test_scores_std = np.std(test_scores, axis=1)
+    plt.grid()
+
+    plt.fill_between(train_sizes, train_scores_mean - train_scores_std,
+                     train_scores_mean + train_scores_std, alpha=0.1,
+                     color="r")
+    plt.fill_between(train_sizes, test_scores_mean - test_scores_std,
+                     test_scores_mean + test_scores_std, alpha=0.1, color="g")
+    plt.plot(train_sizes, train_scores_mean, 'o-', color="r",
+             label="Training score")
+    plt.plot(train_sizes, test_scores_mean, 'o-', color="g",
+             label="Cross-validation score")
+
+    plt.legend(loc="best")
+    return plt

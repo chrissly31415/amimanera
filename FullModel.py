@@ -15,7 +15,7 @@ class XModel:
    """
    modelcount = 0
 
-   def __init__(self, name,classifier,Xtrain,Xtest):
+   def __init__(self, name,classifier,Xtrain,Xtest,weights=None):
       self.name = name
       self.classifier = classifier
       self.Xtrain=Xtrain
@@ -39,6 +39,7 @@ class XModel:
       print "sparse data  :" , self.sparse 
       print "oob preds    :" , np.mean(self.oobpreds)
       print "predictions  :" , np.mean(self.preds)
+      print "weights 	   :" , self.weights.shape
 
 """
 Just a test for subclassing
