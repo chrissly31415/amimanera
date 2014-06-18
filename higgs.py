@@ -240,7 +240,7 @@ def AMS_metric(y_true,y_pred,**kwargs):
     
     return ams   
     
-def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False):
+def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,cutoff=0.5):
     print 
     if not 'sample_weight' in inspect.getargspec(lmodel.fit).args:
 	  print("WARNING: Fit function ignores sample_weight!")
@@ -248,11 +248,11 @@ def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False):
     fit_params = {'sample_weight': lw}
     fit_params['fitWithWeights']=fitWithWeights
     #https://github.com/scikit-learn/scikit-learn/issues/3223 + own modifications
-    ams_scorer = make_scorer(score_func=AMS_metric,needs_proba=useProba,use_proba=useProba)
+    ams_scorer = make_scorer(score_func=AMS_metric,needs_proba=useProba,use_proba=useProba,cutoff=cutoff)
     
     #parameters = {'n_estimators':[150,300], 'max_features':[5,10]}#rf
     #parameters = {'max_depth':[3,5,10], 'learning_rate':[0.5,0.1,0.01,0.05,0.001],'n_estimators':[150,300,500],'subsample':[1.0]}#gbm
-    parameters = {'max_depth':[10,15], 'learning_rate':[0.001],'n_estimators':[500,600],'subsample':[1.0],'loss':['deviance']}#gbm
+    parameters = {'max_depth':[8,6], 'learning_rate':[0.1,0.05],'n_estimators':[100,150],'subsample':[1.0],'loss':['deviance'],'min_samples_leaf':[50,100],'max_features':[5]}#gbm
     #parameters = {'max_depth':[10], 'learning_rate':[0.001],'n_estimators':[500],'subsample':[0.5],'loss':['deviance']}#gbm
     #parameters = {'max_depth':[15,20,25], 'learning_rate':[0.1,0.01],'n_estimators':[150,300],'subsample':[1.0,0.5]}#gbm
     #parameters = {'max_depth':[20,30], 'learning_rate':[0.1,0.05],'n_estimators':[300,500,1000],'subsample':[0.5],'loss':['exponential']}#gbm
@@ -278,7 +278,6 @@ def makePredictions(lmodel,lXs_test,filename,useProba=True,cutoff=0.5):
     """
     Uses priorily fit model to make predictions
     """
-
     print "Final test dataframe:",lXs_test.shape
     
     print "Predicting..."
@@ -294,7 +293,7 @@ def makePredictions(lmodel,lXs_test,filename,useProba=True,cutoff=0.5):
 
     print "Rank order..."
     idx_sorted = np.argsort(probs)
-    ro = np.arange(lXs_test.shape[0])   
+    ro = np.arange(lXs_test.shape[0])+1   
     #d = {'EventId': lXs_test.index[idx_sorted], 'RankOrder': ro,'Probs': probs[idx_sorted], 'class': probs[idx_sorted]}
     d = {'EventId': lXs_test.index[idx_sorted], 'RankOrder': ro, 'class': probs[idx_sorted]}
     
@@ -357,6 +356,14 @@ def buildAMSModel(lmodel,lXs,ly,lw=None,fitWithWeights=False,needs_proba=False,u
     #analyzeModel(lmodel,feature_names)
     return(lmodel)
     
+
+def checksubmission(filename):
+    X = pd.read_csv(filename, sep=",", na_values=['?'], index_col=None)
+    print X
+    print X.describe()
+    
+    print "Unique IDs:",np.unique(X.EventId).shape[0]
+    print "Unique ranks:",np.unique(X.RankOrder).shape[0]
     
     
 if __name__=="__main__":
@@ -381,17 +388,18 @@ if __name__=="__main__":
     pd.set_option('display.max_columns', 14)
     pd.set_option('display.max_rows', 40)
     
-    nsamples=100000
+    nsamples=-1
     nfolds=8
     onlyPRI=False
     replaceNA=False
     plotting=False
     stats=False
     transform=False
-    useProba=True  #use probailities for prediction
-    useWeights=False #use weights for training
+    useProba=False  #use probailities for prediction
+    useWeights=True #use weights for training
     useRegressor=False
-    cutoff=0.85
+    cutoff=0.5
+    subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1806a.csv"
     Xtrain,ytrain,wtrain,Xtest=prepareDatasets(nsamples,onlyPRI,replaceNA,plotting,stats,transform)
     #print Xtrain.describe()
     #model = RidgeClassifier(alpha=1.0, fit_intercept=True, normalize=False, copy_X=True, max_iter=None, tol=0.001, class_weight=None, solver='auto')
@@ -403,19 +411,20 @@ if __name__=="__main__":
     #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.001, n_estimators=500, subsample=1.0, max_depth=10, max_features='auto',init=None,verbose=False)#opt fitting wo weights!!!
     #model = GradientBoostingClassifier(loss='deviance', learning_rate=0.1, n_estimators=150, subsample=0.5, max_depth=25, max_features='auto',init=None,verbose=False)#opt2
     #model = GradientBoostingClassifier(loss='exponential',n_estimators=150, learning_rate=0.2, max_depth=5,subsample=1.0,verbose=2)
-    model = GradientBoostingClassifier(loss='deviance',n_estimators=100,max_depth=10,min_samples_leaf=100,max_features=10,verbose=False)#with no weights, cutoff=0.85 and useProba=True
+    #model = GradientBoostingClassifier(loss='deviance',n_estimators=150, learning_rate=0.05,max_depth=8,min_samples_leaf=50,max_features=5,verbose=False)#with no weights, cutoff=0.85 and useProba=True
     #model = pyGridSearch(model,Xtrain,ytrain)
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', GaussianNB())])
     #model = KNeighborsClassifier(n_neighbors=30)
     #model = AdaBoostClassifier(n_estimators=500,learning_rate=0.1)
-    #model=   RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)#SW-proba?
+    model=   RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)#SW-proba?
     #analyzeLearningCurve(model,Xtrain,ytrain,wtrain)
     #model = ExtraTreesClassifier(n_estimators=p,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features=5,oob_score=False)#opt
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', model)])
-    #model = amsGridsearch(model,Xtrain,ytrain,wtrain,fitWithWeights=useWeights,nfolds=nfolds,useProba=useProba)
+    #model = amsGridsearch(model,Xtrain,ytrain,wtrain,fitWithWeights=useWeights,nfolds=nfolds,useProba=useProba,cutoff=cutoff)
     #amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=0.5,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor)
     print model
     model=buildAMSModel(model,Xtrain,ytrain,wtrain,fitWithWeights=useWeights,needs_proba=useProba,useProba=useProba,cutoff=cutoff)
-    makePredictions(model,Xtest,"submission.csv",useProba=useProba,cutoff=cutoff)
+    makePredictions(model,Xtest,subfile,useProba=useProba,cutoff=cutoff)
+    checksubmission(subfile)
     print("Model building done on %d samples in %fs" % (Xtrain.shape[0],time() - t0))
     plt.show()
