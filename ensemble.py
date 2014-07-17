@@ -5,7 +5,8 @@ August,September 2013
 
 """
 
-from stumble import *
+from higgs import *
+from FullModel import *
 import itertools
 from scipy.optimize import fmin,fmin_cobyla
 from random import randint
@@ -17,192 +18,112 @@ def createModels():
     global train_indices,test_indices
     ensemble=[]
     
-    #logistic regression, sparse matric
-    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False)  
-    #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=None)
-    #xmodel = XModel("logreg1",model,Xs,Xs_test)
-    #ensemble.append(xmodel)
-    
-    #logistic regression, sparse matric, count vetcorizer,5,5 character ngrams
-    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('cV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False)  
-    #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1.0, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=None)
-    #xmodel = XModel("logreg2_cv",model,Xs,Xs_test)
-    #ensemble.append(xmodel)
-    
-    #logistic regression, tagword features
-    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=False,usewordtagSmoothing=False,usetagwordSmoothing=True)  
-    #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1.0, fit_intercept=True, intercept_scaling=1.0, class_weight=None)
-    #xmodel = XModel("logreg_tagword",model,Xs,Xs_test)
-    #ensemble.append(xmodel)
-    
-    #logistic regression, wordtag features
-    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=False,usewordtagSmoothing=True,usetagwordSmoothing=False)  
-    #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1.0, fit_intercept=True, intercept_scaling=1.0, class_weight=None)
-    #xmodel = XModel("logreg_wordtag",model,Xs,Xs_test)
-    #ensemble.append(xmodel)
-    
-    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('test',useSVD=0,useJson=True,usePosTag=True,usewordtagSmoothing=False,usetagwordSmoothing=False)
-    #model = Pipeline([('filter', SelectPercentile(chi2, percentile=50)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=10.0))])
-    #xmodel = XModel("logreg_postag",model,Xs,Xs_test)
-    #ensemble.append(xmodel)
-    
-    #pipeline with sdg
-    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False)  
-    #model = Pipeline([('filter', SelectPercentile(chi2, percentile=98)), ('model', SGDClassifier(alpha=0.00014, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='elasticnet',l1_ratio=0.99))])
-    #xmodel = XModel("sgd1",model,Xs,Xs_test)
-    #ensemble.append(xmodel)
-    
-    #normal sdg
-    #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False)  
-    #model = SGDClassifier(alpha=0.0005, n_iter=50,shuffle=True,random_state=42,loss='log',penalty='l2',n_jobs=4)
-    #xmodel = XModel("sgd2",model,Xs,Xs_test)
-    #ensemble.append(xmodel)
-    
-    #naive bayes
-    #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)
-    #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=25)), ('model', BernoulliNB(alpha=0.1))])#opt dense 0.855
-    #xmodel = XModel("naiveB1",model,X,X_test)
-    #ensemble.append(xmodel)
-    
-    #rf, using SVD, using 41 variables selectd by rf feature selection ~Auc,cv=0.882
-    #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True)
-    #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
-    #xmodel = XModel("randomf1",model,X,X_test)
-    #ensemble.append(xmodel)
-    
-    #rf, using SVD 0.884
-    #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True)
-    #model = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features=15,oob_score=False)
-    #xmodel = XModel("randomf2",model,X,X_test)
-    #ensemble.append(xmodel)
-    
-    #rf, using brute force sparse to dense...takes VERY LONG ~0.870
-    """
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV_small',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False)
-    X=pd.DataFrame(Xs.todense())
-    X_test=pd.DataFrame(Xs_test.todense())
-    model= RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features=100,oob_score=False,random_state=42)
-    xmodel = XModel("randomf3",model,X,X_test)
+    #GBM
+    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
+    xmodel = XModel("gbm1",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
     ensemble.append(xmodel)
-    """
     
-    #rf, using SVD=2000
-    #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=1000,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False)#opt SVD=50
-    #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=5)), ('model', RandomForestClassifier(n_estimators=1000,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='gini', max_features='auto',oob_score=False))])
-    #xmodel = XModel("randomf_1000SVD",model,X,X_test)
+    #XRF
+    #X,y,Xtest,w=prepareDatasets(nsamples=10000,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    #model = ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features=10,oob_score=False)##scale_wt 600 cutoff 0.85
+    #xmodel = XModel("xrf1",model,X,Xtest,w,cutoff=0.85,scale_wt=600)
     #ensemble.append(xmodel)
     
-    
-    #KNN fastest model 0.870
-    #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=50,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=True)  
-    #model= Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', KNeighborsClassifier(n_neighbors=150))])
-    #xmodel = XModel("knn1",model,X,X_test)
+    #RF
+    #X,y,Xtest,w=prepareDatasets(nsamples=10000,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features=5,oob_score=False)#SW-proba=False ams=3.42
+    #xmodel = XModel("rf1",model,X,Xtest,w,cutoff=0.85,scale_wt=600)
     #ensemble.append(xmodel)
     
-    #xrf, using SVD 0.883
-    #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True)
-    #model = ExtraTreesClassifier(n_estimators=600,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features=20,oob_score=False)
-    #xmodel = XModel("extrarf2",model,X,X_test)
-    #ensemble.append(xmodel)
-    
-    #gradient boosting, using SVD 0.883, feature have been reduced to 60
-    #(X,y,X_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=100,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=True,loadTemp=True)
-    #model  = GradientBoostingClassifier(loss='deviance', learning_rate=0.01, n_estimators=500, subsample=0.5, min_samples_split=6, min_samples_leaf=10, max_depth=5, init=None, random_state=123,verbose=False)
-    #xmodel = XModel("gradboost2",model,X,X_test)
-    #ensemble.append(xmodel)
+    #XGBOOST
     
     #ADAboost
-    (X,y,X_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=1,loadTemp=True)
-    model = Pipeline([('filter', SelectPercentile(f_classif, percentile=80)), ('model', AdaBoostClassifier(n_estimators=200,learning_rate=0.1))])
-    xmodel = XModel("ada",model,X,X_test)
-    ensemble.append(xmodel)
+    #(X,y,X_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=1,loadTemp=True)
+    #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=80)), ('model', AdaBoostClassifier(n_estimators=200,learning_rate=0.1))])
     
-    
-    """1,1character ngrams  
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=1)  
-    model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=42)
-    xmodel = XModel("lr_char11_hV",model,Xs,Xs_test)
-    ensemble.append(xmodel)
-    """
-       
-    """2,2 character ngrams  
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=2)  
-    model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=42)
-    xmodel = XModel("lr_char22_hV",model,Xs,Xs_test)
-    ensemble.append(xmodel)
-    """
-    
-    """3,3 character ngrams  
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=3)  
-    model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=42)
-    xmodel = XModel("lr_char33_hV",model,Xs,Xs_test)
-    ensemble.append(xmodel)
-    """
-    
-    """4,4 character ngrams   
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=4)  
-    model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=42)
-    xmodel = XModel("lr_char44_hV",model,Xs,Xs_test)
-    ensemble.append(xmodel)
-    """
-    
-    """5,5 character ngrams
-    (Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=0,useJson=True,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=5)  
-    model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None, random_state=42)
-    xmodel = XModel("lr_char55_hV",model,Xs,Xs_test)
-    ensemble.append(xmodel)
-    """
     
     #collect them
     for m in ensemble:
 	m.summary()
     return(ensemble,y)
 
-def createOOBdata(ensemble,ly,repeats=1):
+def createOOBdata(ensemble,ly,repeats=5):
     """
     Get cv oob predictions for classifiers
     """
-    folds=8
+    folds=4
     for m in ensemble:
 	print "Computing oob predictions for:",m.name
 	print m.classifier.get_params
 	oobpreds=np.zeros((m.Xtrain.shape[0],repeats))
 	for j in xrange(repeats):
 	    #print lmodel.get_params()
-	    cv = KFold(m.Xtrain.shape[0], n_folds=folds, indices=True,random_state=j,shuffle=True)
-	    scores=np.zeros(folds)	
+	    cv = KFold(m.Xtrain.shape[0], n_folds=folds,random_state=j,shuffle=True)
+
+	    scores=np.zeros(folds)
+	    ams_scores=np.zeros(folds)
 	    for i, (train, test) in enumerate(cv):
-		if not m.sparse:
-		    Xtrain = m.Xtrain.iloc[train]
-		    Xtest = m.Xtrain.iloc[test]
-		else:
-		    Xtrain = m.Xtrain[train]
-		    Xtest = m.Xtrain[test]
-		#print Xtest['avglinksize'].head(3)
-		m.classifier.fit(Xtrain, ly[train])
+		Xtrain = m.Xtrain.iloc[train]
+		Xtest = m.Xtrain.iloc[test]
+		ytrain = ly[train]
+		wtrain = m.sample_weight[train]
+		wtrain_fit=modTrainWeights(wtrain,ytrain,m.scale_wt)
+		m.classifier.fit(Xtrain,ytrain,sample_weight=wtrain_fit)
 		oobpreds[test,j] = m.classifier.predict_proba(Xtest)[:,1]
+		
 		scores[i]=roc_auc_score(ly[test],oobpreds[test,j])
-		#print "AUC: %0.2f " % (scores[i])
-		#save oobpredictions
-	    print "Iteration:",j,
-	    print " <AUC>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
+		ams_scores[i]=ams_score(ly[test],oobpreds[test,j],sample_weight=m.sample_weight[test],needs_proba=True,use_proba=True,cutoff=m.cutoff)
+		#print "*AMS: %0.2f " % (ams_scores[i])
+		
+	    
 	    oobscore=roc_auc_score(ly,oobpreds[:,j])
-	    print " AUC,oob: %0.3f" %(oobscore)
-	scores=[roc_auc_score(ly,oobpreds[:,j]) for j in xrange(repeats)]
+	    ams_oobscore=ams_score(ly,oobpreds[:,j],sample_weight=m.sample_weight,needs_proba=True,use_proba=True,cutoff=m.cutoff)
+	    
+	    print "Iteration:",j,
+	    print " <AUC>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),	    
+	    print " AUC,oob: %0.3f" %(oobscore),
+	    print " <AMS>: %0.3f (+/- %0.3f)" % (ams_scores.mean(), ams_scores.std()),
+	    print " AMS,oob: %0.3f" %(ams_oobscore)
+	    
+	#collect OOB scores    
+	#scores=[roc_auc_score(ly,oobpreds[:,j]) for j in xrange(repeats)]
+		
 	#simple averaging of blending
 	oob_avg=np.mean(oobpreds,axis=1)
 	print "Summary: <AUC,oob>: %0.3f (%d repeats)" %(roc_auc_score(ly,oob_avg),repeats)
+	print "Summary: <AMS,oob>: %0.3f (%d repeats)" %(ams_score(ly,oob_avg,sample_weight=m.sample_weight,needs_proba=True,use_proba=True,cutoff=m.cutoff),repeats)
+	
 	m.oobpreds=oob_avg
 	#save oob + predictions to disc
 	print "Train full modell and generate predictions..."
-	m.classifier.fit(m.Xtrain,ly)
+	
+	w_fit=modTrainWeights(m.sample_weight,ly,m.scale_wt)
+	m.classifier.fit(m.Xtrain,ly,w_fit)
 	m.preds = m.classifier.predict_proba(m.Xtest)[:,1]
 	m.summary()
+	
+	vfunc = np.vectorize(binarizeProbs)
 	#put data to data.frame and save
-	m.oobpreds=pd.DataFrame(np.asarray(m.oobpreds),columns=["label"],index=train_indices)
-	m.preds=pd.DataFrame(np.asarray(m.preds),columns=["label"],index=test_indices)
+	yoob = vfunc(np.asarray(m.oobpreds),m.cutoff)
+	m.oobpreds=pd.DataFrame(np.asarray(m.oobpreds),columns=["proba"])
+	tmp=pd.DataFrame(yoob,columns=["label"])
+	m.oobpreds=pd.concat([tmp, m.oobpreds],axis=1)
+	
+	
+	ypred = vfunc(np.asarray(m.preds),m.cutoff)
+	m.preds=pd.DataFrame(np.asarray(m.preds),columns=["proba"])
+	tmp=pd.DataFrame(ypred,columns=["label"])	
+	m.preds=pd.concat([tmp, m.preds],axis=1)
+	#save final model
+	
+	
 	allpred = pd.concat([m.preds, m.oobpreds])
-	allpred.to_csv("../stumbled_upon/data/"+m.name+".csv")	
+	#print allpred
+	#submission data is first, train data is last!
+	allpred.to_csv("/home/loschen/Desktop/datamining-kaggle/higgs/data/"+m.name+".csv",index=False)
+	#XModel.saveModel(m,"/home/loschen/Desktop/datamining-kaggle/higgs/data/"+m.name+".pkl")
+	
     return(ensemble)
    
 def trainEnsemble(ensemble=None,useCols=None,addMetaFeatures=False):
@@ -414,12 +335,6 @@ def aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False,removeZeroMo
   
 def selectModels(): 
     #ensemble=["logreg_postag","lgblend","logreg1","logreg2_cv","logreg_wordtag","logreg_tagword","sgd1","sgd2","naiveB1","randomf1","randomf2","randomf3","randomf_1000SVD","extrarf1","extrarf2","gradboost1","gradboost2","gbmR","gbmR2","gbmR4","rfR","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char11","lr_char22","lr_char33","lr_char44","lr_char55"]
-    ensemble=["logreg_postag","logreg_tagword","naiveB1","extrarf2","randomf2","gradboost2","lr_char33_hV","lr_char33","gbmR","gbmR4","rfR","lr_char55_hV","lr_char55"]
-    useCols=[u'url_contains_foodstuff', u'CNJ', u'linkwordscore', u'non_markup_alphanum_characters', u'frameTagRatio', u'P', u'DET', u'logn_newline', u'char0', u'url_length', u'body_length', u'avglinksize', u'compression_ratio', u'ADJ', u'char1', u'char4', u'char8']
-    #useCols=['lof','compression_ratio','image_ratio','logn_newline','avglinksize','wwwfacebook_ratio','url_contains_recipe','n_comment','spelling_errors_ratio','linkwordscore']#0.8880
-    #ensemble=['logreg_postag', 'logreg_tagword', 'naiveB1', 'extrarf2', 'gradboost2', 'lr_char33', 'gbmR', 'gbmR4', 'rfR', 'lr_char55_hV']#TOP 0.8882
-    #useCols=['lof', 'compression_ratio', 'image_ratio', 'logn_newline', 'avglinksize', 'wwwfacebook_ratio', 'linkwordscore']#TOP 0.8882
-    #useCols=['lof','compression_ratio','image_ratio','logn_newline','avglinksize','spelling_errors_ratio','n_comment']
     #useCols=['lof','compression_ratio','n_comment','logn_newline','spelling_errors_ratio'] 
     
     randBinList = lambda n: [randint(0,1) for b in range(1,n+1)]
@@ -454,26 +369,10 @@ def selectModels():
 
 if __name__=="__main__":
     np.random.seed(123)
-    #ensemble,y=createModels()
-    #ensemble=createOOBdata(ensemble,y,10)
-    #ensemble=["logreg1","sgd1","randomf1","randomf2","randomf3","gradboost1","gbmR"]
-    #ensemble=["logreg1","logreg2_cv","sgd1","sgd2","randomf1","randomf2","gradboost1","extrarf1","gbmR","lof"]
-    #ensemble=["logreg1","logreg2_cv","sgd2","randomf1","randomf2","gradboost1","gbmR"]#best so far 0.885
-    #ensemble=["logreg_postag","rfR","gradboost2","gbmR","gbmR2","gbmR4","randomf2","randomf1","randomf3","randomf_1000SVD","lgblend","logreg1","logreg2_cv","logreg_wordtag","logreg_tagword","sgd1","sgd2","naiveB1","extrarf1","extrarf2","gradboost1","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char55_hV","lr_char11","lr_char22","lr_char33","lr_char44","lr_char55","nnet_old"]
-    #ensemble=["ada","knn1","logreg_postag","rfR","gradboost2","gbmR","gbmR2","randomf2","randomf1","randomf3","lgblend","logreg1","logreg2_cv","logreg_tagword","naiveB1","extrarf1","gradboost1","lr_char22_hV","lr_char33_hV","lr_char44_hV","lr_char11","lr_char22","lr_char33","lr_char44","lr_char55","gbmR4"]
-    #ensemble=["logreg_postag","logreg1"]
-    #ensemble=["logreg_postag","logreg_tagword","naiveB1","extrarf2","randomf2","gradboost2","lr_char33_hV","lr_char33","gbmR","gbmR4","rfR",'nnet_old']#AUC=0.8875
-    #ensemble=["randomf2","gradboost2","rfR"]
-    #ensemble=["logreg1","gradboost2","gbmR","randomf2","nnet_old","extrarf2","randomf_1000SVD",'naiveB1','knn1']
-    #ensemble=["gbmR4","rfR"]
-    #ensemble=[ 'gradboost2', 'naiveB1', 'extrarf2','lr_char33', 'gbmR', 'gbmR4', 'rfR','logreg_tagword','logreg_postag', 'lr_char55_hV','nnet_old']#TOP 0.8882
-    ensemble=["randomf2",'nnet_old','logreg_postag', 'logreg_tagword', 'naiveB1', 'extrarf2', 'gradboost2', 'lr_char33', 'gbmR', 'gbmR4', 'rfR', 'lr_char55_hV','naiveB1']
-    #ensemble=['nnet','gradboost2']
-    #ensemble=["randomf1","randomf2","gradboost2","randomf_1000SVD"]
-    useCols=['lof', 'compression_ratio', 'image_ratio', 'logn_newline', 'avglinksize', 'wwwfacebook_ratio', 'linkwordscore']#TOP 0.8882
-    #useCols=[u'url_contains_foodstuff', u'CNJ', u'linkwordscore', u'non_markup_alphanum_characters', u'frameTagRatio', u'P', u'DET', u'logn_newline', u'char0', u'url_length', u'body_length', u'avglinksize', u'compression_ratio', u'ADJ', u'char1', u'char4', u'char8']
-    #useCols=['lof','compression_ratio','image_ratio','logn_newline','avglinksize','wwwfacebook_ratio','url_contains_recipe','n_comment','spelling_errors_ratio','linkwordscore']#0.8880
-    #ensemble=['logreg_postag', 'logreg_tagword', 'naiveB1', 'extrarf2', 'gradboost2', 'lr_char33', 'gbmR', 'gbmR4', 'rfR', 'lr_char55_hV']#TOP 0.8882
-    trainEnsemble(ensemble,useCols,addMetaFeatures=True)
+    ensemble,y=createModels()
+    ensemble=createOOBdata(ensemble,y,10)
+    #useCols=['lof', 'compression_ratio', 'image_ratio', 'logn_newline', 'avglinksize', 'wwwfacebook_ratio', 'linkwordscore']#TOP 0.8882
+
+    #trainEnsemble(ensemble,useCols,addMetaFeatures=True)
     #selectModels()
     

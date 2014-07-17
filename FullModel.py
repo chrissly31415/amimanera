@@ -8,14 +8,16 @@ from sklearn.linear_model import LogisticRegression
 import scipy as sp
 import numpy as np
 import pandas as pd
+import pickle
 
 class XModel:
    """
    class holds classifier plus train and test set for later use in ensemble building
+   Wrapper for ensemble building
    """
    modelcount = 0
 
-   def __init__(self, name,classifier,Xtrain,Xtest,weights=None):
+   def __init__(self, name,classifier,Xtrain,Xtest,sample_weight=None,cutoff=None,scale_wt=1.0):
       self.name = name
       self.classifier = classifier
       self.Xtrain=Xtrain
@@ -24,22 +26,54 @@ class XModel:
 	self.sparse=True
       else:
 	self.sparse=False
+      self.sample_weight=sample_weight
       self.oobpreds=np.zeros((Xtrain.shape[0],1))
       self.preds=np.zeros((Xtest.shape[0],1))
+      
+      self.cutoff=cutoff
+      if cutoff is not None:
+	self.use_proba=True
+      self.scale_wt=scale_wt
 	
       XModel.modelcount += 1
 
    def summary(self):
       print ">>Name<<     :" ,  self.name
       print "classifier   :" , type(self.classifier)
-      print "Train data   :" , self.Xtrain.shape
-      print "type         :" , type(self.Xtrain)
-      print "Test data    :" , self.Xtest.shape
-      print "type         :" , type(self.Xtest)
-      print "sparse data  :" , self.sparse 
-      print "oob preds    :" , np.mean(self.oobpreds)
-      print "predictions  :" , np.mean(self.preds)
-      print "weights 	   :" , self.weights.shape
+      print "Train data   :" , self.Xtrain.shape,
+      print " type         :" , type(self.Xtrain)
+      print "Test data    :" , self.Xtest.shape,
+      print " type         :" , type(self.Xtest)
+      if self.sample_weight is not None:
+	  print "sample_weight :" , self.sample_weight.shape,
+	  print " type         :" , type(self.sample_weight)
+      #print "sparse data  :" , self.sparse 
+      print "proba cutoff  :" , self.cutoff
+      print "scale weight  :" , self.scale_wt
+      
+      print "predictions mean  :" , np.mean(self.preds),
+      print " Dim:", self.preds.shape
+      print "oob preds mean   :" , np.mean(self.oobpreds),
+      print " Dim:", self.oobpreds.shape
+      
+      
+      
+   def __repr__(self):
+      self.summary()
+   
+   #static functions
+   def saveModel(lmodel,filename):
+      if not hasattr(lmodel,'xgboost_model'):
+	  pickle_out = open(filename.replace('.csv',''), 'wb')
+	  pickle.dump(lmodel, pickle_out)
+	  pickle_out.close()
+	  #my_object_file = open('classifiers.pkl', 'rb')
+	  #clf = pickle.load(my_object_file)
+	  #my_object_file.close()
+  
+  
+   def loadModel():
+      pass
 
 """
 Just a test for subclassing
@@ -73,10 +107,3 @@ class LogisticRegressionMod(LogisticRegression):
 	  print "AUC:",roc_auc_score(y,pred)	  
 	  return lmodel
 
-
-        
-        
-
-#class FullEstimator(Estimator):
-#      def __init__(self):
-#        Estimator.__init__(self)
