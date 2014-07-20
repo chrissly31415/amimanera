@@ -10,6 +10,7 @@ from FullModel import *
 import itertools
 from scipy.optimize import fmin,fmin_cobyla
 from random import randint
+import sys
 
 train_indices=[]
 test_indices=[]
@@ -18,25 +19,46 @@ def createModels():
     global train_indices,test_indices
     ensemble=[]
     
-    #GBM
-    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
-    xmodel = XModel("gbm1",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
-    ensemble.append(xmodel)
+    #GBM1 AMS~3.66 OK
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
+    #xmodel = XModel("gbm1",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    #ensemble.append(xmodel)
     
-    #XRF
-    #X,y,Xtest,w=prepareDatasets(nsamples=10000,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features=10,oob_score=False)##scale_wt 600 cutoff 0.85
+    #XRF1 AMS~3.4
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    #model = ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features=10,oob_score=False)##scale_wt 600 cutoff 0.85
     #xmodel = XModel("xrf1",model,X,Xtest,w,cutoff=0.85,scale_wt=600)
     #ensemble.append(xmodel)
     
-    #RF
-    #X,y,Xtest,w=prepareDatasets(nsamples=10000,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features=5,oob_score=False)#SW-proba=False ams=3.42
+    #RF1 AMS~3.5 OK
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    #model =  RandomForestClassifier(n_estimators=300,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features=5,oob_score=False)
     #xmodel = XModel("rf1",model,X,Xtest,w,cutoff=0.85,scale_wt=600)
     #ensemble.append(xmodel)
     
-    #XGBOOST
+    #RF2 AMS~3.5 no weights for fit!!! OK
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features=5,oob_score=False)
+    #xmodel = XModel("rf2",model,X,Xtest,w,cutoff=0.75,scale_wt=None)
+    #ensemble.append(xmodel)
+    
+    #GBM2 loss exponential AMS ~3.5 ->predict_proba...
+    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    model = GradientBoostingClassifier(loss='exponential',n_estimators=200, learning_rate=0.2, max_depth=6,subsample=1.0,min_samples_leaf=5,verbose=False)
+    xmodel = XModel("gbm2",model,X,Xtest,w,cutoff=None,scale_wt=35)
+    ensemble.append(xmodel)
+    
+    #TODO RF2MOD modfiy weights only slighty from unity
+    #TODO modify sqrt(negwts) or pow(posweihgts,n*0.5) for training with n as parameter
+    #TODO maximizeAMS from minimizeAUC!
+    #TODO create test set within xval loop
+    
+    #XGBOOST AMS ~3.58 (PUB.LD)
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,n_jobs=4,cutoff=0.5,NA=-999.9)
+    #xmodel = XModel("xgboost1",model,X,Xtest,w,cutoff=0.7,scale_wt=1)
+    #ensemble.append(xmodel)
     
     #ADAboost
     #(X,y,X_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=1,loadTemp=True)
@@ -52,8 +74,11 @@ def createOOBdata(ensemble,ly,repeats=5):
     """
     Get cv oob predictions for classifiers
     """
+    vfunc = np.vectorize(binarizeProbs)
     folds=4
+    
     for m in ensemble:
+        use_proba = m.cutoff is not None
 	print "Computing oob predictions for:",m.name
 	print m.classifier.get_params
 	oobpreds=np.zeros((m.Xtrain.shape[0],repeats))
@@ -68,21 +93,27 @@ def createOOBdata(ensemble,ly,repeats=5):
 		Xtest = m.Xtrain.iloc[test]
 		ytrain = ly[train]
 		wtrain = m.sample_weight[train]
-		wtrain_fit=modTrainWeights(wtrain,ytrain,m.scale_wt)
+		if m.scale_wt is not None:
+		    wtrain_fit=modTrainWeights(wtrain,ytrain,m.scale_wt)
+		else:
+		    wtrain_fit=None
 		m.classifier.fit(Xtrain,ytrain,sample_weight=wtrain_fit)
-		oobpreds[test,j] = m.classifier.predict_proba(Xtest)[:,1]
+		if use_proba:
+		    oobpreds[test,j] = m.classifier.predict_proba(Xtest)[:,1]
+		    scores[i]=roc_auc_score(ly[test],oobpreds[test,j])
+		else:
+		    oobpreds[test,j] = m.classifier.predict(Xtest)
 		
-		scores[i]=roc_auc_score(ly[test],oobpreds[test,j])
-		ams_scores[i]=ams_score(ly[test],oobpreds[test,j],sample_weight=m.sample_weight[test],needs_proba=True,use_proba=True,cutoff=m.cutoff)
+		ams_scores[i]=ams_score(ly[test],oobpreds[test,j],sample_weight=m.sample_weight[test],use_proba=use_proba,cutoff=m.cutoff)
 		#print "*AMS: %0.2f " % (ams_scores[i])
 		
 	    
-	    oobscore=roc_auc_score(ly,oobpreds[:,j])
-	    ams_oobscore=ams_score(ly,oobpreds[:,j],sample_weight=m.sample_weight,needs_proba=True,use_proba=True,cutoff=m.cutoff)
+	    #oobscore=roc_auc_score(ly,oobpreds[:,j])
+	    ams_oobscore=ams_score(ly,oobpreds[:,j],sample_weight=m.sample_weight,use_proba=use_proba,cutoff=m.cutoff)
 	    
 	    print "Iteration:",j,
-	    print " <AUC>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),	    
-	    print " AUC,oob: %0.3f" %(oobscore),
+	    #print " <AUC>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),	    
+	    #print " AUC,oob: %0.3f" %(oobscore),
 	    print " <AMS>: %0.3f (+/- %0.3f)" % (ams_scores.mean(), ams_scores.std()),
 	    print " AMS,oob: %0.3f" %(ams_oobscore)
 	    
@@ -91,111 +122,129 @@ def createOOBdata(ensemble,ly,repeats=5):
 		
 	#simple averaging of blending
 	oob_avg=np.mean(oobpreds,axis=1)
-	print "Summary: <AUC,oob>: %0.3f (%d repeats)" %(roc_auc_score(ly,oob_avg),repeats)
-	print "Summary: <AMS,oob>: %0.3f (%d repeats)" %(ams_score(ly,oob_avg,sample_weight=m.sample_weight,needs_proba=True,use_proba=True,cutoff=m.cutoff),repeats)
+	#print "Summary: <AUC,oob>: %0.3f (%d repeats)" %(roc_auc_score(ly,oob_avg),repeats)
+	print "Summary: <AMS,oob>: %0.3f (%d repeats)" %(ams_score(ly,oob_avg,sample_weight=m.sample_weight,use_proba=use_proba,cutoff=m.cutoff),repeats)
 	
-	m.oobpreds=oob_avg
 	#save oob + predictions to disc
 	print "Train full modell and generate predictions..."
 	
-	w_fit=modTrainWeights(m.sample_weight,ly,m.scale_wt)
+	w_fit=None
+	if m.scale_wt is not None:
+	    w_fit=modTrainWeights(m.sample_weight,ly,m.scale_wt)
+	    	
 	m.classifier.fit(m.Xtrain,ly,w_fit)
-	m.preds = m.classifier.predict_proba(m.Xtest)[:,1]
-	m.summary()
 	
-	vfunc = np.vectorize(binarizeProbs)
-	#put data to data.frame and save
-	yoob = vfunc(np.asarray(m.oobpreds),m.cutoff)
+	if use_proba:
+	    m.preds = m.classifier.predict_proba(m.Xtest)[:,1]	  
+	    m.oobpreds=oob_avg
+	    
+	    yoob = vfunc(np.asarray(m.oobpreds),m.cutoff)
+	    ypred = vfunc(np.asarray(m.preds),m.cutoff)
+	    	    
+	else:
+	    m.preds = m.classifier.predict(m.Xtest)
+	    #voting
+	    m.oobpreds=vfunc(oob_avg,0.5)
+	    
+	    yoob = m.oobpreds
+	    ypred = m.preds
+	    
+	#this is also necessary for 0-1 classifier
+	
+	m.summary()	
+	#put data to data.frame and save	
 	m.oobpreds=pd.DataFrame(np.asarray(m.oobpreds),columns=["proba"])
 	tmp=pd.DataFrame(yoob,columns=["label"])
 	m.oobpreds=pd.concat([tmp, m.oobpreds],axis=1)
-	
-	
-	ypred = vfunc(np.asarray(m.preds),m.cutoff)
+			
 	m.preds=pd.DataFrame(np.asarray(m.preds),columns=["proba"])
 	tmp=pd.DataFrame(ypred,columns=["label"])	
 	m.preds=pd.concat([tmp, m.preds],axis=1)
 	#save final model
-	
-	
+
 	allpred = pd.concat([m.preds, m.oobpreds])
 	#print allpred
 	#submission data is first, train data is last!
-	allpred.to_csv("/home/loschen/Desktop/datamining-kaggle/higgs/data/"+m.name+".csv",index=False)
+	filename="/home/loschen/Desktop/datamining-kaggle/higgs/data/"+m.name+".csv"
+	print "Saving oob + predictions as csv to:",filename
+	allpred.to_csv(filename,index=False)
+	
 	#XModel.saveModel(m,"/home/loschen/Desktop/datamining-kaggle/higgs/data/"+m.name+".pkl")
 	
     return(ensemble)
    
 def trainEnsemble(ensemble=None,useCols=None,addMetaFeatures=False):
-    test_indices = pd.read_csv('../stumbled_upon/data/test.tsv', sep="\t", na_values=['?'], index_col=1).index
-    y = np.asarray(pd.read_csv('../stumbled_upon/data/train.tsv', sep="\t", na_values=['?'], index_col=1)['label'])
+    test_indices = pd.read_csv('../datamining-kaggle/higgs/test.csv', sep=",", na_values=['?'], index_col=0).index
+    y = pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'])
+    y = y['Label'].str.replace(r's','1').str.replace(r'b','0')
+    y = np.asarray(y.astype(float))
     
     for i,model in enumerate(ensemble):
 	print "Loading model:",i," name:",model
 	if i>0:
-	    X = pd.read_csv("../stumbled_upon/data/"+model+".csv", sep=",", index_col=0)
+	    X = pd.read_csv("/home/loschen/Desktop/datamining-kaggle/higgs/data/"+model+".csv", sep=",")[['proba']]
 	    X.columns=[model]
 	    Xall=pd.concat([Xall,X], axis=1)
 	else:
-	    Xall = pd.read_csv("../stumbled_upon/data/"+model+".csv", sep=",", index_col=0)
+	    Xall = pd.read_csv("/home/loschen/Desktop/datamining-kaggle/higgs/data/"+model+".csv", sep=",")[['proba']]
 	    Xall.columns=[model]
-    
-    #normalize
-    #Xall = (Xall - Xall.min()) / (Xall.max() - Xall.min())
     
     Xtrain=Xall[len(test_indices):]
     Xtest=Xall[:len(test_indices)]
+    
+    print Xtrain.head()
+    print Xtest.head()   
+    
+    #sys.exit(1)
     #if we add metafeature we should not use aucMinimize...
-    if addMetaFeatures:
-	multiply=True
-	#(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=2,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=True)
-	#Xs = pd.read_csv('../stumbled_upon/data/Xens.csv', sep=",", index_col=0)
-	#Xs_test = pd.read_csv('../stumbled_upon/data/Xens_test.csv', sep=",", index_col=0)
-	Xs = pd.read_csv('../stumbled_upon/data/Xlarge.csv', sep=",", index_col=0)
-	Xs_test = pd.read_csv('../stumbled_upon/data/Xlarge_test.csv', sep=",", index_col=0)
+    #if addMetaFeatures:
+	#multiply=True
+	##(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=2,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=True)
+	##Xs = pd.read_csv('../stumbled_upon/data/Xens.csv', sep=",", index_col=0)
+	##Xs_test = pd.read_csv('../stumbled_upon/data/Xens_test.csv', sep=",", index_col=0)
+	#Xs = pd.read_csv('../stumbled_upon/data/Xlarge.csv', sep=",", index_col=0)
+	#Xs_test = pd.read_csv('../stumbled_upon/data/Xlarge_test.csv', sep=",", index_col=0)
 	
 	
-	#append lof
-	tmp=pd.read_csv('../stumbled_upon/data/lof.csv', sep=",", index_col=0)
+	##append lof
+	#tmp=pd.read_csv('../stumbled_upon/data/lof.csv', sep=",", index_col=0)
 
-	Xs = pd.concat([Xs,tmp[len(test_indices):]], axis=1)
-	Xs_test = pd.concat([Xs_test,tmp[:len(test_indices)]], axis=1)
+	#Xs = pd.concat([Xs,tmp[len(test_indices):]], axis=1)
+	#Xs_test = pd.concat([Xs_test,tmp[:len(test_indices)]], axis=1)
 
-	Xs=Xs.loc[:,useCols]
-	Xs_test=Xs_test.loc[:,useCols]
+	#Xs=Xs.loc[:,useCols]
+	#Xs_test=Xs_test.loc[:,useCols]
 	
-	print "Original shape:",Xtrain.shape
+	#print "Original shape:",Xtrain.shape
 	
-	if multiply:
-	    n=len(Xtrain.columns)
-	    for i,col in enumerate(useCols):
-		newcolnames=[]
-		for name in Xtrain.columns[0:n]:
-		    tmp=name+"X"+col
-		    newcolnames.append(tmp)
-		newcolnames= Xtrain.columns.append(pd.Index(newcolnames))
-		#print type(Xs.ix[:,i])
-		#Xtrain=pd.concat([Xtrain,Xs], axis=1)	    
-		Xtrain=pd.concat([Xtrain,Xtrain.ix[:,0:n].mul(Xs.ix[:,i],axis=0)], axis=1)
-		Xtrain.columns=newcolnames
-		Xtest=pd.concat([Xtest,Xtest.ix[:,0:n].mul(Xs_test.ix[:,i],axis=0)], axis=1)
-		Xtest.columns=newcolnames
+	#if multiply:
+	    #n=len(Xtrain.columns)
+	    #for i,col in enumerate(useCols):
+		#newcolnames=[]
+		#for name in Xtrain.columns[0:n]:
+		    #tmp=name+"X"+col
+		    #newcolnames.append(tmp)
+		#newcolnames= Xtrain.columns.append(pd.Index(newcolnames))
+		##print type(Xs.ix[:,i])
+		##Xtrain=pd.concat([Xtrain,Xs], axis=1)	    
+		#Xtrain=pd.concat([Xtrain,Xtrain.ix[:,0:n].mul(Xs.ix[:,i],axis=0)], axis=1)
+		#Xtrain.columns=newcolnames
+		#Xtest=pd.concat([Xtest,Xtest.ix[:,0:n].mul(Xs_test.ix[:,i],axis=0)], axis=1)
+		#Xtest.columns=newcolnames
 		
-	else:
-	    Xtrain=pd.concat([Xtrain,Xs], axis=1)
-	    Xtest=pd.concat([Xtest,Xs_test], axis=1)
+	#else:
+	    #Xtrain=pd.concat([Xtrain,Xs], axis=1)
+	    #Xtest=pd.concat([Xtest,Xs_test], axis=1)
 	    
     
     #scale data
-    X_all=pd.concat([Xtest,Xtrain])
-    X_all=removeCorrelations(X_all,0.992)
-    
-    
-    X_all = (X_all - X_all.min()) / (X_all.max() - X_all.min())
+    X_all=pd.concat([Xtest,Xtrain])   
+    X_all=removeCorrelations(X_all,0.99)
+    #X_all = (X_all - X_all.min()) / (X_all.max() - X_all.min())
     Xtrain=X_all[len(test_indices):]
     Xtest=X_all[:len(test_indices)]
     #print Xtrain
-    print "New shape",Xtrain.shape
+    #print "New shape",Xtrain.shape
     #print Xtrain
     #print Xtest
     #Xtrain,Xtest = aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False,removeZeroModels=0.0001)
@@ -209,6 +258,7 @@ def removeCorrelations(X_all,threshhold):
     #filter correlated data
     print "Removing correlated columns with threshhold:",threshhold
     c = X_all.corr().abs()
+    print c
     corcols={}
     for col in range(len(c.columns)):
 	for row in range(len(c.index)):
@@ -267,7 +317,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices):
     #blend results
     preds=blender.predict_proba(testset)[:,1]   
     preds=pd.DataFrame(preds,columns=["label"],index=test_indices)
-    preds.to_csv('../stumbled_upon/submissions/sub0111a.csv')
+    preds.to_csv('/home/loschen/Desktop/datamining-kaggle/higgs/submissions/subXXXa.csv')
     print preds
     return(oob_auc)
 
@@ -329,7 +379,7 @@ def aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False,removeZeroMo
     #prediction
     preds=pd.DataFrame(np.dot(Xtest,xopt),columns=["label"],index=test_indices)
     preds = (preds - preds.min()) / (preds.max() - preds.min())
-    preds.to_csv('../stumbled_upon/submissions/sub3110b.csv')
+    preds.to_csv('/home/loschen/Desktop/datamining-kaggle/higgs/submissions/subXXXa.csv')
     print preds.describe()
     return(oob_auc)
   
@@ -370,9 +420,9 @@ def selectModels():
 if __name__=="__main__":
     np.random.seed(123)
     ensemble,y=createModels()
-    ensemble=createOOBdata(ensemble,y,10)
-    #useCols=['lof', 'compression_ratio', 'image_ratio', 'logn_newline', 'avglinksize', 'wwwfacebook_ratio', 'linkwordscore']#TOP 0.8882
-
-    #trainEnsemble(ensemble,useCols,addMetaFeatures=True)
+    ensemble=createOOBdata(ensemble,y,5)
+    models=["gbm1","rf1","rf2","xrf1"]
+    useCols=None
+    #trainEnsemble(models,useCols,addMetaFeatures=True)
     #selectModels()
     
