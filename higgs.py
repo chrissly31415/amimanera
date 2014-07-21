@@ -291,6 +291,9 @@ def ams_score(y_true,y_pred,**kwargs):
 	print "We need sample weights for sensible evaluation!"
 	return
 	
+    verbose=True
+    if 'verbose' in kwargs:
+	verbose=kwargs['verbose']
     cutoff=0.5
     ntotal=250000
     tpr=0.0
@@ -320,8 +323,8 @@ def ams_score(y_true,y_pred,**kwargs):
     smax = np.sum(sample_weight[sSelector])
     ams_max=AMS(smax, 0.0,wfactor)
     ams=AMS(tpr, fpr,wfactor)
-    print 'AMS = %6.3f [AMS_max = %6.3f] %-32s'%(ams,ams_max,info)
-    
+    if verbose: 
+	print 'AMS = %6.3f [AMS_max = %6.3f] %-32s'%(ams,ams_max,info)
     return ams   
     
 def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,cutoff=0.5,scale_wt='auto'):
@@ -368,20 +371,24 @@ def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,c
     #return(clf_opt.best_estimator_)
     return(clf_opt.best_estimator_)
 	
-def makePredictions(lmodel,lXs_test,filename,useProba=True,cutoff=0.5):
+def makePredictions(lmodel,lXs_test,filename,useProba=True,cutoff=0.85):
     """
     Uses priorily fit model to make predictions
     """
-    print "Final test dataframe:",lXs_test.shape
+    print "Preparation of prediction, using test dataframe:",lXs_test.shape
     
-    print "Predicting..."
+    if isinstance(lmodel,np.ndarray):
+	probs = lmodel
+    elif useProba:
+        probs = lmodel.predict_proba(lXs_test)[:,1]
+    else:
+	probs = lmodel.predict(lXs_test)
+    
     if useProba:
-	print "Using probabilities with cutoff:",cutoff
-	probs = lmodel.predict_proba(lXs_test)[:,1]
+	print "Binarize probabilities with cutoff:",cutoff
 	vfunc = np.vectorize(makeLabels)
 	probs = vfunc(probs,cutoff)
-    else:  
-	probs = lmodel.predict(lXs_test)
+	
     
     print "Class predictions..."
 

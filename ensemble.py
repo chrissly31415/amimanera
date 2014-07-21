@@ -25,7 +25,7 @@ def createModels():
     #xmodel = XModel("gbm1",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
     #ensemble.append(xmodel)
     
-    #XRF1 AMS~3.4
+    #XRF1 AMS~3.4 OK
     #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
     #model = ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features=10,oob_score=False)##scale_wt 600 cutoff 0.85
     #xmodel = XModel("xrf1",model,X,Xtest,w,cutoff=0.85,scale_wt=600)
@@ -43,16 +43,16 @@ def createModels():
     #xmodel = XModel("rf2",model,X,Xtest,w,cutoff=0.75,scale_wt=None)
     #ensemble.append(xmodel)
     
-    #GBM2 loss exponential AMS ~3.5 ->predict_proba...
-    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    model = GradientBoostingClassifier(loss='exponential',n_estimators=200, learning_rate=0.2, max_depth=6,subsample=1.0,min_samples_leaf=5,verbose=False)
-    xmodel = XModel("gbm2",model,X,Xtest,w,cutoff=None,scale_wt=35)
-    ensemble.append(xmodel)
+    #GBM2 loss exponential AMS ~3.5 ->predict_proba... OK
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    #model = GradientBoostingClassifier(loss='exponential',n_estimators=200, learning_rate=0.2, max_depth=6,subsample=1.0,min_samples_leaf=5,verbose=False)
+    #xmodel = XModel("gbm2",model,X,Xtest,w,cutoff=None,scale_wt=35)
+    #ensemble.append(xmodel)
     
     #TODO RF2MOD modfiy weights only slighty from unity
     #TODO modify sqrt(negwts) or pow(posweihgts,n*0.5) for training with n as parameter
     #TODO maximizeAMS from minimizeAUC!
-    #TODO create test set within xval loop
+    #TODO create test set within xval loop, i.e. bagging approach for gradient boosting
     
     #XGBOOST AMS ~3.58 (PUB.LD)
     #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
@@ -70,7 +70,7 @@ def createModels():
 	m.summary()
     return(ensemble,y)
 
-def createOOBdata(ensemble,ly,repeats=5):
+def createOOBdata(ensemble,ly,repeats=5,bagging=False):
     """
     Get cv oob predictions for classifiers
     """
@@ -82,15 +82,17 @@ def createOOBdata(ensemble,ly,repeats=5):
 	print "Computing oob predictions for:",m.name
 	print m.classifier.get_params
 	oobpreds=np.zeros((m.Xtrain.shape[0],repeats))
+	ybag=np.zeros((m.Xtest.shape[0],repeats))
+	
 	for j in xrange(repeats):
 	    #print lmodel.get_params()
 	    cv = KFold(m.Xtrain.shape[0], n_folds=folds,random_state=j,shuffle=True)
 
 	    scores=np.zeros(folds)
 	    ams_scores=np.zeros(folds)
-	    for i, (train, test) in enumerate(cv):
+	    for i, (train, valid) in enumerate(cv):
 		Xtrain = m.Xtrain.iloc[train]
-		Xtest = m.Xtrain.iloc[test]
+		Xvalid = m.Xtrain.iloc[valid]
 		ytrain = ly[train]
 		wtrain = m.sample_weight[train]
 		if m.scale_wt is not None:
@@ -99,12 +101,17 @@ def createOOBdata(ensemble,ly,repeats=5):
 		    wtrain_fit=None
 		m.classifier.fit(Xtrain,ytrain,sample_weight=wtrain_fit)
 		if use_proba:
-		    oobpreds[test,j] = m.classifier.predict_proba(Xtest)[:,1]
-		    scores[i]=roc_auc_score(ly[test],oobpreds[test,j])
+		    oobpreds[valid,j] = m.classifier.predict_proba(Xvalid)[:,1]
+		    scores[i]=roc_auc_score(ly[valid],oobpreds[valid,j])
+		    #makes bagging prediction, use partial model to fit test datamining
+		    ybag[:,j] = m.classifier.predict_proba(m.Xtest)[:,1]
+		    
+		    
 		else:
-		    oobpreds[test,j] = m.classifier.predict(Xtest)
+		    oobpreds[valid,j] = m.classifier.predict(Xvalid)
+		    ybag[:,j] = m.classifier.predict(m.Xtest)
 		
-		ams_scores[i]=ams_score(ly[test],oobpreds[test,j],sample_weight=m.sample_weight[test],use_proba=use_proba,cutoff=m.cutoff)
+		ams_scores[i]=ams_score(ly[valid],oobpreds[valid,j],sample_weight=m.sample_weight[valid],use_proba=use_proba,cutoff=m.cutoff)
 		#print "*AMS: %0.2f " % (ams_scores[i])
 		
 	    
@@ -135,20 +142,30 @@ def createOOBdata(ensemble,ly,repeats=5):
 	m.classifier.fit(m.Xtrain,ly,w_fit)
 	
 	if use_proba:
-	    m.preds = m.classifier.predict_proba(m.Xtest)[:,1]	  
+	    #probabilities
 	    m.oobpreds=oob_avg
+	    m.preds = m.classifier.predict_proba(m.Xtest)[:,1]	  
+	    #collect bagging predictions
+	    ybag_avg=np.mean(ybag,axis=1)
 	    
+	    #classes
 	    yoob = vfunc(np.asarray(m.oobpreds),m.cutoff)
-	    ypred = vfunc(np.asarray(m.preds),m.cutoff)
-	    	    
+	    if bagging:
+	        ypred = vfunc(np.asarray(ybag_avg),m.cutoff)
+	    else:
+		ypred = vfunc(np.asarray(m.preds),m.cutoff)
+		
 	else:
-	    m.preds = m.classifier.predict(m.Xtest)
-	    #voting
 	    m.oobpreds=vfunc(oob_avg,0.5)
-	    
+	    m.preds = m.classifier.predict(m.Xtest)
+	    ybag_avg=np.mean(ybag,axis=1)	    
 	    yoob = m.oobpreds
-	    ypred = m.preds
 	    
+	    if bagging:
+	        ypred = vfunc(np.asarray(ybag_avg),0.5)
+	    else:
+		ypred = m.preds
+	    #collect bagging predictions 
 	#this is also necessary for 0-1 classifier
 	
 	m.summary()	
@@ -192,32 +209,18 @@ def trainEnsemble(ensemble=None,useCols=None,addMetaFeatures=False):
     Xtrain=Xall[len(test_indices):]
     Xtest=Xall[:len(test_indices)]
     
-    print Xtrain.head()
-    print Xtest.head()   
-    
-    #sys.exit(1)
     #if we add metafeature we should not use aucMinimize...
-    #if addMetaFeatures:
-	#multiply=True
-	##(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV',useSVD=2,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=True)
-	##Xs = pd.read_csv('../stumbled_upon/data/Xens.csv', sep=",", index_col=0)
-	##Xs_test = pd.read_csv('../stumbled_upon/data/Xens_test.csv', sep=",", index_col=0)
-	#Xs = pd.read_csv('../stumbled_upon/data/Xlarge.csv', sep=",", index_col=0)
-	#Xs_test = pd.read_csv('../stumbled_upon/data/Xlarge_test.csv', sep=",", index_col=0)
-	
-	
-	##append lof
-	#tmp=pd.read_csv('../stumbled_upon/data/lof.csv', sep=",", index_col=0)
+    if addMetaFeatures:
+	multiply=False
+	(Xs,y,Xs_test,w)=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
 
-	#Xs = pd.concat([Xs,tmp[len(test_indices):]], axis=1)
-	#Xs_test = pd.concat([Xs_test,tmp[:len(test_indices)]], axis=1)
-
-	#Xs=Xs.loc[:,useCols]
-	#Xs_test=Xs_test.loc[:,useCols]
-	
-	#print "Original shape:",Xtrain.shape
-	
-	#if multiply:
+	Xs=Xs.loc[:,useCols]
+	Xs.index=Xtrain.index
+	Xs_test=Xs_test.loc[:,useCols]
+	Xs_test.index=Xtest.index
+		
+	if multiply:
+	    pass
 	    #n=len(Xtrain.columns)
 	    #for i,col in enumerate(useCols):
 		#newcolnames=[]
@@ -232,10 +235,12 @@ def trainEnsemble(ensemble=None,useCols=None,addMetaFeatures=False):
 		#Xtest=pd.concat([Xtest,Xtest.ix[:,0:n].mul(Xs_test.ix[:,i],axis=0)], axis=1)
 		#Xtest.columns=newcolnames
 		
-	#else:
-	    #Xtrain=pd.concat([Xtrain,Xs], axis=1)
-	    #Xtest=pd.concat([Xtest,Xs_test], axis=1)
+	else:
+	    Xtrain=pd.concat([Xtrain,Xs], axis=1)
+	    Xtest=pd.concat([Xtest,Xs_test], axis=1)
 	    
+	    print "Dim train",Xtrain.shape
+	    print "Dim test",Xtest.shape
     
     #scale data
     X_all=pd.concat([Xtest,Xtrain])   
@@ -276,50 +281,84 @@ def removeCorrelations(X_all,threshhold):
 
 
 def classicalBlend(ensemble,oobpreds,testset,ly,test_indices):
+    weights=np.asarray(pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'], index_col=0)['Weight'])
     #blending
-    folds=8
-    #do another crossvalidation for weights
-    blender=LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
+    folds=4
+    cutoff_all=0.85
+    scale_wt=200
+    
+    print "Blending, using general cutoff %4.3f, "%(cutoff_all),
+    if scale_wt is not None:
+	print "scale_weights %5.1f:"%(scale_wt)
+  
+    #blender=LogisticRegression(penalty='l1', tol=0.0001, C=1.0)
     #blender = Pipeline([('filter', SelectPercentile(f_regression, percentile=25)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=0.1))])
     #blender=SGDClassifier(alpha=.01, n_iter=50,penalty='l2',loss='log')
-    #blender=AdaBoostClassifier(learning_rate=0.01,n_estimators=200)
-    #blender=RandomForestClassifier(n_estimators=100,n_jobs=1, max_features='auto',oob_score=False)
+    #blender=AdaBoostClassifier(learning_rate=0.01,n_estimators=50)
+    blender=RandomForestClassifier(n_estimators=50,n_jobs=4, max_features='auto',oob_score=False)
     #blender=ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False)
     #blender=RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
     #blender=ExtraTreesRegressor(n_estimators=500,max_depth=None)
-    cv = KFold(oobpreds.shape[0], n_folds=folds, indices=True,random_state=123)
+    cv = KFold(oobpreds.shape[0], n_folds=folds,random_state=123)
     blend_scores=np.zeros(folds)
+    ams_scores=np.zeros(folds)
     blend_oob=np.zeros((oobpreds.shape[0]))
     for i, (train, test) in enumerate(cv):
 	Xtrain = oobpreds.iloc[train]
 	Xtest = oobpreds.iloc[test]
-	blender.fit(Xtrain, ly[train])
+	wfit=None
+	if scale_wt is not None:
+	  wfit = modTrainWeights(weights[train],ly[train],scale_wt)
+	  blender.fit(Xtrain, ly[train],sample_weight=wfit)
+	else:
+	  blender.fit(Xtrain, ly[train])
+	
+	
 	if hasattr(blender,'predict_proba'):
 	    blend_oob[test] = blender.predict_proba(Xtest)[:,1]
+	    use_proba=True
 	else:
 	    blend_oob[test] = blender.predict(Xtest)
+	    use_proba=False
 	blend_scores[i]=roc_auc_score(ly[test],blend_oob[test])
+	ams_scores[i]=ams_score(ly[test],blend_oob[test],sample_weight=weights[test],use_proba=use_proba,cutoff=cutoff_all,verbose=True)
+	
     print " <AUC>: %0.4f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()),
     oob_auc=roc_auc_score(ly,blend_oob)
     print " AUC oob after blending: %0.4f" %(oob_auc)
+    
+    print " <AMS>: %0.4f (+/- %0.4f)" % (ams_scores.mean(), ams_scores.std()),
+    oob_ams=ams_score(ly,blend_oob,sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=False)
+    print " AMS oob after blending: %0.4f" %(oob_ams)
+    
     if hasattr(blender,'coef_'):
-      print blender.coef_
       for i,model in enumerate(oobpreds.columns):
+	ams=ams_score(ly,oobpreds.iloc[:,i],sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=False)
 	auc=roc_auc_score(ly, oobpreds.iloc[:,i])
-	print "%-64s  auc: %4.3f coef: %4.3f" %(model,auc,blender.coef_[0][i])
+	print "%-16s ams: %5.3f auc: %4.3f coef: %4.3f" %(model,ams,auc,blender.coef_[0][i])
       print "Sum: %4.4f"%(np.sum(blender.coef_))
     #plt.plot(range(len(ensemble)),scores,'ro')
     
     #Prediction
     print "Make final ensemble prediction..."
     #make prediction for each classifiers
-    preds=blender.fit(oobpreds,ly)
+ 
+    if scale_wt is not None:
+	wfit = modTrainWeights(weights,ly,scale_wt)
+	preds=blender.fit(oobpreds,ly,sample_weight=wfit)
+    else:
+	preds=blender.fit(oobpreds,ly)
     #blend results
     preds=blender.predict_proba(testset)[:,1]   
-    preds=pd.DataFrame(preds,columns=["label"],index=test_indices)
-    preds.to_csv('/home/loschen/Desktop/datamining-kaggle/higgs/submissions/subXXXa.csv')
-    print preds
-    return(oob_auc)
+    
+    subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/subXXXa.csv'
+    #preds=pd.DataFrame(preds,columns=["label"],index=test_indices)
+    testset.index=test_indices
+    makePredictions(preds,testset,subfile,useProba=True,cutoff=cutoff_all)
+    #checksubmission(subfile)
+    #preds.to_csv('/home/loschen/Desktop/datamining-kaggle/higgs/submissions/subXXXa.csv')
+    #print preds
+    return(oob_ams)
 
 
 def aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False,removeZeroModels=0.0):
@@ -419,10 +458,11 @@ def selectModels():
 
 if __name__=="__main__":
     np.random.seed(123)
-    ensemble,y=createModels()
-    ensemble=createOOBdata(ensemble,y,5)
-    models=["gbm1","rf1","rf2","xrf1"]
-    useCols=None
-    #trainEnsemble(models,useCols,addMetaFeatures=True)
+    #ensemble,y=createModels()
+    #ensemble=createOOBdata(ensemble,y,5,bagging=False)
+    models=["gbm1","rf1","rf2","xrf1","gbm2"]
+    #models=["gbm1"]
+    useCols=['DER_mass_MMC']
+    trainEnsemble(models,useCols,addMetaFeatures=True)
     #selectModels()
     
