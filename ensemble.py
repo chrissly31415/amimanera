@@ -11,6 +11,7 @@ import itertools
 from scipy.optimize import fmin,fmin_cobyla
 from random import randint
 import sys
+from sklearn.externals.joblib import Parallel, delayed, logger
 
 train_indices=[]
 test_indices=[]
@@ -63,6 +64,12 @@ def createModels():
     #ADAboost
     #(X,y,X_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=1,loadTemp=True)
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=80)), ('model', AdaBoostClassifier(n_estimators=200,learning_rate=0.1))])
+    
+    #GBM bagging AMS~3.66 OK
+    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
+    xmodel = XModel("gbm_bag",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    ensemble.append(xmodel)
     
     
     #collect them
@@ -152,6 +159,7 @@ def createOOBdata(ensemble,ly,repeats=5,bagging=False):
 	    yoob = vfunc(np.asarray(m.oobpreds),m.cutoff)
 	    if bagging:
 	        ypred = vfunc(np.asarray(ybag_avg),m.cutoff)
+	        m.preds = ybag_avg
 	    else:
 		ypred = vfunc(np.asarray(m.preds),m.cutoff)
 		
@@ -189,6 +197,10 @@ def createOOBdata(ensemble,ly,repeats=5,bagging=False):
 	#XModel.saveModel(m,"/home/loschen/Desktop/datamining-kaggle/higgs/data/"+m.name+".pkl")
 	
     return(ensemble)
+
+def fit_and_score():
+   pass
+
    
 def trainEnsemble(ensemble=None,useCols=None,addMetaFeatures=False):
     test_indices = pd.read_csv('../datamining-kaggle/higgs/test.csv', sep=",", na_values=['?'], index_col=0).index
@@ -458,11 +470,13 @@ def selectModels():
 
 if __name__=="__main__":
     np.random.seed(123)
-    #ensemble,y=createModels()
-    #ensemble=createOOBdata(ensemble,y,5,bagging=False)
-    models=["gbm1","rf1","rf2","xrf1","gbm2"]
-    #models=["gbm1"]
-    useCols=['DER_mass_MMC']
-    trainEnsemble(models,useCols,addMetaFeatures=True)
+    ensemble,y=createModels()
+    ensemble=createOOBdata(ensemble,y,10,bagging=True)
+    #models=["gbm1","rf1","rf2","xrf1","gbm2"]
+    models=["gbm_bag"]
+    
+    #useCols=['DER_mass_MMC']
+    useCols=None
+    #trainEnsemble(models,useCols,addMetaFeatures=False)
     #selectModels()
     
