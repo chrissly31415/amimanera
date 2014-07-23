@@ -65,10 +65,10 @@ def createModels():
     #(X,y,X_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=1,loadTemp=True)
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=80)), ('model', AdaBoostClassifier(n_estimators=200,learning_rate=0.1))])
     
-    #GBM bagging AMS~3.66 OK
+    #GBM bagging gbm_bag1 <AMS>: 3.7073 PL 3.67 (10 iterations), gbm_bag2 <AMS>: 3.729 (20 iterations)
     X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
-    xmodel = XModel("gbm_bag",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.06, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
+    xmodel = XModel("gbm_bag3",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
     ensemble.append(xmodel)
     
     
@@ -94,6 +94,7 @@ def createOOBdata(ensemble,ly,repeats=5,bagging=False):
 	for j in xrange(repeats):
 	    #print lmodel.get_params()
 	    cv = KFold(m.Xtrain.shape[0], n_folds=folds,random_state=j,shuffle=True)
+	    #cv = ShuffleSplit(m.Xtrain.shape[0], folds,random_state=j, test_size=0.8)
 
 	    scores=np.zeros(folds)
 	    ams_scores=np.zeros(folds)
@@ -297,17 +298,17 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices):
     #blending
     folds=4
     cutoff_all=0.85
-    scale_wt=200
+    scale_wt=None
     
     print "Blending, using general cutoff %4.3f, "%(cutoff_all),
     if scale_wt is not None:
 	print "scale_weights %5.1f:"%(scale_wt)
   
-    #blender=LogisticRegression(penalty='l1', tol=0.0001, C=1.0)
+    blender=LogisticRegression(penalty='l1', tol=0.0001, C=1.0)
     #blender = Pipeline([('filter', SelectPercentile(f_regression, percentile=25)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=0.1))])
     #blender=SGDClassifier(alpha=.01, n_iter=50,penalty='l2',loss='log')
     #blender=AdaBoostClassifier(learning_rate=0.01,n_estimators=50)
-    blender=RandomForestClassifier(n_estimators=50,n_jobs=4, max_features='auto',oob_score=False)
+    #blender=RandomForestClassifier(n_estimators=50,n_jobs=4, max_features='auto',oob_score=False)
     #blender=ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False)
     #blender=RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
     #blender=ExtraTreesRegressor(n_estimators=500,max_depth=None)
@@ -471,9 +472,9 @@ def selectModels():
 if __name__=="__main__":
     np.random.seed(123)
     ensemble,y=createModels()
-    ensemble=createOOBdata(ensemble,y,10,bagging=True)
+    ensemble=createOOBdata(ensemble,y,30,bagging=True)
     #models=["gbm1","rf1","rf2","xrf1","gbm2"]
-    models=["gbm_bag"]
+    models=["gbm_bag3"]
     
     #useCols=['DER_mass_MMC']
     useCols=None

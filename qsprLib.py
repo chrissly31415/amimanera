@@ -21,7 +21,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.feature_extraction.text import CountVectorizer,HashingVectorizer,TfidfVectorizer
 #from sklearn import metrics
 from sklearn import cross_validation,grid_search
-from sklearn.cross_validation import StratifiedKFold,KFold,StratifiedShuffleSplit
+from sklearn.cross_validation import StratifiedKFold,KFold,StratifiedShuffleSplit,ShuffleSplit
 from sklearn.metrics import roc_auc_score,classification_report,make_scorer,f1_score,precision_score
 #from sklearn.utils.extmath import density
 from sklearn.feature_extraction import DictVectorizer
