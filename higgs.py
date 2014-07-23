@@ -304,8 +304,8 @@ def ams_score(y_true,y_pred,**kwargs):
     if kwargs['use_proba']  and kwargs['cutoff'] is not None:
 	if 'cutoff' in kwargs:
 	    cutoff=kwargs['cutoff']
-	#print len(y_pred.shape)
-	if len(y_pred.shape)>1:
+
+	if len(y_pred.shape)>1 and y_pred.shape[1]>1:
 	    y_pred=y_pred[:,1]
 	info="- using probabilities with cutoff=%4.2f"%(cutoff)
         
@@ -345,8 +345,8 @@ def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,c
     ams_scorer = make_scorer(score_func=ams_score,use_proba=useProba,cutoff=cutoff)
     
     #parameters = {'n_estimators':[150,300], 'max_features':[5,10]}#rf
-    parameters = {'n_estimators':[250], 'max_features':[6,8,10],'min_samples_leaf':[5,10]}#xrf+xrf
-    #parameters = {'max_depth':[3,5,10], 'learning_rate':[0.5,0.1,0.01,0.05,0.001],'n_estimators':[150,300,500],'subsample':[1.0]}#gbm
+    #parameters = {'n_estimators':[250], 'max_features':[6,8,10],'min_samples_leaf':[5,10]}#xrf+xrf
+    parameters = {'max_depth':[7], 'learning_rate':[0.08],'n_estimators':[200],'subsample':[1.0],'max_features':[10],'min_samples_leaf':[20]}#gbm
     
     #parameters = {'max_depth':[6,5], 'learning_rate':[0.1,0.09,0.08],'n_estimators':[150],'subsample':[1.0],'loss':['deviance'],'min_samples_leaf':[20],'max_features':[6,8,10]}#gbm
     #parameters = {'max_depth':[10], 'learning_rate':[0.001],'n_estimators':[500],'subsample':[0.5],'loss':['deviance']}#gbm
@@ -359,7 +359,7 @@ def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,c
     #parameters['model__n_neighbors']=[40,60]}#knn
     #parameters['model__alpha']=[1.0,0.8,0.5,0.1]#opt nb
     #parameters = {'n_neighbors':[10,30,40,50],'algorithm':['ball_tree'],'weights':['distance']}#knn
-    clf_opt=grid_search.GridSearchCV(lmodel, parameters,n_jobs=4,verbose=1,scoring=ams_scorer,cv=nfolds,fit_params=fit_params,refit=True)
+    clf_opt=grid_search.GridSearchCV(lmodel, parameters,n_jobs=8,verbose=1,scoring=ams_scorer,cv=nfolds,fit_params=fit_params,refit=True)
     
     clf_opt.fit(lX,ly)
     #dir(clf_opt)
@@ -612,7 +612,7 @@ if __name__=="__main__":
     pd.set_option('display.max_rows', 40)
     
     np.random.seed(123)
-    nsamples=100000
+    nsamples=-1
     onlyPRI='' #'PRI' or 'DER'
     createNAFeats=False #brings something?
     dropCorrelated=False
@@ -622,14 +622,14 @@ if __name__=="__main__":
     stats=False
     transform=False
     useProba=True  #use probailities for prediction
-    useWeights=False #use weights for training
-    scale_wt=None
+    useWeights=True #use weights for training
+    scale_wt=1
     useRegressor=False
-    cutoff=0.75
+    cutoff=0.7
     clusterFeature=False
-    subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1007a.csv"
+    subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub2307a.csv"
     Xtrain,ytrain,Xtest,wtrain=prepareDatasets(nsamples,onlyPRI,replaceNA,plotting,stats,transform,createNAFeats,dropCorrelated,scale_data,clusterFeature)
-    nfolds=4#StratifiedShuffleSplit(ytrain, 8, test_size=0.5)
+    nfolds=8#StratifiedShuffleSplit(ytrain, 8, test_size=0.5)
     
     #pcAnalysis(Xtrain,Xtest,ytrain,wtrain,ncomp=2,transform=False)       
     #RF cluster1 AMS=2.600 (77544)
@@ -672,20 +672,20 @@ if __name__=="__main__":
     #model = amsGridsearch(model,Xtrain,ytrain,wtrain,fitWithWeights=useWeights,nfolds=nfolds,useProba=useProba,cutoff=cutoff)
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=150, learning_rate=0.1, max_depth=6,subsample=1.0,verbose=False) #opt weight =500 AMS=3.548
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
-    #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,n_jobs=4,cutoff=0.5,NA=-999.9)
-    model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features=5,oob_score=False)#SW-proba=False ams=3.42
-    #amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=p,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=c,buildModel=True)
-    #iterativeFeatureSelection(model,Xtrain,Xtest,ytrain,1,1)    
+    model = XgboostClassifier(n_estimators=300,learning_rate=0.08,max_depth=6,n_jobs=4,NA=-999.9)
+    #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=8,criterion='entropy', max_features=5,oob_score=False)#SW-proba=False ams=3.42
     amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=False)
+    #iterativeFeatureSelection(model,Xtrain,Xtest,ytrain,1,1)    
+    #amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=False)
     #clist=[0.25,0.50,0.75,0.85]
     #for c in clist:
 	#  cutoff=c
 	 # print "c",c
 	  #amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=False)
 	  #model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=useWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt)
-	  #model = amsGridsearch(model,Xtrain,ytrain,wtrain,fitWithWeights=useWeights,nfolds=nfolds,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt)
+    #model = amsGridsearch(model,Xtrain,ytrain,wtrain,fitWithWeights=useWeights,nfolds=nfolds,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt)
     print model
     makePredictions(model,Xtest,subfile,useProba=useProba,cutoff=cutoff)
-    checksubmission(subfile)
+    #checksubmission(subfile)
     print("Model building done on %d samples in %fs" % (Xtrain.shape[0],time() - t0))
     plt.show()

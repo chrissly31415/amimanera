@@ -86,6 +86,13 @@ def analyzeModel(lmodel,feature_names):
 	      print("Top %2d: coef: %0.3f %20s" % (i+1,lmodel.coef_[0,top10[i]],feature_names[top10[i]]))
 	      
 
+def sigmoid(z):
+    """
+    classical sigmoid
+    """
+    g = 1.0/(1.0+np.exp(-z));
+    return(g)
+	      
 	      
 def modelEvaluation(lmodel,lXs,ly):
     """

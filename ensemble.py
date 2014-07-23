@@ -50,26 +50,30 @@ def createModels():
     #xmodel = XModel("gbm2",model,X,Xtest,w,cutoff=None,scale_wt=35)
     #ensemble.append(xmodel)
     
+    #TODO run bagging for RF1, RF2, and GBM2!
+    #TODO get gbm1_bag and gbm2_bag
+    #TODO USE cutoff optimizer within AMS
+    #TODO in train ensemble load labels->voting
     #TODO RF2MOD modfiy weights only slighty from unity
     #TODO modify sqrt(negwts) or pow(posweihgts,n*0.5) for training with n as parameter
-    #TODO maximizeAMS from minimizeAUC!
-    #TODO create test set within xval loop, i.e. bagging approach for gradient boosting
     
-    #XGBOOST AMS ~3.58 (PUB.LD)
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,n_jobs=4,cutoff=0.5,NA=-999.9)
-    #xmodel = XModel("xgboost1",model,X,Xtest,w,cutoff=0.7,scale_wt=1)
-    #ensemble.append(xmodel)
+
+    
+    #XGBOOST AMS ~3.58 (single model PUB.LD)
+    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,n_jobs=4,NA=-999.9)
+    xmodel = XModel("xgboost_bag1",model,X,Xtest,w,cutoff=0.7,scale_wt=1)
+    ensemble.append(xmodel)
     
     #ADAboost
     #(X,y,X_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=1,loadTemp=True)
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=80)), ('model', AdaBoostClassifier(n_estimators=200,learning_rate=0.1))])
     
-    #GBM bagging gbm_bag1 <AMS>: 3.7073 PL 3.67 (10 iterations), gbm_bag2 <AMS>: 3.729 (20 iterations)
-    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.06, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
-    xmodel = XModel("gbm_bag3",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
-    ensemble.append(xmodel)
+    #GBM bagging gbm_bag1 <AMS>: 3.7073 PL 3.67 (10 iterations), gbm_bag2 <AMS>: 3.729 (20 iterations) ????
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    #model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.06, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
+    #xmodel = XModel("gbm_bag3",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    #ensemble.append(xmodel)
     
     
     #collect them
@@ -203,20 +207,25 @@ def fit_and_score():
    pass
 
    
-def trainEnsemble(ensemble=None,useCols=None,addMetaFeatures=False):
+def trainEnsemble(ensemble=None,classical=True,useCols=None,addMetaFeatures=False,use_proba=True):
     test_indices = pd.read_csv('../datamining-kaggle/higgs/test.csv', sep=",", na_values=['?'], index_col=0).index
     y = pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'])
     y = y['Label'].str.replace(r's','1').str.replace(r'b','0')
     y = np.asarray(y.astype(float))
     
+    col=['proba']
+    if not use_proba:
+	col=['label']
+    
+    
     for i,model in enumerate(ensemble):
 	print "Loading model:",i," name:",model
 	if i>0:
-	    X = pd.read_csv("/home/loschen/Desktop/datamining-kaggle/higgs/data/"+model+".csv", sep=",")[['proba']]
+	    X = pd.read_csv("/home/loschen/Desktop/datamining-kaggle/higgs/data/"+model+".csv", sep=",")[col]
 	    X.columns=[model]
 	    Xall=pd.concat([Xall,X], axis=1)
 	else:
-	    Xall = pd.read_csv("/home/loschen/Desktop/datamining-kaggle/higgs/data/"+model+".csv", sep=",")[['proba']]
+	    Xall = pd.read_csv("/home/loschen/Desktop/datamining-kaggle/higgs/data/"+model+".csv", sep=",")[col]
 	    Xall.columns=[model]
     
     Xtrain=Xall[len(test_indices):]
@@ -268,7 +277,10 @@ def trainEnsemble(ensemble=None,useCols=None,addMetaFeatures=False):
     #Xtrain,Xtest = aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False,removeZeroModels=0.0001)
     #Xtrain,Xtest = aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False,removeZeroModels=0.0001)
     #auc=aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False)
-    auc=classicalBlend(ensemble,Xtrain,Xtest,y,test_indices)
+    if classical:
+	auc=classicalBlend(ensemble,Xtrain,Xtest,y,test_indices)
+    else:
+	auc=amsMaximize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False)
     return(auc)
 
 
@@ -374,65 +386,84 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices):
     return(oob_ams)
 
 
-def aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False,removeZeroModels=0.0):
-    #adapted from http://www.kaggle.com/c/amazon-employee-access-challenge/forums/t/4928/combining-the-results-of-various-models?page=3
-    oob_auc=0.0
+def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZeroModels=0.0):
+    weights=np.asarray(pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'], index_col=0)['Weight'])
+    use_proba=True
+    cutoff_all=0.85
+
     def fopt(params):
 	# nxm  * m*1 ->n*1
 	if np.isnan(np.sum(params)):
 	    print "We have NaN here!!"
 	    auc=0.0
 	else:
-	    auc=roc_auc_score(y, np.dot(Xtrain,params))
+	    ypred=np.dot(Xtrain,params)    
+	    #Force between 0 and 1
+	    ypred=sigmoid(ypred)
+	    #auc=roc_auc_score(y, np.dot(Xtrain,params))
+	    auc=ams_score(y,ypred,sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=False)
+	    
 	#print "auc:",auc
 	return -auc
-   
-    #we need constraints to avoid overfitting...
-    #constr=[lambda x,z=i: x[z] for i in range(len(Xtrain.columns))]
     constr=[lambda x,z=i: x[z] for i in range(len(Xtrain.columns))]
-    #constr2=[lambda x,z=i: 0.3-x[z] for i in range(len(Xtrain.columns))]
-    #constr=constr+constr2
 
     n_models=len(Xtrain.columns)
     x0 = np.ones((n_models, 1)) / n_models
     #x0= np.random.random_sample((n_models,1))
-    #xopt = fmin(fopt, x0)
+    
     xopt = fmin_cobyla(fopt, x0,constr,rhoend=1e-12)
-    #normalize, not necessary for auc
-    xopt=xopt/np.sum(xopt)
+    #xopt=xopt/np.sum(xopt)
+    
     if np.isnan(np.sum(xopt)):
 	    print "We have NaN here!!"
     
+    ypred=np.dot(Xtrain,xopt)
+    plt.hist(ypred,bins=50)
+    ypred=sigmoid(ypred)
+    plt.hist(y,bins=50)
+    plt.show()
     
-    if takeMean==True:
-	xopt=x0
-	auc=roc_auc_score(y, np.dot(Xtrain,xopt))
-	print "->AUC,opt: %4.4f" %(auc)
-	
-    else:
-	auc=roc_auc_score(y, np.dot(Xtrain,x0))
-	print "->AUC,mean: %4.4f" %(auc)
-	oob_auc=roc_auc_score(y, np.dot(Xtrain,xopt))
-	print "->AUC,opt: %4.4f" %(oob_auc)
+    auc=roc_auc_score(y, np.dot(Xtrain,x0))
+    print "->AUC,mean: %4.4f" %(auc)
+    oob_auc=roc_auc_score(y, ypred)
+    print "->AUC,opt: %4.4f" %(oob_auc)
+   
+    ams=ams_score(y,np.dot(Xtrain,x0),sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=False)
+    print "->AMS,mean: %4.4f" %(ams)
+    oob_ams=ams_score(y,ypred,sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=False)
+    print "->AMS,opt: %4.4f" %(oob_ams)
     
     zero_models=[]
     for i,model in enumerate(Xtrain.columns):
 	auc = roc_auc_score(y, Xtrain.iloc[:,i])
-	print "%-48s   auc: %4.3f  coef: %4.4f" %(model,auc,xopt[i])
+	ams = ams_score(y,Xtrain.iloc[:,i],sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=False)	
+	print "%-48s ams: %4.3f  auc: %4.3f  coef: %4.4f" %(model,ams,auc,xopt[i])
 	if xopt[i]<removeZeroModels:
 	    zero_models.append(model)
     print "Sum: %4.4f"%(np.sum(xopt))
+    
     if removeZeroModels>0.0:
 	print "Dropping ",len(zero_models)," columns:",zero_models
 	Xtrain=Xtrain.drop(zero_models,axis=1)
-	Xtest=Xtest.drop(zero_models,axis=1)
-	return (Xtrain,Xtest)
+	testset=testset.drop(zero_models,axis=1)
+	return (Xtrain,testset)
     
-    #prediction
-    preds=pd.DataFrame(np.dot(Xtest,xopt),columns=["label"],index=test_indices)
-    preds = (preds - preds.min()) / (preds.max() - preds.min())
-    preds.to_csv('/home/loschen/Desktop/datamining-kaggle/higgs/submissions/subXXXa.csv')
-    print preds.describe()
+    #prediction flatten makes a n-dim vector from a nx1 vector...
+    preds=np.dot(testset,xopt).flatten()
+    plt.hist(preds,bins=50)
+    plt.show()
+    
+    print preds.shape
+    
+    subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/subXXXa.csv'
+    #preds=pd.DataFrame(preds,columns=["label"],index=test_indices)
+    testset.index=test_indices
+    makePredictions(preds,testset,subfile,useProba=True,cutoff=cutoff_all)
+    checksubmission(subfile)
+    #preds.to_csv('/home/loschen/Desktop/datamining-kaggle/higgs/submissions/subXXXa.csv')
+    
+    
+    
     return(oob_auc)
   
 def selectModels(): 
@@ -471,13 +502,16 @@ def selectModels():
 
 if __name__=="__main__":
     np.random.seed(123)
-    ensemble,y=createModels()
-    ensemble=createOOBdata(ensemble,y,30,bagging=True)
+    #ensemble,y=createModels()
+    #ensemble=createOOBdata(ensemble,y,10,bagging=True)
+    #normal models
     #models=["gbm1","rf1","rf2","xrf1","gbm2"]
-    models=["gbm_bag3"]
-    
+    #bagged models
+    #models=["gbm_bag1","gbm_bag2","gbm_bag3",""]
+    models=["gbm1","xgboost_bag1","rf1","rf2","xrf1","gbm2"]
+    #models=["xgboost_bag1"]
     #useCols=['DER_mass_MMC']
     useCols=None
-    #trainEnsemble(models,useCols,addMetaFeatures=False)
+    trainEnsemble(models,classical=False,useCols=useCols,addMetaFeatures=False,use_proba=True)
     #selectModels()
     
