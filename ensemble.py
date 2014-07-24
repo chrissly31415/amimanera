@@ -399,7 +399,7 @@ def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZero
 	else:
 	    ypred=np.dot(Xtrain,params)    
 	    #Force between 0 and 1
-	    ypred=sigmoid(ypred)
+	    #ypred=sigmoid(ypred)
 	    #auc=roc_auc_score(y, np.dot(Xtrain,params))
 	    auc=ams_score(y,ypred,sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=False)
 	    
@@ -412,15 +412,17 @@ def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZero
     #x0= np.random.random_sample((n_models,1))
     
     xopt = fmin_cobyla(fopt, x0,constr,rhoend=1e-12)
-    #xopt=xopt/np.sum(xopt)
+    xopt=xopt/np.sum(xopt)
+    if takeMean:
+	xopt=x0
     
     if np.isnan(np.sum(xopt)):
 	    print "We have NaN here!!"
     
     ypred=np.dot(Xtrain,xopt)
     plt.hist(ypred,bins=50)
-    ypred=sigmoid(ypred)
-    plt.hist(y,bins=50)
+    #ypred=sigmoid(ypred)
+    #plt.hist(y,bins=50)
     plt.show()
     
     auc=roc_auc_score(y, np.dot(Xtrain,x0))
@@ -449,13 +451,15 @@ def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZero
 	return (Xtrain,testset)
     
     #prediction flatten makes a n-dim vector from a nx1 vector...
+    
     preds=np.dot(testset,xopt).flatten()
+    #preds=sigmoid(pred)
     plt.hist(preds,bins=50)
     plt.show()
     
     print preds.shape
     
-    subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/subXXXa.csv'
+    subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub2407b.csv'
     #preds=pd.DataFrame(preds,columns=["label"],index=test_indices)
     testset.index=test_indices
     makePredictions(preds,testset,subfile,useProba=True,cutoff=cutoff_all)
@@ -508,8 +512,8 @@ if __name__=="__main__":
     #models=["gbm1","rf1","rf2","xrf1","gbm2"]
     #bagged models
     #models=["gbm_bag1","gbm_bag2","gbm_bag3",""]
-    models=["gbm1","xgboost_bag1","rf1","rf2","xrf1","gbm2"]
-    #models=["xgboost_bag1"]
+    #models=["gbm1","xgboost_bag1","rf1","rf2","xrf1","gbm2"]
+    models=["gbm_bag3"]
     #useCols=['DER_mass_MMC']
     useCols=None
     trainEnsemble(models,classical=False,useCols=useCols,addMetaFeatures=False,use_proba=True)
