@@ -27,7 +27,7 @@ class XModel:
       else:
 	self.sparse=False
       self.sample_weight=sample_weight
-      self.oobpreds=np.zeros((Xtrain.shape[0],1))
+      self.oob_preds=np.zeros((Xtrain.shape[0],1))
       self.preds=np.zeros((Xtest.shape[0],1))
       
       self.cutoff=cutoff
@@ -53,8 +53,8 @@ class XModel:
       
       print "predictions mean  :" , np.mean(self.preds),
       print " Dim:", self.preds.shape
-      print "oob preds mean   :" , np.mean(self.oobpreds),
-      print " Dim:", self.oobpreds.shape
+      print "oob preds mean   :" , np.mean(self.oob_preds),
+      print " Dim:", self.oob_preds.shape
       
       
       

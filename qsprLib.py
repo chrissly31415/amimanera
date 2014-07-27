@@ -33,7 +33,7 @@ from sklearn.naive_bayes import BernoulliNB,MultinomialNB,GaussianNB
 from sklearn.cluster import k_means
 
 from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier
-from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor
+from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor,BaggingClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import LinearSVC
 from sklearn.svm import SVC
@@ -461,8 +461,8 @@ def iterativeFeatureSelection(lmodel,Xold,Xold_test,ly,iterations,nrfeats):
 	"""
 	for i in xrange(iterations):
 	    print ">>>Iteration: ",i,"<<<"
-	    lmodel = buildModel(model,Xold,ly)
-	    (Xold,Xold_test)=rfFeatureImportance(model,Xold,Xold_test,nrfeats)
+	    lmodel = buildModel(lmodel,Xold,ly)
+	    (Xold,Xold_test)=rfFeatureImportance(lmodel,Xold,Xold_test,nrfeats)
 	    #Xold.to_csv("../stumbled_upon/data/Xlarge_"+str(i)+".csv")
 	    #Xold_test.to_csv("../stumbled_upon/data/XXlarge_test_"+str(i)+".csv")
 	return(Xold,Xold_test)

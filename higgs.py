@@ -41,7 +41,7 @@ def createFeatures(X_all):
     
     return (X_all)
 
-def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats=True,transform=False,createNAFeats=False,dropCorrelated=True,scale_data=False,clusterFeature=False):
+def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats=True,transform=False,createNAFeats=False,dropCorrelated=True,scale_data=False,clusterFeature=False,dropFeatures=None):
     """
     Read in train and test data, create data matrix X and targets y   
     """
@@ -51,7 +51,9 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
     
     if nsamples != -1: 
 	rows = random.sample(X.index, nsamples)
-	X = X.ix[rows]      
+	X = X.ix[rows] 
+	
+	#X_test = X_test.iloc[0:100,:]
     
     weights = np.asarray(X['Weight'])
     
@@ -91,6 +93,11 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
         #drop correlated features to DER_deltaeta_jet_jet
         for col in correllated:
             print "Dropping correlated features: ",col
+            X_all = X_all.drop([col], axis=1)
+    
+    if dropFeatures is not None:
+	for col in dropFeatures:
+            print "Dropping features: ",col
             X_all = X_all.drop([col], axis=1)
     
     if ('DER' or 'PRI') in onlyPRI:
@@ -181,14 +188,16 @@ def modTrainWeights(wtrain,lytrain,scale_wt=None,verbose=False):
     wtrain_fit = np.copy(wtrain)         
     wtrain_fit[sSelector] = wtrain[sSelector]*scale_wt
     #wtrain_fit = wtrain*scale_wt
-    #plt.hist(wtrain_fit[sSelector],bins=500,color='g')
-    #plt.hist(wtrain_fit,bins=500,color='b',alpha=0.3)
-    #plt.show()
+    if verbose:
+	plt.hist(wtrain_fit[sSelector],bins=500,color='r',label='s')
+	plt.hist(wtrain_fit,bins=500,color='b',alpha=0.3,label='b')
+	plt.legend()
+	plt.show()
     if verbose: print "wsum,s: %4.2f wsum,s,mod: %4.2f wsum,b: %4.2f orig ratio: %4.2f scale_factor: %8.3f\n"%(wsum_s,np.sum(wtrain_fit[sSelector]),wsum_b,wsum_b/wsum_s,scale_wt)
     return wtrain_fit
   
 
-def amsXvalidation(lmodel,lX,ly,lw,nfolds=5,cutoff=0.5,useProba=True,useWeights=True,useRegressor=False,scale_wt=None,buildModel=False):
+def amsXvalidation(lmodel,lX,ly,lw,nfolds=5,cutoff=0.5,useProba=True,useWeights=True,useRegressor=False,scale_wt=None,buildModel=True):
     """
     Carries out crossvalidation using AMS metrics
     """
@@ -239,14 +248,14 @@ def amsXvalidation(lmodel,lX,ly,lw,nfolds=5,cutoff=0.5,useProba=True,useWeights=
 	if useProba:
 	    yoob=lmodel.predict_proba(lX[test])
 	    scores[i]=roc_auc_score(truth,yoob[:,1]) 
-	    sSelector = truth==1
-	    bSelector = truth==0
-	    wsum=np.sum(yoob >= cutoff)
-	    wsum_truth=np.sum(sSelector)
-	    print "Cutoff: %6.3f Nr. signals(pred): %4d Ratio(pred): %6.3f signals(truth): %4d ratio(truth): %6.3f" %(cutoff,wsum,wsum/(float(yoob.shape[0])),wsum_truth,wsum_truth/(float(yoob.shape[0])) )
-	    #plt.hist(yoob[:,1],bins=50,color='b')
-	    #plt.hist(yoob[:,1][bSelector],bins=50,alpha=0.3,color='g')
-	    plt.show()
+
+	    wsum=np.sum(yoob[:,1]>=cutoff)
+	    wsum_truth=np.sum(truth==1
+)
+	    length=yoob[:,1].shape[0]
+	    print "Cutoff: %6.3f Nr. signals(pred): %4d Ratio(pred): %6.3f signals(truth): %4d ratio(truth): %6.3f" %(cutoff,wsum,wsum/(float(length)),wsum_truth,wsum_truth/(float(length)) )
+
+	    
 	    
 	    
 	else:
@@ -298,7 +307,7 @@ def ams_score(y_true,y_pred,**kwargs):
     ntotal=250000
     tpr=0.0
     fpr=0.0 
-
+    
     #check if we are dealing with proba
     info="- using 0-1 classification"
     if kwargs['use_proba']  and kwargs['cutoff'] is not None:
@@ -324,7 +333,13 @@ def ams_score(y_true,y_pred,**kwargs):
     ams_max=AMS(smax, 0.0,wfactor)
     ams=AMS(tpr, fpr,wfactor)
     if verbose: 
+	wsum=np.sum(y_pred >= cutoff)
+	wsum_truth=np.sum(sSelector)
+	print "Cutoff: %6.3f Nr. signals(pred): %4d Ratio(pred): %6.3f signals(truth): %4d ratio(truth): %6.3f" %(cutoff,wsum,wsum/(float(y_pred.shape[0])),wsum_truth,wsum_truth/(float(y_pred.shape[0])) )
 	print 'AMS = %6.3f [AMS_max = %6.3f] %-32s'%(ams,ams_max,info)
+	
+	
+	
     return ams   
     
 def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,cutoff=0.5,scale_wt='auto'):
@@ -371,7 +386,7 @@ def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,c
     #return(clf_opt.best_estimator_)
     return(clf_opt.best_estimator_)
 	
-def makePredictions(lmodel,lXs_test,filename,useProba=True,cutoff=0.85):
+def makePredictions(lmodel,lXs_test,filename,useProba=True,cutoff=0.85,printProba=False):
     """
     Uses priorily fit model to make predictions
     """
@@ -384,22 +399,24 @@ def makePredictions(lmodel,lXs_test,filename,useProba=True,cutoff=0.85):
     else:
 	probs = lmodel.predict(lXs_test)
     
-    if useProba:
-	print "Binarize probabilities with cutoff:",cutoff
-	vfunc = np.vectorize(makeLabels)
-	probs = vfunc(probs,cutoff)
+    
+    print "Binarize probabilities anyway with cutoff:",cutoff," and create the labels s+b"
+    vfunc = np.vectorize(makeLabels)
+    labels = vfunc(probs,cutoff)
 	
     
     print "Class predictions..."
 
     print "Rank order..."
     idx_sorted = np.argsort(probs)
-    ro = np.arange(lXs_test.shape[0])+1   
-    #d = {'EventId': lXs_test.index[idx_sorted], 'RankOrder': ro,'Probs': probs[idx_sorted], 'class': probs[idx_sorted]}
-    d = {'EventId': lXs_test.index[idx_sorted], 'RankOrder': ro, 'class': probs[idx_sorted]}
+    print idx_sorted
+    ro = np.arange(lXs_test.shape[0])+1
+
+    d = {'EventId': lXs_test.index[idx_sorted], 'RankOrder': ro, 'class': labels[idx_sorted]}
     
     print "Saving predictions to: ",filename
     pred_df = pd.DataFrame(data=d)
+    print pred_df
     pred_df.to_csv(filename,index=False) 
     
 
@@ -438,11 +455,11 @@ def analyzeLearningCurve(model,X,y,lw,folds=8):
     plot_learning_curve(model, "learning curve", X, y, ylim=(0.1, 1.01), cv=cv, n_jobs=4,scoring=learn_score)
 
     
-def buildAMSModel(lmodel,lXs,ly,lw=None,fitWithWeights=False,nfolds=8,useProba=False,cutoff=0.5,feature_names=None,scale_wt=None,saveModel=True):
+def buildAMSModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,nfolds=8,useProba=True,cutoff=0.85,scale_wt=None,n_jobs=1):
     """   
     Final model building part
     """ 
-  
+
     fit_params = {'scoring_weight': lw}
     if scale_wt is None:
 	fit_params['sample_weight']=lw
@@ -450,12 +467,12 @@ def buildAMSModel(lmodel,lXs,ly,lw=None,fitWithWeights=False,nfolds=8,useProba=F
 	fit_params['sample_weight']=modTrainWeights(lw,ly,scale_wt)
 	
     fit_params['fitWithWeights']=fitWithWeights
-    ams_scorer = make_scorer(score_func=ams_score,use_proba=useProba,cutoff=cutoff)
+    ams_scorer = make_scorer(score_func=ams_score,use_proba=useProba,needs_proba=useProba,cutoff=cutoff)
     
     #how can we avoid that samples are used for fitting
     print "Xvalidation..."
-    scores = cross_validation.cross_val_score(lmodel,lXs,ly,fit_params=fit_params, scoring=ams_scorer,cv=nfolds,n_jobs=4)
-    print "AMS: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
+    scores = cross_validation.cross_val_score(lmodel,lXs,ly,fit_params=fit_params, scoring=ams_scorer,cv=nfolds,n_jobs=n_jobs)
+    print "<AMS>= %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
     print "Building model with all instances..."
     
     if fitWithWeights:
@@ -616,6 +633,7 @@ if __name__=="__main__":
     onlyPRI='' #'PRI' or 'DER'
     createNAFeats=False #brings something?
     dropCorrelated=False
+    dropFeatures=[u'PRI_jet_subleading_eta',u'PRI_jet_subleading_phi','PRI_jet_num']
     scale_data=False #bringt nichts by NB
     replaceNA=False
     plotting=False
@@ -623,14 +641,14 @@ if __name__=="__main__":
     transform=False
     useProba=True  #use probailities for prediction
     useWeights=True #use weights for training
-    scale_wt=1
+    scale_wt=200
     useRegressor=False
-    cutoff=0.7
+    cutoff=0.85
     clusterFeature=False
-    subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub2307a.csv"
-    Xtrain,ytrain,Xtest,wtrain=prepareDatasets(nsamples,onlyPRI,replaceNA,plotting,stats,transform,createNAFeats,dropCorrelated,scale_data,clusterFeature)
-    nfolds=8#StratifiedShuffleSplit(ytrain, 8, test_size=0.5)
-    
+    subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub2607c.csv"
+    Xtrain,ytrain,Xtest,wtrain=prepareDatasets(nsamples,onlyPRI,replaceNA,plotting,stats,transform,createNAFeats,dropCorrelated,scale_data,clusterFeature,dropFeatures)
+    #nfolds=3#
+    nfolds=StratifiedShuffleSplit(ytrain, n_iter=5, test_size=0.5)
     #pcAnalysis(Xtrain,Xtest,ytrain,wtrain,ncomp=2,transform=False)       
     #RF cluster1 AMS=2.600 (77544)
     #RF cluster2 AMS=4.331 (72543)
@@ -671,21 +689,26 @@ if __name__=="__main__":
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', model)])
     #model = amsGridsearch(model,Xtrain,ytrain,wtrain,fitWithWeights=useWeights,nfolds=nfolds,useProba=useProba,cutoff=cutoff)
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=150, learning_rate=0.1, max_depth=6,subsample=1.0,verbose=False) #opt weight =500 AMS=3.548
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
-    model = XgboostClassifier(n_estimators=300,learning_rate=0.08,max_depth=6,n_jobs=4,NA=-999.9)
-    #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=8,criterion='entropy', max_features=5,oob_score=False)#SW-proba=False ams=3.42
-    amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=False)
-    #iterativeFeatureSelection(model,Xtrain,Xtest,ytrain,1,1)    
-    #amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=False)
+    #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=0.5,max_features=10,min_samples_leaf=20,verbose=1) #opt weight =500 AMS=3.548
+    #model = XgboostClassifier(n_estimators=200,learning_rate=0.08,max_depth=7,n_jobs=4,NA=-999.9)
+    #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features=5,oob_score=False)#SW-proba=False ams=3.42
+
+    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=150, learning_rate=0.1, max_depth=6,subsample=1.0,verbose=False)
+    model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False)
+    #model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,verbose=False)
+    model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=useWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=4) 
+    #model = amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=True)
+    #iterativeFeatureSelection(model,Xtrain,Xtest,ytrain,10,1)    
+    #model= amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=False)
     #clist=[0.25,0.50,0.75,0.85]
     #for c in clist:
 	#  cutoff=c
 	 # print "c",c
-	  #amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=False)
+	  #model=amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=False)
 	  #model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=useWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt)
     #model = amsGridsearch(model,Xtrain,ytrain,wtrain,fitWithWeights=useWeights,nfolds=nfolds,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt)
     print model
     makePredictions(model,Xtest,subfile,useProba=useProba,cutoff=cutoff)
-    #checksubmission(subfile)
+    checksubmission(subfile)
     print("Model building done on %d samples in %fs" % (Xtrain.shape[0],time() - t0))
     plt.show()
