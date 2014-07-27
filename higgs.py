@@ -633,7 +633,7 @@ if __name__=="__main__":
     onlyPRI='' #'PRI' or 'DER'
     createNAFeats=False #brings something?
     dropCorrelated=False
-    dropFeatures=[u'PRI_jet_subleading_eta',u'PRI_jet_subleading_phi','PRI_jet_num']
+    dropFeatures=None #[u'PRI_jet_subleading_eta',u'PRI_jet_subleading_phi','PRI_jet_num']
     scale_data=False #bringt nichts by NB
     replaceNA=False
     plotting=False
@@ -641,14 +641,14 @@ if __name__=="__main__":
     transform=False
     useProba=True  #use probailities for prediction
     useWeights=True #use weights for training
-    scale_wt=200
+    scale_wt=600
     useRegressor=False
     cutoff=0.85
     clusterFeature=False
     subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub2607c.csv"
     Xtrain,ytrain,Xtest,wtrain=prepareDatasets(nsamples,onlyPRI,replaceNA,plotting,stats,transform,createNAFeats,dropCorrelated,scale_data,clusterFeature,dropFeatures)
-    #nfolds=3#
-    nfolds=StratifiedShuffleSplit(ytrain, n_iter=5, test_size=0.5)
+    nfolds=4#
+    #nfolds=StratifiedShuffleSplit(ytrain, n_iter=5, test_size=0.5)
     #pcAnalysis(Xtrain,Xtest,ytrain,wtrain,ncomp=2,transform=False)       
     #RF cluster1 AMS=2.600 (77544)
     #RF cluster2 AMS=4.331 (72543)
@@ -691,10 +691,10 @@ if __name__=="__main__":
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=150, learning_rate=0.1, max_depth=6,subsample=1.0,verbose=False) #opt weight =500 AMS=3.548
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=0.5,max_features=10,min_samples_leaf=20,verbose=1) #opt weight =500 AMS=3.548
     #model = XgboostClassifier(n_estimators=200,learning_rate=0.08,max_depth=7,n_jobs=4,NA=-999.9)
-    #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features=5,oob_score=False)#SW-proba=False ams=3.42
-
+    basemodel =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=2,criterion='entropy', max_features=5,oob_score=False)#SW-proba=False ams=3.42
+    model = AdaBoostClassifier(base_estimator=basemodel,n_estimators=10,learning_rate=0.5)   
     #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=150, learning_rate=0.1, max_depth=6,subsample=1.0,verbose=False)
-    model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False)
+    #model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False)
     #model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,verbose=False)
     model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=useWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=4) 
     #model = amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=True)
