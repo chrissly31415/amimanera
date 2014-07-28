@@ -488,7 +488,23 @@ def removeInstances(lXs,ly,preds,t,returnSD=True):
 	#print "New dim:",lXs_reduced.shape
 	ly_reduced=ly[np.asarray(boolindex)]
 	return (lXs_reduced,ly_reduced)
-      
+
+def removeZeroVariance(X,Xtest):
+	"""
+	remove useless data
+	"""
+	X_all = pd.concat([Xtest, X])
+	idx = np.asarray(X_all.std()==0)
+	print "Dropped zero variance columns:",X_all.columns[idx]
+	X_all.drop(X_all.columns[idx], axis=1,inplace=True)
+	X = X_all[len(Xtest.index):]
+        Xtest = X_all[:len(Xtest.index)]
+        
+        
+        
+	return(X,Xtest)
+	
+	
 def getOOBCVPredictions(lmodel,lXs,lXs_test,ly,folds=8,repeats=1,returnSD=True):
 	"""
 	Get cv oob predictions for classifiers

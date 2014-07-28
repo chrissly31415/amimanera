@@ -555,47 +555,69 @@ def clustering(Xtrain,ytrain,Xtest,wtrain=None,n_clusters=3,returnCluster=0,plot
                 plt.scatter(X_r[label == i, 0], X_r[label == i, 1], c=c, label=target_name,alpha=0.1)
             print "Cluster %4d n: %4d"%(i,np.sum(label==i))
         
-        #plt.legend()        
-        
+	train_labels = label[len(Xtest.index):] 
+	test_labels = label[:len(Xtest.index)]
         #alternatively we could append cluster label to dataset...                
-        X_new=pd.DataFrame(data=label,columns=['cluster_type'],index=X_all.index)                
+        #X_new=pd.DataFrame(data=label,columns=['cluster_type'],index=X_all.index)                
      
-        X_sub=pd.concat([X_all, X_new],axis=1)
+        #X_sub=pd.concat([X_all, X_new],axis=1)
         
-        #print X_sub.describe()
-        #X_sub=X_all.iloc[label==returnCluster,:]        
-        
-        #print X_sub
-                
-        #Xtrain_sub = X_sub[len(Xtest.index):]
-        #Xtest_sub = X_sub[:len(Xtest.index)] 
-        Xtrain = X_sub[len(Xtest.index):]
-        Xtest = X_sub[:len(Xtest.index)]
-                                     
-        if returnCluster is not None:                             
-            #print Xtrain['cluster_type']==returnCluster
-            clusterSelect=np.asarray(Xtrain['cluster_type']==returnCluster)                                        
+        #Xtrain = X_sub[len(Xtest.index):]
+        #Xtest = X_sub[:len(Xtest.index)]
+               
+        return(train_labels,test_labels)    
+        #if returnCluster is not None:                             
+            ##print Xtrain['cluster_type']==returnCluster
+            #clusterSelect=np.asarray(Xtrain['cluster_type']==returnCluster)                                        
                                             
-            Xtrain_sub = Xtrain.loc[clusterSelect,:]
-            #print type(wtrain)        
-            wtrain_sub = wtrain[clusterSelect]
-            ytrain_sub = ytrain.loc[clusterSelect]
+            #Xtrain_sub = Xtrain.loc[clusterSelect,:]
+            ##print type(wtrain)        
+            #wtrain_sub = wtrain[clusterSelect]
+            #ytrain_sub = ytrain[clusterSelect]
             
-            Xtest_sub = Xtest.loc[Xtest['cluster_type']==returnCluster,:]
+            #Xtest_sub = Xtest.loc[Xtest['cluster_type']==returnCluster,:]
             
-            Xtest_sub=Xtest_sub.drop(['cluster_type'],axis=1)       
-            Xtrain_sub=Xtrain_sub.drop(['cluster_type'],axis=1)    
+            #Xtest_sub=Xtest_sub.drop(['cluster_type'],axis=1)       
+            #Xtrain_sub=Xtrain_sub.drop(['cluster_type'],axis=1)    
             
-            print "Dim of return train set:",Xtrain_sub.shape  
-            print "Dim of return test set:",Xtest_sub.shape               
+            #print "Dim of return train set:",Xtrain_sub.shape  
+            #print "Dim of return test set:",Xtest_sub.shape               
             
-            #print Xtrain_sub
-            #print wtrain_sub
-            #print ytrain_sub        
-            return (Xtrain_sub,ytrain_sub,Xtest_sub,wtrain_sub)
-        else:    
-            return (Xtrain,ytrain,Xtest,wtrain)
+            ##print Xtrain_sub
+            ##print wtrain_sub
+            ##print ytrain_sub        
+            #return (Xtrain_sub,ytrain_sub,Xtest_sub,wtrain_sub)
+        #else:    
+            #return (Xtrain,ytrain,Xtest,wtrain)
 
+            
+def divideAndConquer(model,Xtrain,ytrain,Xtest,wtrain=None,n_clusters=3):
+    """
+    splits data, builds model and then combines everything
+    """ 
+    train_labels, test_labels = clustering(Xtrain,ytrain,Xtest,wtrain,n_clusters=3,returnCluster=0,plotting=False)
+    
+    for i in range(n_clusters):
+	idx_train = train_labels == i
+	idx_test = test_labels == i
+	
+	lXtrain = Xtrain.iloc[idx_train]
+	lytrain = ytrain[idx_train]
+	lwtrain = wtrain[idx_train]
+	
+	lXtest = Xtest.iloc[idx_test]
+	
+	#print lXtrain.describe()
+	print "Dim X,before:",lXtrain.shape
+	print "Dim Xtest,before:",lXtest.shape
+	lXtrain,lXtest = removeZeroVariance(lXtrain,lXtest)
+	print "Dim X:",lXtrain.shape
+	print "Dim Xtest:",lXtest.shape
+	
+	#need to rescale weights
+	model=buildAMSModel(model,lXtrain,lytrain,lwtrain,nfolds=4,fitWithWeights=useWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=1) 
+	
+	
     
     
 if __name__=="__main__":
@@ -641,11 +663,11 @@ if __name__=="__main__":
     transform=False
     useProba=True  #use probailities for prediction
     useWeights=True #use weights for training
-    scale_wt=600
+    scale_wt=200
     useRegressor=False
     cutoff=0.85
     clusterFeature=False
-    subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub2607c.csv"
+    subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub2607d.csv"
     Xtrain,ytrain,Xtest,wtrain=prepareDatasets(nsamples,onlyPRI,replaceNA,plotting,stats,transform,createNAFeats,dropCorrelated,scale_data,clusterFeature,dropFeatures)
     nfolds=4#
     #nfolds=StratifiedShuffleSplit(ytrain, n_iter=5, test_size=0.5)
@@ -691,12 +713,13 @@ if __name__=="__main__":
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=150, learning_rate=0.1, max_depth=6,subsample=1.0,verbose=False) #opt weight =500 AMS=3.548
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=0.5,max_features=10,min_samples_leaf=20,verbose=1) #opt weight =500 AMS=3.548
     #model = XgboostClassifier(n_estimators=200,learning_rate=0.08,max_depth=7,n_jobs=4,NA=-999.9)
-    basemodel =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=2,criterion='entropy', max_features=5,oob_score=False)#SW-proba=False ams=3.42
-    model = AdaBoostClassifier(base_estimator=basemodel,n_estimators=10,learning_rate=0.5)   
-    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=150, learning_rate=0.1, max_depth=6,subsample=1.0,verbose=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False)
+    #basemodel =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=2,criterion='entropy', max_features=5,oob_score=False)#SW-proba=False ams=3.42
+    #model = AdaBoostClassifier(base_estimator=basemodel,n_estimators=10,learning_rate=0.5)   
+    model = GradientBoostingClassifier(loss='deviance',n_estimators=150, learning_rate=0.1, max_depth=6,subsample=1.0,verbose=False)
+    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False)
     #model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,verbose=False)
-    model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=useWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=4) 
+    #model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=useWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=1) 
+    divideAndConquer(model,Xtrain,ytrain,Xtest,wtrain,n_clusters=3)
     #model = amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=True)
     #iterativeFeatureSelection(model,Xtrain,Xtest,ytrain,10,1)    
     #model= amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=False)
@@ -708,7 +731,7 @@ if __name__=="__main__":
 	  #model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=useWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt)
     #model = amsGridsearch(model,Xtrain,ytrain,wtrain,fitWithWeights=useWeights,nfolds=nfolds,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt)
     print model
-    makePredictions(model,Xtest,subfile,useProba=useProba,cutoff=cutoff)
-    checksubmission(subfile)
+    #makePredictions(model,Xtest,subfile,useProba=useProba,cutoff=cutoff)
+    #checksubmission(subfile)
     print("Model building done on %d samples in %fs" % (Xtrain.shape[0],time() - t0))
     plt.show()
