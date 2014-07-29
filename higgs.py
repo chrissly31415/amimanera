@@ -292,6 +292,8 @@ def ams_score(y_true,y_pred,**kwargs):
     Higgs AMS metric
     """  
     #use scoring weights if available
+    opt_cutoff=False
+    
     if 'scoring_weight' in kwargs:
 	sample_weight=kwargs['scoring_weight']
     elif 'sample_weight' in kwargs:
@@ -303,10 +305,11 @@ def ams_score(y_true,y_pred,**kwargs):
     verbose=True
     if 'verbose' in kwargs:
 	verbose=kwargs['verbose']
+    
+    #default parameters
     cutoff=0.5
     ntotal=250000
-    tpr=0.0
-    fpr=0.0 
+    
     
     #check if we are dealing with proba
     info="- using 0-1 classification"
@@ -317,32 +320,58 @@ def ams_score(y_true,y_pred,**kwargs):
 	if len(y_pred.shape)>1 and y_pred.shape[1]>1:
 	    y_pred=y_pred[:,1]
 	info="- using probabilities with cutoff=%4.2f"%(cutoff)
-        
-    for j,row in enumerate(y_pred):
-	    if row>=cutoff:		
-		if y_true[j]>=cutoff:
-		    tpr=tpr+sample_weight[j]
-		else:
-		    fpr=fpr+sample_weight[j]
-
-    sSelector = y_true==1
-    #print "Unique weights for signal:",np.unique(sample_weight[sSelector])[0:5]
     
-    wfactor=1.* ntotal / y_true.shape[0]
-    smax = np.sum(sample_weight[sSelector])
-    ams_max=AMS(smax, 0.0,wfactor)
-    ams=AMS(tpr, fpr,wfactor)
+    if opt_cutoff:
+	cutofflist=[0.82,0.83,0.84,0.85,0.86,0.87,0.88]
+    else:
+	cutofflist=[cutoff]
+    
+    ams_best=0.0
+    cutoff_opt=0.5
+    
+    for cutoff in cutofflist:
+	tpr=0.0
+	fpr=0.0 
+	for j,row in enumerate(y_pred):
+		if row>=cutoff:		
+		    if y_true[j]>=cutoff:
+			tpr=tpr+sample_weight[j]
+		    else:
+			fpr=fpr+sample_weight[j]
+
+	sSelector = y_true==1
+	bSelector = y_true==0
+	#print "Unique weights for signal:",np.unique(sample_weight[sSelector])[0:5]
+	
+	wfactor=1.* ntotal / y_true.shape[0]
+	ssum = np.sum(sample_weight[sSelector])
+	bsum = np.sum(sample_weight[bSelector])
+	ams_max=AMS(ssum, 0.0,wfactor)
+	ams=AMS(tpr, fpr,wfactor)
+	
+	print "cutoff=%6.3f AMS= %6.3f"%(cutoff,ams)
+	
+	if ams>ams_best:
+	    ams_best=ams
+	    cutoff_opt=cutoff
+
+    if opt_cutoff:
+	print "Optimized cutoff=%6.3f AMS= %6.3f"%(cutoff_opt,ams_best)
+	ams = ams_best
+	cutoff = cutoff_opt
+    
     if verbose: 
 	wsum=np.sum(y_pred >= cutoff)
 	wsum_truth=np.sum(sSelector)
 	print "Cutoff: %6.3f Nr. signals(pred): %4d Ratio(pred): %6.3f signals(truth): %4d ratio(truth): %6.3f" %(cutoff,wsum,wsum/(float(y_pred.shape[0])),wsum_truth,wsum_truth/(float(y_pred.shape[0])) )
+	print '*Sum,weights_s = %8.2f, Sum,weights_b=%8.2f ratio=%8.2f'%(ssum,bsum,bsum/ssum),
 	print 'AMS = %6.3f [AMS_max = %6.3f] %-32s'%(ams,ams_max,info)
 	
 	
 	
     return ams   
     
-def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,cutoff=0.5,scale_wt='auto'):
+def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,cutoff=0.5,scale_wt='auto',n_jobs=1):
     print 
     if not 'sample_weight' in inspect.getargspec(lmodel.fit).args:
 	  print("WARNING: Fit function ignores sample_weight!")
@@ -357,11 +386,11 @@ def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,c
     fit_params['fitWithWeights']=fitWithWeights
     
     #https://github.com/scikit-learn/scikit-learn/issues/3223 + own modifications
-    ams_scorer = make_scorer(score_func=ams_score,use_proba=useProba,cutoff=cutoff)
+    ams_scorer = make_scorer(score_func=ams_score,use_proba=useProba,needs_proba=useProba,cutoff=cutoff)
     
     #parameters = {'n_estimators':[150,300], 'max_features':[5,10]}#rf
     #parameters = {'n_estimators':[250], 'max_features':[6,8,10],'min_samples_leaf':[5,10]}#xrf+xrf
-    parameters = {'max_depth':[7], 'learning_rate':[0.08],'n_estimators':[200],'subsample':[1.0],'max_features':[10],'min_samples_leaf':[20]}#gbm
+    parameters = {'max_depth':[7,8], 'learning_rate':[0.06],'n_estimators':[150,200,250,300],'subsample':[1.0],'max_features':[10],'min_samples_leaf':[20]}#gbm
     
     #parameters = {'max_depth':[6,5], 'learning_rate':[0.1,0.09,0.08],'n_estimators':[150],'subsample':[1.0],'loss':['deviance'],'min_samples_leaf':[20],'max_features':[6,8,10]}#gbm
     #parameters = {'max_depth':[10], 'learning_rate':[0.001],'n_estimators':[500],'subsample':[0.5],'loss':['deviance']}#gbm
@@ -374,7 +403,7 @@ def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,c
     #parameters['model__n_neighbors']=[40,60]}#knn
     #parameters['model__alpha']=[1.0,0.8,0.5,0.1]#opt nb
     #parameters = {'n_neighbors':[10,30,40,50],'algorithm':['ball_tree'],'weights':['distance']}#knn
-    clf_opt=grid_search.GridSearchCV(lmodel, parameters,n_jobs=8,verbose=1,scoring=ams_scorer,cv=nfolds,fit_params=fit_params,refit=True)
+    clf_opt=grid_search.GridSearchCV(lmodel, parameters,n_jobs=n_jobs,verbose=1,scoring=ams_scorer,cv=nfolds,fit_params=fit_params,refit=True)
     
     clf_opt.fit(lX,ly)
     #dir(clf_opt)
@@ -665,11 +694,11 @@ if __name__=="__main__":
     useWeights=True #use weights for training
     scale_wt=200
     useRegressor=False
-    cutoff=0.85
+    cutoff=0.86
     clusterFeature=False
-    subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub2607d.csv"
+    subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub2907a.csv"
     Xtrain,ytrain,Xtest,wtrain=prepareDatasets(nsamples,onlyPRI,replaceNA,plotting,stats,transform,createNAFeats,dropCorrelated,scale_data,clusterFeature,dropFeatures)
-    nfolds=4#
+    nfolds=5#
     #nfolds=StratifiedShuffleSplit(ytrain, n_iter=5, test_size=0.5)
     #pcAnalysis(Xtrain,Xtest,ytrain,wtrain,ncomp=2,transform=False)       
     #RF cluster1 AMS=2.600 (77544)
@@ -715,23 +744,24 @@ if __name__=="__main__":
     #model = XgboostClassifier(n_estimators=200,learning_rate=0.08,max_depth=7,n_jobs=4,NA=-999.9)
     #basemodel =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=2,criterion='entropy', max_features=5,oob_score=False)#SW-proba=False ams=3.42
     #model = AdaBoostClassifier(base_estimator=basemodel,n_estimators=10,learning_rate=0.5)   
-    model = GradientBoostingClassifier(loss='deviance',n_estimators=150, learning_rate=0.1, max_depth=6,subsample=1.0,verbose=False)
-    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False)
+    #model = GradientBoostingClassifier(loss='deviance',n_estimators=150, learning_rate=0.1, max_depth=6,subsample=1.0,verbose=False)
+    #model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False)
+    model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.06, max_depth=8,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False)#new opt
     #model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,verbose=False)
-    #model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=useWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=1) 
-    divideAndConquer(model,Xtrain,ytrain,Xtest,wtrain,n_clusters=3)
+    model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=useWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=8) 
+    #divideAndConquer(model,Xtrain,ytrain,Xtest,wtrain,n_clusters=3)
     #model = amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=True)
     #iterativeFeatureSelection(model,Xtrain,Xtest,ytrain,10,1)    
-    #model= amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=False)
+    #model= amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=ufseProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=False)
     #clist=[0.25,0.50,0.75,0.85]
     #for c in clist:
 	#  cutoff=c
 	 # print "c",c
 	  #model=amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=False)
 	  #model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=useWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt)
-    #model = amsGridsearch(model,Xtrain,ytrain,wtrain,fitWithWeights=useWeights,nfolds=nfolds,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt)
+    #model = amsGridsearch(model,Xtrain,ytrain,wtrain,fitWithWeights=useWeights,nfolds=nfolds,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=8)
     print model
-    #makePredictions(model,Xtest,subfile,useProba=useProba,cutoff=cutoff)
-    #checksubmission(subfile)
+    makePredictions(model,Xtest,subfile,useProba=useProba,cutoff=cutoff)
+    checksubmission(subfile)
     print("Model building done on %d samples in %fs" % (Xtrain.shape[0],time() - t0))
     plt.show()

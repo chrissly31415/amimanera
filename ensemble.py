@@ -68,10 +68,10 @@ def createModels():
     #xmodel = XModel("xgboost1",model,X,Xtest,w,cutoff=0.7,scale_wt=1)
     #ensemble.append(xmodel)
     
-    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    model = XgboostClassifier(n_estimators=200,learning_rate=0.08,max_depth=7,n_jobs=4,NA=-999.9)
-    xmodel = XModel("xgboost2",model,X,Xtest,w,cutoff=0.7,scale_wt=1)
-    ensemble.append(xmodel)
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    #model = XgboostClassifier(n_estimators=200,learning_rate=0.08,max_depth=7,n_jobs=4,NA=-999.9)
+    #xmodel = XModel("xgboost2",model,X,Xtest,w,cutoff=0.7,scale_wt=1)
+    #ensemble.append(xmodel)
     
     #ADAboost
     #(X,y,X_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=1,loadTemp=True)
@@ -82,6 +82,12 @@ def createModels():
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.06, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
     #xmodel = XModel("gbm_bag3",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
     #ensemble.append(xmodel)
+    
+    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
+    model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,verbose=False)
+    xmodel = XModel("gbm_realbag",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    ensemble.append(xmodel)
     
     
     #collect them
@@ -550,16 +556,16 @@ def selectModels():
 
 if __name__=="__main__":
     np.random.seed(123)
-    #ensemble,y=createModels()
-    #ensemble=createOOBdata(ensemble,y,10)
+    ensemble,y=createModels()
+    ensemble=createOOBdata(ensemble,y,3)
     #normal models
     #models=["xgboost2"]
     #bagged models
     #models=["gbm_bag1","gbm_bag2","gbm_bag3",""]
-    models=["gbm1","gbm1","xgboost2","rf2","gbm2"]
+    #models=["gbm1","gbm1","xgboost2","rf2","gbm2"]
     #models=["gbm_bag3"]
     #useCols=['DER_mass_MMC']
     useCols=None
-    trainEnsemble(models,mode='voting',useCols=useCols,addMetaFeatures=False,use_proba=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub2507b.csv')
+    #trainEnsemble(models,mode='voting',useCols=useCols,addMetaFeatures=False,use_proba=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub2507b.csv')
     #selectModels()
     
