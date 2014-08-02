@@ -50,18 +50,15 @@ def createModels():
     #xmodel = XModel("gbm2",model,X,Xtest,w,cutoff=None,scale_wt=35)
     #ensemble.append(xmodel)
     
-    #TODO run bagging for RF1, RF2, and GBM2!
-    #TODO add 1 to columns...
+    #TODO compute cutoff by fix percentage of signals
+    #TODO add 1 to columns...?? SHOULD be done automatically
     #TODO SEPARATE bagging and ensemble building with oob xvalidation data
-    #TODO check strange first submission position...
-    #TODO get gbm1_bag and gbm2_bag
     #TODO USE cutoff optimizer within AMS
-    #TODO in train ensemble load labels->voting
+    #TODO in train ensemble load labels->voting # voting is mist
     #TODO RF2MOD modfiy weights only slighty from unity
     #TODO modify sqrt(negwts) or pow(posweihgts,n*0.5) for training with n as parameter
     
-
-    
+  
     #XGBOOST AMS ~3.58 (single model PUB.LD)
     #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
     #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,n_jobs=4,NA=-999.9)
@@ -73,6 +70,11 @@ def createModels():
     #xmodel = XModel("xgboost2",model,X,Xtest,w,cutoff=0.7,scale_wt=1)
     #ensemble.append(xmodel)
     
+    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=True,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    model = KNeighborsClassifier(n_neighbors=5,weights='distance',algorithm='ball_tree')#AMS~2.245
+    xmodel = XModel("KNN1",model,X,Xtest,w,cutoff=0.7,scale_wt=None)
+    ensemble.append(xmodel)
+       
     #ADAboost
     #(X,y,X_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=10,useJson=False,useHTMLtag=False,useAddFeatures=False,usePosTag=False,useAlcat=False,useGreedyFilter=False,char_ngram=1,loadTemp=True)
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=80)), ('model', AdaBoostClassifier(n_estimators=200,learning_rate=0.1))])
@@ -83,11 +85,11 @@ def createModels():
     #xmodel = XModel("gbm_bag3",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
     #ensemble.append(xmodel)
     
-    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
-    model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,verbose=False)
-    xmodel = XModel("gbm_realbag",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
-    ensemble.append(xmodel)
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.06, max_depth=8,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
+    #model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,verbose=False)
+    #xmodel = XModel("gbm_realbag",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    #ensemble.append(xmodel)
     
     
     #collect them
@@ -129,9 +131,11 @@ def createOOBdata(ensemble,ly,repeats=5):
 		wtrain = m.sample_weight[train]
 		if m.scale_wt is not None:
 		    wtrain_fit=modTrainWeights(wtrain,ytrain,m.scale_wt)
+		    m.classifier.fit(Xtrain,ytrain,sample_weight=wtrain_fit)
 		else:
 		    wtrain_fit=None
-		m.classifier.fit(Xtrain,ytrain,sample_weight=wtrain_fit)
+		    m.classifier.fit(Xtrain,ytrain)
+		
 		
 		if use_proba:
 		    #saving out-of-bag predictions
@@ -166,8 +170,10 @@ def createOOBdata(ensemble,ly,repeats=5):
 	w_fit=None
 	if m.scale_wt is not None:
 	    w_fit=modTrainWeights(m.sample_weight,ly,m.scale_wt)
-	    	
-	m.classifier.fit(m.Xtrain,ly,w_fit)
+	    m.classifier.fit(m.Xtrain,ly,w_fit)
+	else:
+	    m.classifier.fit(m.Xtrain,ly)
+	
 	
 	if use_proba:
 	    #probabilities
@@ -214,7 +220,7 @@ def fit_and_score():
    pass
 
    
-def trainEnsemble(ensemble=None,mode='classical',useCols=None,addMetaFeatures=False,use_proba=True,subfile=""):
+def trainEnsemble(ensemble=None,mode='classical',useCols=None,addMetaFeatures=False,use_proba=True,dropCorrelated=True,subfile=""):
     """
     Prepare and train the ensemble
     """
@@ -276,7 +282,7 @@ def trainEnsemble(ensemble=None,mode='classical',useCols=None,addMetaFeatures=Fa
     
     #scale data
     X_all=pd.concat([Xtest,Xtrain])   
-    X_all=removeCorrelations(X_all,0.99)
+    if dropCorrelated: X_all=removeCorrelations(X_all,0.99)
     #X_all = (X_all - X_all.min()) / (X_all.max() - X_all.min())
     Xtrain=X_all[len(test_indices):]
     Xtest=X_all[:len(test_indices)]
@@ -323,9 +329,7 @@ def voting(ensemble,Xtrain,Xtest,y,test_indices,subfile):
     plt.legend()
     plt.show()
     
-    
-
-
+   
     Xtest.index=test_indices
     makePredictions(preds,Xtest,subfile,useProba=True,cutoff=0.5)
     checksubmission(subfile)
@@ -355,8 +359,8 @@ def removeCorrelations(X_all,threshhold):
 def classicalBlend(ensemble,oobpreds,testset,ly,test_indices,subfile="subXXX.csv"):
     weights=np.asarray(pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'], index_col=0)['Weight'])
     #blending
-    folds=5
-    cutoff_all=0.85
+    folds=10
+    cutoff_all=0.9
     scale_wt=200
     
     print "Blending, using general cutoff %4.3f, "%(cutoff_all),
@@ -365,7 +369,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices,subfile="subXXX.csv
   
     #blender=LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
     #blender = Pipeline([('filter', SelectPercentile(f_regression, percentile=25)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=0.1))])
-    blender=SGDClassifier(alpha=.001, n_iter=100,penalty='l2',loss='log')
+    blender=SGDClassifier(alpha=.0001, n_iter=100,penalty='l2',loss='log')
     #blender=AdaBoostClassifier(learning_rate=0.01,n_estimators=50)
     #blender=RandomForestClassifier(n_estimators=50,n_jobs=4, max_features='auto',oob_score=False)
     #blender=ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False)
@@ -390,6 +394,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices,subfile="subXXX.csv
 	    blend_oob[test] = blender.predict_proba(Xtest)[:,1]
 	    use_proba=True
 	else:
+	    print "Warning: Using predict, no proba!"
 	    blend_oob[test] = blender.predict(Xtest)
 	    use_proba=False
 	blend_scores[i]=roc_auc_score(ly[test],blend_oob[test])
@@ -423,7 +428,8 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices,subfile="subXXX.csv
     else:
 	preds=blender.fit(oobpreds,ly)
     #blend results
-    preds=blender.predict_proba(testset)[:,1]   
+    preds=blender.predict_proba(testset)[:,1]
+    print preds
     
     plt.hist(blend_oob,bins=50,label='oob')
     plt.hist(preds,bins=50,alpha=0.3,label='pred')
@@ -433,7 +439,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices,subfile="subXXX.csv
     #preds=pd.DataFrame(preds,columns=["label"],index=test_indices)
     testset.index=test_indices
     makePredictions(preds,testset,subfile,useProba=True,cutoff=cutoff_all)
-    checksubmission(subfile)
+    #checksubmission(subfile)
     #preds.to_csv('/home/loschen/Desktop/datamining-kaggle/higgs/submissions/subXXXa.csv')
     #print preds
     return(oob_ams)
@@ -442,7 +448,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices,subfile="subXXX.csv
 def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZeroModels=0.0,subfile="subXXX.csv"):
     weights=np.asarray(pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'], index_col=0)['Weight'])
     use_proba=True
-    cutoff_all=0.7
+    cutoff_all=0.85
 
     def fopt(params):
 	# nxm  * m*1 ->n*1
@@ -489,7 +495,7 @@ def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZero
     for i,model in enumerate(Xtrain.columns):
 	auc = roc_auc_score(y, Xtrain.iloc[:,i])
 	ams = ams_score(y,Xtrain.iloc[:,i],sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=False)	
-	print "%-48s ams: %4.3f  auc: %4.3f  coef: %4.4f" %(model,ams,auc,xopt[i])
+	print "%-48s ams: %4.3f  auc: %4.3f  coef: %4.4f cutoff: %4.4f" %(model,ams,auc,xopt[i],cutoff_all)
 	if xopt[i]<removeZeroModels:
 	    zero_models.append(model)
     print "Sum: %4.4f"%(np.sum(xopt))
@@ -556,16 +562,16 @@ def selectModels():
 
 if __name__=="__main__":
     np.random.seed(123)
-    ensemble,y=createModels()
-    ensemble=createOOBdata(ensemble,y,3)
+    #ensemble,y=createModels()
+    #ensemble=createOOBdata(ensemble,y,4)
     #normal models
     #models=["xgboost2"]
     #bagged models
     #models=["gbm_bag1","gbm_bag2","gbm_bag3",""]
-    #models=["gbm1","gbm1","xgboost2","rf2","gbm2"]
-    #models=["gbm_bag3"]
-    #useCols=['DER_mass_MMC']
-    useCols=None
-    #trainEnsemble(models,mode='voting',useCols=useCols,addMetaFeatures=False,use_proba=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub2507b.csv')
+    #models=["gbm1","xgboost2","rf2","gbm2","KNN1","gbm_realbag"]
+    models=["gbm_realbag"]
+    useCols=['DER_mass_MMC']
+    #useCols=None
+    trainEnsemble(models,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub3108c.csv')
     #selectModels()
     

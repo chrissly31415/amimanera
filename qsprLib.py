@@ -17,7 +17,7 @@ from scipy import sparse
 import matplotlib.pyplot as plt
 import pylab as pl
 
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler,PolynomialFeatures
 from sklearn.feature_extraction.text import CountVectorizer,HashingVectorizer,TfidfVectorizer
 #from sklearn import metrics
 from sklearn import cross_validation,grid_search
@@ -287,7 +287,7 @@ def buildModel(lmodel,lXs,ly,sweights=None,feature_names=None):
     Final model building part
     """ 
     print "Xvalidation..."
-    scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=5, scoring='roc_auc',n_jobs=4)
+    scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=5, scoring='roc_auc',n_jobs=1)
     print "AUC: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
     print "Building model with all instances..."
     if isinstance(lmodel,RandomForestClassifier) or isinstance(lmodel,SGDClassifier):
@@ -418,13 +418,13 @@ def rfFeatureImportance(forest,Xold,Xold_test,n):
     #sorting features
     n=len(indices)-n
     print "Selection of ",n," top features..."
-    Xtmp=Xreduced.iloc[:,indices[0:n]]
-    print Xtmp.columns
+    Xreduced=Xreduced.iloc[:,indices[0:n]]
+    print Xreduced.columns
     #split train and test data
     #pd slicing sometimes confusing...last element in slicing is inclusive!!! use iloc for integer indexing (i.e. in case index are float or not ordered)
     pdrowidx=Xold_test.shape[0]-1
-    Xreduced_test = Xtmp[:len(Xold_test.index)]
-    Xreduced = Xtmp[len(Xold_test.index):]
+    Xreduced_test = Xreduced[:len(Xold_test.index)]
+    Xreduced = Xreduced[len(Xold_test.index):]
     #print "Xreduced_test:",Xreduced_test
     print "Xreduced_test:",Xreduced_test.shape
     print "Xreduced_train:",Xreduced.shape

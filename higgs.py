@@ -14,9 +14,12 @@ from pandas.tools.plotting import scatter_matrix
 from xgboost_sklearn import *
 
 
-def createFeatures(X_all):
+def createFeatures(X_all,keepAll=True,createNAFeats='all'):
     """
     Create some new features
+    
+    keep createNAFeats
+    
     """
     def f(x):
         if x==-999.0:
@@ -24,24 +27,31 @@ def createFeatures(X_all):
         else:
             return 0.0    
 
-    print "Feature creation..."
+    print "NA Feature creation..."
     X_NA=pd.DataFrame(index=X_all.index)
 
     for colname in X_all.columns:
         if (X_all[colname]==-999.0).any():
-            print colname
-            X_NA[colname+'_mod']=X_all[colname].map(f)
+            new_name=colname+'_NA'
+            if 'all' not in createNAFeats:
+		if new_name in createNAFeats:
+		    X_NA[new_name]=X_all[colname].map(f)
+	    else:
+		X_NA[new_name]=X_all[colname].map(f)
+		
             #X_all['hasNA']=X_all[colname].map(f2)
-
-    X_NA['NA_sum'] = X_NA.sum(axis=1)    
-   
-    X_all = pd.concat([X_all, X_NA['NA_sum']],axis=1)
-    print X_all.describe()
+    if keepAll:
+        X_all = pd.concat([X_all, X_NA],axis=1)
+    else:
+        X_NA['NA_sum'] = X_NA.sum(axis=1)  
+	X_all = pd.concat([X_all, X_NA['NA_sum']],axis=1)
+	
+    print X_all.columns
     print "End of feature creation..."    
     
     return (X_all)
 
-def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats=True,transform=False,createNAFeats=False,dropCorrelated=True,scale_data=False,clusterFeature=False,dropFeatures=None):
+def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats=True,transform=False,createNAFeats=None,dropCorrelated=True,scale_data=False,clusterFeature=False,dropFeatures=None,polyFeatures=None):
     """
     Read in train and test data, create data matrix X and targets y   
     """
@@ -75,7 +85,7 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
     
     ntotal=250000
     wFactor = 1.* ntotal / X.shape[0]
-    print "AMS,max: %4.3f (wfactor=%4.3f)" % (AMS(s, 0.0,wFactor),wFactor)
+    print "AMS,max: %4.3f (wfactor=%4.3f)" % (AMS(s*wFactor, 0.0),wFactor)
     
     y = X['Label'].str.replace(r's','1').str.replace(r'b','0')
     y = np.asarray(y.astype(float))   	  
@@ -100,6 +110,33 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
             print "Dropping features: ",col
             X_all = X_all.drop([col], axis=1)
     
+    if polyFeatures is not None:
+	print "Creating feature interaction for primary features"
+	
+	#removing derived features
+	X_pri = X_all.copy()
+	cols = X_pri.columns
+	for col in cols:
+	    if col.startswith('DER') or 'jet' in col:
+	      X_pri.drop([col], axis=1,inplace=True)
+	    #if col.startswith('PRI'):
+	      #X_der.drop([col], axis=1,inplace=True)
+	      
+	cols = X_pri.columns   
+	n=len(X_pri.columns)
+	for i,col1 in enumerate(cols):
+	    for j,col2 in enumerate(cols):
+		if j<=i: continue
+		new_name=col1+"X"+col2
+		if new_name in polyFeatures:
+		    X_new = pd.DataFrame(X_pri.ix[:,col1].mul(X_pri.ix[:,col2]))
+		    X_new.columns=[new_name]
+		    X_all = pd.concat([X_all, X_new],axis=1)
+
+	print X_all.columns
+	print "New dim:",X_all.shape
+	
+    
     if ('DER' or 'PRI') in onlyPRI:
 	cols = X_all.columns
 	for col in cols:
@@ -107,8 +144,8 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
              print "Dropping column: ",col
              X_all = X_all.drop([col], axis=1)
 
-    if createNAFeats:
-        X_all=createFeatures(X_all)
+    if createNAFeats is not None:
+        X_all=createFeatures(X_all,True,createNAFeats)
 		
     if replaceNA:
 	X_all = X_all.replace(-999, np.NaN)
@@ -132,7 +169,7 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
             print X_all[col].describe()
         print X_all.corr()
         #scatter_matrix(X_all, alpha=0.2, figsize=(6, 6), diagonal='hist')
-        plt.show()
+        #plt.show()
 	    
 	print "idx max observations:" 
 	print X_all.apply(lambda x: x.idxmax())
@@ -143,8 +180,8 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
     
     if plotting:
         #print type(weights)
-        #plt.hist(weights[sSelector],bins=50,color='b')
-        #plt.hist(weights[bSelector],bins=50,color='r',alpha=0.3)
+        plt.hist(weights[sSelector],bins=50,color='b')
+        plt.hist(weights[bSelector],bins=50,color='r',alpha=0.3)
         plt.show()
         X[sSelector].hist(color='b', alpha=0.5, bins=50)
         X[bSelector].hist(color='r', alpha=0.5, bins=50)
@@ -164,11 +201,9 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
     return (X,y,X_test,weights)
 
     
-def AMS(s,b,factor):
+def AMS(s,b):
     assert s >= 0
     assert b >= 0
-    s = s * factor
-    b = b * factor
     bReg = 10.
     return math.sqrt(2 * ((s + b + bReg) * 
                           math.log(1 + s / (b + bReg)) - s))
@@ -286,6 +321,15 @@ def amsXvalidation(lmodel,lX,ly,lw,nfolds=5,cutoff=0.5,useProba=True,useWeights=
     else:
 	return None
 
+	
+def computeCutoff(y_pred,threshold_ratio):
+    ntop = int(threshold_ratio * len(y_pred))
+    idx_sorted=np.argsort(-y_pred)
+    #print idx_sorted
+    #print y_pred[idx_sorted]
+    optcutoff=y_pred[idx_sorted][ntop]
+    print "ntop: %4d Opt cutoff=%6.3f"%(ntop,optcutoff)
+    return(optcutoff)
   
 def ams_score(y_true,y_pred,**kwargs):
     """
@@ -310,17 +354,22 @@ def ams_score(y_true,y_pred,**kwargs):
     cutoff=0.5
     ntotal=250000
     
-    
-    #check if we are dealing with proba
     info="- using 0-1 classification"
-    if kwargs['use_proba']  and kwargs['cutoff'] is not None:
-	if 'cutoff' in kwargs:
-	    cutoff=kwargs['cutoff']
-
-	if len(y_pred.shape)>1 and y_pred.shape[1]>1:
-	    y_pred=y_pred[:,1]
+    #correcting for shape
+    if len(y_pred.shape)>1 and y_pred.shape[1]>1:
+	y_pred=y_pred[:,1]
 	info="- using probabilities with cutoff=%4.2f"%(cutoff)
     
+    
+    #check if we are dealing with proba 
+    if kwargs['use_proba']  and kwargs['cutoff'] is not None:
+	if 'cutoff' in kwargs and kwargs['cutoff']=='compute':
+	    cutoff = computeCutoff(y_pred,0.15)
+	elif 'cutoff' in kwargs :
+	    cutoff=kwargs['cutoff']
+
+
+       
     if opt_cutoff:
 	cutofflist=[0.82,0.83,0.84,0.85,0.86,0.87,0.88]
     else:
@@ -344,27 +393,28 @@ def ams_score(y_true,y_pred,**kwargs):
 	#print "Unique weights for signal:",np.unique(sample_weight[sSelector])[0:5]
 	
 	wfactor=1.* ntotal / y_true.shape[0]
-	ssum = np.sum(sample_weight[sSelector])
-	bsum = np.sum(sample_weight[bSelector])
-	ams_max=AMS(ssum, 0.0,wfactor)
-	ams=AMS(tpr, fpr,wfactor)
-	
-	print "cutoff=%6.3f AMS= %6.3f"%(cutoff,ams)
+	ssum = np.sum(sample_weight[sSelector])*wfactor
+	bsum = np.sum(sample_weight[bSelector])*wfactor
+	ams_max=AMS(ssum, 0.0)
+	ams=AMS(tpr*wfactor, fpr*wfactor)
 	
 	if ams>ams_best:
 	    ams_best=ams
 	    cutoff_opt=cutoff
+	if opt_cutoff:
+	    print "cutoff=%6.3f AMS= %6.3f"%(cutoff,ams)
 
     if opt_cutoff:
 	print "Optimized cutoff=%6.3f AMS= %6.3f"%(cutoff_opt,ams_best)
 	ams = ams_best
 	cutoff = cutoff_opt
+	
     
     if verbose: 
 	wsum=np.sum(y_pred >= cutoff)
 	wsum_truth=np.sum(sSelector)
 	print "Cutoff: %6.3f Nr. signals(pred): %4d Ratio(pred): %6.3f signals(truth): %4d ratio(truth): %6.3f" %(cutoff,wsum,wsum/(float(y_pred.shape[0])),wsum_truth,wsum_truth/(float(y_pred.shape[0])) )
-	print '*Sum,weights_s = %8.2f, Sum,weights_b=%8.2f ratio=%8.2f'%(ssum,bsum,bsum/ssum),
+	print '*Sum,weights_s = %8.2f, Sum,weights_b=%8.2f ratio=%8.2f wfactor=8.2%f'%(ssum,bsum,bsum/ssum,wfactor)
 	print 'AMS = %6.3f [AMS_max = %6.3f] %-32s'%(ams,ams_max,info)
 	
 	
@@ -430,6 +480,8 @@ def makePredictions(lmodel,lXs_test,filename,useProba=True,cutoff=0.85,printProb
     
     
     print "Binarize probabilities anyway with cutoff:",cutoff," and create the labels s+b"
+    if 'compute' in cutoff:
+	cutoff=computeCutoff(probs,0.15)
     vfunc = np.vectorize(makeLabels)
     labels = vfunc(probs,cutoff)
 	
@@ -682,7 +734,7 @@ if __name__=="__main__":
     np.random.seed(123)
     nsamples=-1
     onlyPRI='' #'PRI' or 'DER'
-    createNAFeats=False #brings something?
+    createNAFeats='DER_mass_MMC_NA' #brings something?
     dropCorrelated=False
     dropFeatures=None #[u'PRI_jet_subleading_eta',u'PRI_jet_subleading_phi','PRI_jet_num']
     scale_data=False #bringt nichts by NB
@@ -694,12 +746,14 @@ if __name__=="__main__":
     useWeights=True #use weights for training
     scale_wt=200
     useRegressor=False
-    cutoff=0.86
+    cutoff='compute'
     clusterFeature=False
+    polyFeatures=['PRI_tau_ptXPRI_met_sumet','PRI_tau_ptXPRI_lep_pt','PRI_lep_phiXPRI_met_phi','PRI_lep_ptXPRI_met','PRI_tau_etaXPRI_lep_eta','PRI_tau_ptXPRI_met']
+    #polyFeatures=None
     subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub2907a.csv"
-    Xtrain,ytrain,Xtest,wtrain=prepareDatasets(nsamples,onlyPRI,replaceNA,plotting,stats,transform,createNAFeats,dropCorrelated,scale_data,clusterFeature,dropFeatures)
-    nfolds=5#
-    #nfolds=StratifiedShuffleSplit(ytrain, n_iter=5, test_size=0.5)
+    Xtrain,ytrain,Xtest,wtrain=prepareDatasets(nsamples,onlyPRI,replaceNA,plotting,stats,transform,createNAFeats,dropCorrelated,scale_data,clusterFeature,dropFeatures,polyFeatures)
+    #nfolds=5#
+    nfolds=StratifiedShuffleSplit(ytrain, n_iter=5, test_size=0.5)
     #pcAnalysis(Xtrain,Xtest,ytrain,wtrain,ncomp=2,transform=False)       
     #RF cluster1 AMS=2.600 (77544)
     #RF cluster2 AMS=4.331 (72543)
@@ -739,19 +793,19 @@ if __name__=="__main__":
     #odel = ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features=5,oob_score=False)#opt
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', model)])
     #model = amsGridsearch(model,Xtrain,ytrain,wtrain,fitWithWeights=useWeights,nfolds=nfolds,useProba=useProba,cutoff=cutoff)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=150, learning_rate=0.1, max_depth=6,subsample=1.0,verbose=False) #opt weight =500 AMS=3.548
+    model = GradientBoostingClassifier(loss='deviance',n_estimators=150, learning_rate=0.1, max_depth=6,subsample=1.0,verbose=False) #opt weight =500 AMS=3.548
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=0.5,max_features=10,min_samples_leaf=20,verbose=1) #opt weight =500 AMS=3.548
-    #model = XgboostClassifier(n_estimators=200,learning_rate=0.08,max_depth=7,n_jobs=4,NA=-999.9)
-    #basemodel =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=2,criterion='entropy', max_features=5,oob_score=False)#SW-proba=False ams=3.42
+    #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,n_jobs=4,NA=-999.9)
+    #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False)#SW-proba=False ams=3.42
     #model = AdaBoostClassifier(base_estimator=basemodel,n_estimators=10,learning_rate=0.5)   
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=150, learning_rate=0.1, max_depth=6,subsample=1.0,verbose=False)
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False)
-    model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.06, max_depth=8,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False)#new opt
+    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.06, max_depth=8,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False)#new opt
     #model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,verbose=False)
-    model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=useWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=8) 
+    model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=useWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=1) 
     #divideAndConquer(model,Xtrain,ytrain,Xtest,wtrain,n_clusters=3)
     #model = amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=True)
-    #iterativeFeatureSelection(model,Xtrain,Xtest,ytrain,10,1)    
+    #iterativeFeatureSelection(model,Xtrain,Xtest,ytrain,5,1)    
     #model= amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=ufseProba,useWeights=useWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=False)
     #clist=[0.25,0.50,0.75,0.85]
     #for c in clist:
@@ -761,7 +815,7 @@ if __name__=="__main__":
 	  #model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=useWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt)
     #model = amsGridsearch(model,Xtrain,ytrain,wtrain,fitWithWeights=useWeights,nfolds=nfolds,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=8)
     print model
-    makePredictions(model,Xtest,subfile,useProba=useProba,cutoff=cutoff)
-    checksubmission(subfile)
+    #makePredictions(model,Xtest,subfile,useProba=useProba,cutoff=cutoff)
+    #checksubmission(subfile)
     print("Model building done on %d samples in %fs" % (Xtrain.shape[0],time() - t0))
     plt.show()
