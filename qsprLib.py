@@ -15,6 +15,7 @@ import scipy as sp
 from scipy import sparse
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import pylab as pl
 
 from sklearn.preprocessing import StandardScaler,PolynomialFeatures
@@ -22,7 +23,7 @@ from sklearn.feature_extraction.text import CountVectorizer,HashingVectorizer,Tf
 #from sklearn import metrics
 from sklearn import cross_validation,grid_search
 from sklearn.cross_validation import StratifiedKFold,KFold,StratifiedShuffleSplit,ShuffleSplit
-from sklearn.metrics import roc_auc_score,classification_report,make_scorer,f1_score,precision_score
+from sklearn.metrics import roc_auc_score,classification_report,make_scorer,f1_score,precision_score,mean_squared_error
 #from sklearn.utils.extmath import density
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.decomposition import TruncatedSVD,PCA
@@ -32,8 +33,8 @@ from sklearn.feature_selection import SelectKBest,SelectPercentile, chi2, f_clas
 from sklearn.naive_bayes import BernoulliNB,MultinomialNB,GaussianNB
 from sklearn.cluster import k_means
 
-from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier
-from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor,BaggingClassifier
+from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier,LinearRegression
+from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor,BaggingClassifier,RandomForestRegressor
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import LinearSVC
 from sklearn.svm import SVC
@@ -499,9 +500,6 @@ def removeZeroVariance(X,Xtest):
 	X_all.drop(X_all.columns[idx], axis=1,inplace=True)
 	X = X_all[len(Xtest.index):]
         Xtest = X_all[:len(Xtest.index)]
-        
-        
-        
 	return(X,Xtest)
 	
 	

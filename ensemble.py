@@ -50,9 +50,14 @@ def createModels():
     #xmodel = XModel("gbm2",model,X,Xtest,w,cutoff=None,scale_wt=35)
     #ensemble.append(xmodel)
     
-    #TODO compute cutoff by fix percentage of signals
-    #TODO add 1 to columns...?? SHOULD be done automatically
-    #TODO SEPARATE bagging and ensemble building with oob xvalidation data
+    #TODO Bumping
+    #TODO compute rapidity http://en.wikipedia.org/wiki/Pseudorapidity
+    #TODO compute collinear mass or momenta 
+    #TODO compute polar angle
+    #TODO impute mass
+    #TODO compute cutoff by fix percentage of signals -> OK
+    #TODO add 1 to columns...?? SHOULD be done automatically ->NO
+    #TODO SEPARATE bagging and ensemble building with oob xvalidation data ->OK
     #TODO USE cutoff optimizer within AMS
     #TODO in train ensemble load labels->voting # voting is mist
     #TODO RF2MOD modfiy weights only slighty from unity
