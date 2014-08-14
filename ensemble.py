@@ -12,6 +12,7 @@ from scipy.optimize import fmin,fmin_cobyla
 from random import randint
 import sys
 from sklearn.externals.joblib import Parallel, delayed, logger
+from sklearn.base import clone
 
 train_indices=[]
 test_indices=[]
@@ -75,9 +76,14 @@ def createModels():
     #xmodel = XModel("xgboost2",model,X,Xtest,w,cutoff=0.7,scale_wt=1)
     #ensemble.append(xmodel)
     
-    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=True,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    model = KNeighborsClassifier(n_neighbors=5,weights='distance',algorithm='ball_tree')#AMS~2.245
-    xmodel = XModel("KNN1",model,X,Xtest,w,cutoff=0.7,scale_wt=None)
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=True,plotting=False,stats=False,transform=False,createNAFeats=False,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    #model = KNeighborsClassifier(n_neighbors=5,weights='distance',algorithm='ball_tree')#AMS~2.245
+    #xmodel = XModel("KNN1",model,X,Xtest,w,cutoff=0.7,scale_wt=None)
+    #ensemble.append(xmodel)
+    
+    X,y,Xtest,w=prepareDatasets(nsamples=10000,onlyPRI='',replaceNA=True,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=True,scale_data=False,clusterFeature=False,dropFeatures=None,polyFeatures=None,createMassEstimate=False,imputeMassModel=None)
+    model = KNeighborsClassifier(n_neighbors=5)#AMS~2.4
+    xmodel = XModel("KNN2",model,X,Xtest,w,cutoff=0.7,scale_wt=None)
     ensemble.append(xmodel)
        
     #ADAboost
@@ -95,20 +101,12 @@ def createModels():
     #model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,verbose=False)
     #xmodel = XModel("gbm_realbag",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
     #ensemble.append(xmodel)
-    
-    
-    #collect them
+        
+    #some info
     for m in ensemble:
 	m.summary()
     return(ensemble,y)
 
-    
-def createBaggingData(ensemble,ly,iterations=5,):
-    """
-    Do bagging and save oob data for ensembling
-    """
-    cv = ShuffleSplit(m.Xtrain.shape[0], folds,random_state=j,n_iter=iterations, test_size=0.8)
-    
     
 def createOOBdata(ensemble,ly,repeats=5):
     """
@@ -208,7 +206,7 @@ def createOOBdata(ensemble,ly,repeats=5):
 	m.preds=pd.concat([tmp, m.preds],axis=1)
 	#save final model
 
-	#TESTSET
+	#TESTSETscores
 	#OOBDATA
 	allpred = pd.concat([m.preds, m.oob_preds])
 	#print allpred
@@ -221,8 +219,87 @@ def createOOBdata(ensemble,ly,repeats=5):
 	
     return(ensemble)
 
-def fit_and_score():
-   pass
+def createOOBdata_parallel(ensemble,ly,repeats=5,nfolds=4,n_jobs=1,verbose=False):
+    """
+    parallel oob creation
+    """
+    
+    for m in ensemble:
+	use_proba = m.cutoff is not None
+	
+	print "Computing oob predictions for:",m.name
+	print m.classifier.get_params
+	oob_preds=np.zeros((m.Xtrain.shape[0],repeats))
+	
+	#outer loop
+	for j in xrange(repeats):
+	    cv = KFold(ly.shape[0], n_folds=nfolds,shuffle=True,random_state=j)
+	    #cv = StratifiedKFold(ly, n_folds=nfolds,shuffle=True,random_state=None)
+	    #cv = StratifiedShuffleSplit(ly, n_iter=nfolds, test_size=0.25,random_state=j)
+	    print cv
+	    
+	    scores=np.zeros(nfolds)
+	    ams_scores=np.zeros(nfolds)
+	    
+	    #parallel stuff
+	    parallel = Parallel(n_jobs=n_jobs, verbose=verbose,
+			    pre_dispatch='2*n_jobs')
+	    
+	    #parallel run
+	    oob_pred = parallel(delayed(fit_and_score)(clone(m.classifier), m.Xtrain, ly, train, test,m.sample_weight,m.scale_wt,use_proba,m.cutoff)
+			  for train, test in cv)
+	    #collect oob_pred
+	    oob_pred=np.array(oob_pred)[:, 0]
+	    
+	    for i,(train,test) in enumerate(cv):
+		oob_preds[test,j] = oob_pred[i,:]
+		ams_scores[i]=ams_score(ly[test],oob_preds[test,j],sample_weight=m.sample_weight[test],use_proba=use_proba,cutoff=m.cutoff)
+
+	    auc_oobscore=roc_auc_score(ly,oob_preds[:,j])
+	    ams_oobscore=ams_score(ly,oob_preds[:,j],sample_weight=m.sample_weight,use_proba=use_proba,cutoff=m.cutoff)
+	    
+	    print "Iteration:",j,
+	    
+	    print " <AMS>: %0.3f (+/- %0.3f)" % (ams_scores.mean(), ams_scores.std()),
+	    print " AMS,oob: %0.3f" %(ams_oobscore),	    
+	    print " --- AUC,oob: %0.3f" %(auc_oobscore)
+	    
+	    
+	#simple averaging of blending
+	oob_avg=np.mean(oob_preds,axis=1)
+	#print "Summary: <AUC,oob>: %0.3f (%d repeats)" %(roc_auc_score(ly,oob_avg),repeats)
+	print "Summary: <AMS,oob>: %0.3f (after %d repeats)" %(ams_score(ly,oob_avg,sample_weight=m.sample_weight,use_proba=use_proba,cutoff=m.cutoff,verbose=False),repeats)
+    
+    
+def fit_and_score(xmodel,X,y,train,test,sample_weight=None,scale_wt=None,use_proba=True,cutoff=0.5):
+    """
+    Score function for parallel oob creation
+    """
+    Xtrain = X.iloc[train]
+    Xvalid = X.iloc[test]
+    ytrain = y[train]
+    wtrain = sample_weight[train]
+    
+    if scale_wt is not None:
+	wtrain_fit=modTrainWeights(wtrain,ytrain,scale_wt)
+	xmodel.fit(Xtrain,ytrain,sample_weight=wtrain_fit)
+	
+    else:
+	wtrain_fit=None
+	xmodel.fit(Xtrain,ytrain)
+    
+    if use_proba:
+	#saving out-of-bag predictions
+	oob_pred = xmodel.predict_proba(Xvalid)[:,1]
+	#if probabilities are available we can do the auc
+	#scores[i]=roc_auc_score(ly[valid],oob_preds[valid,j])		    
+    #classification    
+    else:
+	oob_pred = xmodel.predict(Xvalid)
+    
+    score=ams_score(y[test],oob_pred,sample_weight=sample_weight[test],use_proba=use_proba,cutoff=cutoff,verbose=False)
+    return [oob_pred]
+
 
    
 def trainEnsemble(ensemble=None,mode='classical',useCols=None,addMetaFeatures=False,use_proba=True,dropCorrelated=True,subfile=""):
@@ -567,16 +644,16 @@ def selectModels():
 
 if __name__=="__main__":
     np.random.seed(123)
-    #ensemble,y=createModels()
-    #ensemble=createOOBdata(ensemble,y,4)
+    ensemble,y=createModels()
+    ensemble=createOOBdata_parallel(ensemble,y,repeats=10,nfolds=8,n_jobs=8)
     #normal models
     #models=["xgboost2"]
     #bagged models
     #models=["gbm_bag1","gbm_bag2","gbm_bag3",""]
     #models=["gbm1","xgboost2","rf2","gbm2","KNN1","gbm_realbag"]
-    models=["gbm_realbag"]
-    useCols=['DER_mass_MMC']
+    #models=["gbm_realbag"]
+    #useCols=['DER_mass_MMC']
     #useCols=None
-    trainEnsemble(models,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub3108c.csv')
+    #trainEnsemble(models,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub3108c.csv')
     #selectModels()
     
