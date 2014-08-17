@@ -58,7 +58,7 @@ def massImputer(X_orig,y_tmp,massmodel,doSVD=None,nsamples=250000,newfeature=Tru
     """
     print "Imputing mass..."
     print X_orig['DER_mass_MMC'].describe()
-    if loadData:
+    if loadData or 'load' in massmodel:
 	X_orig['DER_mass_EST'] = pd.read_csv('../datamining-kaggle/higgs/mass_est.csv', sep=",", na_values=['?'], header=None, index_col=0)
 	print X_orig['DER_mass_EST'].describe()
 	return(X_orig)
@@ -237,6 +237,7 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
 	X_all=massImputer(X_all,y,imputeMassModel)
     
     if createMassEstimate:
+        #TODO not yet finishe
 	massEstimator(X_all)
     
     if ('DER' or 'PRI') in onlyPRI:
@@ -560,13 +561,13 @@ def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,c
     #parameters = {'n_estimators':[150,300], 'max_features':[5,10]}#rf
     #parameters = {'n_estimators':[250], 'max_features':[6,8,10],'min_samples_leaf':[5,10]}#xrf+xrf
     #parameters = {'max_depth':[7], 'learning_rate':[0.08],'n_estimators':[100,200,300],'subsample':[0.5],'max_features':[10],'min_samples_leaf':[50]}#gbm
-    parameters = {'max_depth':[7], 'learning_rate':[0.08],'n_estimators':[200],'subsample':[1.0],'max_features':[10],'min_samples_leaf':[20]}#gbm
+    #parameters = {'max_depth':[7], 'learning_rate':[0.08],'n_estimators':[200],'subsample':[1.0],'max_features':[10],'min_samples_leaf':[20]}#gbm
     #parameters = {'max_depth':[6,5], 'learning_rate':[0.1,0.09,0.08],'n_estimators':[150],'subsample':[1.0],'loss':['deviance'],'min_samples_leaf':[20],'max_features':[6,8,10]}#gbm
     #parameters = {'max_depth':[10], 'learning_rate':[0.001],'n_estimators':[500],'subsample':[0.5],'loss':['deviance']}#gbm
     #parameters = {'max_depth':[15,20,25], 'learning_rate':[0.1,0.01],'n_estimators':[150,300],'subsample':[1.0,0.5]}#gbm
     #parameters = {'max_depth':[20,30], 'learning_rate':[0.1,0.05],'n_estimators':[300,500,1000],'subsample':[0.5],'loss':['exponential']}#gbm
     #parameters = {'max_depth':[15,20], 'learning_rate':[0.05,0.01,0.005],'n_estimators':[250,500],'subsample':[1.0,0.5]}#gbm
-    #parameters = {'n_estimators':[200,500], 'learning_rate':[0.1,0.01,0.001]}#adaboost
+    parameters = {'n_estimators':[100,200,400], 'learning_rate':[0.1,0.05]}#adaboost
     #parameters = {'filter__percentile':[20,15]}#naives bayes
     #parameters = {'filter__percentile': [15], 'model__alpha':[0.0001,0.001],'model__n_iter':[15,50,100],'model__penalty':['l1']}#SGD
     #parameters['model__n_neighbors']=[40,60]}#knn
@@ -622,7 +623,7 @@ def makePredictions(finalmodel,lXs_test,filename,useProba=True,cutoff=None,print
     
     print "Saving predictions to: ",filename
     pred_df = pd.DataFrame(data=d)
-    print pred_df
+    #print pred_df
     pred_df.to_csv(filename,index=False) 
     
 
@@ -876,25 +877,25 @@ if __name__=="__main__":
     pd.set_option('display.max_rows', 40)
     
     np.random.seed(123)
-    nsamples=-1
+    nsamples=10000
     onlyPRI='' #'PRI' or 'DER'
     #createNAFeats='DER_mass_MMC_NA' #brings something?
     createNAFeats=None
-    dropCorrelated=True
+    dropCorrelated=False
     dropFeatures=None #[u'PRI_jet_subleading_eta',u'PRI_jet_subleading_phi','PRI_jet_num']
     scale_data=False #bringt nichts by NB
-    replaceNA=True
+    replaceNA=False
     plotting=False
     stats=False
-    transform=True
+    transform=False
     useProba=True  #use probailities for prediction
-    fitWithWeights=False #use weights for training
+    fitWithWeights=True #use weights for training
     #scale_wt='auto'
     #scale_wt=None
     scale_wt=200
     useRegressor=False
-    #cutoff='compute'
-    cutoff=0.7
+    cutoff='compute'
+    #cutoff=85
     clusterFeature=False
     #polyFeatures=['PRI_tau_ptXPRI_met_sumet','PRI_tau_ptXPRI_lep_pt','PRI_lep_phiXPRI_met_phi','PRI_lep_ptXPRI_met','PRI_tau_etaXPRI_lep_eta','PRI_tau_ptXPRI_met']
     polyFeatures=None
@@ -902,15 +903,15 @@ if __name__=="__main__":
     #imputeMassModel=RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='mse', max_features=5,oob_score=False)#LinearRegression()##SGDRegressor(alpha=0.0001,n_iter=5,shuffle=False,loss='squared_loss',penalty='l2')#GaussianNB()#KNeighborsClassifier(n_neighbors=100)#
     createMassEstimate=False
     smoothWeights=None
-    normalizeWeights=True
+    normalizeWeights=False
     
-    subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1408c.csv"
+    subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1708b.csv"
     Xtrain,ytrain,Xtest,wtrain=prepareDatasets(nsamples,onlyPRI,replaceNA,plotting,stats,transform,createNAFeats,dropCorrelated,scale_data,clusterFeature,dropFeatures,polyFeatures,createMassEstimate,imputeMassModel)
     #nfolds=8#
     #nfolds=StratifiedShuffleSplit(ytrain, n_iter=8, test_size=0.25)
     #nfolds=ShuffleSplit(ytrain.shape[0], n_iter=8, test_size=0.2)
-    nfolds = StratifiedKFold(ytrain, 8)
-    #nfolds = KFold(ytrain.shape[0], 8)
+    #nfolds = StratifiedKFold(ytrain, 8)
+    nfolds = KFold(ytrain.shape[0], 8)
     #pcAnalysis(Xtrain,Xtest,ytrain,wtrain,ncomp=2,transform=False)       
     #RF cluster1 AMS=2.600 (77544)
     #RF cluster2 AMS=4.331 (72543)
@@ -940,8 +941,8 @@ if __name__=="__main__":
     #model = pyGridSearch(model,Xtrain,ytrain)
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', GaussianNB())])
     #model = KNeighborsClassifier(n_neighbors=5,weights='distance',algorithm='ball_tree')#AMS~2.245
-    model = KNeighborsClassifier(n_neighbors=5)
-    #model = AdaBoostClassifier(n_estimators=150,learning_rate=0.1)
+    #model = KNeighborsClassifier(n_neighbors=5)
+    #model = AdaBoostClassifier(n_estimators=200,learning_rate=0.1)
     #model=GaussianNB()
     #model = SVC(C=1.0,gamma=0.0)
     
@@ -959,8 +960,8 @@ if __name__=="__main__":
     #model = AdaBoostClassifier(base_estimator=basemodel,n_estimators=10,learning_rate=0.5)   
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False)
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=6,subsample=1.0,max_features=10,min_samples_leaf=50,verbose=False)#AMS=3.678
-    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.06, max_depth=8,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False)#new opt
-    #model = BaggingClassifier(base_estimator=basemodel,n_estimators=20,n_jobs=8,verbose=False,max_features=10)
+    basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.1, max_depth=6,subsample=.5,max_features=8,min_samples_leaf=100,verbose=False)#new opt
+    model = BaggingClassifier(base_estimator=basemodel,n_estimators=10,n_jobs=1,verbose=1)
     model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=fitWithWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=8,smoothWeights=smoothWeights,normalizeWeights=normalizeWeights) 
     #divideAndConquer(model,Xtrain,ytrain,Xtest,wtrain,n_clusters=3)
     #model = amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,fitWithWeights=fitWithWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=True)

@@ -27,6 +27,7 @@ class XModel:
       else:
 	self.sparse=False
       self.sample_weight=sample_weight
+      
       self.oob_preds=np.zeros((Xtrain.shape[0],1))
       self.preds=np.zeros((Xtest.shape[0],1))
       
@@ -51,9 +52,9 @@ class XModel:
       print "proba cutoff  :" , self.cutoff
       print "scale weight  :" , self.scale_wt
       
-      print "predictions mean  :" , np.mean(self.preds),
+      print "predictions mean %6.3f :" %(np.mean(self.preds)),
       print " Dim:", self.preds.shape
-      print "oob preds mean   :" , np.mean(self.oob_preds),
+      print "oob preds mean %6.3f  :" %(np.mean(self.oob_preds)),
       print " Dim:", self.oob_preds.shape
       
       
@@ -61,20 +62,36 @@ class XModel:
    def __repr__(self):
       self.summary()
    
-   #static functions
-   def saveModel(lmodel,filename):
-      if not hasattr(lmodel,'xgboost_model'):
+   #static function for saving
+   def saveModel(xmodel,filename):
+      if not hasattr(xmodel,'xgboost_model'):
 	  pickle_out = open(filename.replace('.csv',''), 'wb')
-	  pickle.dump(lmodel, pickle_out)
+	  pickle.dump(xmodel, pickle_out)
 	  pickle_out.close()
-	  #my_object_file = open('classifiers.pkl', 'rb')
-	  #clf = pickle.load(my_object_file)
-	  #my_object_file.close()
+	  
   
+   #static function for saving only the important parameters
+   def saveCoreData(xmodel,filename):
+      if not hasattr(xmodel,'xgboost_model'):
+	  #reset not needed stuff
+	  xmodel.classifier=None
+	  xmodel.Xtrain=None
+	  xmodel.Xtest=None
+	  xmodel.sample_weight=None
+	  #keep only parameters and predictions
+	  pickle_out = open(filename.replace('.csv',''), 'wb')
+	  pickle.dump(xmodel, pickle_out)
+	  pickle_out.close()
   
-   def loadModel():
-      pass
+   #static function for loading
+   def loadModel(filename):
+      my_object_file = open(filename+'.pkl', 'rb')
+      xmodel = pickle.load(my_object_file)
+      my_object_file.close()
+      return xmodel
 
+      
+      
 """
 Just a test for subclassing
 """
