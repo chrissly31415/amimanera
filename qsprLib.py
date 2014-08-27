@@ -60,7 +60,29 @@ def one_hot_encoder(data, col, replace=False):
 	data = data.drop(col, axis=1)
 	data = data.join(vecData)
     return data
-  
+
+    
+def removeCorrelations(X_all,threshhold):
+    #filter correlated data
+    print "Removing correlated columns with threshhold:",threshhold
+    c = X_all.corr().abs()
+    #print c
+    corcols={}
+    for col in range(len(c.columns)):
+	for row in range(len(c.index)):
+	    if c.columns[col] in corcols or c.index[row] in corcols:
+		continue
+	    if row<=col:
+		continue
+	    if c.iloc[row,col]<1 and c.iloc[row,col]>threshhold:
+		corcols[c.index[row]]=c.columns[col]+" :"+str("%4.3f"%(c.iloc[row,col]))
+
+    for el in corcols.keys():
+	print "Dropped: %32s due to Col1: %32s"%(el,corcols[el])
+    X_all=X_all.drop(corcols,axis=1)
+    return(X_all)
+    
+    
 def makePredictions(lmodel,lXs_test,lidx,filename):
     """
     Uses priorily fit model to make predictions

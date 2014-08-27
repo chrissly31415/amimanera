@@ -22,6 +22,7 @@ class XModel:
       self.classifier = classifier
       self.Xtrain=Xtrain
       self.Xtest=Xtest
+       
       if isinstance(Xtrain,sp.sparse.csr.csr_matrix) or isinstance(Xtrain,sp.sparse.csc.csc_matrix):
 	self.sparse=True
       else:
@@ -30,6 +31,7 @@ class XModel:
       
       self.oob_preds=np.zeros((Xtrain.shape[0],1))
       self.preds=np.zeros((Xtest.shape[0],1))
+      self.ytrain=np.zeros((Xtrain.shape[0],1))
       
       self.cutoff=cutoff
       if cutoff is not None:
