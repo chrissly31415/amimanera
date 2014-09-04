@@ -12,7 +12,6 @@ import pickle
 
 from pandas.tools.plotting import scatter_matrix
 from xgboost_sklearn import *
-from reduce_features_forum import *
 
 
 def createFeatures(X_all,keepAll=True,createNAFeats='all'):
@@ -150,11 +149,9 @@ def massEstimator(X_all,createPsq=True,normalize=True,invertEta=True):
 	tmp = X_all['PRI_tau_eta'].map(np.sinh)
 	X_all['p_tau_z']=X_all.PRI_tau_pt*tmp
 	
-	X_all['p_tau_sq']=X_all['p_tau_x']*X_all['p_tau_x']+X_all['p_tau_y']*X_all['p_tau_y']+X_all['p_tau_z']*X_all['p_tau_z']
-	X_all['p_tau_sq']=X_all['p_tau_sq'].map(np.sqrt)
-	del X_all['p_tau_x']
-	del X_all['p_tau_y']
-	del X_all['p_tau_z']
+	X_all['p_tau_abs']=X_all['p_tau_x']*X_all['p_tau_x']+X_all['p_tau_y']*X_all['p_tau_y']+X_all['p_tau_z']*X_all['p_tau_z']
+	X_all['p_tau_abs']=X_all['p_tau_abs'].map(np.sqrt)
+	
     
       
 	tmp = X_all['PRI_lep_phi'].map(np.cos)
@@ -164,13 +161,24 @@ def massEstimator(X_all,createPsq=True,normalize=True,invertEta=True):
 	tmp = X_all['PRI_lep_eta'].map(np.sinh)
 	X_all['p_lep_z']=X_all.PRI_lep_pt*tmp
 	
-	X_all['p_lep_sq']=X_all['p_lep_x']*X_all['p_lep_x']+X_all['p_lep_y']*X_all['p_lep_y']+X_all['p_lep_z']*X_all['p_lep_z']
-	X_all['p_lep_sq']=X_all['p_lep_sq'].map(np.sqrt)
+	X_all['p_lep_abs']=X_all['p_lep_x']*X_all['p_lep_x']+X_all['p_lep_y']*X_all['p_lep_y']+X_all['p_lep_z']*X_all['p_lep_z']
+	X_all['p_lep_abs']=X_all['p_lep_abs'].map(np.sqrt)
+	
+	#new features accoring to eq. 1 sasonov et al.
+	X_all['p_tauXp_lep']=X_all['p_tau_abs']*X_all['p_lep_abs']
+	X_all['metXp_tau']=X_all['PRI_met']*X_all['p_tau_abs']
+	X_all['metXp_lep']=X_all['PRI_met']*X_all['p_lep_abs']
+	
+	X_all['p_lepXp_tau_vec']=X_all['p_lep_x']*X_all['p_tau_x']+X_all['p_lep_y']*X_all['p_tau_y']+X_all['p_lep_z']*X_all['p_tau_z']
+	X_all['metXp_tau_vec']=X_all['PRI_met']*X_all['PRI_met_phi'].map(np.cos)*X_all['p_tau_x']+X_all['PRI_met']*X_all['PRI_met_phi'].map(np.sin)*X_all['p_tau_y']
+	X_all['metXp_lep_vec']=X_all['PRI_met']*X_all['PRI_met_phi'].map(np.cos)*X_all['p_lep_x']+X_all['PRI_met']*X_all['PRI_met_phi'].map(np.sin)*X_all['p_lep_y']
+    
 	del X_all['p_lep_x']
 	del X_all['p_lep_y']
 	del X_all['p_lep_z']
-	
-	
+	del X_all['p_tau_x']
+	del X_all['p_tau_y']
+	del X_all['p_tau_z']
     
     
     if normalize:
@@ -364,6 +372,44 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
     print "Dim test set :",X_test.shape
     return (X,y,X_test,weights)
 
+
+def delta_angle_norm(a, b) :
+    """
+    this and the following functions are taken from kaggle forum
+    """
+    delta = (a - b)
+    delta = delta + (delta < -math.pi) * 2 * math.pi
+    delta = delta - (delta > math.pi) * 2 * math.pi
+    return delta
+
+def angle_invert(angle, invert_mask) :
+    return (
+        -999 * (angle == -999) +
+        (angle != -999) * (
+            angle * (invert_mask == False) +
+            (-angle) * (invert_mask == True)))
+
+def reduce_angles(X) :
+    """ This function works in-place!"""
+    
+    delta_angle = 'PRI_tau_phi'
+    for angle in ['PRI_lep_phi', 'PRI_met_phi'] :
+        X['%s-%s' % (angle, delta_angle)] = delta_angle_norm(X[angle], X[delta_angle])
+        del X[angle]
+        
+    for angle in ['PRI_jet_leading_phi', 'PRI_jet_subleading_phi'] :
+        X['%s-%s'% (angle, delta_angle)] = (
+            delta_angle_norm(X[angle], X[delta_angle]) * (X[angle] != -999) +
+            (-999) * (X[angle] == -999)
+        )
+        del X[angle]
+
+    del X[delta_angle]
+    
+    invert_mask = X['PRI_tau_eta'] < 0
+    for angle in ['PRI_tau_eta', 'PRI_lep_eta', 'PRI_jet_leading_eta', 'PRI_jet_subleading_eta'] :
+        X[angle] = angle_invert(X[angle], invert_mask)
+    
     
 def AMS(s,b):
     assert s >= 0
@@ -511,7 +557,7 @@ def computeCutoff(y_pred,verbose=False):
     #print idx_sorted
     #print y_pred[idx_sorted]
     optcutoff=y_pred[idx_sorted][ntop]
-    if verbose: print "ntop: %4d Opt cutoff=%6.3f"%(ntop,optcutoff)
+    #if verbose: print "ntop: %4d Opt cutoff=%6.3f"%(ntop,optcutoff)
       
     return(optcutoff)
 
@@ -626,7 +672,7 @@ def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,c
     #parameters = {'n_estimators':[250], 'max_features':[6,8,10],'min_samples_leaf':[5,10]}#xrf+xrf
     #parameters = {'max_depth':[7], 'learning_rate':[0.08],'n_estimators':[100,200,300],'subsample':[0.5],'max_features':[10],'min_samples_leaf':[50]}#gbm
     #parameters = {'max_depth':[7], 'learning_rate':[0.08],'n_estimators':[200],'subsample':[1.0],'max_features':[10],'min_samples_leaf':[20]}#gbm
-    parameters = {'max_depth':[6], 'learning_rate':[0.1,0.05],'n_estimators':[150,300,500,1000],'subsample':[1.0],'loss':['deviance'],'min_samples_leaf':[100],'max_features':[8]}#gbm
+    parameters = {'max_depth':[6], 'learning_rate':[0.05],'n_estimators':[800,800,800],'subsample':[1.0],'loss':['deviance'],'min_samples_leaf':[100],'max_features':[6]}#gbm
     #parameters = {'max_depth':[10], 'learning_rate':[0.001],'n_estimators':[500],'subsample':[0.5],'loss':['deviance']}#gbm
     #parameters = {'max_depth':[15,20,25], 'learning_rate':[0.1,0.01],'n_estimators':[150,300],'subsample':[1.0,0.5]}#gbm
     #parameters = {'max_depth':[20,30], 'learning_rate':[0.1,0.05],'n_estimators':[300,500,1000],'subsample':[0.5],'loss':['exponential']}#gbm
@@ -730,7 +776,6 @@ def buildAMSModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,nfolds=8,useProba=Tr
     """   
     Final model building part
     """ 
-    
     
     fit_params = {'scoring_weight': lw}
     if scale_wt is None:
@@ -968,13 +1013,13 @@ if __name__=="__main__":
     smoothWeights=1.0
     normalizeWeights=False
     verbose=True
-    subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub2508d.csv"
+    subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub2808a.csv"
     Xtrain,ytrain,Xtest,wtrain=prepareDatasets(nsamples,onlyPRI,replaceNA,plotting,stats,transform,createNAFeats,dropCorrelated,scale_data,clusterFeature,dropFeatures,polyFeatures,createMassEstimate,imputeMassModel)
     #nfolds=8#
-    #nfolds=StratifiedShuffleSplit(ytrain, n_iter=8, test_size=0.25)
-    #nfolds=ShuffleSplit(ytrain.shape[0], n_iter=8, test_size=0.2)
+    nfolds=StratifiedShuffleSplit(ytrain, n_iter=8, test_size=0.5)
+    #nfolds=ShuffleSplit(ytrain.shape[0], n_iter=8, test_size=0.25)
     #nfolds = StratifiedKFold(ytrain, 8)
-    nfolds = KFold(ytrain.shape[0], 4,shuffle=True)
+    #nfolds = KFold(ytrain.shape[0], 4,shuffle=True)
     #pcAnalysis(Xtrain,Xtest,ytrain,wtrain,ncomp=2,transform=False)       
     #RF cluster1 AMS=2.600 (77544)
     #RF cluster2 AMS=4.331 (72543)
@@ -1015,21 +1060,21 @@ if __name__=="__main__":
     #analyzeLearningCurve(model,Xtrain,ytrain,wtrain)
     #odel = ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features=5,oob_score=False)#opt
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', model)])
-    #model = amsGridsearch(model,Xtrain,ytrain,wtrain,fitWithWeights=fitWithWeights,nfolds=nfolds,useProba=useProba,cutoff=cutoff)
+    #model = amsGridsearch(model,Xtrain,yt    #smoothWeights=Falserain,wtrain,fitWithWeights=fitWithWeights,nfolds=nfolds,useProba=useProba,cutoff=cutoff)
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=150, learning_rate=0.1, max_depth=6,subsample=1.0,verbose=False) #opt weight =500 AMS=3.548
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=500, learning_rate=0.05, max_depth=6,subsample=1.0,max_features=8,min_samples_leaf=100,verbose=0) #opt weight =500 AMS=3.548
-    model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) 
+    #model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) 
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=2000, learning_rate=0.01, max_depth=7,subsample=0.5,max_features=10,min_samples_leaf=50,verbose=0)#3.72  | 3.69
     #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,n_jobs=1,NA=-999.9)
     #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)#SW-proba=False ams=3.42
     #model = AdaBoostClassifier(base_estimator=basemodel,n_estimators=10,learning_rate=0.5)   
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False)
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=6,subsample=1.0,max_features=10,min_samples_leaf=50,verbose=False)#AMS=3.678
-    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.1, max_depth=6,subsample=.5,max_features=8,min_samples_leaf=100,verbose=False)#new opt
+    model = GradientBoostingClassifier(loss='deviance',n_estimators=500, learning_rate=0.05, max_depth=6,subsample=1.0,max_features=6,min_samples_leaf=100,verbose=False)#new opt
     #model = BaggingClassifier(base_estimator=basemodel,n_estimators=10,n_jobs=1,verbose=1)
-    model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=fitWithWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=8,smoothWeights=smoothWeights,normalizeWeights=normalizeWeights,verbose=verbose) 
+    #model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=fitWithWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=8,smoothWeights=smoothWeights,normalizeWeights=normalizeWeights,verbose=verbose) 
     #divideAndConquer(model,Xtrain,ytrain,Xtest,wtrain,n_clusters=3)
-    #model = amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,fitWithWeights=fitWithWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=True)
+    #model = amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,fitWithWeights=fitWithWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=True)    
     #iterativeFeatureSelection(model,Xtrain,Xtest,ytrain,1,1)    
     #model= amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,fitWithWeights=fitWithWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=True)
     #clist=[0.25,0.50,0.75,0.85]
@@ -1038,7 +1083,7 @@ if __name__=="__main__":
 	 # print "c",c
 	  #model=amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,fitWithWeights=fitWithWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=False)
 	  #model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=fitWithWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt)
-    #model = amsGridsearch(model,Xtrain,ytrain,wtrain,fitWithWeights=fitWithWeights,nfolds=nfolds,useProba=useProba,smoothWeights=smoothWeights,cutoff=cutoff,scale_wt=scale_wt,n_jobs=8)
+    model = amsGridsearch(model,Xtrain,ytrain,wtrain,fitWithWeights=fitWithWeights,nfolds=nfolds,useProba=useProba,smoothWeights=smoothWeights,cutoff=cutoff,scale_wt=scale_wt,n_jobs=8)
     print model
     makePredictions(model,Xtest,subfile,useProba=useProba,cutoff=cutoff)
     checksubmission(subfile)

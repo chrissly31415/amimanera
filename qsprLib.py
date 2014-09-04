@@ -32,6 +32,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.feature_selection import SelectKBest,SelectPercentile, chi2, f_classif,f_regression
 from sklearn.naive_bayes import BernoulliNB,MultinomialNB,GaussianNB
 from sklearn.cluster import k_means
+from sklearn.isotonic import IsotonicRegression
 
 from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier,LinearRegression
 from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor,BaggingClassifier,RandomForestRegressor
