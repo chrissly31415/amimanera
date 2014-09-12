@@ -41,7 +41,7 @@ class XgboostClassifier(BaseEstimator):
 	#self.param['objective'] = 'binary:logistic'
 	self.param['eval_metric'] = 'auc'
 	
-	self.param['scale_pos_weight'] = 270 #scaling can be done also externally
+	self.param['scale_pos_weight'] = 594 #scaling can be done also externally
 
     def fit(self, X, y, sample_weight=None):
 	#avoid problems with pandas dataframes and DMatrix
@@ -61,7 +61,7 @@ class XgboostClassifier(BaseEstimator):
         self.param['nthread'] = self.n_jobs
         self.param['silent'] = self.verbose
         
-        plst = self.param.items()+[('eval_metric', 'ams@0.15')]
+        plst = self.param.items()+[('eval_metric', 'ams@0.153')]
 	watchlist = [ (xgmat,'train') ]
         self.xgboost_model = xgb.train(plst, xgmat, self.n_estimators, watchlist)
 

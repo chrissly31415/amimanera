@@ -50,12 +50,15 @@ def one_hot_encoder(data, col, replace=False):
     """
     vec=DictVectorizer()
     tmp=[]
-    for row in data[col].itertuples():
+    print data.columns
+    for row in data.loc[:,[col]].itertuples():
 	d=dict({'cat': row[1]})
 	tmp.append(d)  
     tmp=vec.fit_transform(tmp).toarray()
     vecData = pd.DataFrame(tmp)
     vecData.columns = vec.get_feature_names()
+    print "New features:",vecData.columns
+    print vecData.describe()
     vecData.index = data.index
     if replace is True:
 	data = data.drop(col, axis=1)

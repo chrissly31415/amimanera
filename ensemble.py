@@ -80,44 +80,6 @@ def createModels():
     #xmodel = XModel("gbm_test10",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
     #ensemble.append(xmodel)
     
-    #GBMTEST 
-    #X,y,Xtest,w=prepareDatasets(nsamples=200000,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=1200, learning_rate=0.02, max_depth=6,subsample=.5,max_features=8,min_samples_leaf=150,verbose=False)
-    #xmodel = XModel("gbm_subsetb",model,X,Xtest,w,cutoff='compute',scale_wt=200)
-    #ensemble.append(xmodel)
-    
-    #GBMTEST 
-    #X,y,Xtest,w=prepareDatasets(nsamples=200000,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=1200, learning_rate=0.02, max_depth=6,subsample=.5,max_features=8,min_samples_leaf=150,verbose=False)
-    #xmodel = XModel("gbm_subsetc",model,X,Xtest,w,cutoff='compute',scale_wt=200)
-    #ensemble.append(xmodel)
-    
-    #GBMTEST 
-    #X,y,Xtest,w=prepareDatasets(nsamples=200000,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=1200, learning_rate=0.02, max_depth=6,subsample=.5,max_features=8,min_samples_leaf=150,verbose=False)
-    #xmodel = XModel("gbm_subsetd",model,X,Xtest,w,cutoff='compute',scale_wt=200)
-    #ensemble.append(xmodel)
-    
-    
-    
-    #GBMTEST 3.678 +/- 0.011 ~3.63433
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=1600, learning_rate=0.01, max_depth=6,subsample=1.0,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm_test2",model,X,Xtest,w,cutoff='compute',scale_wt=200)
-    #ensemble.append(xmodel)
-    
-    #GBMTEST 3.669 +/- 0.008 ~ 3.62735
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=2000, learning_rate=0.01, max_depth=6,subsample=1.0,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm_test3",model,X,Xtest,w,cutoff='compute',scale_wt=200)
-    #ensemble.append(xmodel)
-    
-    #GBMTEST 3.682 +/- 0.014 overfitted??? PL 3.66648
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=2000, learning_rate=0.01, max_depth=7,subsample=1.0,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm_test4",model,X,Xtest,w,cutoff='compute',scale_wt=200)
-    #ensemble.append(xmodel)
-    
     #GBM1 AMS~3.66 OK overfits the PL with 3.61
     #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
@@ -210,22 +172,28 @@ def createModels():
     #ensemble.append(xmodel)
     
     #gbm_newfeat4 <AMS,cv>:  3.637 +-  0.022 (cutoff=0.94) <AMS,cv>:  3.656 +-  0.017 cutoff="compute"->0.94
-    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,createMassEstimate=True)
-    model = GradientBoostingClassifier(loss='deviance',n_estimators=1000, learning_rate=0.03, max_depth=6,subsample=1.0,max_features=6,min_samples_leaf=100,verbose=False)
-    xmodel = XModel("gbm_newfeat4",model,X,Xtest,w,cutoff="compute",scale_wt='auto')
-    ensemble.append(xmodel)
-    
-    #gbm_newfeat5 <AMS,cv>:  3.643 +-  0.020
-    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,createMassEstimate=True)
-    model = GradientBoostingClassifier(loss='deviance',n_estimators=1000, learning_rate=0.03, max_depth=6,subsample=1.0,max_features=10,min_samples_leaf=100,verbose=False)
-    xmodel = XModel("gbm_newfeat5",model,X,Xtest,w,cutoff="compute",scale_wt='auto')
-    ensemble.append(xmodel)
-    
-    #GBM2 loss exponential AMS ~3.5 ->predict_proba... OK
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='exponential',n_estimators=200, learning_rate=0.2, max_depth=6,subsample=1.0,min_samples_leaf=5,verbose=False)
-    #xmodel = XModel("gbm2",model,X,Xtest,w,cutoff=None,scale_wt=35)
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,createMassEstimate=True)
+    #model = GradientBoostingClassifier(loss='deviance',n_estimators=1000, learning_rate=0.03, max_depth=6,subsample=1.0,max_features=6,min_samples_leaf=100,verbose=False)
+    #xmodel = XModel("gbm_newfeat4",model,X,Xtest,w,cutoff="compute",scale_wt='auto')
     #ensemble.append(xmodel)
+    
+    #gbm_newfeat5 <AMS,cv>:  3.643 +-  0.020 PL=
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,createMassEstimate=True)
+    #model = GradientBoostingClassifier(loss='deviance',n_estimators=1000, learning_rate=0.03, max_depth=6,subsample=1.0,max_features=10,min_samples_leaf=100,verbose=False)
+    #xmodel = XModel("gbm_newfeat5",model,X,Xtest,w,cutoff="compute",scale_wt='auto')
+    #ensemble.append(xmodel)
+    
+    #gbm_newfeat6 AMS =  3.661 PL=3.61 (compute...)
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,createMassEstimate=True,featureFilter=[u'DER_mass_MMC', u'DER_mass_transverse_met_lep', u'DER_mass_vis', u'metXp_lep_vec', u'PRI_tau_pt', u'DER_met_phi_centrality', u'DER_pt_ratio_lep_tau', u'DER_deltar_tau_lep', u'p_lepXp_tau_vec', u'metXp_tau_vec', u'PRI_met', u'metXp_lep', u'DER_sum_pt', u'DER_pt_tot', u'DER_pt_h', u'PRI_lep_phi-PRI_tau_phi', u'PRI_lep_eta', u'DER_deltaeta_jet_jet', u'PRI_met_sumet', u'PRI_lep_pt', u'PRI_jet_leading_eta', u'metXp_tau', u'p_tauXp_lep', u'p_lep_abs', u'PRI_met_phi-PRI_tau_phi', u'PRI_tau_eta', u'p_tau_abs', u'DER_mass_jet_jet', u'PRI_lep_phi', u'PRI_met_phi', u'DER_lep_eta_centrality', u'PRI_jet_all_pt', u'PRI_jet_leading_pt', u'PRI_jet_leading_phi-PRI_tau_phi', u'DER_prodeta_jet_jet'])
+    #model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.05, max_depth=6,subsample=1.0,max_features=8,min_samples_leaf=100,verbose=False)
+    #xmodel = XModel("gbm_newfeat6",model,X,Xtest,w,cutoff="compute",scale_wt='auto')
+    #ensemble.append(xmodel)
+       
+    #GBM2 loss exponential AMS ~3.5 ->predict_proba... OK
+    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    model = GradientBoostingClassifier(loss='exponential',n_estimators=200, learning_rate=0.2, max_depth=6,subsample=1.0,min_samples_leaf=5,verbose=False)
+    xmodel = XModel("gbm_exp",model,X,Xtest,w,cutoff=None,scale_wt=35)
+    ensemble.append(xmodel)
  
     #XGBOOST1 AMS ~3.58 (single model PUB.LD)
     #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
@@ -296,6 +264,14 @@ def createModels():
     #model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,max_features=1.0,max_samples=0.5,bootstrap=False,verbose=1)
     #xmodel = XModel("gbm_realbag3",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
     #ensemble.append(xmodel)
+    
+    #GBM_realbag AMS,train = 3.709 0.035 PL 3.65
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=6,min_samples_leaf=5,verbose=False) 
+    #model = BaggingClassifier(base_estimator=basemodel,n_estimators=100,n_jobs=8,max_features=1.0,max_samples=1.0,bootstrap=True,verbose=1)
+    #xmodel = XModel("gbm_realbag4",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    #ensemble.append(xmodel)
+    
     
     #TODO use cutoff from models, seem to be more stable than top15%    
     #TODO Bumping
@@ -581,29 +557,25 @@ def voting(ensemble,Xtrain,Xtest,y,test_indices,subfile):
     print "Majority voting for predictions"
     weights=np.asarray(pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'], index_col=0)['Weight'])
 
-    #for col in Xtrain.columns:
-	#Xtmp = Xtrain.drop([col], axis=1)
-	#oob_avg=np.mean(Xtmp,axis=1)
-	#score=ams_score(y,oob_avg,sample_weight=weights,use_proba=False,cutoff='compute',verbose=False)
-	#print " AMS,oob data: %0.4f omitted: %20s" % (score,col)
-	##plt.hist(oob_avg,bins=50,label='oob')
-	##plt.legend()
-	##plt.show()
     
     for i,col in enumerate(Xtrain.columns):
 	cutoff = computeCutoff(Xtrain[col].values,False)
+	#label=col+"_"+str(i)
 	Xtrain[col]=vfunc(Xtrain[col].values,cutoff)
-	Xtest[col]=vfunc(Xtest[col].values,cutoff)
 	#oob_avg=np.mean(Xtmp,axis=1)
 	score=ams_score(y,Xtrain[col].values,sample_weight=weights,use_proba=False,cutoff=cutoff,verbose=False)
 	print "%4d AMS,oob data: %0.4f colum: %20s" % (i,score,col)
-	#plt.hist(oob_avg,bins=50,label='oob')
+	cutoff = computeCutoff(Xtest[col].values,False)
+	Xtest[col]=vfunc(Xtest[col].values,cutoff)
+	#plt.hist(np.asarray(Xtrain[col]),bins=50,label=col+'_oob')
+	#plt.hist(np.asarray(Xtest[col]),bins=50,label=col+'pred',alpha=0.2)
 	#plt.legend()
 	#plt.show()
+	#del Xtrain[col]
     
     
-    oob_avg=np.mean(Xtrain,axis=1)
-    score=ams_score(y,oob_avg,sample_weight=weights,use_proba=False,cutoff=0.5,verbose=False)
+    oob_avg=np.asarray(np.mean(Xtrain,axis=1))
+    score=ams_score(y,oob_avg,sample_weight=weights,use_proba=False,cutoff=0.5,verbose=True)
     print " AMS,oob all: %0.4f" % (score)
     
     preds=np.asarray(np.mean(Xtest,axis=1))
@@ -623,7 +595,7 @@ def voting(ensemble,Xtrain,Xtest,y,test_indices,subfile):
 def classicalBlend(ensemble,oobpreds,testset,ly,test_indices,subfile="subXXX.csv"):
     weights=np.asarray(pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'], index_col=0)['Weight'])
     #blending
-    folds=4
+    folds=16
     cutoff_all='compute'
     scale_wt='auto'
     
@@ -633,13 +605,14 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices,subfile="subXXX.csv
   
     #blender=LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
     #blender = Pipeline([('filter', SelectPercentile(f_regression, percentile=25)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=0.1))])
-    blender=SGDClassifier(alpha=0.1, n_iter=50,penalty='l2',loss='log')
+    blender=SGDClassifier(alpha=0.1, n_iter=50,penalty='l2',loss='log',n_jobs=folds)
     #blender=AdaBoostClassifier(learning_rate=0.01,n_estimators=50)
     #blender=RandomForestClassifier(n_estimators=50,n_jobs=4, max_features='auto',oob_score=False)
     #blender=ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False)
     #blender=RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
     #blender=ExtraTreesRegressor(n_estimators=500,max_depth=None)
-    cv = KFold(oobpreds.shape[0], n_folds=folds,random_state=123)
+    #cv = KFold(oobpreds.shape[0], n_folds=folds,random_state=123)
+    cv = StratifiedShuffleSplit(ly, n_iter=folds, test_size=0.5)
     blend_scores=np.zeros(folds)
     ams_scores=np.zeros(folds)
     blend_oob=np.zeros((oobpreds.shape[0]))
@@ -668,58 +641,59 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices,subfile="subXXX.csv
 	
     print " <AUC>: %0.4f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()),
     oob_auc=roc_auc_score(ly,blend_oob)
-    print " AUC oob after blending: %0.4f" %(oob_auc)
+    print " AUC oob: %0.4f" %(oob_auc)
     
     print " <AMS>: %0.4f (+/- %0.4f)" % (ams_scores.mean(), ams_scores.std()),
     oob_ams=ams_score(ly,blend_oob,sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=False)
-    print " AMS oob after blending: %0.4f" %(oob_ams)
+    print " AMS oob: %0.4f" %(oob_ams)
     
     if hasattr(blender,'coef_'):
+      print "%-16s %5s %5s %5s" %("model","AMS","auc","coef")
       for i,model in enumerate(oobpreds.columns):
 	coldata=np.asarray(oobpreds.iloc[:,i])
 	ams=ams_score(ly,coldata,sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=False)
 	auc=roc_auc_score(ly, coldata)
-	print "%-16s ams: %5.3f auc: %4.3f coef: %4.3f" %(model,ams,auc,blender.coef_[0][i])
-      print "Sum: %4.4f"%(np.sum(blender.coef_))
+	print "%-16s %5.3f %5.3f %5.3f" %(model,ams,auc,blender.coef_[0][i])
+      print "sum coef: %4.4f"%(np.sum(blender.coef_))
     #plt.plot(range(len(ensemble)),scores,'ro')
     
-    #Prediction
-    print "Make final ensemble prediction..."
-    #make prediction for each classifiers
- 
-    if scale_wt is not None:
-	wfit = modTrainWeights(weights,ly,scale_wt)
-	preds=blender.fit(oobpreds,ly,sample_weight=wfit)
-    else:
-	preds=blender.fit(oobpreds,ly)
-    #blend results
-    preds=blender.predict_proba(testset)[:,1]
-    print preds
-    
-    plt.hist(blend_oob,bins=50,label='oob')
-    plt.hist(preds,bins=50,alpha=0.3,label='pred')
-    plt.legend()
-    plt.show()
-    
-    #preds=pd.DataFrame(preds,columns=["label"],index=test_indices)
-    testset.index=test_indices
-    makePredictions(preds,testset,subfile,useProba=True,cutoff=cutoff_all)
-    checksubmission(subfile)
+    if len(subfile)>1:
+	#Prediction
+	print "Make final ensemble prediction..."
+	#make prediction for each classifiers   
+	if scale_wt is not None:
+	    wfit = modTrainWeights(weights,ly,scale_wt)
+	    preds=blender.fit(oobpreds,ly,sample_weight=wfit)
+	else:
+	    preds=blender.fit(oobpreds,ly)
+	#blend results
+	preds=blender.predict_proba(testset)[:,1]
+	#print preds
+	plt.hist(blend_oob,bins=50,label='oob')
+	plt.hist(preds,bins=50,alpha=0.3,label='pred')
+	plt.legend()
+	plt.show()
+	
+	#preds=pd.DataFrame(preds,columns=["label"],index=test_indices)
+	testset.index=test_indices
+	makePredictions(preds,testset,subfile,useProba=True,cutoff=cutoff_all)
+	checksubmission(subfile)
     #preds.to_csv('/home/loschen/Desktop/datamining-kaggle/higgs/submissions/subXXXa.csv')
     #print preds
-    return(oob_ams)
+    #return(oob_ams)
+    return(ams_scores.mean())
 
 
-def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZeroModels=0.0,subfile=""):
+def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZeroModels=0.0,alpha=None,subfile=""):
     weights=np.asarray(pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'], index_col=0)['Weight'])
     use_proba=True
-    cutoff_all="compute"
+    cutoff_all='compute'
 
     def fopt(params):
 	# nxm  * m*1 ->n*1
 	if np.isnan(np.sum(params)):
 	    print "We have NaN here!!"
-	    auc=0.0
+	    score=0.0
 	else:
 	    ypred=np.dot(Xtrain,params).flatten()
 	    #Force between 0 and 1
@@ -728,24 +702,29 @@ def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZero
 	    #auc=roc_auc_score(y, np.dot(Xtrain,params))
 	    #plt.hist(ypred)
 	    #plt.show()
-	    auc=ams_score(y,ypred,sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=True)
+	    score=ams_score(y,ypred,sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=False)
+	    #regularization
+	    if alpha is not None:
+	      penalty=alpha*np.sum(np.square(params))
+	      print "orig score:%8.3f"%(score),
+	      score=score-penalty
+	      print " - Regularization - alpha: %8.3f penalty: %8.3f regularized score: %8.3f"%(alpha,penalty,score)
 	    
-	#print "score: %6.3f"%(auc)
+	#print "score: %6.3f"%(score)
 	#print "params:",params
-	return -auc
+	return -score
 	
-    #constr=[lambda x,z=i: x[z] for i in range(len(Xtrain.columns))]
     lowerbound=0.0
-    upperbound=0.2
+    #upperbound=0.3
     constr=[lambda x,z=i: x[z]-lowerbound for i in range(len(Xtrain.columns))]
-    constr2=[lambda x,z=i: upperbound-x[z] for i in range(len(Xtrain.columns))]
-    constr=constr+constr2
+    #constr2=[lambda x,z=i: upperbound-x[z] for i in range(len(Xtrain.columns))]
+    #constr=constr+constr2
     
     n_models=len(Xtrain.columns)
     x0 = np.ones((n_models, 1)) / n_models
     #x0= np.random.random_sample((n_models,1))
     
-    xopt = fmin_cobyla(fopt, x0,constr,rhoend=1e-8)
+    xopt = fmin_cobyla(fopt, x0,constr,rhoend=1e-5,maxfun=100)
     
     if takeMean:
 	xopt=x0
@@ -800,8 +779,6 @@ def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZero
     #plt.legend()
     #plt.show()
     
-    print preds.shape
-    
     #preds=pd.DataFrame(preds,columns=["label"],index=test_indices)
     if len(subfile)>1:
 	testset.index=test_indices
@@ -811,8 +788,10 @@ def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZero
 
     return(oob_ams)
   
-def selectModels(ensemble,niter=20,mode='amsMaximize',useCols=None): 
-   
+def selectModels(ensemble,startensemble=[],niter=10,mode='amsMaximize',useCols=None): 
+    """
+    Random mode for best model selection
+    """
     randBinList = lambda n: [randint(0,1) for b in range(1,n+1)]
     auc_list=[0.0]
     ens_list=[]
@@ -821,12 +800,10 @@ def selectModels(ensemble,niter=20,mode='amsMaximize',useCols=None):
 	print "iteration %5d/%5d, current max_score: %6.3f"%(i+1,niter,max(auc_list))
 	actlist=randBinList(len(ensemble))
 	actensemble=[x for x in itertools.compress(ensemble,actlist)]
-	
-	#actlist=randBinList(len(useCols))
-	#actCols=[x for x in itertools.compress(useCols,actlist)]
-	
+	actensemble=startensemble+actensemble
+	print actensemble
 	#print actensemble
-	auc=trainEnsemble(actensemble,mode=mode,useCols=useCols,addMetaFeatures=False)
+	auc=trainEnsemble(actensemble,mode=mode,useCols=useCols,addMetaFeatures=False,dropCorrelated=False)
 	auc_list.append(auc)
 	ens_list.append(actensemble)
 	#cols_list.append(actCols)
@@ -840,58 +817,76 @@ def selectModels(ensemble,niter=20,mode='amsMaximize',useCols=None):
 	  maxauc=auc
 	  topens=ens
 	  #topcols=col
-    print "TOP ensemble:",topens,
-    #print "TOP cols",topcols
+    print "\nTOP ensemble:",topens
     print "TOP score: %4.4f" %(maxauc)
 
-def selectModelsGreedy(ensemble,mode='amsMaximize',useCols=None):    
-    auc_list=[0.0]
+def selectModelsGreedy(ensemble,startensemble=[],niter=2,mode='classical',useCols=None,dropCorrelated=False):    
+    """
+    Select best models in a greedy forward selection
+    """
+    topensemble=startensemble
+    score_list=[]
     ens_list=[]
-    cols_list=[]
-    for i in range(len(ensemble)):
-	print "iteration %5d/%5d, current max_score: %6.3f"%(i+1,niter,max(auc_list))
-	actlist=randBinList(len(ensemble))
-	actensemble=[x for x in itertools.compress(ensemble,actlist)]
-	
-	#actlist=randBinList(len(useCols))
-	#actCols=[x for x in itertools.compress(useCols,actlist)]
-	
-	#print actensemble
-	auc=trainEnsemble(actensemble,mode=mode,useCols=useCols,addMetaFeatures=False)
-	auc_list.append(auc)
-	ens_list.append(actensemble)
-	#cols_list.append(actCols)
-    maxauc=0.0
-    topens=None
-    topcols=None
-    for ens,auc in zip(ens_list,auc_list):	
-	print "SCORE: %4.4f" %(auc),
+    bestscore=0.0
+    for i in range(niter):
+	maxscore=0.0
+	topidx=-1
+	for j in range(len(ensemble)):
+	    if ensemble[j] not in topensemble:
+		actensemble=topensemble+[ensemble[j]]
+	    else:
+		continue
+	    
+	    auc=trainEnsemble(actensemble,mode=mode,useCols=useCols,addMetaFeatures=False,dropCorrelated=dropCorrelated)
+	    print "##(Current top score: %4.4f | overall best score: %4.4f) actual score: %4.4f  - " %(maxscore,bestscore,auc),
+	    print actensemble
+	    if auc>maxscore:
+		maxscore=auc
+		topidx=j
+	#pick best set
+	if not maxscore+0.05>bestscore:
+	    print "Not gain in score anymore, leaving..."
+	    break
+	topensemble.append(ensemble[topidx])
+	print "TOP score: %4.4f" %(maxscore),
+	print " - actual ensemble:",topensemble
+	score_list.append(maxscore)
+	ens_list.append(list(topensemble))
+	if maxscore>bestscore:
+	    bestscore=maxscore
+    
+    for ens,score in zip(ens_list,score_list):	
+	print "SCORE: %4.4f" %(score),
 	print ens
-	if auc>maxauc:
-	  maxauc=auc
-	  topens=ens
-	  #topcols=col
-    print "TOP ensemble:",topens,
-    #print "TOP cols",topcols
-    print "TOP score: %4.4f" %(maxauc)    
+	
+    plt.plot(score_list)
+    plt.show()
+    return topensemble
+    
     
 if __name__=="__main__":
     np.random.seed(123)
-    ensemble,y=createModels()
-    ensemble=createOOBdata_parallel(ensemble,y,repeats=1,nfolds=2,n_jobs=2) #only 1 repeat otherwise oob data averaging leads to significant variance reduction!
+    #ensemble,y=createModels()
+    #ensemble=createOOBdata_parallel(ensemble,y,repeats=1,nfolds=2,n_jobs=1) #only 1 repeat otherwise oob data averaging leads to significant variance reduction!
     #normal models
     gbm_models=["gbm1","gbm2","gbm3","gbm4","gbm5","gbm6","gbm7","gbm8","gbm9","gbm10"]#all the same but different seeds, oob is overfitted???
     del gbm_models[1]
 
     #approved models
-    nongbmModels=["KNN1","KNN2","NB1","rf1","rf2","xrf1","ADAboost1","rf3"]
-    gbm_models2=["gbm_test1","gbm_test2","gbm_test3","gbm_test4","gbm_test5","gbm_test6","gbm_test7","gbm_test8","gbm_test9","gbm_test10"]
+    nongbmModels=["NB1","KNN2","rf1","rf2","xrf1","ADAboost1","rf3"]#KNN1 there is something wrong...NB is too bad
+    gbm_models2=["gbm_test1","gbm_test2","gbm_test4","gbm_test5","gbm_test6","gbm_test8","gbm_test9"]
     gbm_bag=["gbm_realbag1","gbm_realbag2","gbm_realbag3"]
     xgboost=["xgboost1","xgboost2"]
-    new_feat=["gbm_newfeat1","gbm_newfeat2","gbm_newfeat3"]
-    models=["gbm_newfeat3"]
+    new_feat=["gbm_newfeat1","gbm_newfeat2","gbm_newfeat3","gbm_newfeat4","gbm_newfeat5","gbm_newfeat6"]#probably bad models!
+    allmodels=nongbmModels+gbm_models2+gbm_bag+xgboost
+    
+    #selectModelsGreedy(allmodels,startensemble=[],niter=15,dropCorrelated=False,mode='classical')#['gbm_realbag2', 'gbm_realbag3', 'NB1', 'rf1', 'ADAboost1', 'gbm_exp', 'gbm_test1', 'gbm_test2', 'gbm_test8', 'gbm_test9', 'gbm_realbag1', 'gbm_realbag2', 'gbm_realbag3', 'xgboost1', 'xgboost2']
+    sgdoptmodels=['gbm_realbag3', 'gbm_test10', 'gbm_test5', 'gbm_test7', 'gbm_test8', 'gbm_test2', 'xrf1', 'gbm_test1', 'rf2', 'gbm_test4']
+    topmodels=['gbm_realbag3', 'xgboost2', 'gbm_realbag1', 'ADAboost1', 'gbm_test6', 'gbm_test9', 'gbm_realbag2', 'gbm_test5', 'gbm_test1', 'rf3', 'gbm_test2', 'gbm_test8', 'rf1', 'NB1', 'xrf1']
+    amsmaxmodels=['gbm_realbag3', 'gbm_test3', 'xrf1', 'NB1', 'gbm_test10', 'gbm_test5', 'xgboost1', 'gbm_test2', 'xgboost2', 'gbm_test7']
+    #optmodels=['gbm_realbag3', 'gbm_test10', 'gbm_test5', 'gbm_test7', 'gbm_test8', 'gbm_test2', 'xrf1', 'gbm_test1']
+    #models=["gbm_newfeat6"]
     #useCols=['DER_mass_MMC']
     useCols=None
-    #trainEnsemble(models,mode='mean',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub0109b.csv')
-    #selectModels(models)
+    trainEnsemble(topmodels,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1209e.csv')
     
