@@ -23,7 +23,7 @@ class XgboostClassifier(BaseEstimator):
     sklearn: http://scikit-learn.org/stable/index.html
     based on the forum thread: https://www.kaggle.com/c/higgs-boson/forums/t/8184/public-starting-guide-to-get-above-3-60-ams-score/44691#post44691
     """
-    def __init__(self,n_estimators=150,learning_rate=0.1,max_depth=6,n_jobs=1,cutoff=0.50,NA=-999.9,verbose=1):
+    def __init__(self,n_estimators=120,learning_rate=0.1,max_depth=6,n_jobs=1,cutoff=0.50,NA=-999.0,verbose=1):
 	"""
 	Constructor
 	"""
@@ -41,7 +41,7 @@ class XgboostClassifier(BaseEstimator):
 	#self.param['objective'] = 'binary:logistic'
 	self.param['eval_metric'] = 'auc'
 	
-	self.param['scale_pos_weight'] = 594 #scaling can be done also externally
+	self.param['scale_pos_weight'] = 594.0 #scaling can be done also externally
 
     def fit(self, X, y, sample_weight=None):
 	#avoid problems with pandas dataframes and DMatrix
@@ -49,11 +49,8 @@ class XgboostClassifier(BaseEstimator):
 	y = np.asarray(y)
 	
 	sample_weight = np.asarray(sample_weight)
-	# rescale weight to make it same as test set
-	#weight = dtrain[:,31] * float(test_size) / len(label)
 	
         xgmat = xgb.DMatrix(X, label=y, missing=self.NA, weight=sample_weight)
-        #plst = self.param.items()
         
         #set up parameters
         self.param['bst:eta'] =  self.learning_rate
@@ -94,7 +91,7 @@ if __name__=="__main__":
     """
     test function
     """
-    Xtrain,ytrain,Xtest,wtrain=higgs.prepareDatasets(1000,'PRI',False,False,False,False,False,False,False,False)
+    Xtrain,ytrain,Xtest,wtrain=higgs.prepareDatasets(1000)
     model = XgboostClassifier()
     model.fit(Xtrain,ytrain,wtrain)
     print "Prediction..."

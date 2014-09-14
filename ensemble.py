@@ -189,11 +189,23 @@ def createModels():
     #xmodel = XModel("gbm_newfeat6",model,X,Xtest,w,cutoff="compute",scale_wt='auto')
     #ensemble.append(xmodel)
        
-    #GBM2 loss exponential AMS ~3.5 ->predict_proba... OK
-    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    model = GradientBoostingClassifier(loss='exponential',n_estimators=200, learning_rate=0.2, max_depth=6,subsample=1.0,min_samples_leaf=5,verbose=False)
-    xmodel = XModel("gbm_exp",model,X,Xtest,w,cutoff=None,scale_wt=35)
-    ensemble.append(xmodel)
+    #GBM_exp loss exponential AMS ~3.5 ->predict_proba... OK
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    #model = GradientBoostingClassifier(loss='exponential',n_estimators=200, learning_rate=0.2, max_depth=6,subsample=1.0,min_samples_leaf=5,verbose=False)
+    #xmodel = XModel("gbm_exp",model,X,Xtest,w,cutoff=None,scale_wt=35)
+    #ensemble.append(xmodel)
+    
+    #GBM_PRI only primary features
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='DER',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    #model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.1, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=100,verbose=False) 
+    #xmodel = XModel("gbm_pri",model,X,Xtest,w,cutoff='compute',scale_wt='auto')
+    #ensemble.append(xmodel)
+    
+    #RF_PRI 
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='DER',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features=5,oob_score=False)
+    #xmodel = XModel("rf_pri",model,X,Xtest,w,cutoff='compute',scale_wt=None)
+    #ensemble.append(xmodel)
  
     #XGBOOST1 AMS ~3.58 (single model PUB.LD)
     #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
@@ -206,6 +218,12 @@ def createModels():
     #model = XgboostClassifier(n_estimators=200,learning_rate=0.08,max_depth=7,n_jobs=4,NA=-999.9)
     #xmodel = XModel("xgboost2",model,X,Xtest,w,cutoff=0.7,scale_wt=1)
     #ensemble.append(xmodel)
+    
+    #XGBOOST3 
+    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,loadCake=True)
+    model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,n_jobs=4,NA=-999.0)
+    xmodel = XModel("xgboost_cake",model,X,Xtest,w,cutoff=0.73,scale_wt=1.0)
+    ensemble.append(xmodel)
     
     #KNN1
     #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=True,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
@@ -271,6 +289,13 @@ def createModels():
     #model = BaggingClassifier(base_estimator=basemodel,n_estimators=100,n_jobs=8,max_features=1.0,max_samples=1.0,bootstrap=True,verbose=1)
     #xmodel = XModel("gbm_realbag4",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
     #ensemble.append(xmodel)
+    
+    #GBM_realbag5 using cake A+B
+    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,loadCake=True)
+    basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=50,verbose=False) 
+    model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,verbose=1)
+    xmodel = XModel("gbm_bag_cake",model,X,Xtest,w,cutoff='compute',scale_wt=200)
+    ensemble.append(xmodel)
     
     
     #TODO use cutoff from models, seem to be more stable than top15%    
@@ -491,37 +516,19 @@ def trainEnsemble(ensemble,mode='classical',useCols=None,addMetaFeatures=False,u
     Xtest=Xall[:len(test_indices)]
     
     #if we add metafeature we should not use aucMinimize...
-    if addMetaFeatures:
-	multiply=False
-	(Xs,y,Xs_test,w)=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
+    if useCols is not None:
+	(Xs,y,Xs_test,w)=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,loadCake=True)
 
 	Xs=Xs.loc[:,useCols]
 	Xs.index=Xtrain.index
 	Xs_test=Xs_test.loc[:,useCols]
 	Xs_test.index=Xtest.index
-		
-	if multiply:
-	    pass
-	    #n=len(Xtrain.columns)
-	    #for i,col in enumerate(useCols):
-		#newcolnames=[]
-		#for name in Xtrain.columns[0:n]:
-		    #tmp=name+"X"+col
-		    #newcolnames.append(tmp)
-		#newcolnames= Xtrain.columns.append(pd.Index(newcolnames))
-		##print type(Xs.ix[:,i])
-		##Xtrain=pd.concat([Xtrain,Xs], axis=1)	    
-		#Xtrain=pd.concat([Xtrain,Xtrain.ix[:,0:n].mul(Xs.ix[:,i],axis=0)], axis=1)
-		#Xtrain.columns=newcolnames
-		#Xtest=pd.concat([Xtest,Xtest.ix[:,0:n].mul(Xs_test.ix[:,i],axis=0)], axis=1)
-		#Xtest.columns=newcolnames
-		
-	else:
-	    Xtrain=pd.concat([Xtrain,Xs], axis=1)
-	    Xtest=pd.concat([Xtest,Xs_test], axis=1)
-	    
-	    print "Dim train",Xtrain.shape
-	    print "Dim test",Xtest.shape
+	
+	Xtrain=pd.concat([Xtrain,Xs], axis=1)
+	Xtest=pd.concat([Xtest,Xs_test], axis=1)
+	
+	print "Dim train",Xtrain.shape
+	print "Dim test",Xtest.shape
     
     #scale data
     X_all=pd.concat([Xtest,Xtrain])   
@@ -637,8 +644,6 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices,subfile="subXXX.csv
 	blend_scores[i]=roc_auc_score(ly[test],blend_oob[test])
 	ams_scores[i]=ams_score(ly[test],blend_oob[test],sample_weight=weights[test],use_proba=use_proba,cutoff=cutoff_all,verbose=True)
     
-    
-	
     print " <AUC>: %0.4f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()),
     oob_auc=roc_auc_score(ly,blend_oob)
     print " AUC oob: %0.4f" %(oob_auc)
@@ -687,7 +692,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices,subfile="subXXX.csv
 def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZeroModels=0.0,alpha=None,subfile=""):
     weights=np.asarray(pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'], index_col=0)['Weight'])
     use_proba=True
-    cutoff_all='compute'
+    cutoff_all='compute@15.6'
 
     def fopt(params):
 	# nxm  * m*1 ->n*1
@@ -874,19 +879,18 @@ if __name__=="__main__":
 
     #approved models
     nongbmModels=["NB1","KNN2","rf1","rf2","xrf1","ADAboost1","rf3"]#KNN1 there is something wrong...NB is too bad
+    onlyPrimary=['gbm_pri','rf_pri']
     gbm_models2=["gbm_test1","gbm_test2","gbm_test4","gbm_test5","gbm_test6","gbm_test8","gbm_test9"]
     gbm_bag=["gbm_realbag1","gbm_realbag2","gbm_realbag3"]
-    xgboost=["xgboost1","xgboost2"]
-    new_feat=["gbm_newfeat1","gbm_newfeat2","gbm_newfeat3","gbm_newfeat4","gbm_newfeat5","gbm_newfeat6"]#probably bad models!
-    allmodels=nongbmModels+gbm_models2+gbm_bag+xgboost
+    xgboost=["xgboost1","xgboost2","xgboost3"]
+    cake_models=['xgboost_cake','gbm_bag_cake']
+    #new_feat=["gbm_newfeat1","gbm_newfeat2","gbm_newfeat3","gbm_newfeat4","gbm_newfeat5","gbm_newfeat6"]#probably bad models!
+    allmodels=nongbmModels+gbm_models2+gbm_bag+xgboost+onlyPrimary
     
-    #selectModelsGreedy(allmodels,startensemble=[],niter=15,dropCorrelated=False,mode='classical')#['gbm_realbag2', 'gbm_realbag3', 'NB1', 'rf1', 'ADAboost1', 'gbm_exp', 'gbm_test1', 'gbm_test2', 'gbm_test8', 'gbm_test9', 'gbm_realbag1', 'gbm_realbag2', 'gbm_realbag3', 'xgboost1', 'xgboost2']
-    sgdoptmodels=['gbm_realbag3', 'gbm_test10', 'gbm_test5', 'gbm_test7', 'gbm_test8', 'gbm_test2', 'xrf1', 'gbm_test1', 'rf2', 'gbm_test4']
-    topmodels=['gbm_realbag3', 'xgboost2', 'gbm_realbag1', 'ADAboost1', 'gbm_test6', 'gbm_test9', 'gbm_realbag2', 'gbm_test5', 'gbm_test1', 'rf3', 'gbm_test2', 'gbm_test8', 'rf1', 'NB1', 'xrf1']
-    amsmaxmodels=['gbm_realbag3', 'gbm_test3', 'xrf1', 'NB1', 'gbm_test10', 'gbm_test5', 'xgboost1', 'gbm_test2', 'xgboost2', 'gbm_test7']
-    #optmodels=['gbm_realbag3', 'gbm_test10', 'gbm_test5', 'gbm_test7', 'gbm_test8', 'gbm_test2', 'xrf1', 'gbm_test1']
-    #models=["gbm_newfeat6"]
-    #useCols=['DER_mass_MMC']
+    #selectModelsGreedy(allmodels,startensemble=[],niter=18,dropCorrelated=False,mode='classical')#['gbm_realbag2', 'gbm_realbag3', 'NB1', 'rf1', 'ADAboost1', 'gbm_exp', 'gbm_test1', 'gbm_test2', 'gbm_test8', 'gbm_test9', 'gbm_realbag1', 'gbm_realbag2', 'gbm_realbag3', 'xgboost1', 'xgboost2']
+    topmodels=['gbm_realbag3', 'xgboost2', 'gbm_realbag1', 'ADAboost1', 'gbm_test6', 'gbm_test9', 'gbm_realbag2', 'gbm_test5', 'gbm_test1', 'rf3', 'gbm_test2', 'gbm_test8', 'rf1', 'NB1', 'xrf1']#nest submissin so far
+    models=topmodels+['gbm_bag_cake']
+    #useCols=['A','B']
     useCols=None
-    trainEnsemble(topmodels,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1209e.csv')
+    trainEnsemble(models,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1409a.csv')
     

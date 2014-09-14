@@ -314,7 +314,7 @@ def buildModel(lmodel,lXs,ly,sweights=None,feature_names=None):
     Final model building part
     """ 
     print "Xvalidation..."
-    scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=5, scoring='roc_auc',n_jobs=1)
+    scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=5, scoring='roc_auc',n_jobs=5)
     print "AUC: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
     print "Building model with all instances..."
     if isinstance(lmodel,RandomForestClassifier) or isinstance(lmodel,SGDClassifier):

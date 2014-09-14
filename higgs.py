@@ -213,14 +213,23 @@ def massEstimator(X_all,createPsq=True,normalize=False,invertEta=False):
     #plt.show()
     
     
-def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats=True,transform=False,createNAFeats=None,dropCorrelated=True,scale_data=False,clusterFeature=False,dropFeatures=None,polyFeatures=None,createMassEstimate=False,imputeMassModel=None,featureFilter=None,onehotenc=None):
+def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats=True,transform=False,createNAFeats=None,dropCorrelated=True,scale_data=False,clusterFeature=False,dropFeatures=None,polyFeatures=None,createMassEstimate=False,imputeMassModel=None,featureFilter=None,onehotenc=None,quadraticFeatures=None,loadCake=False):
     """
     Read in train and test data, create data matrix X and targets y   
     """
     X = pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'], index_col=0)
     X_test = pd.read_csv('../datamining-kaggle/higgs/test.csv', sep=",", na_values=['?'], index_col=0)
     
-    
+    if loadCake:
+	cake = pd.read_csv('../datamining-kaggle/higgs/training-public-onlyAB.csv', sep=",", na_values=['?'], index_col=0)
+	cake_test = pd.read_csv('../datamining-kaggle/higgs/test-public-onlyAB.csv', sep=",", na_values=['?'], index_col=0)
+	#cake.hist(bins=100)
+	#cake_test.hist(bins=100)
+	#plt.show()
+	#print cake_test.describe()
+	X = pd.concat([X, cake],axis=1)
+	X_test = pd.concat([X_test, cake_test],axis=1)
+
     if nsamples != -1: 
 	rows = random.sample(X.index, nsamples)
 	X = X.ix[rows] 
@@ -269,6 +278,29 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
 	for col in dropFeatures:
             print "Dropping features: ",col
             X_all = X_all.drop([col], axis=1)
+    
+    if quadraticFeatures is not None:
+        print "Creating squared features"
+        X_pri = X_all.copy()
+	cols = X_pri.columns
+	for col in cols:
+	    if col.startswith('DER') or 'jet' in col:
+	      X_pri.drop([col], axis=1,inplace=True)
+	      
+	cols = X_pri.columns   
+	n=len(X_pri.columns)
+	for i,col1 in enumerate(cols):
+	    new_name=col1+"_^2"
+	    if new_name in quadraticFeatures:
+		X_new = pd.DataFrame(X_pri.ix[:,col1].mul(X_pri.ix[:,col1]))
+		X_new.columns=[new_name]
+		X_all = pd.concat([X_all, X_new],axis=1)
+		#delete due to correlations
+		del X_all[col1]
+	    
+	print X_all.columns
+	print "New dim:",X_all.shape
+        
     
     if polyFeatures is not None:
 	print "Creating feature interaction for primary features"
@@ -361,11 +393,12 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
     
     if plotting:
         #print type(weights)
-        plt.hist(weights[sSelector],bins=50,color='b')
-        plt.hist(weights[bSelector],bins=50,color='r',alpha=0.3)
+        #plt.hist(weights[sSelector],bins=50,color='b')
+        #plt.hist(weights[bSelector],bins=50,color='r',alpha=0.3)
+        X_all.hist()
         plt.show()
-        X[sSelector].hist(color='b', alpha=0.5, bins=50)
-        X[bSelector].hist(color='r', alpha=0.5, bins=50)
+        #X[sSelector].hist(color='b', alpha=0.5, bins=50)
+        #X[bSelector].hist(color='r', alpha=0.5, bins=50)
     #split data again
     X = X_all[len(X_test.index):]
     X_test = X_all[:len(X_test.index)]
@@ -563,8 +596,6 @@ def computeCutoff(y_pred,verbose=False):
     threshold_ratio=0.153
     ntop = int(threshold_ratio * len(y_pred))
     idx_sorted=np.argsort(-y_pred)
-    #print idx_sorted
-    #print y_pred[idx_sorted]
     optcutoff=y_pred[idx_sorted][ntop]
     #if verbose: print "ntop: %4d Opt cutoff=%6.3f"%(ntop,optcutoff)
       
@@ -1017,8 +1048,11 @@ if __name__=="__main__":
     #cutoff='compute'
     cutoff='compute'
     clusterFeature=False
-    #polyFeatures=['PRI_tau_ptXPRI_met_sumet','PRI_tau_ptXPRI_lep_pt','PRI_lep_phiXPRI_met_phi','PRI_lep_ptXPRI_met','PRI_tau_etaXPRI_lep_eta','PRI_tau_ptXPRI_met']
+    #polyFeatures=['PRI_tau_ptXPRI_met','PRI_tau_etaXPRI_lep_eta','PRI_lep_ptXPRI_met','PRI_lep_phiXPRI_met_phi','PRI_tau_ptXPRI_lep_pt']
+    #polyFeatures=['PRI_tau_ptXPRI_met','PRI_tau_etaXPRI_lep_eta']
     polyFeatures=None
+    #quadraticFeatures=['PRI_lep_eta_^2','PRI_tau_eta_^2']
+    quadraticFeatures=None
     imputeMassModel=None
     #imputeMassModel=RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='mse', max_features=5,oob_score=False)#LinearRegression()##SGDRegressor(alpha=0.0001,n_iter=5,shuffle=False,loss='squared_loss',penalty='l2')#GaussianNB()#KNeighborsClassifier(n_neighbors=100)#
     createMassEstimate=False
@@ -1027,10 +1061,12 @@ if __name__=="__main__":
     verbose=False
     subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub0909c.csv"
     featureFilter=None
-    onehotenc=[u'PRI_jet_num']
+    loadCake=True
+    #onehotenc=[u'PRI_jet_num']
+    onehotenc=None
     #featureFilter=[u'DER_mass_MMC', u'DER_mass_transverse_met_lep', u'DER_mass_vis', u'metXp_lep_vec', u'PRI_tau_pt', u'DER_met_phi_centrality', u'DER_pt_ratio_lep_tau', u'DER_deltar_tau_lep', u'p_lepXp_tau_vec', u'metXp_tau_vec', u'PRI_met', u'metXp_lep', u'DER_sum_pt', u'DER_pt_tot', u'DER_pt_h', u'PRI_lep_phi-PRI_tau_phi', u'PRI_lep_eta', u'DER_deltaeta_jet_jet', u'PRI_met_sumet', u'PRI_lep_pt', u'PRI_jet_leading_eta', u'metXp_tau', u'p_tauXp_lep', u'p_lep_abs', u'PRI_met_phi-PRI_tau_phi', u'PRI_tau_eta', u'p_tau_abs', u'DER_mass_jet_jet', u'PRI_lep_phi', u'PRI_met_phi', u'DER_lep_eta_centrality', u'PRI_jet_all_pt', u'PRI_jet_leading_pt', u'PRI_jet_leading_phi-PRI_tau_phi', u'DER_prodeta_jet_jet', u'PRI_jet_subleading_eta', u'PRI_jet_num', u'PRI_jet_subleading_pt']#ordered after RF importance AMS= 3.51 GBM,AMS=3.6290 
     #featureFilter=[u'DER_mass_MMC', u'DER_mass_transverse_met_lep', u'DER_mass_vis', u'metXp_lep_vec', u'PRI_tau_pt', u'DER_met_phi_centrality', u'DER_pt_ratio_lep_tau', u'DER_deltar_tau_lep', u'p_lepXp_tau_vec', u'metXp_tau_vec', u'PRI_met', u'metXp_lep', u'DER_sum_pt', u'DER_pt_tot', u'DER_pt_h', u'PRI_lep_phi-PRI_tau_phi', u'PRI_lep_eta', u'DER_deltaeta_jet_jet', u'PRI_met_sumet', u'PRI_lep_pt', u'PRI_jet_leading_eta', u'metXp_tau', u'p_tauXp_lep', u'p_lep_abs', u'PRI_met_phi-PRI_tau_phi', u'PRI_tau_eta', u'p_tau_abs', u'DER_mass_jet_jet', u'PRI_lep_phi', u'PRI_met_phi', u'DER_lep_eta_centrality', u'PRI_jet_all_pt', u'PRI_jet_leading_pt', u'PRI_jet_leading_phi-PRI_tau_phi', u'DER_prodeta_jet_jet']
-    Xtrain,ytrain,Xtest,wtrain=prepareDatasets(nsamples,onlyPRI,replaceNA,plotting,stats,transform,createNAFeats,dropCorrelated,scale_data,clusterFeature,dropFeatures,polyFeatures,createMassEstimate,imputeMassModel,featureFilter,onehotenc)
+    Xtrain,ytrain,Xtest,wtrain=prepareDatasets(nsamples,onlyPRI,replaceNA,plotting,stats,transform,createNAFeats,dropCorrelated,scale_data,clusterFeature,dropFeatures,polyFeatures,createMassEstimate,imputeMassModel,featureFilter,onehotenc,quadraticFeatures,loadCake)
     #nfolds=8#
     nfolds=StratifiedShuffleSplit(ytrain, n_iter=16, test_size=0.5)
     #nfolds=ShuffleSplit(ytrain.shape[0], n_iter=8, test_size=0.25)
@@ -1081,7 +1117,7 @@ if __name__=="__main__":
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=500, learning_rate=0.05, max_depth=6,subsample=1.0,max_features=8,min_samples_leaf=100,verbose=0) #opt weight =500 AMS=3.548
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=800, learning_rate=0.02, max_depth=6,subsample=.5,max_features=8,min_samples_leaf=100,verbose=False) 
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=2000, learning_rate=0.01, max_depth=7,subsample=0.5,max_features=10,min_samples_leaf=50,verbose=0)#3.72  | 3.69
-    #model = XgboostClassifier(n_estimators=300,learning_rate=0.08,max_depth=6,n_jobs=1,NA=-999.9)
+    model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,n_jobs=1,NA=-999.0)
     #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)#SW-proba=False ams=3.42
     #model = AdaBoostClassifier(base_estimator=basemodel,n_estimators=10,learning_rate=0.5)   
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False)
@@ -1089,9 +1125,9 @@ if __name__=="__main__":
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=500, learning_rate=0.05, max_depth=6,subsample=1.0,max_features=6,min_samples_leaf=100,verbose=False)#new opt
     #model = BaggingClassifier(base_estimator=basemodel,n_estimators=10,n_jobs=1,verbose=1)
     model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=fitWithWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=8,smoothWeights=smoothWeights,normalizeWeights=normalizeWeights,verbose=verbose) 
-    #divideAndConquer(model,Xtrain,ytrain,Xtest,wtrain,n_clusters=3)
+    #divideAndConquer(model,Xtrain,ytrain,Xtest,wtrain,n_clusters=3)#did not work
     #model = amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,fitWithWeights=fitWithWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=True)    
-    #iterativeFeatureSelection(model,Xtrain,Xtest,ytrain,10,1)    
+    iterativeFeatureSelection(model,Xtrain,Xtest,ytrain,1,1)    
     #model= amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,fitWithWeights=fitWithWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=True)
     #clist=[0.25,0.50,0.75,0.85]
     #for c in clist:
