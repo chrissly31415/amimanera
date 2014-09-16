@@ -131,7 +131,7 @@ def massImputer(X_orig,y_tmp,massmodel,doSVD=None,nsamples=250000,newfeature=Tru
     return(X_orig)
     
     
-def massEstimator(X_all,createPsq=True,normalize=False,invertEta=False):
+def massEstimator(X_all,createPsq=True,normalize=True,invertEta=True):
     """
     Create features according to:
     M_tt =m_vis / x1 x2
@@ -494,7 +494,7 @@ def modTrainWeights(wtrain,lytrain,scale_wt=None,verbose=False,normalizeWeights=
 	plt.legend()
 	plt.show()
 
-    print "Modified train weights: wsum,s: %4.2f wsum,s new: %4.2f ratio,orig: %4.2f ratio,new: %4.2f scale_factor: %8.3f\n"%(wsum_s,wsum_s_new,wsum_b/wsum_s,wsum_b/wsum_s_new,scale_wt)
+    if verbose: print "Modified train weights: wsum,s: %4.2f wsum,s new: %4.2f ratio,orig: %4.2f ratio,new: %4.2f scale_factor: %8.3f\n"%(wsum_s,wsum_s_new,wsum_b/wsum_s,wsum_b/wsum_s_new,scale_wt)
     return wtrain_fit
   
 
@@ -1055,13 +1055,13 @@ if __name__=="__main__":
     quadraticFeatures=None
     imputeMassModel=None
     #imputeMassModel=RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='mse', max_features=5,oob_score=False)#LinearRegression()##SGDRegressor(alpha=0.0001,n_iter=5,shuffle=False,loss='squared_loss',penalty='l2')#GaussianNB()#KNeighborsClassifier(n_neighbors=100)#
-    createMassEstimate=False
+    createMassEstimate=True
     smoothWeights=1.0
     normalizeWeights=False
     verbose=False
     subfile="/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub0909c.csv"
     featureFilter=None
-    loadCake=True
+    loadCake=False
     #onehotenc=[u'PRI_jet_num']
     onehotenc=None
     #featureFilter=[u'DER_mass_MMC', u'DER_mass_transverse_met_lep', u'DER_mass_vis', u'metXp_lep_vec', u'PRI_tau_pt', u'DER_met_phi_centrality', u'DER_pt_ratio_lep_tau', u'DER_deltar_tau_lep', u'p_lepXp_tau_vec', u'metXp_tau_vec', u'PRI_met', u'metXp_lep', u'DER_sum_pt', u'DER_pt_tot', u'DER_pt_h', u'PRI_lep_phi-PRI_tau_phi', u'PRI_lep_eta', u'DER_deltaeta_jet_jet', u'PRI_met_sumet', u'PRI_lep_pt', u'PRI_jet_leading_eta', u'metXp_tau', u'p_tauXp_lep', u'p_lep_abs', u'PRI_met_phi-PRI_tau_phi', u'PRI_tau_eta', u'p_tau_abs', u'DER_mass_jet_jet', u'PRI_lep_phi', u'PRI_met_phi', u'DER_lep_eta_centrality', u'PRI_jet_all_pt', u'PRI_jet_leading_pt', u'PRI_jet_leading_phi-PRI_tau_phi', u'DER_prodeta_jet_jet', u'PRI_jet_subleading_eta', u'PRI_jet_num', u'PRI_jet_subleading_pt']#ordered after RF importance AMS= 3.51 GBM,AMS=3.6290 
@@ -1117,7 +1117,7 @@ if __name__=="__main__":
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=500, learning_rate=0.05, max_depth=6,subsample=1.0,max_features=8,min_samples_leaf=100,verbose=0) #opt weight =500 AMS=3.548
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=800, learning_rate=0.02, max_depth=6,subsample=.5,max_features=8,min_samples_leaf=100,verbose=False) 
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=2000, learning_rate=0.01, max_depth=7,subsample=0.5,max_features=10,min_samples_leaf=50,verbose=0)#3.72  | 3.69
-    model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,n_jobs=1,NA=-999.0)
+    #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,n_jobs=1,NA=-999.0)
     #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)#SW-proba=False ams=3.42
     #model = AdaBoostClassifier(base_estimator=basemodel,n_estimators=10,learning_rate=0.5)   
     #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False)
@@ -1127,7 +1127,7 @@ if __name__=="__main__":
     model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=fitWithWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=8,smoothWeights=smoothWeights,normalizeWeights=normalizeWeights,verbose=verbose) 
     #divideAndConquer(model,Xtrain,ytrain,Xtest,wtrain,n_clusters=3)#did not work
     #model = amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,fitWithWeights=fitWithWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=True)    
-    iterativeFeatureSelection(model,Xtrain,Xtest,ytrain,1,1)    
+    #iterativeFeatureSelection(model,Xtrain,Xtest,ytrain,1,1)    
     #model= amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,fitWithWeights=fitWithWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=True)
     #clist=[0.25,0.50,0.75,0.85]
     #for c in clist:

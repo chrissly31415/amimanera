@@ -218,12 +218,12 @@ def createModels():
     #model = XgboostClassifier(n_estimators=200,learning_rate=0.08,max_depth=7,n_jobs=4,NA=-999.9)
     #xmodel = XModel("xgboost2",model,X,Xtest,w,cutoff=0.7,scale_wt=1)
     #ensemble.append(xmodel)
-    
+      
     #XGBOOST3 
-    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,loadCake=True)
-    model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,n_jobs=4,NA=-999.0)
-    xmodel = XModel("xgboost_cake",model,X,Xtest,w,cutoff=0.73,scale_wt=1.0)
-    ensemble.append(xmodel)
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,loadCake=True)
+    #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,n_jobs=4,NA=-999.0)
+    #xmodel = XModel("xgboost_cake",model,X,Xtest,w,cutoff=0.73,scale_wt=1.0)
+    #ensemble.append(xmodel)
     
     #KNN1
     #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=True,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
@@ -290,12 +290,19 @@ def createModels():
     #xmodel = XModel("gbm_realbag4",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
     #ensemble.append(xmodel)
     
-    #GBM_realbag5 using cake A+B
-    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,loadCake=True)
+    #GBM_realbag5 
+    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,loadCake=False)
     basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=50,verbose=False) 
     model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,verbose=1)
-    xmodel = XModel("gbm_bag_cake",model,X,Xtest,w,cutoff='compute',scale_wt=200)
+    xmodel = XModel("gbm_realbag5",model,X,Xtest,w,cutoff='compute',scale_wt=200)
     ensemble.append(xmodel)
+    
+    #gbm_bag_cake using cake A+B
+    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,loadCake=True)
+    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=50,verbose=False) 
+    #model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,verbose=1)
+    #xmodel = XModel("gbm_bag_cake",model,X,Xtest,w,cutoff='compute',scale_wt=200)
+    #ensemble.append(xmodel)
     
     
     #TODO use cutoff from models, seem to be more stable than top15%    
@@ -642,7 +649,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices,subfile="subXXX.csv
 	    blend_oob[test] = blender.predict(Xtest)
 	    use_proba=False
 	blend_scores[i]=roc_auc_score(ly[test],blend_oob[test])
-	ams_scores[i]=ams_score(ly[test],blend_oob[test],sample_weight=weights[test],use_proba=use_proba,cutoff=cutoff_all,verbose=True)
+	ams_scores[i]=ams_score(ly[test],blend_oob[test],sample_weight=weights[test],use_proba=use_proba,cutoff=cutoff_all,verbose=False)
     
     print " <AUC>: %0.4f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()),
     oob_auc=roc_auc_score(ly,blend_oob)
@@ -692,7 +699,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices,subfile="subXXX.csv
 def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZeroModels=0.0,alpha=None,subfile=""):
     weights=np.asarray(pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'], index_col=0)['Weight'])
     use_proba=True
-    cutoff_all='compute@15.6'
+    cutoff_all='compute'
 
     def fopt(params):
 	# nxm  * m*1 ->n*1
@@ -720,7 +727,7 @@ def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZero
 	return -score
 	
     lowerbound=0.0
-    #upperbound=0.3
+    #upperbound=0.2
     constr=[lambda x,z=i: x[z]-lowerbound for i in range(len(Xtrain.columns))]
     #constr2=[lambda x,z=i: upperbound-x[z] for i in range(len(Xtrain.columns))]
     #constr=constr+constr2
@@ -758,11 +765,12 @@ def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZero
     
     
     zero_models=[]
+    print "%4s %-48s %6s %6s %6s %10s" %("nr","model","ams","auc","coeff","cutoff")
     for i,model in enumerate(Xtrain.columns):
 	coldata=np.asarray(Xtrain.iloc[:,i])
 	auc = roc_auc_score(y, coldata)
 	ams = ams_score(y,coldata,sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=False)	
-	print "%4d %-48s ams: %4.3f  auc: %4.3f  coef: %4.4f cutoff: %10s" %(i+1,model,ams,auc,xopt[i],str(cutoff_all))
+	print "%4d %-48s %6.3f %6.3f %6.3f %10s" %(i+1,model,ams,auc,xopt[i],str(cutoff_all))
 	if xopt[i]<removeZeroModels:
 	    zero_models.append(model)
     #print "Sum: %4.4f"%(np.sum(xopt))
@@ -881,16 +889,22 @@ if __name__=="__main__":
     nongbmModels=["NB1","KNN2","rf1","rf2","xrf1","ADAboost1","rf3"]#KNN1 there is something wrong...NB is too bad
     onlyPrimary=['gbm_pri','rf_pri']
     gbm_models2=["gbm_test1","gbm_test2","gbm_test4","gbm_test5","gbm_test6","gbm_test8","gbm_test9"]
-    gbm_bag=["gbm_realbag1","gbm_realbag2","gbm_realbag3"]
+    gbm_bag=["gbm_realbag1","gbm_realbag2","gbm_realbag3","gbm_realbag5"]
     xgboost=["xgboost1","xgboost2","xgboost3"]
     cake_models=['xgboost_cake','gbm_bag_cake']
     #new_feat=["gbm_newfeat1","gbm_newfeat2","gbm_newfeat3","gbm_newfeat4","gbm_newfeat5","gbm_newfeat6"]#probably bad models!
-    allmodels=nongbmModels+gbm_models2+gbm_bag+xgboost+onlyPrimary
+    allmodels=nongbmModels+gbm_models2+gbm_bag+xgboost+onlyPrimary+cake_models
     
-    #selectModelsGreedy(allmodels,startensemble=[],niter=18,dropCorrelated=False,mode='classical')#['gbm_realbag2', 'gbm_realbag3', 'NB1', 'rf1', 'ADAboost1', 'gbm_exp', 'gbm_test1', 'gbm_test2', 'gbm_test8', 'gbm_test9', 'gbm_realbag1', 'gbm_realbag2', 'gbm_realbag3', 'xgboost1', 'xgboost2']
-    topmodels=['gbm_realbag3', 'xgboost2', 'gbm_realbag1', 'ADAboost1', 'gbm_test6', 'gbm_test9', 'gbm_realbag2', 'gbm_test5', 'gbm_test1', 'rf3', 'gbm_test2', 'gbm_test8', 'rf1', 'NB1', 'xrf1']#nest submissin so far
-    models=topmodels+['gbm_bag_cake']
-    #useCols=['A','B']
+    #selectModelsGreedy(allmodels,startensemble=[],niter=20,dropCorrelated=False,mode='classical')#['gbm_realbag2', 'gbm_realbag3', 'NB1', 'rf1', 'ADAboost1', 'gbm_exp', 'gbm_test1', 'gbm_test2', 'gbm_test8', 'gbm_test9', 'gbm_realbag1', 'gbm_realbag2', 'gbm_realbag3', 'xgboost1', 'xgboost2']
+    sgdmodel1=['gbm_realbag5', 'gbm_test6', 'xgboost_cake', 'gbm_test2', 'rf1', 'xgboost2', 'ADAboost1', 'gbm_realbag1']#AMS=3.78
+    sgdmodel2=['gbm_bag_cake', 'gbm_realbag1', 'xgboost3', 'xgboost2', 'gbm_test9', 'rf1', 'gbm_realbag2', 'gbm_realbag3', 'xgboost_cake', 'gbm_test5', 'gbm_test4']#AMS=3.79
+    sgdmodel3=['gbm_bag_cake', 'gbm_realbag1', 'xgboost3', 'xgboost2', 'gbm_test9', 'rf1']#3.7769
+    sgdmodel4=['gbm_realbag5', 'gbm_test6', 'gbm_test2', 'rf1', 'xgboost2', 'ADAboost1', 'gbm_realbag1']
+    
+    topmodels=['gbm_realbag3', 'xgboost2', 'gbm_realbag1', 'ADAboost1', 'gbm_test6', 'gbm_test9', 'gbm_realbag2', 'gbm_test5', 'gbm_test1', 'rf3', 'gbm_test2', 'gbm_test8', 'rf1', 'NB1', 'xrf1']#best submissin so far
+    bestsubmission=topmodels+['gbm_bag_cake']#AMS=3.767 (PL)
+    model=topmodels+['gbm_realbag5']
+    #useCols=['A']
     useCols=None
-    trainEnsemble(models,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1409a.csv')
+    trainEnsemble(model,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1509b.csv')
     
