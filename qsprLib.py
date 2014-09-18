@@ -47,6 +47,7 @@ def one_hot_encoder(data, col, replace=False):
     Returns a 3-tuple comprising the data, the vectorized data,{
     and the fitted vectorizor.
     credits to https://gist.github.com/kljensen/5452382
+    #use pd.get_dummies!!! instead, needs integer values 
     """
     vec=DictVectorizer()
     tmp=[]
@@ -67,7 +68,9 @@ def one_hot_encoder(data, col, replace=False):
 
     
 def removeCorrelations(X_all,threshhold):
-    #filter correlated data
+    """
+    Remove correlations, we could improve it by only removing the variable frmo two showing the highest correlations with others
+    """
     print "Removing correlated columns with threshhold:",threshhold
     c = X_all.corr().abs()
     #print c
@@ -279,7 +282,7 @@ def ensemblePredictions(classifiers,blender,lXs,ly,lXs_test,lidx,lidx_train,oob_
     pred_df.index.name='urlid'
     pred_df.to_csv(filename)
     
-def pyGridSearch(lmodel,lXs,ly):  
+def pyGridSearch(lmodel,lX,ly):  
     """   
     Grid search with sklearn internal tool
     """ 
@@ -301,12 +304,51 @@ def pyGridSearch(lmodel,lXs,ly):
     #parameters = {'filter__percentile': [90,80], 'model__n_estimators': [600,500],'model__learning_rate': [0.1] }#pipeline
     
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
-    clf_opt.fit(lXs,ly)
+    clf_opt.fit(lX,ly)
     
     for params, mean_score, scores in clf_opt.grid_scores_:
         print("%0.3f (+/- %0.3f) for %r"
               % (mean_score.mean(), scores.std(), params))
     return(clf_opt.best_estimator_)
+    
+
+def weightedGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,scale_wt='auto',n_jobs=1,local_scorer='roc_auc'):
+    """
+    Uses sample weights and individual scoring function, used in Higgs challenge, needs modification cross_Validation.py
+    """
+    if not 'sample_weight' in inspect.getargspec(lmodel.fit).args:
+	  print("WARNING: Fit function ignores sample_weight!")
+	  
+    fit_params = {}	
+    fit_params['scoring_weight']=lw	
+    fit_params['fitWithWeights']=fitWithWeights
+    
+    #parameters = {'n_estimators':[150,300], 'max_features':[5,10]}#rf
+    #parameters = {'n_estimators':[250], 'max_features':[6,8,10],'min_samples_leaf':[5,10]}#xrf+xrf
+    #parameters = {'max_depth':[7], 'learning_rate':[0.08],'n_estimators':[100,200,300],'subsample':[0.5],'max_features':[10],'min_samples_leaf':[50]}#gbm
+    #parameters = {'max_depth':[7], 'learning_rate':[0.08],'n_estimators':[200],'subsample':[1.0],'max_features':[10],'min_samples_leaf':[20]}#gbm
+    parameters = {'max_depth':[6], 'learning_rate':[0.1,0.08,0.05],'n_estimators':[300,500,800],'subsample':[1.0],'loss':['deviance'],'min_samples_leaf':[100],'max_features':[8]}#gbm
+    #parameters = {'max_depth':[10], 'learning_rate':[0.001],'n_estimators':[500],'subsample':[0.5],'loss':['deviance']}#gbm
+    #parameters = {'max_depth':[15,20,25], 'learning_rate':[0.1,0.01],'n_estimators':[150,300],'subsample':[1.0,0.5]}#gbm
+    #parameters = {'max_depth':[20,30], 'learning_rate':[0.1,0.05],'n_estimators':[300,500,1000],'subsample':[0.5],'loss':['exponential']}#gbm
+    #parameters = {'max_depth':[15,20], 'learning_rate':[0.05,0.01,0.005],'n_estimators':[250,500],'subsample':[1.0,0.5]}#gbm
+    #parameters = {'n_estimators':[100,200,400], 'learning_rate':[0.1,0.05]}#adaboost
+    #parameters = {'filter__percentile':[20,15]}#naives bayes
+    #parameters = {'filter__percentile': [15], 'model__alpha':[0.0001,0.001],'model__n_iter':[15,50,100],'model__penalty':['l1']}#SGD
+    #parameters['model__n_neighbors']=[40,60]}#knn
+    #parameters['model__alpha']=[1.0,0.8,0.5,0.1]#opt nb
+    #parameters = {'n_neighbors':[10,30,40,50],'algorithm':['ball_tree'],'weights':['distance']}#knn
+    clf_opt=grid_search.GridSearchCV(lmodel, parameters,n_jobs=n_jobs,verbose=1,scoring=local_scorer,cv=nfolds,fit_params=fit_params,refit=True)
+    
+    clf_opt.fit(lX,ly)
+    #dir(clf_opt)
+    for params, mean_score, scores in clf_opt.grid_scores_:       
+        print("%0.3f (+/- %0.3f) for %r" % (mean_score, scores.std(), params))
+    
+    scores = cross_validation.cross_val_score(lmodel, lX, ly, fit_params=fit_params,scoring=local_scorer,cv=nfolds)
+    print "Score: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
+    return(clf_opt.best_estimator_)
+    
     
     
 def buildModel(lmodel,lXs,ly,sweights=None,feature_names=None):
@@ -332,8 +374,55 @@ def density(m):
     """
     entries=m.shape[0]*m.shape[1]
     return m.nnz/float(entries)
+
+
+def buildWeightedModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,nfolds=8,useProba=True,scale_wt=None,n_jobs=1,verbose=False,local_scorer='roc_auc'):
+    """   
+    Build model using sample weights, can use weights for scoring function
+    """ 
+    
+    fit_params = {}	
+    fit_params['scoring_weight']=lw	
+    fit_params['fitWithWeights']=fitWithWeights
+    
+    print "Xvalidation..."
+    scores = cross_validation.cross_val_score(lmodel,lXs,ly,fit_params=fit_params, scoring=local_scorer,cv=nfolds,n_jobs=n_jobs)
+    print "<SCORE>= %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
+    print "Building model with all instances..."
+    
+    if fitWithWeights:
+	    print "Use sample weights for final model..."
+	    lmodel.fit(lXs,ly,sample_weight=lw)
+    else:
+	    lmodel.fit(lXs,ly)
+    
+    #analysis of final predictions
+    if useProba:
+	print "Using predic_proba for final model..."
+	probs = lmodel.predict_proba(lXs)[:,1]
+        #plot it
+        plt.hist(probs,label='final model',bins=50,color='b')
+        plt.legend()
+        plt.draw()
+    
+    return(lmodel)
+    
+    
+
+def analyzeLearningCurve(model,X,y,lw,folds=8):
+    """
+    make a learning curve according to http://scikit-learn.org/dev/auto_examples/plot_learning_curve.html
+    """
+
+    #cv = cross_validation.ShuffleSplit(X.shape[0], n_iter=10, test_size=0.2, random_state=0)
+    #cv = KFold(X.shape[0], n_folds=folds,shuffle=True)  
+    cv = StratifiedKFold(y, n_folds=folds)
+    #learn_score = make_scorer(roc_auc_score)
+    #learn_score = make_scorer(score_func=ams_score,use_proba=useProba)
+    learn_score=make_scorer(f1_score)
+    plot_learning_curve(model, "learning curve", X, y, ylim=(0.1, 1.01), cv=cv, n_jobs=4,scoring=learn_score)
   
-  
+ 
 def group_sparse_old(Xold,Xold_test, degree=2,append=True):
     """ 
     multiply columns of sparse data
