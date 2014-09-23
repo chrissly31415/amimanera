@@ -37,8 +37,7 @@ from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier,LinearRegression
 from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor,BaggingClassifier,RandomForestRegressor
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import LinearSVC
-from sklearn.svm import SVC
+from sklearn.svm import LinearSVC,SVC,SVR
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.learning_curve import learning_curve
 
@@ -756,25 +755,32 @@ def showMisclass(lXs,lXs_test,ly,t=0.95):
     plt.show()
     #now got to page interactively
     
-def scaleData(lXs,lXs_test,cols=None):
+def scaleData(lXs,lXs_test=None,cols=None,centerZero=False):
     """
-    standard+transformation scaling of data, also possible with sklearn StandardScaler
+    standard scaling of data, also possible with sklearn StandardScaler but not with dataframe
     """
-    print "Data scaling..."
-    lX_all = pd.concat([lXs_test, lXs])   
-    lX_all[cols].hist()   
-    lX_all[cols] = (lX_all[cols] - lX_all[cols].min()+10e-10) 
-    print lX_all[cols].describe()
-    lX_all[cols]=lX_all[cols].apply(np.sqrt)
-    lX_all[cols] = (lX_all[cols] - lX_all[cols].mean()) / (lX_all[cols].max() - lX_all[cols].min()) 
-    print lX_all[cols].describe()
-    lX_all[cols].hist()
-    plt.show()
+    if cols is None:
+	cols = lXs.columns
     
-    #divide again
-    lXs = lX_all[len(lXs_test.index):]
-    lXs_test = lX_all[:len(lXs_test.index)]
-    return (lXs,lXs_test)
+    print "Data scaling..."
+    if lXs_test is not None:
+	lX_all = pd.concat([lXs_test, lXs])
+    else:
+	lX_all = lXs
+	
+    if centerZero:
+	lX_all[cols] = (lX_all[cols] - lX_all[cols].mean()) / (lX_all[cols].max() - lX_all[cols].min())
+    else:
+	lX_all[cols] = (lX_all[cols] - lX_all[cols].min()) / (lX_all[cols].max() - lX_all[cols].min())
+    
+    #print lX_all[cols].describe()
+    
+    if lXs_test is not None:
+	lXs = lX_all[len(lXs_test.index):]
+	lXs_test = lX_all[:len(lXs_test.index)]
+	return (lXs,lXs_test)
+    else:
+	return lX_all
     
        
 def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, scoring=f1_score, train_sizes=np.linspace(.1, 1.0, 5)):
