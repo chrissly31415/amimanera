@@ -78,6 +78,8 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
     print "Dim train set:",Xtrain.shape    
     print "Dim test set :",Xtest.shape
     
+    Xtrain.to_csv("/home/loschen/Desktop/datamining-kaggle/african_soil/training_mod.csv",index=False)
+    Xtest.to_csv("/home/loschen/Desktop/datamining-kaggle/african_soil/test_mod.csv",index=False)
     
     return(Xtrain,Xtest,ymat)
 
@@ -143,19 +145,37 @@ def peakfinder(X_all,verbose=False):
     newdf.columns=colnames   
     #print newdf.head(10)
     #print newdf.describe()
-    newdf.to_csv("/home/loschen/Desktop/datamining-kaggle/african_soil/irpeaks.csv")
+    newdf.to_csv("/home/loschen/Desktop/datamining-kaggle/african_soil/irpeaks.csv",index=False)
     return(newdf)
     
     
-def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv_split=8,n_jobs=8):
+def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv_split=8,n_jobs=8,gridSearch=False):
     cv = cross_validation.ShuffleSplit(lX.shape[0], n_iter=cv_split, test_size=0.25, random_state=0)
     scores=np.zeros((lymat.shape[1],cv_split))
     for i in range(lymat.shape[1]):
-	print "TARGET: %-12s"%(lymat.columns[i]),
 	ly = lymat.iloc[:,i].values
 	#be carefull sign is flipped
-	scores[i,:] = (-1*cross_validation.cross_val_score(lmodels[i],lX,ly,fit_params=fit_params, scoring='mean_squared_error',cv=cv,n_jobs=n_jobs))**0.5
-	print " - <score>= %0.4f (+/- %0.4f) runs: %4d" % (scores[i].mean(), scores[i].std(),scores.shape[1])
+	if gridSearch is True:
+	    parameters = {'filter__percentile': [50,25], 'model__C': [12000,10000,8000],'model__gamma': [0.0] }#pipeline
+	    clf  = grid_search.GridSearchCV(lmodels[i], parameters,n_jobs=n_jobs,verbose=0,scoring=scoring,cv=cv,fit_params=fit_params,refit=True)
+	    clf.fit(lX,ly)
+	    best_score=1.0E5
+	    for params, mean_score, cvscores in clf.grid_scores_:
+		oob_score = (-1*mean_score)**0.5
+		cvscores = (-1*cvscores)**0.5
+		mean_score = cvscores.mean()
+		print("OOB: %0.3f - MEAN: %0.3f (+/-%0.03f) for %r" % (oob_score, mean_score, cvscores.std(), params))
+		if mean_score < best_score:
+		    best_score = mean_score
+		    scores[i,:] = cvscores
+		
+	    lmodels[i] = clf.best_estimator_
+	     
+	else:    
+	    scores[i,:] = (-1*cross_validation.cross_val_score(lmodels[i],lX,ly,fit_params=fit_params, scoring=scoring,cv=cv,n_jobs=n_jobs))**0.5   
+
+	print "TARGET: %-12s"%(lymat.columns[i]),    
+	print " - <score>= %0.3f (+/- %0.3f) runs: %4d" % (scores[i].mean(), scores[i].std(),scores.shape[1])
 	#FIT FULL MODEL
 	lmodels[i].fit(lX,ly)
 
@@ -164,6 +184,12 @@ def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv
     return(models)
     
 
+def gridSearchModels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv_split=8,n_jobs=8):
+    """
+    Do grid search on several models
+    """
+    pass
+    
     
 def makePrediction(models,Xtrain,Xtest,nt,filename='subXXX.csv'):
     preds = np.zeros((Xtest.shape[0], nt))
@@ -196,6 +222,7 @@ if __name__=="__main__":
     #TODO https://gist.github.com/sixtenbe/1178136
     #TODO http://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks_cwt.html
     #TODO 2nd derivative using np.diff twice
+    #boruta results: ["BSAN","BSAS","BSAV","ELEV","EVI","LSTD","LSTN","REF1","REF2","REF3","REF7","TMAP","TMFI","X0","m120.0","m200.0","m1160.0","m1200.0","m2080.0","m2160.0","m2200.0","m2240.0","m2640.0","m3240.0"]
   
     t0 = time()
 	
@@ -210,8 +237,9 @@ if __name__=="__main__":
     onlySpectra=False
     deleteSpectra=False
     plotting=False
-    standardize=True
+    standardize=False
     doPCA=None
+    #findPeaks=True
     findPeaks='load'
     makeDerivative=False
     
@@ -230,8 +258,8 @@ if __name__=="__main__":
 	#model = Pipeline([('pca', PCA(n_components=200)), ('model', RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_split=2,min_samples_leaf=5,n_jobs=1,criterion='mse', max_features='auto',oob_score=False))])
 	#model = Pipeline([('svd', TruncatedSVD(n_components=25, algorithm='randomized', n_iter=5, tol=0.0)), ('model', RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_split=2,min_samples_leaf=5,n_jobs=1,criterion='mse', max_features='auto',oob_score=False))])
 	#model = Pipeline([('pca', PCA(n_components=doPCA)), ('model', SVR(C=1.0, gamma=0.0, verbose = 0))])
-	
-	model = SVR(C=10000.0, gamma=0.0, verbose = 0)
+	model = Pipeline([('filter', SelectPercentile(f_regression, percentile=50)), ('model', SVR(kernel='rbf',epsilon=0.1,C=10000.0, gamma=0.0, verbose = 0))])
+	#model = SVR(C=10000.0, gamma=0.0, verbose = 0)
 	#model = SVR(C=10000.0, gamma=0.0005, verbose = 0)
 	#model = RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_split=2,min_samples_leaf=5,n_jobs=8,criterion='mse', max_features='auto',oob_score=False)
 	#model = LinearRegression(normalize=False)
@@ -240,7 +268,7 @@ if __name__=="__main__":
     
     
     #make the training
-    models = buildmodels(models,Xtrain,ymat,cv_split=16)
+    models = buildmodels(models,Xtrain,ymat,cv_split=16,gridSearch=True)
     print models[0]
     #makePrediction(models,Xtrain,Xtest,nt,filename='/home/loschen/Desktop/datamining-kaggle/african_soil/submissions/sub2009a.csv'):
     #make the predictions   
