@@ -11,7 +11,7 @@ from sklearn.base import clone
 from qsprLib import *
 import random
 
-def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=5,findPeaks=None,makeDerivative=False):
+def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=5,findPeaks=None,makeDerivative=False,featureFilter=None,loadFeatures=None,deleteFeatures=None):
     Xtrain = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/training.csv')
     Xtest = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/sorted_test.csv')
     ymat = Xtrain[['Ca','P','pH','SOC','Sand']]
@@ -29,7 +29,7 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
     X_all = pd.concat([X_all, pd.get_dummies(X_all['Depth'])],axis=1)
     X_all.drop(['Depth','Subsoil'], axis=1, inplace=True)
     
-    if findPeaks is not None:
+    if findPeaks is not None and not False:
       if findPeaks is 'load':
 	  X_ir = peakfinder('load')
       else:
@@ -51,6 +51,10 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
     if deleteSpectra:
 	X_all = X_all.iloc[:,3578:-1]
     
+    if featureFilter is not None:
+	print "Using featurefilter..."
+	X_all=X_all[featureFilter]
+    
     if standardize:
 	X_all = scaleData(X_all)
 	
@@ -59,7 +63,10 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
 	X_r = pca.fit_transform(np.asarray(X_all)) 
 	print "explained variance:",pca.explained_variance_ratio_
 	print "components: %5d sum: %6.2f"%(doPCA,pca.explained_variance_ratio_.sum())
-       
+      
+    if deleteFeatures is not None:
+	X_all.drop(deleteFeatures, axis=1, inplace=True) 
+      
     #split data again
     Xtrain = X_all[len(Xtest.index):]
     Xtest = X_all[:len(Xtest.index)]
@@ -73,13 +80,24 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
 	ymat.hist(bins=50)
 	plt.show()
     
-    print X_all.describe()
-    print X_all.columns
+    if loadFeatures is not None:
+	tmp = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/training_all.csv')[loadFeatures]
+	tmp.index = Xtrain.index
+	Xtrain = pd.concat([Xtrain,tmp],axis=1,ignore_index=True)
+	tmp = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/test_all.csv')[loadFeatures]
+	tmp.index = Xtest.index
+	print tmp.shape
+	print tmp.describe()
+	Xtest = pd.concat([Xtest,tmp],axis=1,ignore_index=True)
+   
+    
+    print Xtest.describe()
+    print Xtest.index
     print "Dim train set:",Xtrain.shape    
     print "Dim test set :",Xtest.shape
     
-    Xtrain.to_csv("/home/loschen/Desktop/datamining-kaggle/african_soil/training_mod.csv",index=False)
-    Xtest.to_csv("/home/loschen/Desktop/datamining-kaggle/african_soil/test_mod.csv",index=False)
+    #Xtrain.to_csv("/home/loschen/Desktop/datamining-kaggle/african_soil/training_all.csv",index=False)
+    #Xtest.to_csv("/home/loschen/Desktop/datamining-kaggle/african_soil/test_all.csv",index=False)
     
     return(Xtrain,Xtest,ymat)
 
@@ -141,7 +159,7 @@ def peakfinder(X_all,verbose=False):
 	    plt.show()
 	    
     newdf = pd.DataFrame(tutto).set_index(0)
-    colnames = [ "m"+str(x) for x in edges.tolist() ]
+    colnames = [ "int"+str(x) for x in edges.tolist() ]
     newdf.columns=colnames   
     #print newdf.head(10)
     #print newdf.describe()
@@ -156,15 +174,20 @@ def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv
 	ly = lymat.iloc[:,i].values
 	#be carefull sign is flipped
 	if gridSearch is True:
-	    parameters = {'filter__percentile': [50,25], 'model__C': [12000,10000,8000],'model__gamma': [0.0] }#pipeline
+	    #parameters = {'filter__percentile': [50,25], 'model__C': [12000,10000,8000],'model__gamma': [0.0] }#pipeline	    
+	    #parameters = {'filter__k': [2000,3000,3594],'pca__n_components':[0.99,0.995], 'model__alpha': [10000,100,1.0,0.01,0.0001] }#pipeline
+	    #parameters = {'filter__k': [3250,3594],'model__gamma':[0.05,0.005,0.0005,0.0001], 'model__C': [100,1000,10000,100000] }#pipeline
+	    parameters = {'filter__percentile': [100,99,95,90,80]}#pipeline
+	    #parameters = {'filter__k': [10,20],'pca__n_components':[10,20], 'model__alpha': [1.0] }#pipeline
 	    clf  = grid_search.GridSearchCV(lmodels[i], parameters,n_jobs=n_jobs,verbose=0,scoring=scoring,cv=cv,fit_params=fit_params,refit=True)
 	    clf.fit(lX,ly)
 	    best_score=1.0E5
+	    print("%6s %6s %6s %r" % ("OOB", "MEAN", "SDEV", "PARAMS"))
 	    for params, mean_score, cvscores in clf.grid_scores_:
 		oob_score = (-1*mean_score)**0.5
 		cvscores = (-1*cvscores)**0.5
 		mean_score = cvscores.mean()
-		print("OOB: %0.3f - MEAN: %0.3f (+/-%0.03f) for %r" % (oob_score, mean_score, cvscores.std(), params))
+		print("%6.3f %6.3f %6.3f %r" % (oob_score, mean_score, cvscores.std(), params))
 		if mean_score < best_score:
 		    best_score = mean_score
 		    scores[i,:] = cvscores
@@ -195,12 +218,12 @@ def makePrediction(models,Xtrain,Xtest,nt,filename='subXXX.csv'):
     preds = np.zeros((Xtest.shape[0], nt))
     f, axarr = plt.subplots(nt, sharex=True)
     rmse_list = np.zeros((nt,1))
+    print "%-10s %6s" %("TARGET","RMSE,train")
     for i in range(nt):
 	y_true = np.asarray(ymat.iloc[:,i])
 	y_pred = models[i].predict(Xtrain).astype(float)
-	
 	rmse_score = np.sqrt(mean_squared_error(y_true, y_pred))
-	print "TARGET: %-10s RMSE,train: %6.3f" %(ymat.columns[i],rmse_score)
+	print "%-10s %6.3f" %(ymat.columns[i],rmse_score)
 	preds[:,i] = models[i].predict(Xtest).astype(float)
 	axarr[i].scatter(y_pred,y_true)
 	axarr[i].set_ylabel(ymat.columns[i])
@@ -214,15 +237,14 @@ def makePrediction(models,Xtrain,Xtest,nt,filename='subXXX.csv'):
     sample['pH'] = preds[:,2]
     sample['SOC'] = preds[:,3]
     sample['Sand'] = preds[:,4]
-    sample.to_csv(filename, index = False)
-    
+    sample.to_csv(filename, index = False)    
     
     
 if __name__=="__main__":
     #TODO https://gist.github.com/sixtenbe/1178136
     #TODO http://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks_cwt.html
     #TODO 2nd derivative using np.diff twice
-    #boruta results: ["BSAN","BSAS","BSAV","ELEV","EVI","LSTD","LSTN","REF1","REF2","REF3","REF7","TMAP","TMFI","X0","m120.0","m200.0","m1160.0","m1200.0","m2080.0","m2160.0","m2200.0","m2240.0","m2640.0","m3240.0"]
+    #boruta results: 
   
     t0 = time()
 	
@@ -233,21 +255,29 @@ if __name__=="__main__":
     pd.set_option('display.max_columns', 14)
     pd.set_option('display.max_rows', 40)
 
+    np.random.seed(42)
     nsamples=-1
     onlySpectra=False
     deleteSpectra=False
     plotting=False
-    standardize=False
+    standardize=True
     doPCA=None
-    #findPeaks=True
-    findPeaks='load'
-    makeDerivative=False
+    findPeaks=None
+    #findPeaks='load'
+    makeDerivative=False#CHECK indices after derivative making...
+    featureFilter=None#["BSAN","BSAS","BSAV","ELEV","EVI","LSTD","LSTN","REF1","REF2","REF3","REF7","TMAP","TMFI","m120.0","m200.0","m1160.0","m1200.0","m2080.0","m2160.0","m2200.0","m2240.0","m2640.0","m3240.0"]
+    loadFeatures=None#["BSAN","BSAS","BSAV","ELEV","EVI","LSTD","LSTN","REF1","REF2","REF3","REF7","TMAP","TMFI","m120.0","m200.0","m1160.0","m1200.0","m2080.0","m2160.0","m2200.0","m2240.0","m2640.0","m3240.0"]
     
-    (Xtrain,Xtest,ymat) = prepareDatasets(nsamples,onlySpectra,deleteSpectra,plotting,standardize,doPCA,findPeaks,makeDerivative)
-    #ymat = ymat.iloc[:,0:3]
+    #spectra = [m for m in list(training.columns) if m[0]=='m']
+    co2 = ['m2379.76', 'm2377.83', 'm2375.9', 'm2373.97','m2372.04', 'm2370.11', 'm2368.18', 'm2366.26','m2364.33', 'm2362.4', 'm2360.47', 'm2358.54','m2356.61', 'm2354.68', 'm2352.76']
+    deleteFeatures=co2
+    
+    (Xtrain,Xtest,ymat) = prepareDatasets(nsamples,onlySpectra,deleteSpectra,plotting,standardize,doPCA,findPeaks,makeDerivative,featureFilter,loadFeatures,deleteFeatures)
+    #ymat = ymat.iloc[:,1:2]
     nt = ymat.shape[1]
 
     #generate models
+    #C:Inverse of regularization strength; must be a positive float. Like in support vector machines, smaller values specify stronger regularization.
     models=[]
     for i in range(nt):
 	#model = Pipeline([('filter', SelectPercentile(f_regression, percentile=5)), ('model', LinearRegression())])
@@ -258,21 +288,31 @@ if __name__=="__main__":
 	#model = Pipeline([('pca', PCA(n_components=200)), ('model', RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_split=2,min_samples_leaf=5,n_jobs=1,criterion='mse', max_features='auto',oob_score=False))])
 	#model = Pipeline([('svd', TruncatedSVD(n_components=25, algorithm='randomized', n_iter=5, tol=0.0)), ('model', RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_split=2,min_samples_leaf=5,n_jobs=1,criterion='mse', max_features='auto',oob_score=False))])
 	#model = Pipeline([('pca', PCA(n_components=doPCA)), ('model', SVR(C=1.0, gamma=0.0, verbose = 0))])
-	model = Pipeline([('filter', SelectPercentile(f_regression, percentile=50)), ('model', SVR(kernel='rbf',epsilon=0.1,C=10000.0, gamma=0.0, verbose = 0))])
+	#model = Pipeline([('filter', SelectPercentile(f_regression, percentile=50)), ('model', SVR(kernel='rbf',epsilon=0.1,C=10000.0, gamma=0.0, verbose = 0))])
+	#model = Pipeline([('filter', SelectKBest(f_regression, k=10)),('pca', PCA(n_components=10)), ('model', SGDRegressor(alpha=0.00001,n_iter=150,shuffle=True,loss='squared_loss',penalty='l2'))])
+	#model = Pipeline([('filter', SelectKBest(f_regression, k=10)),('pca', PCA(n_components=10)), ('model', Ridge())])
+	model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=1.0, gamma=0.0, verbose = 0))])
 	#model = SVR(C=10000.0, gamma=0.0, verbose = 0)
 	#model = SVR(C=10000.0, gamma=0.0005, verbose = 0)
-	#model = RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_split=2,min_samples_leaf=5,n_jobs=8,criterion='mse', max_features='auto',oob_score=False)
+	#model = RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_split=2,min_samples_leaf=5,n_jobs=1,criterion='mse', max_features='auto',oob_score=False)
 	#model = LinearRegression(normalize=False)
 	models.append(model) 
-    
-    
+    #individual model setup
+    models[0] =  Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=100.0, gamma=0.005, verbose = 0))])#Ca
+    models[1] =  Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', SVR(C=100000.0, gamma=0.0005, verbose = 0))]) #P 
+    models[2] =  Pipeline([('filter', GenericUnivariateSelect(f_regression, param=95,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0005, verbose = 0))])#pH
+    models[3] =  Pipeline([('filter', GenericUnivariateSelect(f_regression, param=90,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0005, verbose = 0))])#SOC
+    models[4] =  Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0005, verbose = 0))])#Sand
     
     #make the training
-    models = buildmodels(models,Xtrain,ymat,cv_split=16,gridSearch=True)
-    print models[0]
-    #makePrediction(models,Xtrain,Xtest,nt,filename='/home/loschen/Desktop/datamining-kaggle/african_soil/submissions/sub2009a.csv'):
-    #make the predictions   
-  
+    models = buildmodels(models,Xtrain,ymat,cv_split=16,gridSearch=False)
+    for i in range(nt):
+	print "TARGET: %-10s" %(ymat.columns[i])
+	print models[i]
+
+      
+    makePrediction(models,Xtrain,Xtest,nt,filename='/home/loschen/Desktop/datamining-kaggle/african_soil/submissions/sub2609a.csv')
+    #make the predictions 
 
     print("Model building done on %d samples in %fs" % (Xtrain.shape[0],time() - t0))
 
