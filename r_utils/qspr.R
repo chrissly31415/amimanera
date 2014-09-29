@@ -6,15 +6,15 @@ if (sink.number()>1) sink()
 args <- commandArgs(TRUE)
 options(error=recover)
 
-#setwd("D:/data_mining/")
-source("D:/data_mining/saveRFcompact.R")
-source("D:/data_mining/xvalidation.R")
-source("D:/data_mining/boruta_select.R")
-source("D:/data_mining/rf_select.R")
-source("D:/data_mining/saveMLR.R")
-source("D:/data_mining/greedySelect.R")
-source("D:/data_mining/gaFeatureSelection.R")
-source("D:/data_mining/bagged_net.R")
+rootdir<-"D:/data_mining/amimanera/r_utils"
+source(paste(rootdir,"/xvalidation.R",sep=""))
+source(paste(rootdir,"/boruta_select.R",sep=""))
+source(paste(rootdir,"/rf_select.R",sep=""))
+source(paste(rootdir,"/greedySelect.R",sep=""))
+source(paste(rootdir,"/gaFeatureSelection.R",sep=""))
+source(paste(rootdir,"/bagged_net.R",sep=""))
+
+
 
 loadData<-function(filename,separator=";") {
   ldata = read.csv(file=filename,sep=separator)
@@ -620,18 +620,21 @@ caret_train<-function(Xl,yl,classification=F,lmethod="gbm") {
   #
 }
 
-gbm_grid<-function(lX,ly,lossfn="auc") {
+gbm_grid<-function(lX,ly,lossfn="auc",treemethod="gbm") {
   df<-data.frame(lX,ly)
-  intseq<-c(15,20,30)
-  #shseq<-c(0.1,0.05,0.01,0.001)
-  shseq<-c(0.001,0.002,0.0008)
-  iterseq<-c(5000)
+  intseq<-c(3,4,5,6)#can also be mtry
+  shseq<-c(0.02)
+  iterseq<-c(250,300,400)
   for(i in intseq) {
     for(j in shseq) {
       for(k in iterseq) {
-        cat("Iterations:",k," int.depth:",i, " shrinkage:",j," ")
-        #(Xl,numberTrees,nrfolds,intdepth,sh,minsnode)
-        gbm_xval(lX,ly,numberTrees=k,nrfolds=5,intdepth=i,sh=j,minsnode=5,repeatcv=2,lossfn=lossfn)
+        if (treemethod=="gbm") {
+          cat("Iterations:",k," int.depth:",i, " shrinkage:",j," ")
+          gbm_xval(lX,ly,numberTrees=k,nrfolds=5,intdepth=i,sh=j,minsnode=5,repeatcv=2,lossfn=lossfn,method=treemethod)
+        } else {
+          cat("Iterations:",k," mtry:",i," ")
+          gbm_xval(lX,ly,numberTrees=k,nrfolds=5,mtry=i,repeatcv=2,lossfn=lossfn,method=treemethod)
+        }
         cat("\n")
       }
     }
@@ -704,11 +707,11 @@ gbm_xval<-function(Xl,yl,numberTrees=500,nrfolds=5,intdepth=2,sh=0.01,minsnode=5
   if (lossfn=="auc") {
     auc_iter<-apply(lossdat, 2, function(x) computeAUC(x,yl,F))
     cat("AUC of iterations:",auc_iter,"\n")
-    cat("<AUC>:",computeAUC(oob_mean,yl,F),"\n") 
+    cat("<AUC,oob>:",computeAUC(oob_mean,yl,F),"\n") 
   } else {
     auc_iter<-apply(lossdat, 2, function(x) compRMSE(x,yl))
     cat("RMSE of iterations:",auc_iter,"\n")
-    cat("<RMSE>:",compRMSE(oob_mean,yl),"\n") 
+    cat("<RMSE,oob>:",compRMSE(oob_mean,yl),"\n") 
   }
   res<-data.frame(label=oob_mean)
   write.table(res,file="gbm_oob.csv",sep=",",row.names=FALSE)
@@ -724,10 +727,10 @@ trainRF<-function(lX,ly,iter=500,m.try=if (!is.null(ly) && !is.factor(ly)) max(f
   
   if (fimportance) {
     imp<-importance(mydata.rf,type=1)
-    par(mar=c(4,1,2,2))
     varImpPlot(mydata.rf,type=1,main="")
     #write.table(data.frame(imp),file="importance.csv",sep=",")
     #png(file="importance.png",width=1600,height=1200,res=300)
+    #par(mar=c(4,1,2,2))
     #dev.off()
   }
 
@@ -973,7 +976,7 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",iter=500,mtry=5) {
     } else if (modname=="gbm") {
       cat("TRAIN GBM: ")
       if (lossfn=="rmse") {
-        fit<-gbm.fit(Xtrain,ytrain,distribution="gaussian",n.trees=iter,interaction.depth=8,shrinkage=0.02,verbose=F)
+        fit<-gbm.fit(Xtrain,ytrain,distribution="gaussian",n.trees=iter,interaction.depth=5,shrinkage=0.01,verbose=F)
       } else {
         cat("gbm: 0-1 distribution...")
         fit<-gbm.fit(Xtrain,ytrain,distribution="bernoulli",n.trees=iter,interaction.depth=20,shrinkage=0.001,verbose=F)
@@ -1153,6 +1156,27 @@ correlationEllipses<-function(cor){
   plotcorr(xc,col=tmp)
   #  dev.off()
   #print(xc) 
+}
+
+plotPartialdependence<-function(rf,ldata,n=3) {
+  #PARTIAL DEPENDENCE
+  imp<-importance(rf)
+  print(summary(imp))
+  impvar<-rownames(imp)[order(imp[, 1], decreasing=TRUE)]
+  cat("impvar:",impvar,"\n")
+  #op <- par(mfrow=c(2, n/2+1))
+  #for (i in seq_along(impvar)) {
+  for (i in 1:n) {
+    cat("impvar:",impvar,"\n")  
+    davar<-impvar[i]
+    cat("impvar:",davar,"\n")
+    partialPlot(rf,ldata,massprotbond)
+#     partialPlot(ozone.rf, airquality, impvar[i], xlab=impvar[i],
+#                 main=paste("Partial Dependence on", impvar[i]),
+#                 ylim=c(30, 70))
+    
+  }
+  #par(op)
 }
 
 
