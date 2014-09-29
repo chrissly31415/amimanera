@@ -29,14 +29,14 @@ from sklearn.feature_extraction import DictVectorizer
 from sklearn.decomposition import TruncatedSVD,PCA
 from sklearn.pipeline import Pipeline
 
-from sklearn.feature_selection import SelectKBest,SelectPercentile, chi2, f_classif,f_regression,GenericUnivariateSelect
+from sklearn.feature_selection import SelectKBest,SelectPercentile, chi2, f_classif,f_regression,GenericUnivariateSelect,VarianceThreshold
 from sklearn.naive_bayes import BernoulliNB,MultinomialNB,GaussianNB
 from sklearn.cluster import k_means
 from sklearn.isotonic import IsotonicRegression
 
-from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier,LinearRegression,Ridge
+from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier,LinearRegression,Ridge,BayesianRidge,ElasticNet,RidgeCV
 from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor,BaggingClassifier,RandomForestRegressor
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neighbors import KNeighborsClassifier,KNeighborsRegressor
 from sklearn.svm import LinearSVC,SVC,SVR
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.learning_curve import learning_curve
@@ -604,18 +604,64 @@ def removeInstances(lXs,ly,preds,t,returnSD=True):
 	ly_reduced=ly[np.asarray(boolindex)]
 	return (lXs_reduced,ly_reduced)
 
-def removeZeroVariance(X,Xtest):
+def removeLowVariance(X_all,threshhold=1E-5):
 	"""
 	remove useless data
 	"""
-	X_all = pd.concat([Xtest, X])
-	idx = np.asarray(X_all.std()==0)
-	print "Dropped zero variance columns:",X_all.columns[idx]
-	X_all.drop(X_all.columns[idx], axis=1,inplace=True)
-	X = X_all[len(Xtest.index):]
-        Xtest = X_all[:len(Xtest.index)]
-	return(X,Xtest)
+	idx = np.asarray(X_all.std()<=threshhold)
+	if len(X_all.columns[idx])>0:
+		print "Dropped %4d zero variance columns (threshold=%6.3f): %r"%(np.sum(idx),threshhold,X_all.columns[idx])
+		X_all.drop(X_all.columns[idx], axis=1,inplace=True)
+	else:
+		print "Variance filter dropped nothing (threshhold = %6.3f)."%(threshhold)
 	
+	return(X_all)
+	
+
+def pcAnalysis(X,Xtest,y=None,w=None,ncomp=2,transform=False,classification=False):
+    """
+    PCA 
+    """  
+    pca = PCA(n_components=ncomp)
+    if transform:
+        print "PC reduction"
+        X_all = pd.concat([Xtest, X])
+        
+        X_r = pca.fit_transform(np.asarray(X_all)) 
+        print(pca.explained_variance_ratio_)
+        #split
+        X_r_train = X_r[len(Xtest.index):]
+        X_r_test = X_r[:len(Xtest.index)]
+        return (X_r_train,X_r_test)
+    
+    elif classification:
+        print "PC analysis for classification"
+        X_all = pd.concat([Xtest, X])
+        #this is transformation is necessary otherwise PCA gives rubbish!!
+        ytrain = np.asarray(y)        
+        X_r = pca.fit_transform(np.asarray(X_all))  
+        
+        if w is None:
+            plt.scatter(X_r[ytrain == 0,0], X_r[ytrain == 0,1], c='r', label="background",alpha=0.1)
+            plt.scatter(X_r[ytrain == 1,0], X_r[ytrain == 1,1], c='g',label="signal",alpha=0.1)
+        else:
+            plt.scatter(X_r[ytrain == 0,0], X_r[ytrain == 0,1], c='r', label="background",s=w[ytrain==0]*25.0,alpha=0.1)
+            plt.scatter(X_r[ytrain == 1,0], X_r[ytrain == 1,1], c='g',label="signal",s=w[ytrain==1]*1000.0,alpha=0.1)
+
+        print(pca.explained_variance_ratio_) 
+        plt.legend()
+        #plt.xlim(-3500,2000)
+        #plt.ylim(-1000,2000)
+        plt.draw()
+    else:
+	print "PC analysis for train/test"
+	X_all = pd.concat([Xtest, X])
+	X_r = pca.fit_transform(np.asarray(X_all))
+	plt.scatter(X_r[len(Xtest.index):,0], X_r[len(Xtest.index):,1], c='r', label="train",alpha=0.5)
+	plt.scatter(X_r[:len(Xtest.index),0], X_r[:len(Xtest.index),1], c='g',label="test",alpha=0.5)
+	print("Explained variance:",pca.explained_variance_ratio_) 
+	plt.legend()
+	plt.show()
 	
 def getOOBCVPredictions(lmodel,lXs,lXs_test,ly,folds=8,repeats=1,returnSD=True):
 	"""
