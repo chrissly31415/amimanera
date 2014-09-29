@@ -13,22 +13,16 @@ options(error=recover)
 
 if (.Platform$OS.type=='unix') {
     cat("We are on linux.\n")
-    #source("D:/data_mining/xvalidation.R")
     source("./boruta_select.R")
-    #source("D:/data_mining/rf_select.R")
-    #source("D:/data_mining/greedySelect.R")
-    #source("D:/data_mining/gaFeatureSelection.R")
-    #source("D:/data_mining/bagged_net.R")
 } else {
     cat("We are on windows.\n")
-    source("D:/data_mining/saveRFcompact.R")
-    source("D:/data_mining/xvalidation.R")
-    source("D:/data_mining/boruta_select.R")
-    source("D:/data_mining/rf_select.R")
-    source("D:/data_mining/saveMLR.R")
-    source("D:/data_mining/greedySelect.R")
-    source("D:/data_mining/gaFeatureSelection.R")
-    source("D:/data_mining/bagged_net.R")
+    rootdir<-"D:/data_mining/amimanera/r_utils"
+    source(paste(rootdir,"/xvalidation.R",sep=""))
+    source(paste(rootdir,"/boruta_select.R",sep=""))
+    source(paste(rootdir,"/rf_select.R",sep=""))
+    source(paste(rootdir,"/greedySelect.R",sep=""))
+    source(paste(rootdir,"/gaFeatureSelection.R",sep=""))
+    source(paste(rootdir,"/bagged_net.R",sep=""))
 }
 
 
