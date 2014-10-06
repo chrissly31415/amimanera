@@ -34,7 +34,8 @@ from sklearn.naive_bayes import BernoulliNB,MultinomialNB,GaussianNB
 from sklearn.cluster import k_means
 from sklearn.isotonic import IsotonicRegression
 
-from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier,LinearRegression,Ridge,BayesianRidge,ElasticNet,RidgeCV
+from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier,LinearRegression,Ridge,BayesianRidge,ElasticNet,RidgeCV,LassoLarsCV,Lasso,LarsCV
+from sklearn.cross_decomposition import PLSRegression,PLSSVD
 from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor,BaggingClassifier,RandomForestRegressor
 from sklearn.neighbors import KNeighborsClassifier,KNeighborsRegressor
 from sklearn.svm import LinearSVC,SVC,SVR
@@ -355,14 +356,11 @@ def buildModel(lmodel,lXs,ly,sweights=None,feature_names=None):
     Final model building part
     """ 
     print "Xvalidation..."
-    scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=5, scoring='roc_auc',n_jobs=5)
-    print "AUC: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
+    scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=5, scoring='mean_squared_error',n_jobs=5)
+    scores = (-1*scores)**0.5
+    print "SCORE: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
     print "Building model with all instances..."
-    if isinstance(lmodel,RandomForestClassifier) or isinstance(lmodel,SGDClassifier):
-	    lmodel.set_params(n_jobs=4)
-	    lmodel.fit(lXs,ly,sample_weight=sweights)
-    else:
-	    lmodel.fit(lXs,ly)
+    lmodel.fit(lXs,ly)
     
     #analyzeModel(lmodel,feature_names)
     return(lmodel)
@@ -522,7 +520,7 @@ def rfFeatureImportance(forest,Xold,Xold_test,n):
     print("Feature ranking:")
 
     for f in range(len(indices)):
-	print("%d. feature %64s %d (%f)" % (f + 1, Xold.columns[indices[f]], indices[f], importances[indices[f]]))
+	print("%d. feature %64s %d - %f" % (f + 1, Xold.columns[indices[f]], indices[f], importances[indices[f]]))
 	
     # Plot the feature importances of the forest  
     plt.bar(left=np.arange(len(indices)),height=importances[indices] , width=0.35, color='r')
@@ -569,6 +567,29 @@ def linearFeatureSelection(lmodel,Xold,Xold_test,n):
 	Xreduced_test = Xtmp[:Xold_test.shape[0]]
 	Xreduced = Xtmp[Xold_test.shape[0]:]
 	return(Xreduced,Xreduced_test)
+
+def greedyFeatureSelection(lmodel,lX,ly,itermax=10,good_features=None, folds= 8):
+	cv = StratifiedShuffleSplit(ly, folds, test_size=0.25)
+	for i in xrange(itermax):
+	    print "Round %4d"%(i)
+	    #sample groups of adjacent! features
+	    size = 6
+	    p = len(lX.columns)
+	    ngroups = p / size
+	    final = p % size
+	    print "%4d columns: %4d groups of size %4d and final group %4d"%(p,ngroups,size,final)
+	    for k in xrange(ngroups):
+		idx1 = k*size
+		idx2 = (k+1)*size
+		print "start:",idx1
+		print "end:",idx2
+		features = lX.columns[idx1:idx2]
+		print features
+	    
+	    
+
+	
+	
 	
 def iterativeFeatureSelection(lmodel,Xold,Xold_test,ly,iterations,nrfeats):
 	"""
