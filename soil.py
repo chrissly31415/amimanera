@@ -81,17 +81,7 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
 	X_all.drop(deleteFeatures, axis=1, inplace=True) 
     
     if addLandscapes is True:
-	groups = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/groupings.csv',sep=';')
-	groups['TMAP']=np.round(groups['TMAP'],5)
-	X_all['TMAP']=np.round(X_orig['TMAP'],5)
-	X_all = pd.merge(X_all, groups, on='TMAP')
-	X_all.drop(['TMAP'], axis=1, inplace=True)
-	
-	X_all = pd.concat([X_all, pd.get_dummies(X_all['LANDSCAPE'])],axis=1)
-	X_all.drop(['LANDSCAPE'], axis=1, inplace=True)
-	
-	print X_all
-	print X_all.describe()
+	X_all = modelLandscapes(X_all,X_orig)
     
     if addNoiseColumns is not None:
 	Xrnd = pd.DataFrame(np.random.randn(X_all.shape[0],addNoiseColumns))
@@ -114,9 +104,6 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
     #split data again
     Xtrain = X_all[len(Xtest.index):]
     Xtest = X_all[:len(Xtest.index)]
-      
-    
-    
     #print Xtrain.describe()
     #print Xtest.describe()
     
@@ -148,7 +135,8 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
 	#    values.hist(ax=ax2,alpha=0.3, bins=30)
 	plt.show()
     
-    print Xtest.describe()
+    print "Train set:\n",Xtrain.describe()
+    print "Test set:\n",Xtest.describe()
     #print Xtest.index
     print "Dim train set:",Xtrain.shape    
     print "Dim test set :",Xtest.shape
@@ -207,7 +195,7 @@ def makeDiff(X):
     plt.show()
     
     print newdf.head(10)
-    print newdf.describe()
+    ###print newdf.describe()
     return(newdf)
     
 def peakfinder(X_all,verbose=False):
@@ -268,9 +256,11 @@ def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv
 	    #parameters = {'filter__param': [99],'model__alpha': [0.001],'model__loss':['huber'],'model__penalty':['elasticnet'],'model__epsilon':[1.0],'model__n_iter':[200]}#pipeline
 	    #parameters = {'varfilter__threshold': [0.0,0.1,0.001,0.0001,0.00001] }#pipeline
 	    #parameters = {'filter__k': [10,20],'pca__n_components':[10,20], 'model__alpha': [1.0] }#pipeline
-	    parameters = {'filter__param': [100]}#pipeline
-	    #parameters = {'filter__param': [100,99],'model__n_components':[5,8,10,15]}#pipeline
-	    #parameters = {'filter__param': [99],'model__alpha':[1.0],'model__l1_ratio':[0.5]}#KNN
+	    parameters = {'pca__n_components':[30,40,50],'filter__param': [100,90,80]}#PCR regression
+	    #parameters = {'filter__param': [100]}#pipeline
+	    #parameters = {'filter__param': [100,99],'model__n_components':[5,10,15,25,40]}#pipeline
+	    #parameters = {'filter__param': [99],'model__alpha':[1.0],'model__l1_ratio':[0.5]}
+	    #parameters = {'filter__param': [100],'model__alphas':[[0.1]]}#RIDGECV
 	    #parameters = {'filter__param': [100,99],'model__n_neighbors':[3,4]}#KNN
 	    #parameters = {'model__max_depth':[5,6], 'model__learning_rate':[0.1],'model__n_estimators':[200,300,400],'model__subsample':[1.0],'model__loss':['huber'],'model__min_samples_leaf':[10],'model__max_features':[None]}
 	    #parameters = {'model_loss': ['ls','lad','huber', 'quantile']}#GBR
@@ -338,7 +328,68 @@ def modelsFeatureSelection(lmodels,Xold,Xold_test,lymat):
     for i,model in enumerate(lmodels):
 	iterativeFeatureSelection(model,Xold,Xold_test,lymat.iloc[:,i],1,1)
 
-	
+
+def modelLandscapes(X_all,X_orig):
+    plottLS=True
+    groups = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/groupings.csv',sep=';')
+    groups['TMAP']=np.round(groups['TMAP'],5)
+    print X_all.index
+    print X_orig.index
+    X_all['TMAP']=np.round(X_orig['TMAP'],5)
+    
+    #merge mixes train and test
+    X_all = X_all.reset_index().merge( groups, how="left",on='TMAP')
+    #get original order
+    X_all.sort('index',inplace=True)
+    X_all = X_all.set_index('index')
+    
+    #X_all.drop(['TMAP'], axis=1, inplace=True)
+    #X_all['LANDSCAPE']=X_all['LANDSCAPE'].str.lstrip('LS').astype(float)
+    #X_all.drop(['LANDSCAPE'], axis=1, inplace=True)
+    #print X_all.index
+
+    #return X_all
+
+    #X_all = X_all[X_all.LANDSCAPE != 10]
+    #X_all['LIMESTONE']= np.bitwise_or(np.bitwise_or(X_all.LANDSCAPE == 'LS10',X_all.LANDSCAPE == 'LS39'),X_all.LANDSCAPE == 'LS40').astype(int)
+    #print X_all['LIMESTONE'].describe()
+    
+    #one hot encoding not good 
+    #X_all = pd.concat([X_all, pd.get_dummies(X_all['LANDSCAPE'])],axis=1)
+    #X_all.drop(['LANDSCAPE'], axis=1, inplace=True)
+    
+    #grouping by landscpae only spectra
+    X_spectra = X_all.iloc[:,:3578]
+    X_spectra['LANDSCAPE'] = X_all['LANDSCAPE']
+    
+    gb = X_spectra.groupby('LANDSCAPE',sort=False)
+    X_LS = gb.aggregate(np.mean)
+    
+    #PCA only 
+    pca = PCA(n_components=2)
+    X_r = pd.DataFrame(pca.fit_transform(np.asarray(X_LS)),columns=['LSPCA1','LSPCA2'])
+    X_r.index = X_LS.index
+       
+    if plottLS:
+	#X_LS.iloc[0:20,:].T.plot()
+	print X_LS.describe()
+	print X_LS.head(20)
+	plt.scatter(X_r.iloc[:,0].values, X_r.iloc[:,1].values, c='r', label="landscape",alpha=0.5)
+	for name, x, y in zip(X_r.index, X_r.iloc[:,0].values, X_r.iloc[:,1].values):
+	    plt.annotate(name,xy = (x, y))
+	plt.show()
+
+    X_r['LANDSCAPE']=X_r.index
+    #X_r.to_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/groupings_pca.csv')
+    #same issue again, indices are shuffeld upon merge
+    X_all = X_all.reset_index().merge(X_r,how="left", on='LANDSCAPE')
+    X_all.sort('index',inplace=True)
+    X_all = X_all.set_index('index')
+    
+    X_all.drop(['LANDSCAPE'], axis=1, inplace=True)
+    print X_all
+    return X_all
+    
 def getFeatures(key):
     """
     Collections of some use features
@@ -386,7 +437,7 @@ if __name__=="__main__":
     onlySpectra=False
     deleteSpectra=False
     plotting=False
-    standardize=False
+    standardize=True
     doPCA=None
     findPeaks=None
     #findPeaks='load'
@@ -395,16 +446,15 @@ if __name__=="__main__":
     removeVar=0.1
     useSavitzkyGolay=False
     addNoiseColumns=None
-    addLandscapes=True
+    addLandscapes=False
 
     addfeatures=['BSAN','BSAS','BSAV','CTI','ELEV','EVI','LSTD','LSTN','REF1','REF2','REF3','REF7','RELI','TMAP','TMFI']
     loadFeatures=None
     co2 = ['m2379.76', 'm2377.83', 'm2375.9', 'm2373.97','m2372.04', 'm2370.11', 'm2368.18', 'm2366.26','m2364.33', 'm2362.4', 'm2360.47', 'm2358.54','m2356.61', 'm2354.68', 'm2352.76']
-    deleteFeatures=None
+    deleteFeatures=co2
     removeCor=None
     
     (Xtrain,Xtest,ymat) = prepareDatasets(nsamples,onlySpectra,deleteSpectra,plotting,standardize,doPCA,findPeaks,makeDerivative,featureFilter,loadFeatures,deleteFeatures,removeVar,removeCor,useSavitzkyGolay,addNoiseColumns,addLandscapes)
-    raw_input()
     
     #pcAnalysis(Xtrain,Xtest)
     print Xtrain.columns
@@ -416,9 +466,14 @@ if __name__=="__main__":
     #C:Inverse of regularization strength; must be a positive float. Like in support vector machines, smaller values specify stronger regularization.
     models=[]
     for i in range(nt):
+	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', LassoLarsCV())])
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', LinearRegression())])
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', ElasticNet(alpha=.001,l1_ratio=0.15))])
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', RidgeCV(alphas=[0.1]))])
+	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', RidgeCV())])
+	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', Ridge(alpha=0.1))])
+	model = Pipeline([('pca', PCA(n_components=doPCA)),('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', LinearRegression())])
+	
 	#model = RidgeCV(alphas=[ 0.05,0.1])
 	#model = SGDRegressor(alpha=0.1,n_iter=50,shuffle=True,loss='squared_loss',penalty='l1')#too many features
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SGDRegressor(alpha=0.001,n_iter=300,shuffle=True,loss='huber',epsilon=1.0,penalty='elasticnet'))])
@@ -436,7 +491,6 @@ if __name__=="__main__":
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=1.0, gamma=0.0, verbose = 0))])
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', PLSRegression(n_components=30))])
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', Lasso())])
-	model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', LassoLarsCV())])
 	#model = Pipeline([('poly', PolynomialFeatures(degree=3)), ('linear', LinearRegression(fit_intercept=False))])
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', LarsCV())])#grottig
 	#model = SVR(C=10000.0, gamma=0.0, verbose = 0)
@@ -458,7 +512,8 @@ if __name__=="__main__":
     #models[3] = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', PLSRegression(n_components=40))])#SOC RMSE =0.348
     #models[4] = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', PLSRegression(n_components=40))])#Sand RMSE=0.356
     #make the training
-    models = buildmodels(models,Xtrain,ymat,cv_split=24,gridSearch=True,n_jobs=4)
+    models = buildmodels(models,Xtrain,ymat,cv_split=8,gridSearch=True,n_jobs=8)
+    #showMisclass(models[0],Xtrain,ymat.iloc[:,0],t=2.0)
     #modelsFeatureSelection(models,Xtrain,Xtest,ymat)
     #greedyFeatureSelection(lmodel,lX,ymat.iloc[:,1:2],itermax=10,good_features=None, folds= 8)
     

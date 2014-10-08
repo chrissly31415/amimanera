@@ -545,7 +545,7 @@ def rfFeatureImportance(forest,Xold,Xold_test,n):
     
 def linearFeatureSelection(lmodel,Xold,Xold_test,n):
     """
-    Analysis of data if coef_ are available for sparse matrices
+    Analysis of data if coef_ are available for sparse matrices, better use t-scores
     """
     print "Selecting features based on important coefficients..."
     if hasattr(lmodel, 'coef_') and isinstance(Xold,sparse.csr.csr_matrix): 
@@ -586,11 +586,7 @@ def greedyFeatureSelection(lmodel,lX,ly,itermax=10,good_features=None, folds= 8)
 		features = lX.columns[idx1:idx2]
 		print features
 	    
-	    
 
-	
-	
-	
 def iterativeFeatureSelection(lmodel,Xold,Xold_test,ly,iterations,nrfeats):
 	"""
 	Iterative feature selection e.g. via random Forest
@@ -683,36 +679,54 @@ def pcAnalysis(X,Xtest,y=None,w=None,ncomp=2,transform=False,classification=Fals
 	print("Explained variance:",pca.explained_variance_ratio_) 
 	plt.legend()
 	plt.show()
+
 	
-def getOOBCVPredictions(lmodel,lXs,lXs_test,ly,folds=8,repeats=1,returnSD=True):
+def root_mean_squared_error(x,y):
+	return mean_squared_error(x,y)**0.5
+	
+	
+def getOOBCVPredictions(lmodel,lXs,ly,folds=8,repeats=1,returnSD=True,score_func='rmse'):
 	"""
 	Get cv oob predictions for classifiers
 	"""
+	funcdict={}
+	if score_func=='rmse':
+	    funcdict['scorer_funct']=root_mean_squared_error
+	else:
+	    funcdict['scorer_funct']=roc_auc_score
+	
+	
 	print "Computing oob predictions..."
 	if isinstance(lmodel,RandomForestClassifier) or isinstance(lmodel,SGDClassifier):
 		lmodel.set_params(n_jobs=4)
 	oobpreds=np.zeros((lXs.shape[0],repeats))
 	for j in xrange(repeats):
 	    #print lmodel.get_params()
-	    cv = KFold(lXs.shape[0], n_folds=folds, indices=True,random_state=j,shuffle=True)
+	    cv = KFold(lXs.shape[0], n_folds=folds,random_state=j,shuffle=True)
 	    scores=np.zeros(folds)	
 	    for i, (train, test) in enumerate(cv):
 		Xtrain = lXs.iloc[train]
 		Xtest = lXs.iloc[test]
 		#print Xtest['avglinksize'].head(3)
 		lmodel.fit(Xtrain, ly[train])
-		oobpreds[test,j] = lmodel.predict_proba(Xtest)[:,1]
-		scores[i]=roc_auc_score(ly[test],oobpreds[test,j])
+		if score_func=='rmse':
+		    oobpreds[test,j] = lmodel.predict(Xtest)
+		    scores[i]=funcdict['scorer_funct'](ly[test],oobpreds[test,j])
+		else:  
+		    oobpreds[test,j] = lmodel.predict_proba(Xtest)[:,1]
+		    scores[i]=funcdict['scorer_funct'](ly[test],oobpreds[test,j])
 		#print "AUC: %0.2f " % (scores[i])
 		#save oobpredictions
 	    print "Iteration:",j,
-	    print " <AUC>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
-	    oobscore=roc_auc_score(ly,oobpreds[:,j])
-	    print " AUC,oob: %0.3f" %(oobscore)
-	scores=[roc_auc_score(ly,oobpreds[:,j]) for j in xrange(repeats)]
+	    print " <score>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
+	    
+	    oobscore=funcdict['scorer_funct'](ly,oobpreds[:,j])
+	    print " score,oob: %0.3f" %(oobscore)
+	    
+	scores=[funcdict['scorer_funct'](ly,oobpreds[:,j]) for j in xrange(repeats)]
 	#simple averaging of blending
 	oob_avg=np.mean(oobpreds,axis=1)
-	print "Summary: <AUC,oob>: %0.3f (%d repeats)" %(roc_auc_score(ly,oob_avg),repeats,)	
+	print "Summary: <score,oob>: %0.3f (%d repeats)" %(funcdict['scorer_funct'](ly,oob_avg),repeats,)	
 	if returnSD:
 	    oob_avg=np.std(oobpreds,axis=1)
 	return(oob_avg)
@@ -787,40 +801,51 @@ def filterClassNoise(lmodel,lXs,lXs_test,ly):
 	lXs_reduced,ly_reduced = removeInstances(lXs,ly,preds,optt)	
 	return(lXs_reduced,lXs_test,ly_reduced)
 	
-def showMisclass(lXs,lXs_test,ly,t=0.95):
+def showMisclass(lmodel,lXs,ly,t=0.0,bubblesizes=None):
     """
     Show bubble plot of strongest misclassifications...
     """
-    folds=8
-    repeats=3
+    folds=4
+    repeats=1
     print "Show strongly misclassified classes..."
-    preds=getOOBCVPredictions(model,Xs,Xs_test,y,folds,repeats,returnSD=False)
-    res=np.abs(ly-preds)
-    err=pd.DataFrame({'abs_err' : pd.Series(res)})
-    ly=pd.DataFrame({'y' : pd.Series(y)})
+    preds=getOOBCVPredictions(lmodel,lXs,ly,folds,repeats,returnSD=False)
+
+    abs_err=pd.DataFrame({'abs_err' : pd.Series(np.abs(ly-preds))})
+    residue=pd.DataFrame({'residue' : pd.Series((ly-preds))})
+    ly=pd.DataFrame({'y' : pd.Series(ly)})
     preds=pd.DataFrame({'preds' : pd.Series(preds)})
-    lXs_plot=pd.concat([ly,preds,err], axis=1)
+    
+    lXs_plot=pd.concat([ly,preds,residue,abs_err], axis=1)
     lXs_plot.index=lXs.index
     lXs_plot=pd.concat([lXs_plot,lXs], axis=1)
+    lXs_plot.sort(columns='abs_err',inplace=True)
+    
     boolindex=lXs_plot['abs_err']>t
+    
     lXs_plot=lXs_plot[boolindex]
     print "Number of instances left:",lXs_plot.shape[0]
-    col1='1'
-    col2='2'
-    #bubblesizes=lXs_plot['non_markup_alphanum_characters']
-    bubblesizes=lXs_plot['body_length']
-    print bubblesizes
-    #print lXs_plot.ix[3155]
-    sct = plt.scatter(lXs_plot[col1], lXs_plot[col2],c=lXs_plot['y'],s=bubblesizes, linewidths=2, edgecolor='black')
+    col1='preds'
+    col2='residue'
+    #bubblesizes=lXs_plot['y']*50
+    bubblesizes=30
+    
+    #sct = plt.scatter(lXs_plot[col1], lXs_plot[col2],c=lXs_plot['abs_err'],s=bubblesizes, linewidths=2, edgecolor='black')
+    sct = plt.scatter(lXs_plot[col1], lXs_plot[col2],s=bubblesizes, linewidths=2, edgecolor='black')
     sct.set_alpha(0.75)
+    
+    print "%4s %6s %6s %8s"%("index",'y','preds','residue')
     for row_index, row in lXs_plot.iterrows():
 	plt.text(row[col1], row[col2],row_index,size=10,horizontalalignment='center')
-	print "INDEX:",row_index," Y:",row['y']," PRED:",row['preds']," body_length:",row['body_length']
+	print "%4d %6.3f %6.3f %8.3f"%(row_index,row['y'],row['preds'],row['residue'])
+    print "%4s %6s %6s %8s"%("index",'y','preds','residue')
+    
     plt.xlabel(col1)
     plt.ylabel(col2)
-    plt.title("red:1 blue:0")
+    plt.title("error")
     plt.show()
-    #now got to page interactively
+    
+    
+
     
 def scaleData(lXs,lXs_test=None,cols=None,centerZero=False):
     """

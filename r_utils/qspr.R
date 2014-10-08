@@ -10,6 +10,7 @@ if (.Platform$OS.type=='unix') {
     cat("We are on linux.\n")
     source("./boruta_select.R")
     source("./xvalidation.R")
+    source("./gaFeatureSelection.R")
 } else {
     cat("We are on windows.\n")
     

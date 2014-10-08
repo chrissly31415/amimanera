@@ -39,7 +39,7 @@ mainRoutine<-function() {
     #Xtrain <- Xtrain[,2:3579]#only spectra
     #Xtest <- Xtest[,2:3579]
     
-    #idx<-sample(nrow(Xtrain), 100)
+    #idx<-sample(nrow(Xtrain), 10y0)
     #Xtrain<-Xtrain[idx,]
     #ytrain<-ytrain[idx,]
 
@@ -48,13 +48,14 @@ mainRoutine<-function() {
     Xall$Depth <- ifelse(Xall$Depth == 'Topsoil',1,0)
     
     
-    #Xall<-removeColVar(Xall,0.9999)
+    Xall<-removeColVar(Xall,0.9999)
     #Xall<-normalizeData(Xall)#matrix????????
     Xtest<-Xall[1:nrow(Xtest),]
     oinfo(Xtest)
     Xtrain<-Xall[(nrow(Xtest)+1):nrow(Xall),]
     oinfo(Xtrain)
     
+    gaFeatureSelection(Xtrain,ytrain[,1])
     
     results<-lapply(1:ncol(ytrain),
 		  function(i)
