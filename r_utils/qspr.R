@@ -681,7 +681,7 @@ xval_oob<-function(Xl,yl,iterations=500,nrfolds=5,intdepth=2,sh=0.01,minsnode=5,
             results<-predict(rf1,Xtest,type="vote")[,2]
           } else if (method=='linear') {
 	    #linear regression
-	    Xtrain<-variableSelection(Xtrain,ytrain,"forward",iterations)
+	    #Xtrain<-variableSelection(Xtrain,ytrain,"forward",iterations)
 	    fit<-linRegTrain(Xtrain,ytrain,NULL,F)
 	    results<-predict(fit,Xtest)
           }

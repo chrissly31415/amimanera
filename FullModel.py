@@ -17,11 +17,12 @@ class XModel:
    """
    modelcount = 0
 
-   def __init__(self, name,classifier,Xtrain,Xtest,sample_weight=None,cutoff=None,scale_wt=1.0):
+   def __init__(self, name,classifier,Xtrain,Xtest,ytrain=None,sample_weight=None,cutoff=None,scale_wt=1.0):
       self.name = name
       self.classifier = classifier
       self.Xtrain=Xtrain
       self.Xtest=Xtest
+      self.ytrain=ytrain
        
       if isinstance(Xtrain,sp.sparse.csr.csr_matrix) or isinstance(Xtrain,sp.sparse.csc.csc_matrix):
 	self.sparse=True
@@ -31,7 +32,7 @@ class XModel:
       
       self.oob_preds=np.zeros((Xtrain.shape[0],1))
       self.preds=np.zeros((Xtest.shape[0],1))
-      self.ytrain=np.zeros((Xtrain.shape[0],1))
+      #self.ytrain=np.zeros((Xtrain.shape[0],1))
       
       self.cutoff=cutoff
       if cutoff is not None:
@@ -48,11 +49,14 @@ class XModel:
       print "Test data    :" , self.Xtest.shape,
       print " type         :" , type(self.Xtest)
       if self.sample_weight is not None:
-	  print "sample_weight :" , self.sample_weight.shape,
-	  print " type         :" , type(self.sample_weight)
+	  print "sample_weight:" , self.sample_weight.shape,
+	  print " type        :" , type(self.sample_weight)
+	  print "scale weight :" , self.scale_wt
+	  
+      if self.ytrain is not None:
+	  print "y <-  target :" , self.ytrain.shape
       #print "sparse data  :" , self.sparse 
-      print "proba cutoff  :" , self.cutoff
-      print "scale weight  :" , self.scale_wt
+      if self.cutoff is not None: print "proba cutoff  :" , self.cutoff
       
       print "predictions mean %6.3f :" %(np.mean(self.preds)),
       print " Dim:", self.preds.shape
@@ -65,6 +69,7 @@ class XModel:
       self.summary()
    
    #static function for saving
+   @staticmethod
    def saveModel(xmodel,filename):
       if not hasattr(xmodel,'xgboost_model'):
 	  pickle_out = open(filename.replace('.csv',''), 'wb')
@@ -73,6 +78,7 @@ class XModel:
 	  
   
    #static function for saving only the important parameters
+   @staticmethod
    def saveCoreData(xmodel,filename):
       if not hasattr(xmodel,'xgboost_model'):
 	  #reset not needed stuff
@@ -86,6 +92,7 @@ class XModel:
 	  pickle_out.close()
   
    #static function for loading
+   @staticmethod
    def loadModel(filename):
       my_object_file = open(filename+'.pkl', 'rb')
       xmodel = pickle.load(my_object_file)

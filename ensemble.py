@@ -1,11 +1,13 @@
 #!/usr/bin/env python 
 # -*- coding: utf-8 -*-
-"""  Chrissly31415
-August,September 2013
+"""  
+Ensemble helper tools
+
+Chrissly31415
+October,September 2014
 
 """
 
-from higgs import *
 from FullModel import *
 import itertools
 from scipy.optimize import fmin,fmin_cobyla
@@ -13,554 +15,567 @@ from random import randint
 import sys
 from sklearn.externals.joblib import Parallel, delayed, logger
 from sklearn.base import clone
+from soil import *
 
-train_indices=[]
-test_indices=[]
+
+
+
+
 
 def createModels():
-    global train_indices,test_indices
     ensemble=[]
-    #GBMTEST AMS~ 3.675 +/-0.014 PL ~3.671
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=800, learning_rate=0.02, max_depth=6,subsample=1.0,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm_test1",model,X,Xtest,w,cutoff='compute',scale_wt=200)
+    ##PLS-MODELLS
+    ##Ca RMSE=0.384 
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', PLSRegression(n_components=20))])
+    #xmodel = XModel("pls1_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
     #ensemble.append(xmodel)
     
-    #GBMTEST 3.650 +/- 0.003	PL ~3.62
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=800, learning_rate=0.02, max_depth=6,subsample=1.0,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm_test2",model,X,Xtest,w,cutoff='compute',scale_wt=200)
+    ##P RMSE=0.886
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', PLSRegression(n_components=20))])
+    #xmodel = XModel("pls1_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
     #ensemble.append(xmodel)
     
-    #GBMTEST 3.676 +- 0.003 PL ~3.636
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=800, learning_rate=0.02, max_depth=6,subsample=1.0,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm_test3",model,X,Xtest,w,cutoff='compute',scale_wt=200)
+    ##pH RMSE=0.346
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', PLSRegression(n_components=50))])
+    #xmodel = XModel("pls1_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
     #ensemble.append(xmodel)
     
-    #GBMTEST AMS~ 3.671 0.014
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=800, learning_rate=0.02, max_depth=6,subsample=1.0,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm_test4",model,X,Xtest,w,cutoff='compute',scale_wt=200)
+    ##SOC RMSE =0.348 
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', PLSRegression(n_components=40))])
+    #xmodel = XModel("pls1_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
     #ensemble.append(xmodel)
     
-    #GBMTEST AMS~ 3.648 0.019
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=800, learning_rate=0.02, max_depth=6,subsample=1.0,max_features=8,min_samples_leaf=50,verbose=False)
-    #xmodel = XModel("gbm_test5",model,X,Xtest,w,cutoff='compute',scale_wt=200)
+    ##Sand RMSE=0.356
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', PLSRegression(n_components=40))])
+    #xmodel = XModel("pls1_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
     #ensemble.append(xmodel)
     
-    #GBMTEST AMS~ 3.673   0.020
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=800, learning_rate=0.02, max_depth=7,subsample=.5,max_features=8,min_samples_leaf=50,verbose=False)
-    #xmodel = XModel("gbm_test6",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
-    #ensemble.append(xmodel)
-
-    #GBMTEST 3.676 0.018 PL ~3.65471
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=800, learning_rate=0.02, max_depth=7,subsample=.5,max_features=6,min_samples_leaf=150,verbose=False)
-    #xmodel = XModel("gbm_test7",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
-    #ensemble.append(xmodel)
-  
-    #GBMTEST 3.671 0.012   PL ~3.67298
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=1200, learning_rate=0.02, max_depth=7,subsample=.5,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm_test8",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    ##SVM_MODELLS
+    ##Ca RMSE=0.287
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=100.0, gamma=0.005, verbose = 0))])
+    #xmodel = XModel("svm1_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
     #ensemble.append(xmodel)
     
-    #GBMTEST 
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=800, learning_rate=0.02, max_depth=7,subsample=.5,max_features=8,min_samples_leaf=150,verbose=False)
-    #xmodel = XModel("gbm_test9",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    ##P RMSE=0.886
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', SVR(C=100000.0, gamma=0.0005, verbose = 0))]) 
+    #xmodel = XModel("svm1_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
     #ensemble.append(xmodel)
     
-    #GBMTEST 
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=1200, learning_rate=0.02, max_depth=7,subsample=.5,max_features=6,min_samples_leaf=150,verbose=False)
-    #xmodel = XModel("gbm_test10",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    ##pH RMSE=0.321
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=95,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0005, verbose = 0))])
+    #xmodel = XModel("svm1_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
     #ensemble.append(xmodel)
     
-    #GBM1 AMS~3.66 OK overfits the PL with 3.61
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
-    #xmodel = XModel("gbm1",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    ##SOC RMSE=0.278
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=90,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0005, verbose = 0))])
+    #xmodel = XModel("svm1_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
     #ensemble.append(xmodel)
     
-    #GBM3 
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.1, max_depth=6,subsample=.5,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm3",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    ##Sand RMSE=0.316
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0005, verbose = 0))])
+    #xmodel = XModel("svm1_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
     #ensemble.append(xmodel)
     
-    #GBM4
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.1, max_depth=6,subsample=.5,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm4",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    #PCA RidgCV models
+    #Ca RMSE=0.410
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('pca', PCA(n_components=40)),('model', RidgeCV())])
+    #xmodel = XModel("pcaridge1_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
     #ensemble.append(xmodel)
     
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.1, max_depth=6,subsample=.5,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm5",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    ##P RMSE=0.862
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('pca', PCA(n_components=200)),('model', RidgeCV())])
+    #xmodel = XModel("pcaridge1_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
     #ensemble.append(xmodel)
     
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.1, max_depth=6,subsample=.5,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm6",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    ##pH RMSE=0.362
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('pca', PCA(n_components=200)),('model', RidgeCV())])
+    #xmodel = XModel("pcaridge1_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
     #ensemble.append(xmodel)
     
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.1, max_depth=6,subsample=.5,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm7",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    ##SOC RMSE=0.347
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('pca', PCA(n_components=200)),('model', RidgeCV())])
+    #xmodel = XModel("pcaridge1_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
     #ensemble.append(xmodel)
     
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.1, max_depth=6,subsample=.5,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm8",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    ##Sand RMSE=0.347
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('pca', PCA(n_components=200)),('model', RidgeCV())])
+    #xmodel = XModel("pcaridge1_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
     #ensemble.append(xmodel)
     
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.1, max_depth=6,subsample=.5,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm9",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    #leaps selected lin reg
+    ##Ca RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,featureFilter=getFeatures('Ca'))
+    #model = LinearRegression()
+    #xmodel = XModel("leaps1_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
     #ensemble.append(xmodel)
     
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.1, max_depth=6,subsample=.5,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm10",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    ##P RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,featureFilter=getFeatures('P'))
+    #model = LinearRegression()
+    #xmodel = XModel("leaps1_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
     #ensemble.append(xmodel)
     
-    
-    #XRF1 AMS~3.4 OK
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features=10,oob_score=False)##scale_wt 600 cutoff 0.85
-    #xmodel = XModel("xrf1",model,X,Xtest,w,cutoff=0.85,scale_wt=600)
+    ##pH RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,featureFilter=getFeatures('pH'))
+    #model = LinearRegression()
+    #xmodel = XModel("leaps1_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
     #ensemble.append(xmodel)
     
-    #RF1 AMS~3.5 OK
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model =  RandomForestClassifier(n_estimators=300,max_depth=None,min_samples_leaf=10,n_jobs=4,criterion='entropy', max_features=5,oob_score=False)
-    #xmodel = XModel("rf1",model,X,Xtest,w,cutoff=0.85,scale_wt=600)
+    ##SOC RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,featureFilter=getFeatures('SOC'))
+    #model = LinearRegression()
+    #xmodel = XModel("leaps1_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
     #ensemble.append(xmodel)
     
-    #RF2 AMS~3.5 no weights for fit!!! OK
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features=5,oob_score=False)
-    #xmodel = XModel("rf2",model,X,Xtest,w,cutoff=0.75,scale_wt=None)
+    ##Sand RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,featureFilter=getFeatures('Sand'))
+    #model = LinearRegression()
+    #xmodel = XModel("leaps1_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
     #ensemble.append(xmodel)
     
-    #RF3 AMS~3.5 no weights for fit!!! OK
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,createMassEstimate=True)
-    #model =  RandomForestClassifier(n_estimators=300,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features=5,oob_score=False)
-    #xmodel = XModel("rf3",model,X,Xtest,w,cutoff='compute',scale_wt='auto')
+    #leaps selected RF
+    #Ca RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,featureFilter=getFeatures('Ca'))
+    #model = RandomForestRegressor(n_estimators=500,max_depth=None,min_samples_leaf=1, max_features='auto')
+    #xmodel = XModel("rf1_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
     #ensemble.append(xmodel)
     
-    #gbm_newfeat1 3.608+/-0.04
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,createMassEstimate=True)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.08, max_depth=6,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
-    #xmodel = XModel("gbm_newfeat1",model,X,Xtest,w,cutoff=0.93,scale_wt='auto')
+    #P RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,featureFilter=getFeatures('P'))
+    #model = RandomForestRegressor(n_estimators=500,max_depth=None,min_samples_leaf=1, max_features='auto')
+    #xmodel = XModel("rf1_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
     #ensemble.append(xmodel)
     
-    #gbm_newfeat2 3.642+/-0.025
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,createMassEstimate=True)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=500, learning_rate=0.05, max_depth=6,subsample=1.0,max_features=6,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm_newfeat2",model,X,Xtest,w,cutoff=0.94,scale_wt='auto')
+    #pH RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,featureFilter=getFeatures('pH'))
+    #model = RandomForestRegressor(n_estimators=500,max_depth=None,min_samples_leaf=1, max_features='auto')
+    #xmodel = XModel("rf1_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
     #ensemble.append(xmodel)
     
-    #gbm_newfeat3 3.660 +/-0.048
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,createMassEstimate=True)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=800, learning_rate=0.03, max_depth=6,subsample=1.0,max_features=6,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm_newfeat3",model,X,Xtest,w,cutoff=0.94,scale_wt='auto')
+    #SOC RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,featureFilter=getFeatures('SOC'))
+    #model = RandomForestRegressor(n_estimators=500,max_depth=None,min_samples_leaf=1, max_features='auto')
+    #xmodel = XModel("rf1_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
     #ensemble.append(xmodel)
     
-    #gbm_newfeat4 <AMS,cv>:  3.637 +-  0.022 (cutoff=0.94) <AMS,cv>:  3.656 +-  0.017 cutoff="compute"->0.94
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,createMassEstimate=True)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=1000, learning_rate=0.03, max_depth=6,subsample=1.0,max_features=6,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm_newfeat4",model,X,Xtest,w,cutoff="compute",scale_wt='auto')
+    #Sand RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,featureFilter=getFeatures('Sand'))
+    #model = RandomForestRegressor(n_estimators=500,max_depth=None,min_samples_leaf=1, max_features='auto')
+    #xmodel = XModel("rf1_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
     #ensemble.append(xmodel)
     
-    #gbm_newfeat5 <AMS,cv>:  3.643 +-  0.020 PL=
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,createMassEstimate=True)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=1000, learning_rate=0.03, max_depth=6,subsample=1.0,max_features=10,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm_newfeat5",model,X,Xtest,w,cutoff="compute",scale_wt='auto')
+    #PLS models 
+    ##Ca RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', PLSRegression(n_components=20))])
+    #xmodel = XModel("pls2_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
     #ensemble.append(xmodel)
     
-    #gbm_newfeat6 AMS =  3.661 PL=3.61 (compute...)
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,createMassEstimate=True,featureFilter=[u'DER_mass_MMC', u'DER_mass_transverse_met_lep', u'DER_mass_vis', u'metXp_lep_vec', u'PRI_tau_pt', u'DER_met_phi_centrality', u'DER_pt_ratio_lep_tau', u'DER_deltar_tau_lep', u'p_lepXp_tau_vec', u'metXp_tau_vec', u'PRI_met', u'metXp_lep', u'DER_sum_pt', u'DER_pt_tot', u'DER_pt_h', u'PRI_lep_phi-PRI_tau_phi', u'PRI_lep_eta', u'DER_deltaeta_jet_jet', u'PRI_met_sumet', u'PRI_lep_pt', u'PRI_jet_leading_eta', u'metXp_tau', u'p_tauXp_lep', u'p_lep_abs', u'PRI_met_phi-PRI_tau_phi', u'PRI_tau_eta', u'p_tau_abs', u'DER_mass_jet_jet', u'PRI_lep_phi', u'PRI_met_phi', u'DER_lep_eta_centrality', u'PRI_jet_all_pt', u'PRI_jet_leading_pt', u'PRI_jet_leading_phi-PRI_tau_phi', u'DER_prodeta_jet_jet'])
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.05, max_depth=6,subsample=1.0,max_features=8,min_samples_leaf=100,verbose=False)
-    #xmodel = XModel("gbm_newfeat6",model,X,Xtest,w,cutoff="compute",scale_wt='auto')
-    #ensemble.append(xmodel)
-       
-    #GBM_exp loss exponential AMS ~3.5 ->predict_proba... OK
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='exponential',n_estimators=200, learning_rate=0.2, max_depth=6,subsample=1.0,min_samples_leaf=5,verbose=False)
-    #xmodel = XModel("gbm_exp",model,X,Xtest,w,cutoff=None,scale_wt=35)
+    ##P RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=80,mode='percentile')), ('model', PLSRegression(n_components=5))])
+    #xmodel = XModel("pls2_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
     #ensemble.append(xmodel)
     
-    #GBM_PRI only primary features
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='DER',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.1, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=100,verbose=False) 
-    #xmodel = XModel("gbm_pri",model,X,Xtest,w,cutoff='compute',scale_wt='auto')
+    ##pH RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', PLSRegression(n_components=50))])
+    #xmodel = XModel("pls2_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
     #ensemble.append(xmodel)
     
-    #RF_PRI 
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='DER',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features=5,oob_score=False)
-    #xmodel = XModel("rf_pri",model,X,Xtest,w,cutoff='compute',scale_wt=None)
-    #ensemble.append(xmodel)
- 
-    #XGBOOST1 AMS ~3.58 (single model PUB.LD)
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,n_jobs=4,NA=-999.9)
-    #xmodel = XModel("xgboost1",model,X,Xtest,w,cutoff=0.7,scale_wt=1)
+    ##SOC RMSE = 
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=90,mode='percentile')), ('model', PLSRegression(n_components=25))])
+    #xmodel = XModel("pls2_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
     #ensemble.append(xmodel)
     
-    #XGBOOST2 somewhat finetuned ~3.520
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = XgboostClassifier(n_estimators=200,learning_rate=0.08,max_depth=7,n_jobs=4,NA=-999.9)
-    #xmodel = XModel("xgboost2",model,X,Xtest,w,cutoff=0.7,scale_wt=1)
-    #ensemble.append(xmodel)
-      
-    #XGBOOST3 
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,loadCake=True)
-    #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,n_jobs=4,NA=-999.0)
-    #xmodel = XModel("xgboost_cake",model,X,Xtest,w,cutoff=0.73,scale_wt=1.0)
+    ##Sand RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', PLSRegression(n_components=20))])
+    #xmodel = XModel("pls2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
     #ensemble.append(xmodel)
     
-    #KNN1
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=True,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = KNeighborsClassifier(n_neighbors=5,weights='distance',algorithm='ball_tree')#AMS~2.245
-    #xmodel = XModel("KNN1",model,X,Xtest,w,cutoff=0.7,scale_wt=None)
+    #ridge model (with 1st derivate)
+    #Ca RMSE=0.295 (+/- 0.293)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', Ridge(alpha=1))])
+    #xmodel = XModel("ridge2_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
     #ensemble.append(xmodel)
     
-    #KNN2
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=True,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=True,scale_data=False,clusterFeature=False,dropFeatures=None,polyFeatures=None,createMassEstimate=True,imputeMassModel=None)
-    #model = KNeighborsClassifier(n_neighbors=15)#AMS~2.4
-    #xmodel = XModel("KNN2",model,X,Xtest,w,cutoff=0.7,scale_wt=None)
+    ##P RMSE= 0.713 (+/- 0.663)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', Ridge(alpha=100))])
+    #xmodel = XModel("ridge2_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
     #ensemble.append(xmodel)
     
-    #NB1 with massmodel
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=True,plotting=False,stats=False,transform=True,createNAFeats=None,dropCorrelated=True,scale_data=False,clusterFeature=False,dropFeatures=None,createMassEstimate=False,imputeMassModel='load')#,imputeMassModel=RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='mse', max_features=5,oob_score=False))
-    #model = GaussianNB()#AMS~1.8
-    #xmodel = XModel("NB1",model,X,Xtest,w,cutoff=0.15,scale_wt=None)
-    #ensemble.append(xmodel)
-        
-        
-    #ADAboost AMS ~2.9
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,dropFeatures=None,createMassEstimate=False,imputeMassModel=None)
-    #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=80)), ('model', AdaBoostClassifier(n_estimators=200,learning_rate=0.1))])
-    #model = AdaBoostClassifier(n_estimators=200,learning_rate=0.1)
-    #xmodel = XModel("ADAboost1",model,X,Xtest,w,cutoff=0.515,scale_wt=200)
+    ##pH RMSE= 0.459 (+/- 0.167)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', Ridge(alpha=10))])
+    #xmodel = XModel("ridge2_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
     #ensemble.append(xmodel)
     
-    #GBM bagging gbm_bag1 <AMS>: 3.7073 PL 3.67 (10 iterations), gbm_bag2 <AMS>: 3.729 (20 iterations) ????
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.06, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) #opt weight =500 AMS=3.548
-    #xmodel = XModel("gbm_bag3",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
+    ##SOC RMSE = 0.442 (+/- 0.350)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', Ridge(alpha=1))])
+    #xmodel = XModel("ridge2_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
     #ensemble.append(xmodel)
     
-    #GBM BAGGING severely overfits now new try PL 3.65
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=1200, learning_rate=0.02, max_depth=6,subsample=0.5,max_features=8,min_samples_leaf=150,verbose=False)
-    #model = BaggingClassifier(base_estimator=basemodel,n_estimators=10,n_jobs=8,verbose=False)
-    #xmodel = XModel("gbm_bag1",model,X,Xtest,w,cutoff='compute',scale_wt=200)
+    ##Sand RMSE=0.430 (+/- 0.235) 
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', Ridge(alpha=1))])
+    #xmodel = XModel("ridge2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
     #ensemble.append(xmodel)
     
-    #GBM BAGGING new try
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) 
-    #model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,max_features=1.0,verbose=1)
-    #xmodel = XModel("gbm_realbag1",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
-    #ensemble.append(xmodel)
-    
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) 
-    #model = BaggingClassifier(base_estimator=basemodel,n_estimators=80,n_jobs=8,max_features=1.0,verbose=1)
-    #xmodel = XModel("gbm_realbag2",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
-    #ensemble.append(xmodel)
-    
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=20,verbose=False) 
-    #model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,max_features=1.0,max_samples=0.5,bootstrap=False,verbose=1)
-    #xmodel = XModel("gbm_realbag3",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
-    #ensemble.append(xmodel)
-    
-    #GBM_realbag AMS,train = 3.709 0.035 PL 3.65
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False)
-    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=6,min_samples_leaf=5,verbose=False) 
-    #model = BaggingClassifier(base_estimator=basemodel,n_estimators=100,n_jobs=8,max_features=1.0,max_samples=1.0,bootstrap=True,verbose=1)
-    #xmodel = XModel("gbm_realbag4",model,X,Xtest,w,cutoff=0.85,scale_wt=200)
-    #ensemble.append(xmodel)
-    
-    #GBM_realbag5 
-    X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,loadCake=False)
-    basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=50,verbose=False) 
-    model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,verbose=1)
-    xmodel = XModel("gbm_realbag5",model,X,Xtest,w,cutoff='compute',scale_wt=200)
+    #ridge model (with 1st derivate)
+    #Ca RMSE0.339 (+/- 0.303)
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative='1st',featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.1,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    model = Pipeline([('pca', PCA(n_components=100)), ('model', Ridge(alpha=0.1))])
+    xmodel = XModel("pcridge2_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
     ensemble.append(xmodel)
     
-    #gbm_bag_cake using cake A+B
-    #X,y,Xtest,w=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,loadCake=True)
-    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.08, max_depth=7,subsample=1.0,max_features=10,min_samples_leaf=50,verbose=False) 
-    #model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=8,verbose=1)
-    #xmodel = XModel("gbm_bag_cake",model,X,Xtest,w,cutoff='compute',scale_wt=200)
+    #P RMSE0.743 (+/- 0.645)
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative='1st',featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.1,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    model = Pipeline([('pca', PCA(n_components=100)), ('model', Ridge(alpha=100))])
+    xmodel = XModel("pcridge2_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
+    ensemble.append(xmodel)
+    
+    #pH RMSE0.474 (+/- 0.182)
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative='1st',featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.1,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    model = Pipeline([('pca', PCA(n_components=200)), ('model', Ridge(alpha=100))])
+    xmodel = XModel("pcridge2_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
+    ensemble.append(xmodel)
+    
+    #SOC RMSE 0.466 (+/- 0.308)
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative='1st',featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.1,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    model = Pipeline([('pca', PCA(n_components=150)), ('model', Ridge(alpha=0.1))])
+    xmodel = XModel("pcridge2_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
+    ensemble.append(xmodel)
+    
+    #Sand RMSE0.456 (+/- 0.260)
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative='1st',featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.1,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    model = Pipeline([('pca', PCA(n_components=150)), ('model', Ridge(alpha=10))])
+    xmodel = XModel("pcridge2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
+    ensemble.append(xmodel)
+    
+    
+    #SVM_MODELLS
+    ##Ca RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.005, verbose = 0))])
+    #xmodel = XModel("svm2_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
     #ensemble.append(xmodel)
     
+    ##P RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=1000.0, gamma=0.0005, verbose = 0))]) 
+    #xmodel = XModel("svm2_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
+    #ensemble.append(xmodel)
     
-    #TODO use cutoff from models, seem to be more stable than top15%    
-    #TODO Bumping
-    #TODO compute rapidity http://en.wikipedia.org/wiki/Pseudorapidity
-    #TODO compute collinear mass or momenta 
-    #TODO compute polar angle
-    #TODO impute mass
-    #TODO compute cutoff by fix percentage of signals -> OK
-    #TODO add 1 to columns...?? SHOULD be done automatically ->NO
-    #TODO SEPARATE bagging and ensemble building with oob xvalidation data ->OK
-    #TODO USE cutoff optimizer within AMS
-    #TODO in train ensemble load labels->voting # voting is mist
-    #TODO RF2MOD modfiy weights only slighty from unity
-    #TODO modify sqrt(negwts) or pow(posweihgts,n*0.5) for training with n as parameter
+    ##pH RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0005, verbose = 0))])
+    #xmodel = XModel("svm2_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
+    #ensemble.append(xmodel)
+    
+    ##SOC RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0005, verbose = 0))])
+    #xmodel = XModel("svm2_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
+    #ensemble.append(xmodel)
+    
+    ##Sand RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=100.0, gamma=0.0005, verbose = 0))])
+    #xmodel = XModel("svm2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
+    #ensemble.append(xmodel)
+    
+    #elastic net models
+    #Ca RMSE=0.301 (+/- 0.287) 
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')),('model', ElasticNet(alpha=.01,l1_ratio=0.001,max_iter=1000)) ])
+    #xmodel = XModel("elnet2_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
+    #ensemble.append(xmodel)
+    
+    ##P RMSE=0.754 (+/- 0.643)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')),('model', ElasticNet(alpha=.01,l1_ratio=0.001,max_iter=1000)) ])
+    #xmodel = XModel("elnet2_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
+    #ensemble.append(xmodel)
+    
+    ##pH RMSE=0.453 (+/- 0.166)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')),('model', ElasticNet(alpha=.01,l1_ratio=0.001,max_iter=1000))])
+    #xmodel = XModel("elnet2_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
+    #ensemble.append(xmodel)
+    
+    ##SOC RMSE =0.461 (+/- 0.362) 
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', ElasticNet(alpha=.001,l1_ratio=0.001,max_iter=1000))])
+    #xmodel = XModel("elnet2_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
+    #ensemble.append(xmodel)
+    
+    ##Sand RMSE=0.445 (+/- 0.229) 
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', ElasticNet(alpha=.001,l1_ratio=0.001,max_iter=1000))])
+    #xmodel = XModel("elnet2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
+    #ensemble.append(xmodel)
+    
+    #pcr regression
+    #Ca RMSE=0.344 (+/- 0.180) 9folds 0.306 (+/- 0.282) 37 folds
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('pca', PCA(n_components=40)),('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', LinearRegression())])
+    #xmodel = XModel("pcreg2_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
+    #ensemble.append(xmodel)
+    
+    ##P RMSE=0.884 (+/- 0.426) 0.708 (+/- 0.681)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model =  Pipeline([('pca', PCA(n_components=5)),('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', LinearRegression())])
+    #xmodel = XModel("pcreg2_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
+    #ensemble.append(xmodel)
+    
+    ##pH RMSE=<score>= 0.474 (+/- 0.097) 0.471 (+/- 0.163)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('pca', PCA(n_components=30)),('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', LinearRegression())])
+    #xmodel = XModel("pcreg2_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
+    #ensemble.append(xmodel)
+    
+    ##SOC RMSE = <score>= 0.563 (+/- 0.231) 0.483 (+/- 0.332)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('pca', PCA(n_components=50)),('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', LinearRegression())])
+    #xmodel = XModel("pcreg2_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
+    #ensemble.append(xmodel)
+    
+    ##Sand RMSE=0.480 (+/- 0.108) 0.425 (+/- 0.239
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('pca', PCA(n_components=40)),('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', LinearRegression())])
+    #xmodel = XModel("pcreg2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
+    #ensemble.append(xmodel)
     
     #some info
     for m in ensemble:
 	m.summary()
-    return(ensemble,y)
+    return(ensemble)
 
     
-def finalizeModel(m,use_proba=True):
+def finalizeModel(m,binarizeProbas=False):
 	"""
 	Make predictions and save them
 	"""
-	vfunc = np.vectorize(binarizeProbs)
-	
 	print "Make predictions and save them..."
-	if use_proba:
-	    #oob class predictions
+	if binarizeProbas:
+	    #oob class predictions,binarize data
+	    vfunc = np.vectorize(binarizeProbs)
+	    #oob from crossvalidation
 	    yoob = vfunc(np.asarray(m.oob_preds),m.cutoff)
-	    #probas for final test set
+	    #probas final prediction
 	    m.preds = m.classifier.predict_proba(m.Xtest)[:,1]	  	    
 	    #classes for final test set
 	    ypred = vfunc(np.asarray(m.preds),m.cutoff)
 
 	else:
-	    #if 0-1 outcome, only classes
+	    #if 0-1 outcome, only classes or regression
+	    #oob from crossvalidation
 	    yoob = m.oob_preds
+	    #final prediction
 	    m.preds = m.classifier.predict(m.Xtest)	    
 	    ypred = m.preds
 	    
 	m.summary()	
 	
-	
 	#put data to data.frame and save
 	#OOB DATA
-	m.oob_preds=pd.DataFrame(np.asarray(m.oob_preds),columns=["proba"])
-	tmp=pd.DataFrame(yoob,columns=["label"])
-	m.oob_preds=pd.concat([tmp, m.oob_preds],axis=1)
+	m.oob_preds=pd.DataFrame(np.asarray(m.oob_preds),columns=m.ytrain.columns)
 		
 	#TESTSET prediction	
-	m.preds=pd.DataFrame(np.asarray(m.preds),columns=["proba"])
-	tmp=pd.DataFrame(ypred,columns=["label"])	
-	m.preds=pd.concat([tmp, m.preds],axis=1)
+	m.preds=pd.DataFrame(np.asarray(m.preds),columns=m.ytrain.columns)
 	#save final model
-
 	#TESTSETscores
 	#OOBDATA
 	allpred = pd.concat([m.preds, m.oob_preds])
 	#print allpred
 	#submission data is first, train data is last!
-	filename="/home/loschen/Desktop/datamining-kaggle/higgs/data/"+m.name+".csv"
+	filename="/home/loschen/Desktop/datamining-kaggle/african_soil/data/"+m.name+".csv"
 	print "Saving oob + predictions as csv to:",filename
 	allpred.to_csv(filename,index=False)
 	
 	#XModel.saveModel(m,"/home/loschen/Desktop/datamining-kaggle/higgs/data/"+m.name+".pkl")
-	XModel.saveCoreData(m,"/home/loschen/Desktop/datamining-kaggle/higgs/data/"+m.name+".pkl")
+	XModel.saveCoreData(m,"/home/loschen/Desktop/datamining-kaggle/african_soil/data/"+m.name+".pkl")
 	return(m)
     
 
-def createOOBdata_parallel(ensemble,ly,repeats=5,nfolds=4,n_jobs=1,verbose=False,calibrate=False):
+def createOOBdata_parallel(ensemble,repeats=1,nfolds=4,n_jobs=1,score_func='rmse',verbose=False,calibrate=False,binarize=False):
     """
     parallel oob creation
     """
+    global funcdict
 
     for m in ensemble:
-	use_proba = m.cutoff is not None
-	
 	print "Computing oob predictions for:",m.name
 	print m.classifier.get_params
 	oob_preds=np.zeros((m.Xtrain.shape[0],repeats))
-	ams_oobscore=np.zeros(repeats)
+	ly=m.ytrain.values.flatten()
+	oobscore=np.zeros(repeats)
+	maescore=np.zeros(repeats)
 	
 	#outer loop
 	for j in xrange(repeats):
-	    cv = KFold(ly.shape[0], n_folds=nfolds,shuffle=True,random_state=j)
+	    #cv = KFold(ly.shape[0], n_folds=nfolds,shuffle=True,random_state=j)
+	    #cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_quick3.csv',index_col=0)['LANDSCAPE'],1)
+	    cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_int.csv',index_col=0)['LANDSCAPE'],1)
 	    #cv = StratifiedKFold(ly, n_folds=nfolds,shuffle=True,random_state=None)
 	    #cv = StratifiedShuffleSplit(ly, n_iter=nfolds, test_size=0.25,random_state=j)
-	    print cv
 	    
-	    scores=np.zeros(nfolds)
-	    ams_scores=np.zeros(nfolds)
+	    scores=np.zeros(len(cv))
+	    scores_mae=np.zeros(len(cv))
 	    
 	    #parallel stuff
 	    parallel = Parallel(n_jobs=n_jobs, verbose=verbose,
 			    pre_dispatch='2*n_jobs')
 	    
 	    #parallel run
-	    oob_pred = parallel(delayed(fit_and_score)(clone(m.classifier), m.Xtrain, ly, train, test,m.sample_weight,m.scale_wt,use_proba,m.cutoff)
+	    oob_pred = parallel(delayed(fit_and_score)(clone(m.classifier), m.Xtrain, ly, train, test)
 			  for train, test in cv)
-	    #collect oob_pred
-	    oob_pred=np.array(oob_pred)[:, 0]
 	    
+	    oob_pred=np.array(oob_pred)[:, 0]
 	    for i,(train,test) in enumerate(cv):
-		oob_preds[test,j] = oob_pred[i,:]
-		ams_scores[i]=ams_score(ly[test],oob_preds[test,j],sample_weight=m.sample_weight[test],use_proba=use_proba,cutoff=m.cutoff)
+		oob_preds[test,j] = oob_pred[i]
+		scores[i]=funcdict[score_func](ly[test],oob_preds[test,j])
+		scores_mae[i]=funcdict['mae'](ly[test],oob_preds[test,j])
 
-	    auc_oobscore=roc_auc_score(ly,oob_preds[:,j])
-	    ams_oobscore[j]=ams_score(ly,oob_preds[:,j],sample_weight=m.sample_weight,use_proba=use_proba,cutoff=m.cutoff)
+	    oobscore[j]=funcdict[score_func](ly,oob_preds[:,j])
+	    maescore[j]=funcdict['mae'](ly,oob_preds[:,j])
 	    
 	    print "Iteration:",j,
-	    
-	    print " <AMS>: %0.3f (+/- %0.3f)" % (ams_scores.mean(), ams_scores.std()),
-	    print " AMS,oob: %0.3f" %(ams_oobscore[j]),	    
-	    print " --- AUC,oob: %0.3f" %(auc_oobscore)
-	    
+	    print " <score>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
+	    print " score,oob: %0.3f" %(oobscore[j]),
+	    print " ## <mae>: %0.3f (+/- %0.3f)" % (scores_mae.mean(), scores_mae.std()),
+	    print " mae,oob: %0.3f" %(maescore[j])
 	    
 	#simple averaging of blending
 	oob_avg=np.mean(oob_preds,axis=1)
-	if use_proba:
-	    #probabilities
-	    m.oob_preds=oob_avg		    
-	    #plot deviations
-	    if calibrate:
-		ir = IsotonicRegression(y_min=0.0,y_max=1.0)
-		ir.fit(oob_avg,ly)
-		new = ir.predict(oob_avg)
+	#probabilities
+	m.oob_preds=oob_avg	
 
-		plt.hist(oob_avg,bins=50,label='orig')
-		plt.hist(new,bins=50,label='calibrated',alpha=0.3)
-		plt.legend()
-		plt.show()
-		#print dev
-		#print oob_avg
-		plt.plot(oob_avg,new,'r+')
-		calibrated_ams=ams_score(ly,new,sample_weight=m.sample_weight,use_proba=use_proba,cutoff='compute')
-		print "AMS,calibrated: %6.3f"%(calibrated_ams)
-		plt.show()
-
-	else:
+	if binarize:
 	    #if 0-1 outcome, only classes
 	    vfunc = np.vectorize(binarizeProbs)
 	    m.oob_preds=vfunc(oob_avg,0.5)
-	print "Summary: <AMS,cv>: %6.3f +- %6.3f   <AMS,oob>: %0.3f (after %d repeats) --- <AUC,oob>: %0.3f" %(ams_oobscore.mean(),ams_oobscore.std(),ams_score(ly,m.oob_preds,sample_weight=m.sample_weight,use_proba=use_proba,cutoff=m.cutoff,verbose=False),repeats,roc_auc_score(ly,m.oob_preds))
+	   
+	score_oob = funcdict[score_func](ly,m.oob_preds)
+	mae_oob = funcdict['mae'](ly,m.oob_preds)
+	print "Summary: <score,oob>: %6.3f +- %6.3f   score,oob-total: %0.3f (after %d repeats) ## mae,oob-total: %0.3f" %(oobscore.mean(),oobscore.std(),score_oob,repeats,mae_oob)
 	
 	#Train model with test sets
 	print "Train full modell...",	
-	if m.scale_wt is not None:
+	if m.sample_weight is not None:
 	    print "... with sample weights"
-	    w_fit=modTrainWeights(m.sample_weight,ly,m.scale_wt)
-	    m.classifier.fit(m.Xtrain,ly,w_fit)
+	    m.classifier.fit(m.Xtrain,ly,m.sample_weight)
 	else:
-	    print "... no sample weights"
 	    m.classifier.fit(m.Xtrain,ly)
 	
-	m=finalizeModel(m,use_proba)
+	m=finalizeModel(m)
 	
     return(ensemble)
     
-def fit_and_score(xmodel,X,y,train,test,sample_weight=None,scale_wt=None,use_proba=True,cutoff=0.5):
+def fit_and_score(xmodel,X,y,train,test,sample_weight=None,scale_wt=None,use_proba=False,cutoff=0.5):
     """
     Score function for parallel oob creation
     """
     Xtrain = X.iloc[train]
     Xvalid = X.iloc[test]
-    ytrain = y[train]
-    wtrain = sample_weight[train]
+    ytrain = y[train].flatten()
     
-    if scale_wt is not None:
-	wtrain_fit=modTrainWeights(wtrain,ytrain,scale_wt)
-	xmodel.fit(Xtrain,ytrain,sample_weight=wtrain_fit)
-	
+    if sample_weight is not None: 
+	wtrain = sample_weight[train]
+	xmodel.fit(Xtrain,ytrain,sample_weight=wtrain)
     else:
 	wtrain_fit=None
 	xmodel.fit(Xtrain,ytrain)
     
     if use_proba:
 	#saving out-of-bag predictions
-	oob_pred = xmodel.predict_proba(Xvalid)[:,1]
-	#if probabilities are available we can do the auc
-	#scores[i]=roc_auc_score(ly[valid],oob_preds[valid,j])		    
-    #classification    
+	local_pred = xmodel.predict_proba(Xvalid)[:,1]	    
+    #classification/regression   
     else:
-	oob_pred = xmodel.predict(Xvalid)
+	local_pred = xmodel.predict(Xvalid)
     
-    score=ams_score(y[test],oob_pred,sample_weight=sample_weight[test],use_proba=use_proba,cutoff=cutoff,verbose=False)
-    return [oob_pred]
+    #score=funcdict['rmse'](y[test],local_pred)
+    #rndint = randint(0,10000000)
+    #print "score %6.3f - %10d "%(score,rndint)
+    #outpd = pd.DataFrame({'truth':y[test].flatten(),'pred':local_pred.flatten()})
+    #outpd.index = Xvalid.index
+    #outpd = pd.concat([Xvalid[['TMAP']], outpd],axis=1)
+    #outpd.to_csv("pred"+str(rndint)+".csv")
+    #raw_input()
+    
+    
+    return [local_pred.flatten()]
 
 
-   
-def trainEnsemble(ensemble,mode='classical',useCols=None,addMetaFeatures=False,use_proba=True,dropCorrelated=True,subfile=""):
+def trainEnsemble(ensemble,mode='classical',useCols=None,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile=""):
     """
-    Prepare and train the ensemble
+    Train the ensemble
     """
-    test_indices = pd.read_csv('../datamining-kaggle/higgs/test.csv', sep=",", na_values=['?'], index_col=0).index
-    y = pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'])
-    y = y['Label'].str.replace(r's','1').str.replace(r'b','0')
-    y = np.asarray(y.astype(float))
-    
-    col=['proba']
-    if not use_proba:
-	col=['label']
-    
-    
+    basedir="/home/loschen/Desktop/datamining-kaggle/african_soil/data/"
+    xensemble=[]
     for i,model in enumerate(ensemble):
 	print "Loading model:",i," name:",model
+	xmodel = XModel.loadModel(basedir+model)
+	print "OOB data:",xmodel.oob_preds.shape
+	print "y data:",xmodel.preds.shape
 	if i>0:
-	    X = pd.read_csv("/home/loschen/Desktop/datamining-kaggle/higgs/data/"+model+".csv", sep=",")[col]
-	    X.columns=[model]
-	    Xall=pd.concat([Xall,X], axis=1)
+	    Xtrain = pd.concat([Xtrain,xmodel.oob_preds], axis=1)
+	    Xtest = pd.concat([Xtest,xmodel.preds], axis=1)
+	    
 	else:
-	    Xall = pd.read_csv("/home/loschen/Desktop/datamining-kaggle/higgs/data/"+model+".csv", sep=",")[col]
-	    Xall.columns=[model]
-    
-    Xtrain=Xall[len(test_indices):]
-    Xtest=Xall[:len(test_indices)]
-    
-    #if we add metafeature we should not use aucMinimize...
-    if useCols is not None:
-	(Xs,y,Xs_test,w)=prepareDatasets(nsamples=-1,onlyPRI='',replaceNA=False,plotting=False,stats=False,transform=False,createNAFeats=None,dropCorrelated=False,scale_data=False,clusterFeature=False,loadCake=True)
+	    #print type(xmodel.oob_preds)
+	    #print xmodel.oob_preds
+	    #Xall = pd.read_csv("/home/loschen/Desktop/datamining-kaggle/higgs/data/"+model+".csv", sep=",")[col]
+	    Xtrain = xmodel.oob_preds
+	    Xtest = xmodel.preds
+	xensemble.append(xmodel)
 
-	Xs=Xs.loc[:,useCols]
-	Xs.index=Xtrain.index
-	Xs_test=Xs_test.loc[:,useCols]
-	Xs_test.index=Xtest.index
-	
-	Xtrain=pd.concat([Xtrain,Xs], axis=1)
-	Xtest=pd.concat([Xtest,Xs_test], axis=1)
-	
-	print "Dim train",Xtrain.shape
-	print "Dim test",Xtest.shape
+    y = xensemble[0].ytrain
+    Xtrain.columns=ensemble
+    #print Xtrain.head(10)
+    #print Xtrain.describe()
+    
+    Xtest.columns=ensemble
+    #print Xtest.head(10)
+    #print Xtest.describe()
     
     #scale data
     X_all=pd.concat([Xtest,Xtrain])   
     if dropCorrelated: X_all=removeCorrelations(X_all,0.995)
     #X_all = (X_all - X_all.min()) / (X_all.max() - X_all.min())
-    Xtrain=X_all[len(test_indices):]
-    Xtest=X_all[:len(test_indices)]
-    #print Xtrain
-    #print "New shape",Xtrain.shape
-    #print Xtrain
-    #print Xtest
-    #Xtrain,Xtest = aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False,removeZeroModels=0.0001)
-    #Xtrain,Xtest = aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False,removeZeroModels=0.0001)
-    #auc=aucMinimize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False)
+    
+    Xtrain=X_all[Xtest.shape[0]:]
+    Xtest=X_all[:Xtest.shape[0]]
+    
     if mode is 'classical':
-	score=classicalBlend(ensemble,Xtrain,Xtest,y,test_indices,subfile=subfile)
-    elif mode is 'voting':
-	score=voting(ensemble,Xtrain,Xtest,y,test_indices,subfile=subfile)
+	results=classicalBlend(ensemble,Xtrain,Xtest,y,subfile=subfile)
     elif mode is 'mean':
-	score=amsMaximize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=True,subfile=subfile)
+	results=linearBlend(ensemble,Xtrain,Xtest,y,takeMean=True,subfile=subfile)
     else:
-	score=amsMaximize(ensemble,Xtrain,Xtest,y,test_indices,takeMean=False,subfile=subfile)
-    return(score)
-
-
+	results=linearBlend(ensemble,Xtrain,Xtest,y,takeMean=False,subfile=subfile)
+    return(results)
+    
+    
 def voting(ensemble,Xtrain,Xtest,y,test_indices,subfile):
     """
     Voting for simple classifiction result
@@ -605,8 +620,7 @@ def voting(ensemble,Xtrain,Xtest,y,test_indices,subfile):
 	checksubmission(subfile)
     
 
-
-def classicalBlend(ensemble,oobpreds,testset,ly,test_indices,subfile="subXXX.csv"):
+def classicalBlend(ensemble,oobpreds,testset,ly,test_indices=None,subfile="subXXX.csv"):
     weights=np.asarray(pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'], index_col=0)['Weight'])
     #blending
     folds=16
@@ -696,10 +710,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices,subfile="subXXX.csv
     return(ams_scores.mean())
 
 
-def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZeroModels=0.0,alpha=None,subfile=""):
-    weights=np.asarray(pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'], index_col=0)['Weight'])
-    use_proba=True
-    cutoff_all='compute'
+def linearBlend(ensemble,Xtrain,Xtest,y,weights=None,score_func='rmse',test_indices=None,takeMean=False,removeZeroModels=0.0,alpha=None,subfile="",plotting=False):
 
     def fopt(params):
 	# nxm  * m*1 ->n*1
@@ -708,69 +719,57 @@ def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZero
 	    score=0.0
 	else:
 	    ypred=np.dot(Xtrain,params).flatten()
-	    #Force between 0 and 1
-	    #ypred=sigmoid(ypred)
-	    ypred = ypred/np.max(ypred)
-	    #auc=roc_auc_score(y, np.dot(Xtrain,params))
-	    #plt.hist(ypred)
-	    #plt.show()
-	    score=ams_score(y,ypred,sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=False)
+	    score=funcdict[score_func](ypred,y)
+	    #score=funcdict['mae'](ypred,y.values)
+	    
 	    #regularization
 	    if alpha is not None:
 	      penalty=alpha*np.sum(np.square(params))
 	      print "orig score:%8.3f"%(score),
 	      score=score-penalty
-	      print " - Regularization - alpha: %8.3f penalty: %8.3f regularized score: %8.3f"%(alpha,penalty,score)
-	    
-	#print "score: %6.3f"%(score)
-	#print "params:",params
-	return -score
-	
+	      print " - Regularization - alpha: %8.3f penalty: %8.3f regularized score: %8.3f"%(alpha,penalty,score) 
+	return score
+
+    y = np.asarray(y)
     lowerbound=0.0
-    #upperbound=0.2
+    upperbound=0.9
     constr=[lambda x,z=i: x[z]-lowerbound for i in range(len(Xtrain.columns))]
-    #constr2=[lambda x,z=i: upperbound-x[z] for i in range(len(Xtrain.columns))]
+    constr2=[lambda x,z=i: upperbound-x[z] for i in range(len(Xtrain.columns))]
     #constr=constr+constr2
     
     n_models=len(Xtrain.columns)
     x0 = np.ones((n_models, 1)) / n_models
     #x0= np.random.random_sample((n_models,1))
     
-    xopt = fmin_cobyla(fopt, x0,constr,rhoend=1e-5,maxfun=100)
+    xopt = fmin_cobyla(fopt, x0,constr,rhoend=1e-5,maxfun=500)
     
     if takeMean:
 	xopt=x0
     
     #normalize coefficient
     xopt=xopt/np.sum(xopt)
+    
     if np.isnan(np.sum(xopt)):
 	    print "We have NaN here!!"
     
     ypred=np.dot(Xtrain,xopt).flatten()
-    ypred = ypred/np.max(ypred)#normalize?
+    #ypred = ypred/np.max(ypred)#normalize?
     
     ymean= np.dot(Xtrain,x0).flatten()
-    ymean = ymean/np.max(ymean)#normalize?
+    #ymean = ymean/np.max(ymean)#normalize?
     
-    oob_auc=roc_auc_score(y, ypred)
-    print "->AUC,opt: %4.4f" %(oob_auc)
-    auc=roc_auc_score(y,ymean)
-    print "->AUC,mean: %4.4f" %(auc)
-    
-   
-    oob_ams=ams_score(y,ypred,sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=False)
-    print "->AMS,opt: %4.4f" %(oob_ams)
-    ams=ams_score(y,ymean,sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=False)
-    print "->AMS,mean: %4.4f" %(ams)
+    oob_score=funcdict[score_func](y,ypred)
+    print "->score,opt: %4.4f" %(oob_score)
+    score=funcdict[score_func](y,ymean)
+    print "->score,mean: %4.4f" %(score)
     
     
     zero_models=[]
-    print "%4s %-48s %6s %6s %6s %10s" %("nr","model","ams","auc","coeff","cutoff")
+    print "%4s %-48s %6s %6s" %("nr","model","score","coeff")
     for i,model in enumerate(Xtrain.columns):
 	coldata=np.asarray(Xtrain.iloc[:,i])
-	auc = roc_auc_score(y, coldata)
-	ams = ams_score(y,coldata,sample_weight=weights,use_proba=use_proba,cutoff=cutoff_all,verbose=False)	
-	print "%4d %-48s %6.3f %6.3f %6.3f %10s" %(i+1,model,ams,auc,xopt[i],str(cutoff_all))
+	score = funcdict[score_func](y,coldata)	
+	print "%4d %-48s %6.3f %6.3f" %(i+1,model,score,xopt[i])
 	if xopt[i]<removeZeroModels:
 	    zero_models.append(model)
     #print "Sum: %4.4f"%(np.sum(xopt))
@@ -778,28 +777,24 @@ def amsMaximize(ensemble,Xtrain,testset,y,test_indices,takeMean=False,removeZero
     if removeZeroModels>0.0:
 	print "Dropping ",len(zero_models)," columns:",zero_models
 	Xtrain=Xtrain.drop(zero_models,axis=1)
-	testset=testset.drop(zero_models,axis=1)
-	return (Xtrain,testset)
+	Xtest=Xtest.drop(zero_models,axis=1)
+	return (Xtrain,Xtest)
     
-    #prediction flatten makes a n-dim vector from a nx1 vector...
-    
-    preds=np.dot(testset,xopt).flatten()
-    preds=preds/np.max(preds)
-    #preds=sigmoid(pred)
-    
-    #plt.hist(ypred,bins=50,label='oob')
-    #plt.hist(preds,bins=50,alpha=0.3,label='pred')
-    #plt.legend()
-    #plt.show()
-    
-    #preds=pd.DataFrame(preds,columns=["label"],index=test_indices)
-    if len(subfile)>1:
-	testset.index=test_indices
-	makePredictions(preds,testset,subfile,useProba=True,cutoff=cutoff_all)
-	checksubmission(subfile)
-    #preds.to_csv('/home/loschen/Desktop/datamining-kaggle/higgs/submissions/subXXXa.csv')
+    #prediction flatten makes a n-dim row vector from a nx1 column vector...
+    preds=np.dot(Xtest,xopt).flatten()
 
-    return(oob_ams)
+    if plotting:
+	plt.hist(ypred,bins=50,alpha=0.3,label='oob')
+	plt.hist(preds,bins=50,alpha=0.3,label='pred')
+	plt.legend()
+	plt.show()
+    
+    #return dataframes with blending results
+    Xtrain['blend']=ypred
+    Xtest['blend']=preds
+    Xtrain['ytrain']=y
+
+    return(Xtrain,Xtest)
   
 def selectModels(ensemble,startensemble=[],niter=10,mode='amsMaximize',useCols=None): 
     """
@@ -861,7 +856,7 @@ def selectModelsGreedy(ensemble,startensemble=[],niter=2,mode='classical',useCol
 	    print "Not gain in score anymore, leaving..."
 	    break
 	topensemble.append(ensemble[topidx])
-	print "TOP score: %4.4f" %(maxscore),
+	print "TOP score: %4.4trainEnsemblef" %(maxscore),
 	print " - actual ensemble:",topensemble
 	score_list.append(maxscore)
 	ens_list.append(list(topensemble))
@@ -876,35 +871,75 @@ def selectModelsGreedy(ensemble,startensemble=[],niter=2,mode='classical',useCol
     plt.show()
     return topensemble
     
+def trainAllEnsembles(models,mode='linearBlend',plotting=False,subfile=""):
+    """
+    Train ensembles for all targets 
+    """
+    targets=["Ca","P","pH","SOC","Sand"]
+    train_list=[]
+    test_list=[]
+    for target in targets:
+	#generate submodels
+	submodels=[model +"_"+target for model in models]
+	Xtrain,Xtest = trainEnsemble(submodels,mode='linearBlend',useCols=None,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile="")
+	
+	print Xtrain.describe()
+	print Xtest.describe()
+	
+	train_list.append(Xtrain)
+	test_list.append(Xtest)
+    
+    #Final statistics#
+    print "%10s "%("target"),
+    for col in Xtest.columns:
+	print "%14s "%(col),
+    print ""
+    
+    score_blend=np.zeros(len(targets))
+    score_models=np.zeros((len(targets),len(Xtest.columns)))
+    for i,(target,Xtrain,Xtest) in enumerate(zip(targets,train_list,test_list)):
+	score_blend[i]=funcdict['rmse'](Xtrain.ytrain,Xtrain.blend)
+	print "%10s"%(target),
+	for j,col in enumerate(Xtest.columns):
+	    score_models[i,j]=funcdict['rmse'](Xtrain.ytrain,Xtrain[col])
+	    print " %14.3f"%(score_models[i,j]),
+	
+	print ""
+	
+	if plotting:
+	    plt.hist(Xtrain.blend,bins=50,alpha=0.3,label='train')
+	    plt.hist(Xtest.blend,bins=50,alpha=0.3,label='test')
+	    plt.legend()
+	    plt.show()
+	
+    
+    print "%10s"%('avg.'),
+    for i in xrange(score_models.shape[1]):
+	print " %14.3f"%(score_models[:,i].mean()),
+    
+    
+    print "\navg,blend: %6.3f (+- %6.3f)"%(score_blend.mean(),score_blend.std())
+    #print "avg,blend: %6.3f (+- %6.3f)"%(score_blend[].mean(),score_blend.std())
+    
+    if subfile is not "":
+	sample = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/sample_submission.csv')
+	for target,Xtest in zip(targets,test_list):
+	    sample[target] = Xtest.blend
+	print "Saving submission to ",subfile
+	sample.to_csv(subfile, index = False)
+    
     
 if __name__=="__main__":
     np.random.seed(123)
-    #ensemble,y=createModels()
-    #ensemble=createOOBdata_parallel(ensemble,y,repeats=1,nfolds=2,n_jobs=1) #only 1 repeat otherwise oob data averaging leads to significant variance reduction!
-    #normal models
-    gbm_models=["gbm1","gbm2","gbm3","gbm4","gbm5","gbm6","gbm7","gbm8","gbm9","gbm10"]#all the same but different seeds, oob is overfitted???
-    del gbm_models[1]
-
-    #approved models
-    nongbmModels=["NB1","KNN2","rf1","rf2","xrf1","ADAboost1","rf3"]#KNN1 there is something wrong...NB is too bad
-    onlyPrimary=['gbm_pri','rf_pri']
-    gbm_models2=["gbm_test1","gbm_test2","gbm_test4","gbm_test5","gbm_test6","gbm_test8","gbm_test9"]
-    gbm_bag=["gbm_realbag1","gbm_realbag2","gbm_realbag3","gbm_realbag5"]
-    xgboost=["xgboost1","xgboost2","xgboost3"]
-    cake_models=['xgboost_cake','gbm_bag_cake']
-    #new_feat=["gbm_newfeat1","gbm_newfeat2","gbm_newfeat3","gbm_newfeat4","gbm_newfeat5","gbm_newfeat6"]#probably bad models!
-    allmodels=nongbmModels+gbm_models2+gbm_bag+xgboost+onlyPrimary+cake_models
-    
+    #ensemble=createModels()
+    #ensemble=createOOBdata_parallel(ensemble,repeats=1,nfolds=8,n_jobs=8) #oob data averaging leads to significant variance reduction
     #selectModelsGreedy(allmodels,startensemble=[],niter=20,dropCorrelated=False,mode='classical')#['gbm_realbag2', 'gbm_realbag3', 'NB1', 'rf1', 'ADAboost1', 'gbm_exp', 'gbm_test1', 'gbm_test2', 'gbm_test8', 'gbm_test9', 'gbm_realbag1', 'gbm_realbag2', 'gbm_realbag3', 'xgboost1', 'xgboost2']
-    sgdmodel1=['gbm_realbag5', 'gbm_test6', 'xgboost_cake', 'gbm_test2', 'rf1', 'xgboost2', 'ADAboost1', 'gbm_realbag1']#AMS=3.78
-    sgdmodel2=['gbm_bag_cake', 'gbm_realbag1', 'xgboost3', 'xgboost2', 'gbm_test9', 'rf1', 'gbm_realbag2', 'gbm_realbag3', 'xgboost_cake', 'gbm_test5', 'gbm_test4']#AMS=3.79
-    sgdmodel3=['gbm_bag_cake', 'gbm_realbag1', 'xgboost3', 'xgboost2', 'gbm_test9', 'rf1']#3.7769
-    sgdmodel4=['gbm_realbag5', 'gbm_test6', 'gbm_test2', 'rf1', 'xgboost2', 'ADAboost1', 'gbm_realbag1']
-    
-    topmodels=['gbm_realbag3', 'xgboost2', 'gbm_realbag1', 'ADAboost1', 'gbm_test6', 'gbm_test9', 'gbm_realbag2', 'gbm_test5', 'gbm_test1', 'rf3', 'gbm_test2', 'gbm_test8', 'rf1', 'NB1', 'xrf1']#best submissin so far
-    bestsubmission=topmodels+['gbm_bag_cake']#AMS=3.767 (PL)
-    model=topmodels+['gbm_realbag5']
+    #models=['pls1','svm1','pcaridge1','leaps1','rf1']
+    models_LS=['svm2','pcridge2','pls2','elnet2','pcreg2','ridge2']
+    #models_LS=['svm2','elnet2','pls2','ridge2','ridge2']
+    #models=['pcaridge1']
     #useCols=['A']
     useCols=None
-    trainEnsemble(model,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1509b.csv')
+    trainAllEnsembles(models_LS,plotting=True,mode='linearBlend',subfile='/home/loschen/Desktop/datamining-kaggle/african_soil/submissions/sub1410b.csv')
+    #trainEnsemble(model,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1509b.csv')
     

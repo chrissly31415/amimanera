@@ -36,11 +36,13 @@ from sklearn.isotonic import IsotonicRegression
 
 from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier,LinearRegression,Ridge,BayesianRidge,ElasticNet,RidgeCV,LassoLarsCV,Lasso,LarsCV
 from sklearn.cross_decomposition import PLSRegression,PLSSVD
-from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor,BaggingClassifier,RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor,BaggingRegressor,BaggingClassifier,RandomForestRegressor
 from sklearn.neighbors import KNeighborsClassifier,KNeighborsRegressor
 from sklearn.svm import LinearSVC,SVC,SVR
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.learning_curve import learning_curve
+
+
 
 def one_hot_encoder(data, col, replace=False):
     """ Takes a dataframe and a list of columns that need to be encoded.
@@ -684,6 +686,11 @@ def pcAnalysis(X,Xtest,y=None,w=None,ncomp=2,transform=False,classification=Fals
 def root_mean_squared_error(x,y):
 	return mean_squared_error(x,y)**0.5
 	
+def mean_absolute_error(x,y):
+	x = x.flatten()
+	y = y.flatten()
+	return np.mean(np.abs(x-y))
+	
 	
 def getOOBCVPredictions(lmodel,lXs,ly,folds=8,repeats=1,returnSD=True,score_func='rmse'):
 	"""
@@ -873,7 +880,13 @@ def scaleData(lXs,lXs_test=None,cols=None,centerZero=False):
 	return (lXs,lXs_test)
     else:
 	return lX_all
-    
+ 
+def binarizeProbs(a,cutoff):   
+    """
+    turn probabilities to 1 and 0
+    """
+    if a>cutoff: return 1.0
+    else: return 0.0
        
 def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, scoring=f1_score, train_sizes=np.linspace(.1, 1.0, 5)):
     """
@@ -931,3 +944,12 @@ def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, sc
 
     plt.legend(loc="best")
     return plt
+    
+    
+#some global vars
+funcdict={}
+funcdict['rmse']=root_mean_squared_error
+funcdict['auc']=roc_auc_score
+funcdict['mae']=mean_absolute_error
+funcdict['msq']=mean_squared_error
+

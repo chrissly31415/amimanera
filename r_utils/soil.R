@@ -55,7 +55,8 @@ mainRoutine<-function() {
     Xtrain<-Xall[(nrow(Xtest)+1):nrow(Xall),]
     oinfo(Xtrain)
     
-    gaFeatureSelection(Xtrain,ytrain[,1])
+    #gaFeatureSelection(Xtrain,ytrain[,1])
+    #quit()
     
     results<-lapply(1:ncol(ytrain),
 		  function(i)
@@ -66,24 +67,33 @@ mainRoutine<-function() {
 		    cat("\n##TARGET:",prop,"\n")
 		    
 		    #fit<-linRegTrain(Xlin,ytrain[,i],NULL,T)
-		    #loss<-xvalid(Xlin,ytrain[,i],nrfolds=8,modname="linear",lossfn="rmse")
-		    oob_preds<-xval_oob(Xtrain,ytrain[,i],nrfolds=8,repeatcv=10,lossfn="rmse",method="linear",iterations=50,oobfile=NULL)
-		    score<-compRMSE(oob_preds,ytrain[,i])
+		    #score<-xvalid(Xlin,ytrain[,i],nrfolds=8,modname="linear",lossfn="rmse")
+		    #oob_preds<-xval_oob(Xtrain,ytrain[,i],nrfolds=8,repeatcv=10,lossfn="rmse",method="linear",iterations=50,oobfile=NULL)
+		    #score<-compRMSE(oob_preds,ytrain[,i])
 		    
 		    #hist(oob_preds)
 		    #modelbuilding
-		    Xlin<-variableSelection(Xtrain,ytrain[,i],"forward",50,plotting=TRUE)
-		    model<-linRegTrain(Xlin,ytrain[,i],NULL,F)
+		    
+		    #GA
+		    #Xlin<-gaFeatureSelection(Xtrain,ytrain[,i])
+		    #score<-xvalid(Xlin,ytrain[,i],nrfolds=8,modname="linear",lossfn="rmse")
+		    
+		    
+		    #gen lasso
+		    D = diag(1,p)
+		    out = genlasso(y, X=X, D=D)
+		    #Xlin<-variableSelection(Xtrain,ytrain[,i],"forward",50,plotting=TRUE)
+		    #model<-linRegTrain(Xlin,ytrain[,i],NULL,F)
 		    
 		    #prediction
-		    Xtest<-matchByColumns(Xlin,Xtest)
-		    preds<-predict(model,Xtest)
-		    preds<-data.frame(prediction=preds)
-		    final<-rbind(preds,oob_preds)
-		    write.table(final,file=filename,sep=",",row.names=FALSE)
+		    #Xtest<-matchByColumns(Xlin,Xtest)
+		    #preds<-predict(model,Xtest)
+		    #preds<-data.frame(prediction=preds)
+		    #preds<-rbind(preds,oob_preds)
+		    #write.table(preds,file=filename,sep=",",row.names=FALSE)
 		    
 		    
-		    #print(loss)
+		    #print(#score)
 		    #return(model)
 		    return(score)
 		  })
