@@ -210,67 +210,192 @@ def createModels():
     #xmodel = XModel("pls2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
     #ensemble.append(xmodel)
     
-    #ridge model (with 1st derivate)
-    #Ca RMSE=0.295 (+/- 0.293)
-    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #ridge model (with 2nd derivate)
+    #Ca RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,makeDerivative='2nd',deleteFeatures=getFeatures('co2'),compressIR=150)
     #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', Ridge(alpha=1))])
     #xmodel = XModel("ridge2_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
     #ensemble.append(xmodel)
     
-    ##P RMSE= 0.713 (+/- 0.663)
-    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
-    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', Ridge(alpha=100))])
+    ##P RMSE= 
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,makeDerivative='2nd',deleteFeatures=getFeatures('co2'),compressIR=150)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=80,mode='percentile')), ('model', Ridge(alpha=100))])
     #xmodel = XModel("ridge2_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
     #ensemble.append(xmodel)
     
-    ##pH RMSE= 0.459 (+/- 0.167)
-    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
-    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', Ridge(alpha=10))])
+    ##pH RMSE= 
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,makeDerivative='2nd',deleteFeatures=getFeatures('co2'),compressIR=150)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=50,mode='percentile')), ('model', Ridge(alpha=10))])
     #xmodel = XModel("ridge2_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
     #ensemble.append(xmodel)
     
-    ##SOC RMSE = 0.442 (+/- 0.350)
-    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
-    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', Ridge(alpha=1))])
+    ##SOC RMSE = 
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,makeDerivative='2nd',deleteFeatures=getFeatures('co2'),compressIR=150)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=80,mode='percentile')), ('model', Ridge(alpha=1))])
     #xmodel = XModel("ridge2_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
     #ensemble.append(xmodel)
     
-    ##Sand RMSE=0.430 (+/- 0.235) 
-    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=False,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
-    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', Ridge(alpha=1))])
+    ##Sand RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,makeDerivative='2nd',deleteFeatures=getFeatures('co2'),compressIR=150)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=50,mode='percentile')), ('model', Ridge(alpha=1))])
     #xmodel = XModel("ridge2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
     #ensemble.append(xmodel)
     
+    #leaps selected lin reg
+    #Ca RMSE=
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('Ca_greedy'),compressIR=150,deleteFeatures=getFeatures('co2'))
+    model = LinearRegression()
+    xmodel = XModel("leaps2_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
+    ensemble.append(xmodel)
+    
+    #P RMSE=
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('P_greedy'),compressIR=150,deleteFeatures=getFeatures('co2'))
+    model = LinearRegression()
+    xmodel = XModel("leaps2_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
+    ensemble.append(xmodel)
+    
+    #pH RMSE=
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('pH_greedy'),compressIR=150,deleteFeatures=getFeatures('co2'))
+    model = LinearRegression()
+    xmodel = XModel("leaps2_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
+    ensemble.append(xmodel)
+    
+    #SOC RMSE=
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('SOC_greedy'),compressIR=150,deleteFeatures=getFeatures('co2'))
+    model = LinearRegression()
+    xmodel = XModel("leaps2_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
+    ensemble.append(xmodel)
+    
+    #Sand RMSE=
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('Sand_greedy'),compressIR=150,deleteFeatures=getFeatures('co2'))
+    model = LinearRegression()
+    xmodel = XModel("leaps2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
+    ensemble.append(xmodel)
+    
     #ridge model (with 1st derivate)
     #Ca RMSE0.339 (+/- 0.303)
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative='1st',featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.1,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
-    model = Pipeline([('pca', PCA(n_components=100)), ('model', Ridge(alpha=0.1))])
-    xmodel = XModel("pcridge2_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
-    ensemble.append(xmodel)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative='1st',featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.1,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('pca', PCA(n_components=100)), ('model', Ridge(alpha=0.1))])
+    #xmodel = XModel("pcridge2_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
+    #ensemble.append(xmodel)
     
-    #P RMSE0.743 (+/- 0.645)
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative='1st',featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.1,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
-    model = Pipeline([('pca', PCA(n_components=100)), ('model', Ridge(alpha=100))])
-    xmodel = XModel("pcridge2_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
-    ensemble.append(xmodel)
+    ##P RMSE0.743 (+/- 0.645)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative='1st',featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.1,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('pca', PCA(n_components=100)), ('model', Ridge(alpha=100))])
+    #xmodel = XModel("pcridge2_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
+    #ensemble.append(xmodel)
     
-    #pH RMSE0.474 (+/- 0.182)
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative='1st',featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.1,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
-    model = Pipeline([('pca', PCA(n_components=200)), ('model', Ridge(alpha=100))])
-    xmodel = XModel("pcridge2_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
-    ensemble.append(xmodel)
+    ##pH RMSE0.474 (+/- 0.182)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative='1st',featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.1,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('pca', PCA(n_components=200)), ('model', Ridge(alpha=100))])
+    #xmodel = XModel("pcridge2_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
+    #ensemble.append(xmodel)
     
-    #SOC RMSE 0.466 (+/- 0.308)
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative='1st',featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.1,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
-    model = Pipeline([('pca', PCA(n_components=150)), ('model', Ridge(alpha=0.1))])
-    xmodel = XModel("pcridge2_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
-    ensemble.append(xmodel)
+    ##SOC RMSE 0.466 (+/- 0.308)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative='1st',featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.1,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('pca', PCA(n_components=150)), ('model', Ridge(alpha=0.1))])
+    #xmodel = XModel("pcridge2_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
+    #ensemble.append(xmodel)
     
-    #Sand RMSE0.456 (+/- 0.260)
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative='1st',featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.1,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
-    model = Pipeline([('pca', PCA(n_components=150)), ('model', Ridge(alpha=10))])
-    xmodel = XModel("pcridge2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
-    ensemble.append(xmodel)
+    ##Sand RMSE0.456 (+/- 0.260)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative='1st',featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.1,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False)
+    #model = Pipeline([('pca', PCA(n_components=150)), ('model', Ridge(alpha=10))])
+    #xmodel = XModel("pcridge2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
+    #ensemble.append(xmodel)
+    
+    #gbm models for non linear effects
+    #Ca RMSE=<score>= 0.414 (+/- 0.526)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,deleteFeatures=getFeatures('co2'),removeVar=0.1,compressIR=75)
+    #model = GradientBoostingRegressor(loss='huber',n_estimators=300, learning_rate=0.1, max_depth=2,subsample=1.0)
+    #xmodel = XModel("gbm2_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
+    #ensemble.append(xmodel)
+    
+    ##P RMSE <score>= 0.682 (+/- 0.741)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,deleteFeatures=getFeatures('co2'),removeVar=0.1,compressIR=75)
+    #model = GradientBoostingRegressor(loss='huber',n_estimators=50, learning_rate=0.1, max_depth=2,subsample=1.0)
+    #xmodel = XModel("gbm2_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
+    #ensemble.append(xmodel)
+    
+    ##pH RMSE=0.674 (+/- 0.295)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,deleteFeatures=getFeatures('co2'),removeVar=0.1,compressIR=75)
+    #model = GradientBoostingRegressor(loss='huber',n_estimators=500, learning_rate=0.1, max_depth=2,subsample=1.0)
+    #xmodel = XModel("gbm2_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
+    #ensemble.append(xmodel)
+    
+    ##SOC RMSE =0.427 (+/- 0.399)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,deleteFeatures=getFeatures('co2'),removeVar=0.1,compressIR=75)
+    #model = GradientBoostingRegressor(loss='huber',n_estimators=500, learning_rate=0.1, max_depth=2,subsample=1.0)
+    #xmodel = XModel("gbm2_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
+    #ensemble.append(xmodel)
+    
+    ##Sand RMSE)= 0.585 (+/- 0.292)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,deleteFeatures=getFeatures('co2'),removeVar=0.1,compressIR=75)
+    #model = GradientBoostingRegressor(loss='huber',n_estimators=50, learning_rate=0.1, max_depth=2,subsample=1.0)
+    #xmodel = XModel("gbm2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
+    #ensemble.append(xmodel)
+    
+    ##ridge model using compressed fature + savitzky
+    ##Ca RMSE= 0.287 (+/- 0.290)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,deleteFeatures=getFeatures('co2')+['DEPTH','BSAN','BSAS','BSAV','CTI','EVI','LSTD','REF1','REF3','REF7','RELI'],removeVar=0.1,useSavitzkyGolay=True,compressIR=150)
+    #model =  Pipeline([('filter', GenericUnivariateSelect(f_regression, param=90,mode='percentile')), ('model', Ridge(alpha=0.1))])
+    #xmodel = XModel("compridge2_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
+    #ensemble.append(xmodel)
+    
+    ##P RMSE =  0.700 (+/- 0.678)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,deleteFeatures=getFeatures('co2')+['BSAS','BSAV','CTI','ELEV','EVI','LSTN','REF1','REF3','DEPTH'],removeVar=0.1,useSavitzkyGolay=True,compressIR=150)
+    #model =  Pipeline([('filter', GenericUnivariateSelect(f_regression, param=80,mode='percentile')), ('model', Ridge(alpha=10))])
+    #xmodel = XModel("compridge2_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
+    #ensemble.append(xmodel)
+    
+    ##pH RMSE = 0.457 (+/- 0.162)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,deleteFeatures=getFeatures('co2')+['BSAN','BSAV','CTI','REF1','REF2','RELI','DEPTH'],removeVar=0.1,useSavitzkyGolay=True,compressIR=150)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=98,mode='percentile')), ('model', Ridge(alpha=0.1))])
+    #xmodel = XModel("compridge2_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
+    #ensemble.append(xmodel)
+    
+    ##SOC RMSE =0.443 (+/- 0.397)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,deleteFeatures=getFeatures('co2')+['BSAS','CTI','EVI','LSTN','REF7','TMAP','DEPTH'],removeVar=0.1,useSavitzkyGolay=True,compressIR=150)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=90,mode='percentile')), ('model', Ridge(alpha=0.001))])
+    #xmodel = XModel("compridge2_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
+    #ensemble.append(xmodel)
+    
+    ##Sand RMSE = 0.449 (+/- 0.258)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,deleteFeatures=getFeatures('co2')+['BSAN','BSAS','REF2','REF3','RELI','TMFI','DEPTH'],removeVar=0.1,useSavitzkyGolay=True,compressIR=150)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', Ridge(alpha=0.1))])
+    #xmodel = XModel("compridge2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
+    #ensemble.append(xmodel)
+    
+    #SVM_MODELLS part 3
+    #Ca RMSE=0.226 (+/- 0.283)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteFeatures=getFeatures('co2')+getFeatures('non-spectra'),removeVar=False,useSavitzkyGolay=True,compressIR=200)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=100000.0, gamma=0.001, verbose = 0))])
+    #xmodel = XModel("svm3_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
+    #ensemble.append(xmodel)
+    
+    ##P RMSE=0.657 (+/- 0.731)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteFeatures=getFeatures('co2')+getFeatures('non-spectra'),removeVar=False,useSavitzkyGolay=True,compressIR=200)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=100000.0, gamma=0.0001, verbose = 0))]) 
+    #xmodel = XModel("svm3_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
+    #ensemble.append(xmodel)
+    
+    ##pH RMSE=0.468 (+/- 0.165)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteFeatures=getFeatures('co2')+getFeatures('non-spectra'),removeVar=False,useSavitzkyGolay=True,compressIR=200)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=100.0, gamma=0.0021544346900318821, verbose = 0))])
+    #xmodel = XModel("svm3_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
+    #ensemble.append(xmodel)
+    
+    ##SOC RMSE=0.372 (+/- 0.388)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteFeatures=getFeatures('co2')+getFeatures('non-spectra'),removeVar=False,useSavitzkyGolay=True,compressIR=200)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0021544346900318821, verbose = 0))])
+    #xmodel = XModel("svm3_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
+    #ensemble.append(xmodel)
+    
+    ##Sand RMSE=0.422 (+/- 0.247)
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,onlySpectra=False,deleteFeatures=getFeatures('co2')+getFeatures('non-spectra'),removeVar=False,useSavitzkyGolay=True,compressIR=200)
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=100000.0, gamma=0.0001, verbose = 0))])
+    #xmodel = XModel("svm3_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
+    #ensemble.append(xmodel)
+    
     
     
     #SVM_MODELLS
@@ -710,7 +835,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,test_indices=None,subfile="subXX
     return(ams_scores.mean())
 
 
-def linearBlend(ensemble,Xtrain,Xtest,y,weights=None,score_func='rmse',test_indices=None,takeMean=False,removeZeroModels=0.0,alpha=None,subfile="",plotting=False):
+def linearBlend(ensemble,Xtrain,Xtest,y,weights=None,score_func='rmse',test_indices=None,normalize=True,takeMean=False,removeZeroModels=0.0,alpha=None,subfile="",plotting=False):
 
     def fopt(params):
 	# nxm  * m*1 ->n*1
@@ -732,22 +857,23 @@ def linearBlend(ensemble,Xtrain,Xtest,y,weights=None,score_func='rmse',test_indi
 
     y = np.asarray(y)
     lowerbound=0.0
-    upperbound=0.9
+    upperbound=0.3
     constr=[lambda x,z=i: x[z]-lowerbound for i in range(len(Xtrain.columns))]
     constr2=[lambda x,z=i: upperbound-x[z] for i in range(len(Xtrain.columns))]
-    #constr=constr+constr2
+    constr=constr+constr2
     
     n_models=len(Xtrain.columns)
     x0 = np.ones((n_models, 1)) / n_models
     #x0= np.random.random_sample((n_models,1))
     
-    xopt = fmin_cobyla(fopt, x0,constr,rhoend=1e-5,maxfun=500)
+    xopt = fmin_cobyla(fopt, x0,constr,rhoend=1e-7,maxfun=5000)
     
     if takeMean:
+	print "Taking the mean..."
 	xopt=x0
     
     #normalize coefficient
-    xopt=xopt/np.sum(xopt)
+    if normalize: xopt=xopt/np.sum(xopt)
     
     if np.isnan(np.sum(xopt)):
 	    print "We have NaN here!!"
@@ -772,7 +898,7 @@ def linearBlend(ensemble,Xtrain,Xtest,y,weights=None,score_func='rmse',test_indi
 	print "%4d %-48s %6.3f %6.3f" %(i+1,model,score,xopt[i])
 	if xopt[i]<removeZeroModels:
 	    zero_models.append(model)
-    #print "Sum: %4.4f"%(np.sum(xopt))
+    if not normalize: print "##sum coefficients: %4.4f"%(np.sum(xopt))
     
     if removeZeroModels>0.0:
 	print "Dropping ",len(zero_models)," columns:",zero_models
@@ -881,7 +1007,7 @@ def trainAllEnsembles(models,mode='linearBlend',plotting=False,subfile=""):
     for target in targets:
 	#generate submodels
 	submodels=[model +"_"+target for model in models]
-	Xtrain,Xtest = trainEnsemble(submodels,mode='linearBlend',useCols=None,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile="")
+	Xtrain,Xtest = trainEnsemble(submodels,mode=mode,useCols=None,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile="")
 	
 	print Xtrain.describe()
 	print Xtest.describe()
@@ -933,13 +1059,14 @@ if __name__=="__main__":
     np.random.seed(123)
     #ensemble=createModels()
     #ensemble=createOOBdata_parallel(ensemble,repeats=1,nfolds=8,n_jobs=8) #oob data averaging leads to significant variance reduction
-    #selectModelsGreedy(allmodels,startensemble=[],niter=20,dropCorrelated=False,mode='classical')#['gbm_realbag2', 'gbm_realbag3', 'NB1', 'rf1', 'ADAboost1', 'gbm_exp', 'gbm_test1', 'gbm_test2', 'gbm_test8', 'gbm_test9', 'gbm_realbag1', 'gbm_realbag2', 'gbm_realbag3', 'xgboost1', 'xgboost2']
+    
     #models=['pls1','svm1','pcaridge1','leaps1','rf1']
-    models_LS=['svm2','pcridge2','pls2','elnet2','pcreg2','ridge2']
+    models_LS=['leaps2','svm3','svm2','pcridge2','pls2','elnet2','pcreg2','gbm2','compridge2','ridge2']
+    #models_LS=['leaps2']
     #models_LS=['svm2','elnet2','pls2','ridge2','ridge2']
     #models=['pcaridge1']
     #useCols=['A']
     useCols=None
-    trainAllEnsembles(models_LS,plotting=True,mode='linearBlend',subfile='/home/loschen/Desktop/datamining-kaggle/african_soil/submissions/sub1410b.csv')
+    trainAllEnsembles(models_LS,plotting=True,mode='linearBlend',subfile='/home/loschen/Desktop/datamining-kaggle/african_soil/submissions/sub1610b.csv')
     #trainEnsemble(model,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1509b.csv')
     

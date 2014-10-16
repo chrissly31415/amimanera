@@ -14,7 +14,7 @@ from savitzky_golay import *
 from sklearn import manifold
 
 
-def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.0,removeCor=0.99999,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False):
+def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=False,standardize=True,doPCA=None,findPeaks=None,makeDerivative=None,featureFilter=None,loadFeatures=None,deleteFeatures=None,removeVar=0.0,removeCor=None,useSavitzkyGolay=False,addNoiseColumns=None,addLandscapes=False,compressIR=500,transform=None):
     Xtrain = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/training.csv')
     Xtest = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/sorted_test.csv')
     ymat = Xtrain[['Ca','P','pH','SOC','Sand']]
@@ -46,6 +46,20 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
       #remove zero columns
       #X_all = X_all.ix[:,(X_all != 0).any(axis=0)]
     
+    if transform is not None:
+	print "log transformation "
+	if "spectra" == transform:
+	    transform = [m for m in list(X_all.columns) if m[0]=='m']
+	#spectra = [m for m in list(X_all.columns) if m[0]=='m']
+        for col in X_all[transform]:
+            if col in X_all.columns:
+                X_all[col]=X_all[col]-X_all[col].min()+1.0
+                #X_all[col]=X_all[col]-X_all[col].min()+1.0
+                X_all[col]=X_all[col].apply(np.log)
+	
+	#X_all.loc[:,transform].hist(bins=30)
+        #plt.show()
+    
     if useSavitzkyGolay:
 	spectra = [m for m in list(X_all.columns) if m[0]=='m']
 	X_SP = applySavitzkyGolay(X_all[spectra])
@@ -60,6 +74,18 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
 	X_all = X_all.ix[:,(X_all != 0).any(axis=0)]
 	deleteSpectra=True
     
+    if compressIR is not None:
+	start_str='m'
+	if useSavitzkyGolay: start_str='s'
+	if makeDerivative: start_str='d'
+	spectra = [m for m in list(X_all.columns) if m[0]==start_str]
+	X_cpr = makeCompression(X_all[spectra],compressIR)
+	X_all.drop(spectra, axis=1, inplace=True) 
+	X_all = pd.concat([X_all, X_cpr],axis=1)
+    
+    
+	
+    
     if onlySpectra:
 	X_all = X_all.iloc[:,:3578]
 
@@ -71,8 +97,6 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
 	print "Using featurefilter..."
 	X_all=X_all[featureFilter]
     
-
-	
     if doPCA is not None:
 	pca = PCA(n_components=doPCA)
 	X_all = pd.DataFrame(pca.fit_transform(np.asarray(X_all)))
@@ -83,6 +107,7 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
 	print "components: %5d sum: %6.2f"%(doPCA,pca.explained_variance_ratio_.sum())
       
     if deleteFeatures is not None:
+	deleteFeatures = [ col for col in deleteFeatures if col in X_all.columns ]
 	X_all.drop(deleteFeatures, axis=1, inplace=True) 
     
     if addLandscapes is True:
@@ -131,13 +156,14 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
    
     #analyze data
     if plotting:
-	Xtrain.hist(bins=50)
-	Xtest.hist(bins=50)
+	Xtrain.hist(bins=30,label='legend')
+	#Xtest.hist(bins=50)
       
 	#somehow ordering is wrong???
 	#axs2 = Xtrain.hist(bins=30)
 	#for ax2, (colname, values) in zip(axs2.flat, Xtest.iteritems()):
 	#    values.hist(ax=ax2,alpha=0.3, bins=30)
+	plt.legend()
 	plt.show()
     
     #print "Train set:\n",Xtrain.describe()
@@ -174,14 +200,49 @@ def applySavitzkyGolay(X,window_size=31, order=3,plotting=False):
 	    plt.show()
 	
     newdf = pd.DataFrame(tutto).set_index(0)
-    colnames = [ "sago_"+str(x) for x in xrange(newdf.shape[1]) ]
+    colnames = [ "s"+str(x) for x in xrange(newdf.shape[1]) ]
     newdf.columns=colnames
     print newdf.head(10)
     return(newdf)
     
+
+def makeCompression(X,bin_size,plotting=False):
+    """
+    Collects spectra frequencies
+    """
+    print "Compressing spectrum"
+    tutto=[]
+    
+    for ind in X.index:
+	row=[]
+	row.append(ind)
+	data = X.ix[ind,:].values	
+	start_bins = X.ix[ind,:].values.shape[0]
+	base = np.linspace(0,start_bins ,start_bins)
+	bins = np.linspace(0,start_bins ,bin_size+1)
+
+	bin_means1 = np.histogram(base, bins=bins, weights=data)[0]
+	tmp = np.histogram(base, bins=bin_size)[0]
+	bin_means1= bin_means1 / tmp
+	for el in bin_means1:
+	    row.append(el)
+	tutto.append(row)
+
+    newdf = pd.DataFrame(tutto).set_index(0)
+    colnames = [ "z"+str(x) for x in xrange(newdf.shape[1]) ]
+    newdf.columns=colnames
+    if plotting:
+	newdf.iloc[3,:].plot()
+	plt.show()
+    
+    print newdf.head(10)
+    ###print newdf.describe()
+    return(newdf)
+	
+	
     
     
-def makeDiff(X):
+def makeDiff(X,plotting=False):
     """
     make derivative
     """
@@ -194,10 +255,11 @@ def makeDiff(X):
 	    row.append(el)
 	tutto.append(row)
     newdf = pd.DataFrame(tutto).set_index(0)
-    colnames = [ "diff_"+str(x) for x in xrange(newdf.shape[1]) ]
+    colnames = [ "d"+str(x) for x in xrange(newdf.shape[1]) ]
     newdf.columns=colnames
-    newdf.iloc[3,:].plot()
-    plt.show()
+    if plotting:
+	newdf.iloc[3,:].plot()
+	plt.show()
     
     print newdf.head(10)
     ###print newdf.describe()
@@ -286,7 +348,12 @@ def modelsFeatureSelection(lmodels,Xold,Xold_test,lymat):
     for i,model in enumerate(lmodels):
 	iterativeFeatureSelection(model,Xold,Xold_test,lymat.iloc[:,i],1,1)
 
-
+def modelsGreedySelection(lmodels,Xold,Xold_test,lymat):
+    for i,model in enumerate(lmodels):
+	print "Target:",ymat.columns[i]
+	if i<3: continue
+	greedyFeatureSelection(models[0],Xtrain,ymat.iloc[:,i],itermax=60,itermin=30,targets=None,start_features=None,n_jobs=8,verbose=False,cv= cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_quick3.csv',index_col=0)['LANDSCAPE'],1))
+	
 def modelLandscapes(X_all,X_orig):
     plottLS=True
     groups = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/groupings.csv',sep=';')
@@ -378,6 +445,19 @@ def getFeatures(key):
 ,"LSTN","REF1","REF3","REF7","RELI","TMFI"]
 
 
+    features['Ca_greedy']=['z49', 'z61', 'z123', 'RELI', 'Depth', 'z110', 'z108', 'z109', 'z51', 'z111', 'z129', 'z140', 'z144', 'z9', 'z117', 'z106', 'z133', 'z145', 'z52', 'z47', 'z95', 'z92', 'z99', 'ELEV', 'z114', 'z122', 'z136', 'z148', 'z90', 'z94', 'z68', 'z147', 'LSTN', 'z96', 'z89', 'z91', 'REF1', 'z104', 'z138', 'TMAP', 'REF3']
+    features['P_greedy']=['z2', 'z5', 'z119', 'z130', 'z139', 'z74', 'z135', 'Depth', 'z95', 'z125']
+    features['pH_greedy']=['TMAP', 'z133', 'z130', 'z82', 'z134', 'z127', 'z99', 'z115', 'z110', 'z0', 'ELEV', 'z131', 'z70', 'z47', 'RELI', 'z141', 'z146', 'z116', 'z114', 'z128', 'z101', 'z120', 'z143', 'z145', 'Depth', 'CTI', 'REF2', 'z83', 'z17', 'z136', 'z71', 'z118', 'z67', 'z113']
+    #geht viellt. besser
+    features['SOC_greedy']=['z100', 'z81', 'z136', 'z117', 'z114', 'RELI', 'REF2', 'z122', 'z128', 'z99', 'z131', 'z147', 'z60', 'z64', 'z138', 'LSTD', 'z137', 'z97', 'z22', 'CTI', 'z143', 'z141', 'z139', 'Depth', 'BSAN', 'LSTN', 'z68', 'z7', 'z13', 'z0', 'z6','z5']
+    features['Sand_greedy']=['z137', 'z133', 'TMAP', 'z83', 'z0', 'z138', 'z134', 'z142', 'z120', 'z74', 'z122', 'z144', 'z145', 'z140', 'z139', 'z146', 'z135', 'z117', 'z87', 'z141', 'CTI', 'Depth', 'z103', 'z109', 'z121', 'RELI', 'z136', 'z143', 'z48', 'z9', 'z93', 'z115']
+    
+    
+    
+    
+    features['non-spectra']=['BSAN','BSAS','BSAV','CTI','ELEV','EVI','LSTD','LSTN','REF1','REF2','REF3','REF7','RELI','TMAP','TMFI']
+    features['non-spectra+depth']=['BSAN','BSAS','BSAV','CTI','ELEV','EVI','LSTD','LSTN','REF1','REF2','REF3','REF7','RELI','TMAP','TMFI','DEPTH']
+    features['co2']= ['m2379.76', 'm2377.83', 'm2375.9', 'm2373.97','m2372.04', 'm2370.11', 'm2368.18', 'm2366.26','m2364.33', 'm2362.4', 'm2360.47', 'm2358.54','m2356.61', 'm2354.68', 'm2352.76']
     #only spectrad
     return features[key]
 
@@ -386,16 +466,16 @@ def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv
     
     if useLandscapeCV:
 	#split across landscapes
-	#cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_int.csv',index_col=0)['LANDSCAPE'],1)#37
+	cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_int.csv',index_col=0)['LANDSCAPE'],1)#37
 	#cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_fast.csv',index_col=0)['LANDSCAPE'],1)#19
 	#cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_quick.csv',index_col=0)['LANDSCAPE'],1)#10
 	#cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_quick2.csv',index_col=0)['LANDSCAPE'],1)#9
-	cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_quick3.csv',index_col=0)['LANDSCAPE'],1)#8
-	for train_index, test_index in cv:
-	    #print("TRAIN:", train_index, "TEST:", test_index)
-	    print "dim train:",train_index.shape
-	    print "dim test:",test_index.shape
-	    print "len(cv)",len(cv)
+	#cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_quick3.csv',index_col=0)['LANDSCAPE'],1)#8
+	#for train_index, test_index in cv:
+	#    #print("TRAIN:", train_index, "TEST:", test_index)
+	#    print "dim train:",train_index.shape
+	#    print "dim test:",test_index.shape
+	#    print "len(cv)",len(cv)
 	#    print lX.iloc[train_index].head(65)
 	#    print lX.iloc[test_index].head(65)
 	    
@@ -408,25 +488,25 @@ def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv
 	ly = lymat.iloc[:,i].values
 	#be carefull sign is flipped
 	if gridSearch is True:
-	    #parameters = {'filter__param': [100]}#normal pipeline
+	    parameters = {'filter__param': [100]}#normal pipeline
 	    #parameters = {'filter__percentile': [50,25], 'model__C': [12000,10000,8000],'model__gamma': [0.0] }#pipeline	    
 	    #parameters = {'filter__k': [2000,3000,3594],'pca__n_components':[0.99,0.995], 'model__alpha': [10000,100,1.0,0.01,0.0001] }#pipeline
 	    #parameters = {'filter__k': [2000,3000,3594],'pca__n_components':[0.99], 'model__alpha': [10000,100,1.0,0.01,0.0001] }#pipeline
-	    #parameters = {'filter__param': [100],'model__gamma':[0.0], 'model__C': [100,1000,10000] }#pipeline
+	    #parameters = {'filter__param': [100],'model__gamma':np.logspace(-5, -2, 10), 'model__C': [100,1000,10000,100000] }#SVR
 	    #parameters = {'filter__param': [99],'model__alpha': [0.001],'model__loss':['huber'],'model__penalty':['elasticnet'],'model__epsilon':[1.0],'model__n_iter':[200]}#pipeline
 	    #parameters = {'varfilter__threshold': [0.0,0.1,0.001,0.0001,0.00001] }#pipeline
 	    #parameters = {'filter__k': [10,20],'pca__n_components':[10,20], 'model__alpha': [1.0] }#pipeline
 	    #parameters = {'pca__n_components':[20,25,30,40,50,60],'filter__param': [98]}#PCR regression
 	    #parameters = {'pca__n_components':[35,40,100,200,300,400,500]}
-	    #parameters = {'filter__param': [100,98],'model__alpha':[100,10,1.0,0.1]}#ridge
+	    #parameters = {'filter__param': [100,98,80,70,50],'model__alpha':[1000,100,10,1.0]}#ridge
 	    #parameters = {'pca__n_components':[100,150,200],'model__alpha':[100,10,0.1]}#ridge
-	    parameters = {'model__n_neighbors':[5,10,25]}#KNN
+	    #parameters = {'model__n_neighbors':[5,10,25]}#KNN
 	    #parameters = {'filter__param': [98,80],'model__n_components':[5,20,40]}#PLS
 	    #parameters = {'filter__param': [99],'model__alpha':[0.01,0.001],'model__l1_ratio':[0.001,0.0005]}#elastic net
-	    #parameters = {'filter__param': [100],'model__alphas':[[0.1]]}#RIDGECV
+	    #parameters = {'filter__param': [100,98,90,80,50],'model__alpha':[10,1,0.1,0.01,0.001]}#RIDGECV
 	    #parameters = {'filter__param': [100,99],'model__n_neighbors':[3,4]}#KNN
 	    #parameters = {'model__max_depth':[5,6], 'model__learning_rate':[0.1],'model__n_estimators':[200,300,400],'model__subsample':[1.0],'model__loss':['huber'],'model__min_samples_leaf':[10],'model__max_features':[None]}
-	    #parameters = {'model_loss': ['ls','lad','huber', 'quantile']}#GBR
+	    #parameters = {'filter__param': [100],'model__loss': ['huber'],'model__n_estimators':[150,500,1000]}#GBR
 	    #parameters = {'n_estimators':[250], 'max_features':['auto'],'min_samples_leaf':[1]}#xrf+xrf
 	    #parameters = {'filter__param': [40,20,5],'model__n_estimators':[200]}#RF
 	    clf  = grid_search.GridSearchCV(lmodels[i], parameters,n_jobs=n_jobs,verbose=0,scoring=scoring,cv=cv,fit_params=fit_params,refit=True)
@@ -492,20 +572,19 @@ if __name__=="__main__":
     #findPeaks='load'
     makeDerivative=None#CHECK indices after derivative making...
     featureFilter=None#["BSAN","BSAS","BSAV","ELEV","EVI","LSTD","LSTN","REF1","REF2","REF3","REF7","TMAP","TMFI","m120.0","m200.0","m1160.0","m1200.0","m2080.0","m2160.0","m2200.0","m2240.0","m2640.0","m3240.0"]
-    featureFilter=None
     removeVar=0.1
     useSavitzkyGolay=False
     deleteSpectra=useSavitzkyGolay
     addNoiseColumns=None
     addLandscapes=False
+    compressIR=150
 
-    addfeatures=['BSAN','BSAS','BSAV','CTI','ELEV','EVI','LSTD','LSTN','REF1','REF2','REF3','REF7','RELI','TMAP','TMFI']
-    loadFeatures=None
-    co2 = ['m2379.76', 'm2377.83', 'm2375.9', 'm2373.97','m2372.04', 'm2370.11', 'm2368.18', 'm2366.26','m2364.33', 'm2362.4', 'm2360.47', 'm2358.54','m2356.61', 'm2354.68', 'm2352.76']
-    deleteFeatures=None
+    loadFeatures=None#getFeatures('non-spectra')
+    transform=None#'spectra'#['RELI','CTI'] #['RELI','RELI','REF7','CTI','BSAS','BSAV']
+    deleteFeatures=getFeatures('co2')
     removeCor=None
     
-    (Xtrain,Xtest,ymat) = prepareDatasets(nsamples,onlySpectra,deleteSpectra,plotting,standardize,doPCA,findPeaks,makeDerivative,featureFilter,loadFeatures,deleteFeatures,removeVar,removeCor,useSavitzkyGolay,addNoiseColumns,addLandscapes)
+    (Xtrain,Xtest,ymat) = prepareDatasets(nsamples,onlySpectra,deleteSpectra,plotting,standardize,doPCA,findPeaks,makeDerivative,featureFilter,loadFeatures,deleteFeatures,removeVar,removeCor,useSavitzkyGolay,addNoiseColumns,addLandscapes,compressIR,transform)
     
     #pcAnalysis(Xtrain,Xtest)alphas=[0.1]
     #print Xtrain.columns
@@ -517,13 +596,14 @@ if __name__=="__main__":
     #C:Inverse of regularization strength; must be a positive float. Like in support vector machines, smaller values specify stronger regularization.
     models=[]
     for i in range(nt):
+	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', PLSRegression(n_components=30))])
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', LassoLarsCV())])
-	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', LinearRegression())])
+	model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', LinearRegression())])
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', ElasticNet(alpha=.01,l1_ratio=0.001,max_iter=1000))])
-	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', RidgeCV(alphas=[0.1]))])
-	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', Ridge())])
+	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', RidgeCV(alphas=[1.0]))])
+	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', Ridge(alpha=1.0))])
 	#model = Pipeline([('model', KNeighborsRegressor(n_neighbors=5))])
-	model = GaussianNB()
+	#model = GaussianNB()
 	#model = Pipeline([('pca', PCA(n_components=doPCA)),('model', Ridge())])
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', Ridge(alpha=0.1))])
 	#model = Pipeline([('pca', PCA(n_components=doPCA)),('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', LinearRegression())])
@@ -542,8 +622,10 @@ if __name__=="__main__":
 	#model = Pipeline([('filter',GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model',GradientBoostingRegressor(loss='huber',n_estimators=150, learning_rate=0.1, max_depth=2,subsample=1.0))])
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model',KNeighborsRegressor(n_neighbors=5, weights='uniform') )])
 	#model = Pipeline([('filter', SelectKBest(f_regression, k=10)),('pca', PCA(n_components=10)), ('model', Ridge())])
+	
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=1.0, gamma=0.0, verbose = 0))])
-	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', PLSRegression(n_components=30))])
+	#model = Pipeline([('filter', SelectPercentile(f_regression, percentile=50)), ('model', SVR(kernel='rbf',epsilon=0.1,C=10000.0, gamma=0.0, verbose = 0))])
+	
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', Lasso())])
 	#model = Pipeline([('poly', PolynomialFeatures(degree=3)), ('linear', LinearRegression(fit_intercept=False))])
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', LarsCV())])#grottig
@@ -584,10 +666,10 @@ if __name__=="__main__":
     
     
     #make the training
-    models = buildmodels(models,Xtrain,ymat,cv_split=8,gridSearch=False,n_jobs=8)
+    #models = buildmodels(models,Xtrain,ymat,cv_split=8,gridSearch=True,n_jobs=8)
     #showMisclass(models[0],Xtrain,ymat.iloc[:,0],t=2.0)
     #modelsFeatureSelection(models,Xtrain,Xtest,ymat)
-    #greedyFeatureSelection(lmodel,lX,ymat.iloc[:,1:2],itermax=10,good_features=None, folds= 8)
+    modelsGreedySelection(models,Xtrain,Xtest,ymat)
     
     for i in range(nt):
 	print "TARGET: %-10s" %(ymat.columns[i])

@@ -570,24 +570,59 @@ def linearFeatureSelection(lmodel,Xold,Xold_test,n):
 	Xreduced = Xtmp[Xold_test.shape[0]:]
 	return(Xreduced,Xreduced_test)
 
-def greedyFeatureSelection(lmodel,lX,ly,itermax=10,good_features=None, folds= 8):
-	cv = StratifiedShuffleSplit(ly, folds, test_size=0.25)
+def greedyFeatureSelection(lmodel,lX,ly,itermax=10,itermin=5,targets=None ,start_features=None,verbose=False, cv=5, n_jobs=4,scoring='mean_squared_error'):
+	features=[]
+	
+	if targets is None:
+	    targets = lX.columns
+	
+	if start_features is not None:
+	    features=start_features
+	else:
+	    features=[col for col in lX.columns if not col in targets]
+	
+	scores = []
+	score_opt=1E10
 	for i in xrange(itermax):
-	    print "Round %4d"%(i)
-	    #sample groups of adjacent! features
-	    size = 6
-	    p = len(lX.columns)
-	    ngroups = p / size
-	    final = p % size
-	    print "%4d columns: %4d groups of size %4d and final group %4d"%(p,ngroups,size,final)
-	    for k in xrange(ngroups):
-		idx1 = k*size
-		idx2 = (k+1)*size
-		print "start:",idx1
-		print "end:",idx2
-		features = lX.columns[idx1:idx2]
-		print features
+	    print "Round %4d"%(i),
+	    score_best=1E9
+	    for k in xrange(len(targets)):
+		act_feature = targets[k]
+		if act_feature in set(features):continue
+		
+		features.append(act_feature)
+		
+		
+		score = (-1*cross_validation.cross_val_score(lmodel,lX.loc[:,features],ly,fit_params=None, scoring=scoring,cv=cv,n_jobs=n_jobs))**0.5
+		
+		if verbose:
+		    print "TARGET: %-12s - <score>= %0.3f (+/- %0.4f) score,iteration best= %0.4f score,overall best: %0.4f" % (act_feature, score.mean(), score.std(),score_best,score_opt)
+		
+		if score.mean()<score_best:
+		  score_best=score.mean()
+		  new_feat=act_feature
+		  features_best=features[:]
+		del features[-1]
+	    features.append(new_feat)
+	    scores.append(score_best)
 	    
+	    if (i>itermin and (score_opt>score_best)):
+		    print "Converged with threshold: %0.6f"%(np.abs(score_opt-score_best))
+		    score_opt=score_best
+		    opt_list=features_best
+		    break	    
+	    if score_best<score_opt:
+		    score_opt=score_best
+		    opt_list=features_best
+		
+	    print " nr features: %5d "%(len(features)),
+	    print " score,iteration best= %0.4f score,overall best: %0.4f \n%r" % (score_best,score_opt,features)
+	 
+	print "Scores:",scores
+	
+	print "Best score: %6.4f with %5d features:\n%r"%(score_opt,len(opt_list),opt_list)
+	plt.plot(scores)
+	plt.show()
 
 def iterativeFeatureSelection(lmodel,Xold,Xold_test,ly,iterations,nrfeats):
 	"""
