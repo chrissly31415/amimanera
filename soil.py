@@ -350,8 +350,8 @@ def modelsFeatureSelection(lmodels,Xold,Xold_test,lymat):
 
 def modelsGreedySelection(lmodels,Xold,Xold_test,lymat):
     for i,model in enumerate(lmodels):
+	if i<2: continue
 	print "Target:",ymat.columns[i]
-	if i<3: continue
 	greedyFeatureSelection(models[0],Xtrain,ymat.iloc[:,i],itermax=60,itermin=30,targets=None,start_features=None,n_jobs=8,verbose=False,cv= cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_quick3.csv',index_col=0)['LANDSCAPE'],1))
 	
 def modelLandscapes(X_all,X_orig):
@@ -452,8 +452,16 @@ def getFeatures(key):
     features['SOC_greedy']=['z100', 'z81', 'z136', 'z117', 'z114', 'RELI', 'REF2', 'z122', 'z128', 'z99', 'z131', 'z147', 'z60', 'z64', 'z138', 'LSTD', 'z137', 'z97', 'z22', 'CTI', 'z143', 'z141', 'z139', 'Depth', 'BSAN', 'LSTN', 'z68', 'z7', 'z13', 'z0', 'z6','z5']
     features['Sand_greedy']=['z137', 'z133', 'TMAP', 'z83', 'z0', 'z138', 'z134', 'z142', 'z120', 'z74', 'z122', 'z144', 'z145', 'z140', 'z139', 'z146', 'z135', 'z117', 'z87', 'z141', 'CTI', 'Depth', 'z103', 'z109', 'z121', 'RELI', 'z136', 'z143', 'z48', 'z9', 'z93', 'z115']
     
+    features['Ca_test']=['z49', 'z61', 'z123', 'RELI', 'Depth', 'z110', 'z108', 'z109', 'z51', 'z111', 'z129', 'z140', 'z144', 'z9', 'z117', 'z106', 'z133', 'z145', 'z52', 'z47', 'z95', 'z92', 'z99', 'ELEV', 'z114', 'z122', 'z136', 'z148', 'z90', 'z94', 'z68', 'z147']
+    features['P_test']=['z2', 'z5', 'z119', 'z130', 'z139', 'z74', 'z135', 'Depth', 'z95', 'z125']
+    features['pH_test']=['TMAP', 'z133', 'z130', 'z82', 'z134', 'z127', 'z99', 'z115', 'z110', 'z0', 'ELEV', 'z131', 'z70', 'z47', 'RELI', 'z141', 'z146', 'z116', 'z114', 'z128', 'z101', 'z120', 'z143', 'z145', 'Depth', 'CTI', 'REF2', 'z83', 'z17', 'z136', 'z71', 'z118']
+    features['SOC_test']=['z100', 'z81', 'z136', 'z117', 'z114', 'RELI', 'REF2', 'z122', 'z128', 'z99', 'z131', 'z147', 'z60', 'z64', 'z138', 'LSTD', 'z137', 'z97', 'z22', 'CTI', 'z143', 'z141', 'z139', 'Depth', 'BSAN', 'LSTN', 'z68', 'z7', 'z13', 'z0', 'z6', 'z5']
+    features['Sand_test']=['z137', 'z133', 'TMAP', 'z83', 'z0', 'z138', 'z134', 'z142', 'z120', 'z74', 'z122', 'z144', 'z145', 'z140', 'z139', 'z146', 'z135', 'z117', 'z87', 'z141', 'CTI', 'Depth', 'z103', 'z109', 'z121', 'RELI', 'z136', 'z143', 'z48', 'z9', 'z93', 'z115']
     
+    #greedy selection with svm and 1st derivatives
+    features['Ca_svm']=['z144', 'z131', 'z125', 'z124', 'z115', 'z138', 'z102', 'z145', 'z128', 'z49']
     
+    features['pH_svm']=['z112', 'z132', 'z130', 'z147', 'z111', 'Depth', 'z49', 'z95', 'z126', 'z31', 'z96', 'z116', 'z131', 'z87', 'z72', 'z124']
     
     features['non-spectra']=['BSAN','BSAS','BSAV','CTI','ELEV','EVI','LSTD','LSTN','REF1','REF2','REF3','REF7','RELI','TMAP','TMFI']
     features['non-spectra+depth']=['BSAN','BSAS','BSAV','CTI','ELEV','EVI','LSTD','LSTN','REF1','REF2','REF3','REF7','RELI','TMAP','TMFI','DEPTH']
@@ -462,7 +470,7 @@ def getFeatures(key):
     return features[key]
 
     
-def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv_split=8,n_jobs=8,gridSearch=False,useLandscapeCV=True):
+def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv_split=8,n_jobs=8,gridSearch=False,useLandscapeCV=False):
     
     if useLandscapeCV:
 	#split across landscapes
@@ -570,7 +578,7 @@ if __name__=="__main__":
     doPCA=None
     findPeaks=None
     #findPeaks='load'
-    makeDerivative=None#CHECK indices after derivative making...
+    makeDerivative='1st'#CHECK indices after derivative making...
     featureFilter=None#["BSAN","BSAS","BSAV","ELEV","EVI","LSTD","LSTN","REF1","REF2","REF3","REF7","TMAP","TMFI","m120.0","m200.0","m1160.0","m1200.0","m2080.0","m2160.0","m2200.0","m2240.0","m2640.0","m3240.0"]
     removeVar=0.1
     useSavitzkyGolay=False
@@ -598,7 +606,7 @@ if __name__=="__main__":
     for i in range(nt):
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', PLSRegression(n_components=30))])
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', LassoLarsCV())])
-	model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', LinearRegression())])
+	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', LinearRegression())])
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', ElasticNet(alpha=.01,l1_ratio=0.001,max_iter=1000))])
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', RidgeCV(alphas=[1.0]))])
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', Ridge(alpha=1.0))])
@@ -623,8 +631,8 @@ if __name__=="__main__":
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model',KNeighborsRegressor(n_neighbors=5, weights='uniform') )])
 	#model = Pipeline([('filter', SelectKBest(f_regression, k=10)),('pca', PCA(n_components=10)), ('model', Ridge())])
 	
-	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=1.0, gamma=0.0, verbose = 0))])
-	#model = Pipeline([('filter', SelectPercentile(f_regression, percentile=50)), ('model', SVR(kernel='rbf',epsilon=0.1,C=10000.0, gamma=0.0, verbose = 0))])
+	model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0, verbose = 0))])
+	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(kernel='rbf',epsilon=0.1,C=10000.0, gamma=0.0005, verbose = 0))])
 	
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', Lasso())])
 	#model = Pipeline([('poly', PolynomialFeatures(degree=3)), ('linear', LinearRegression(fit_intercept=False))])

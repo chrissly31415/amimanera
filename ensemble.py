@@ -243,34 +243,67 @@ def createModels():
     
     #leaps selected lin reg
     #Ca RMSE=
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('Ca_greedy'),compressIR=150,deleteFeatures=getFeatures('co2'))
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('Ca_greedy'),compressIR=150,deleteFeatures=getFeatures('co2'))
+    #model = LinearRegression()
+    #xmodel = XModel("leaps2_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
+    #ensemble.append(xmodel)
+    
+    ##P RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('P_greedy'),compressIR=150,deleteFeatures=getFeatures('co2'))
+    #model = LinearRegression()
+    #xmodel = XModel("leaps2_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
+    #ensemble.append(xmodel)
+    
+    ##pH RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('pH_greedy'),compressIR=150,deleteFeatures=getFeatures('co2'))
+    #model = LinearRegression()
+    #xmodel = XModel("leaps2_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
+    #ensemble.append(xmodel)
+    
+    ##SOC RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('SOC_greedy'),compressIR=150,deleteFeatures=getFeatures('co2'))
+    #model = LinearRegression()
+    #xmodel = XModel("leaps2_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
+    #ensemble.append(xmodel)
+    
+    ##Sand RMSE=
+    #(X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('Sand_greedy'),compressIR=150,deleteFeatures=getFeatures('co2'))
+    #model = LinearRegression()
+    #xmodel = XModel("leaps2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
+    #ensemble.append(xmodel)
+    
+    #leaps selected lin reg
+    #Ca RMSE=
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('Ca_test'),compressIR=150,deleteFeatures=getFeatures('co2'))
     model = LinearRegression()
-    xmodel = XModel("leaps2_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
+    xmodel = XModel("test2_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
     ensemble.append(xmodel)
     
     #P RMSE=
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('P_greedy'),compressIR=150,deleteFeatures=getFeatures('co2'))
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('P_test'),compressIR=150,deleteFeatures=getFeatures('co2'))
     model = LinearRegression()
-    xmodel = XModel("leaps2_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
+    xmodel = XModel("test2_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
     ensemble.append(xmodel)
     
     #pH RMSE=
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('pH_greedy'),compressIR=150,deleteFeatures=getFeatures('co2'))
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('pH_test'),compressIR=150,deleteFeatures=getFeatures('co2'))
     model = LinearRegression()
-    xmodel = XModel("leaps2_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
+    xmodel = XModel("test2_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
     ensemble.append(xmodel)
     
     #SOC RMSE=
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('SOC_greedy'),compressIR=150,deleteFeatures=getFeatures('co2'))
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('SOC_test'),compressIR=150,deleteFeatures=getFeatures('co2'))
     model = LinearRegression()
-    xmodel = XModel("leaps2_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
+    xmodel = XModel("test2_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
     ensemble.append(xmodel)
     
     #Sand RMSE=
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('Sand_greedy'),compressIR=150,deleteFeatures=getFeatures('co2'))
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('Sand_test'),compressIR=150,deleteFeatures=getFeatures('co2'))
     model = LinearRegression()
-    xmodel = XModel("leaps2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
+    xmodel = XModel("test2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
     ensemble.append(xmodel)
+    
+    
     
     #ridge model (with 1st derivate)
     #Ca RMSE0.339 (+/- 0.303)
@@ -1061,12 +1094,12 @@ if __name__=="__main__":
     #ensemble=createOOBdata_parallel(ensemble,repeats=1,nfolds=8,n_jobs=8) #oob data averaging leads to significant variance reduction
     
     #models=['pls1','svm1','pcaridge1','leaps1','rf1']
-    models_LS=['leaps2','svm3','svm2','pcridge2','pls2','elnet2','pcreg2','gbm2','compridge2','ridge2']
+    #models_LS=['leaps2','svm3','svm2','pcridge2','pls2','elnet2','pcreg2','gbm2','compridge2','ridge2']
     #models_LS=['leaps2']
     #models_LS=['svm2','elnet2','pls2','ridge2','ridge2']
-    #models=['pcaridge1']
+    models_LS=['test2']
     #useCols=['A']
     useCols=None
-    trainAllEnsembles(models_LS,plotting=True,mode='linearBlend',subfile='/home/loschen/Desktop/datamining-kaggle/african_soil/submissions/sub1610b.csv')
+    trainAllEnsembles(models_LS,plotting=True,mode='mean',subfile='/home/loschen/Desktop/datamining-kaggle/african_soil/submissions/testb.csv')
     #trainEnsemble(model,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1509b.csv')
     
