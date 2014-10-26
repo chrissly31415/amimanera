@@ -472,7 +472,7 @@ def getFeatures(key):
     return features[key]
 
     
-def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv_split=8,n_jobs=8,gridSearch=False,useLandscapeCV=False):
+def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv_split=8,n_jobs=8,gridSearch=False,useLandscapeCV=True):
     
     if useLandscapeCV:
 	#split across landscapes
@@ -501,7 +501,7 @@ def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv
 	    #parameters = {'filter__param': [100]}#normal pipeline    
 	    #parameters = {'filter__k': [2000,3000,3594],'pca__n_components':[0.99,0.995], 'model__alpha': [10000,100,1.0,0.01,0.0001] }#pipeline
 	    #parameters = {'filter__k': [2000,3000,3594],'pca__n_components':[0.99], 'model__alpha': [10000,100,1.0,0.01,0.0001] }#pipeline
-	    parameters = {'filter__param': [100,99],'model__gamma':np.logspace(-5, 0, 6), 'model__C': [1,10,100,1000],'model__epsilon':[0.1,0.01,001] }#SVR
+	    parameters = {'filter__param': [99],'model__gamma':np.logspace(-4, -1, 6), 'model__C': [10,100,1000,10000],'model__epsilon':[0.1,0.01,0.001,0.0001] }#SVR
 	    #parameters = {'filter__param': [99],'model__alpha': [0.001],'model__loss':['huber'],'model__penalty':['elasticnet'],'model__epsilon':[1.0],'model__n_iter':[200]}#pipeline
 	    #parameters = {'varfilter__threshold': [0.0,0.1,0.001,0.0001,0.00001] }#pipeline
 	    #parameters = {'filter__k': [10,20],'pca__n_components':[10,20], 'model__alpha': [1.0] }#pipeline
@@ -586,7 +586,7 @@ if __name__=="__main__":
     deleteSpectra=useSavitzkyGolay
     addNoiseColumns=None
     addLandscapes=False
-    compressIR=500
+    compressIR=300
 
     loadFeatures=None#getFeatures('non-spectra')
     transform=None#'spectra'#['RELI','CTI'] #['RELI','RELI','REF7','CTI','BSAS','BSAV']
@@ -675,7 +675,7 @@ if __name__=="__main__":
     
     
     #make the training
-    models = buildmodels(models,Xtrain,ymat,cv_split=8,gridSearch=True,n_jobs=8)
+    models = buildmodels(models,Xtrain,ymat,cv_split=8,gridSearch=True,n_jobs=8,useLandscapeCV=True)
     #showMisclass(models[0],Xtrain,ymat.iloc[:,0],t=2.0)
     #modelsFeatureSelection(models,Xtrain,Xtest,ymat)
     #modelsGreedySelection(models,Xtrain,Xtest,ymat)

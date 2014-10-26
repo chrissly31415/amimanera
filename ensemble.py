@@ -272,35 +272,35 @@ def createModels():
     #xmodel = XModel("leaps2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
     #ensemble.append(xmodel)
     
-    #SVM greedy selected selected lin reg
+    #SVM 
     #Ca RMSE=
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('Ca_svm'),compressIR=150,deleteFeatures=getFeatures('co2'),makeDerivative='1st',removeVar=0.1)
-    model = model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0, verbose = 0))])
-    xmodel = XModel("svmGreedy_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=None,compressIR=300,deleteFeatures=getFeatures('co2'),makeDerivative='1st',removeVar=0.01)
+    model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=1000.0,epsilon=0.01, gamma=0.0063095734448019303, verbose = 0))])
+    xmodel = XModel("svmNew_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
     ensemble.append(xmodel)
     
     #P RMSE=
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('P_svm'),compressIR=150,deleteFeatures=getFeatures('co2'),makeDerivative='1st',removeVar=0.1)
-    model = model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0, verbose = 0))])
-    xmodel = XModel("svmGreedy_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=None,compressIR=300,deleteFeatures=getFeatures('co2'),makeDerivative='1st',removeVar=0.01)
+    model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=10.0,epsilon=0.01, gamma=0.1, verbose = 0))])
+    xmodel = XModel("svmNew_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
     ensemble.append(xmodel)
     
     #pH RMSE=
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('pH_svm'),compressIR=150,deleteFeatures=getFeatures('co2'),makeDerivative='1st',removeVar=0.1)
-    model = model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0, verbose = 0))])
-    xmodel = XModel("svmGreedy_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=None,compressIR=300,deleteFeatures=getFeatures('co2'),makeDerivative='1st',removeVar=0.01)
+    model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=100.0,epsilon=0.0001, gamma=0.0063095734448019303, verbose = 0))])
+    xmodel = XModel("svmNew_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
     ensemble.append(xmodel)
     
     #SOC RMSE=
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('SOC_svm'),compressIR=150,deleteFeatures=getFeatures('co2'),makeDerivative='1st',removeVar=0.1)
-    model = model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0, verbose = 0))])
-    xmodel = XModel("svmGreedy_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=None,compressIR=300,deleteFeatures=getFeatures('co2'),makeDerivative='1st',removeVar=0.01)
+    model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=1000.0,epsilon=0.01, gamma=0.0063095734448019303, verbose = 0))])
+    xmodel = XModel("svmNew_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
     ensemble.append(xmodel)
     
     #Sand RMSE=
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('Sand_svm'),compressIR=150,deleteFeatures=getFeatures('co2'),makeDerivative='1st',removeVar=0.1)
-    model = model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0, verbose = 0))])
-    xmodel = XModel("svmGreedy_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=None,compressIR=300,deleteFeatures=getFeatures('co2'),makeDerivative='1st',removeVar=0.01)
+    model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(C=10.0,epsilon=0.1, gamma=0.0063095734448019303, verbose = 0))])
+    xmodel = XModel("svmNew_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
     ensemble.append(xmodel)
     
     
@@ -592,8 +592,8 @@ def createOOBdata_parallel(ensemble,repeats=1,nfolds=4,n_jobs=1,score_func='rmse
 	#outer loop
 	for j in xrange(repeats):
 	    #cv = KFold(ly.shape[0], n_folds=nfolds,shuffle=True,random_state=j)
-	    #cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_quick3.csv',index_col=0)['LANDSCAPE'],1)
-	    cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_int.csv',index_col=0)['LANDSCAPE'],1)
+	    cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_quick3.csv',index_col=0)['LANDSCAPE'],1)
+	    #cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_int.csv',index_col=0)['LANDSCAPE'],1)
 	    #cv = StratifiedKFold(ly, n_folds=nfolds,shuffle=True,random_state=None)
 	    #cv = StratifiedShuffleSplit(ly, n_iter=nfolds, test_size=0.25,random_state=j)
 	    
@@ -1096,9 +1096,9 @@ if __name__=="__main__":
     #models_LS=['leaps2','svm3','svm2','pcridge2','pls2','elnet2','pcreg2','gbm2','compridge2','ridge2']
     #models_LS=['leaps2']
     #models_LS=['svm2','elnet2','pls2','ridge2','ridge2']
-    models_LS=['svmGreedy']
+    models_LS=['svmNew']
     #useCols=['A']
     useCols=None
-    trainAllEnsembles(models_LS,plotting=True,mode='mean',subfile='/home/loschen/Desktop/datamining-kaggle/african_soil/submissions/testc.csv')
+    trainAllEnsembles(models_LS,plotting=True,mode='mean',subfile='/home/loschen/Desktop/datamining-kaggle/african_soil/submissions/testd.csv')
     #trainEnsemble(model,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1509b.csv')
     
