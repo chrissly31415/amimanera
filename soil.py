@@ -350,7 +350,7 @@ def modelsFeatureSelection(lmodels,Xold,Xold_test,lymat):
 
 def modelsGreedySelection(lmodels,Xold,Xold_test,lymat):
     for i,model in enumerate(lmodels):
-	if i<2: continue
+	if i!=1: continue
 	print "Target:",ymat.columns[i]
 	greedyFeatureSelection(models[0],Xtrain,ymat.iloc[:,i],itermax=60,itermin=30,targets=None,start_features=None,n_jobs=8,verbose=False,cv= cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_quick3.csv',index_col=0)['LANDSCAPE'],1))
 	
@@ -460,8 +460,10 @@ def getFeatures(key):
     
     #greedy selection with svm and 1st derivatives
     features['Ca_svm']=['z144', 'z131', 'z125', 'z124', 'z115', 'z138', 'z102', 'z145', 'z128', 'z49']
-    
+    features['P_svm']=['z3', 'z116', 'ELEV', 'z113', 'z130', 'z42']
     features['pH_svm']=['z112', 'z132', 'z130', 'z147', 'z111', 'Depth', 'z49', 'z95', 'z126', 'z31', 'z96', 'z116', 'z131', 'z87', 'z72', 'z124']
+    features['SOC_svm']=['z124', 'z122', 'z129', 'z130', 'z52', 'z55', 'z53', 'z117', 'z59', 'z126', 'z140', 'z131', 'z1', 'REF7', 'z134', 'z4', 'z58']
+    features['Sand_svm']=['z113', 'z136', 'z82', 'z141', 'z140', 'z9', 'z121', 'z95', 'z24', 'z114', 'z135', 'Depth', 'z127', 'z23', 'z21', 'z19', 'z70', 'z18']
     
     features['non-spectra']=['BSAN','BSAS','BSAV','CTI','ELEV','EVI','LSTD','LSTN','REF1','REF2','REF3','REF7','RELI','TMAP','TMFI']
     features['non-spectra+depth']=['BSAN','BSAS','BSAV','CTI','ELEV','EVI','LSTD','LSTN','REF1','REF2','REF3','REF7','RELI','TMAP','TMFI','DEPTH']
@@ -474,11 +476,11 @@ def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv
     
     if useLandscapeCV:
 	#split across landscapes
-	cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_int.csv',index_col=0)['LANDSCAPE'],1)#37
+	#cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_int.csv',index_col=0)['LANDSCAPE'],1)#37
 	#cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_fast.csv',index_col=0)['LANDSCAPE'],1)#19
 	#cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_quick.csv',index_col=0)['LANDSCAPE'],1)#10
 	#cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_quick2.csv',index_col=0)['LANDSCAPE'],1)#9
-	#cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_quick3.csv',index_col=0)['LANDSCAPE'],1)#8
+	cv = cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_quick3.csv',index_col=0)['LANDSCAPE'],1)#8
 	#for train_index, test_index in cv:
 	#    #print("TRAIN:", train_index, "TEST:", test_index)
 	#    print "dim train:",train_index.shape
@@ -496,11 +498,10 @@ def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv
 	ly = lymat.iloc[:,i].values
 	#be carefull sign is flipped
 	if gridSearch is True:
-	    parameters = {'filter__param': [100]}#normal pipeline
-	    #parameters = {'filter__percentile': [50,25], 'model__C': [12000,10000,8000],'model__gamma': [0.0] }#pipeline	    
+	    #parameters = {'filter__param': [100]}#normal pipeline    
 	    #parameters = {'filter__k': [2000,3000,3594],'pca__n_components':[0.99,0.995], 'model__alpha': [10000,100,1.0,0.01,0.0001] }#pipeline
 	    #parameters = {'filter__k': [2000,3000,3594],'pca__n_components':[0.99], 'model__alpha': [10000,100,1.0,0.01,0.0001] }#pipeline
-	    #parameters = {'filter__param': [100],'model__gamma':np.logspace(-5, -2, 10), 'model__C': [100,1000,10000,100000] }#SVR
+	    parameters = {'filter__param': [100,99],'model__gamma':np.logspace(-5, 0, 6), 'model__C': [1,10,100,1000],'model__epsilon':[0.1,0.01,001] }#SVR
 	    #parameters = {'filter__param': [99],'model__alpha': [0.001],'model__loss':['huber'],'model__penalty':['elasticnet'],'model__epsilon':[1.0],'model__n_iter':[200]}#pipeline
 	    #parameters = {'varfilter__threshold': [0.0,0.1,0.001,0.0001,0.00001] }#pipeline
 	    #parameters = {'filter__k': [10,20],'pca__n_components':[10,20], 'model__alpha': [1.0] }#pipeline
@@ -579,13 +580,13 @@ if __name__=="__main__":
     findPeaks=None
     #findPeaks='load'
     makeDerivative='1st'#CHECK indices after derivative making...
-    featureFilter=None#["BSAN","BSAS","BSAV","ELEV","EVI","LSTD","LSTN","REF1","REF2","REF3","REF7","TMAP","TMFI","m120.0","m200.0","m1160.0","m1200.0","m2080.0","m2160.0","m2200.0","m2240.0","m2640.0","m3240.0"]
+    featureFilter=None#getFeatures('Ca_svm')+getFeatures('non-spectra')
     removeVar=0.1
     useSavitzkyGolay=False
     deleteSpectra=useSavitzkyGolay
     addNoiseColumns=None
     addLandscapes=False
-    compressIR=150
+    compressIR=500
 
     loadFeatures=None#getFeatures('non-spectra')
     transform=None#'spectra'#['RELI','CTI'] #['RELI','RELI','REF7','CTI','BSAS','BSAV']
@@ -631,8 +632,8 @@ if __name__=="__main__":
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model',KNeighborsRegressor(n_neighbors=5, weights='uniform') )])
 	#model = Pipeline([('filter', SelectKBest(f_regression, k=10)),('pca', PCA(n_components=10)), ('model', Ridge())])
 	
-	model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0, verbose = 0))])
-	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(kernel='rbf',epsilon=0.1,C=10000.0, gamma=0.0005, verbose = 0))])
+	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0, verbose = 0))])
+	model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')), ('model', SVR(kernel='rbf',epsilon=0.1,C=100.0, gamma=0.0005, verbose = 0))])
 	
 	#model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', Lasso())])
 	#model = Pipeline([('poly', PolynomialFeatures(degree=3)), ('linear', LinearRegression(fit_intercept=False))])
@@ -674,10 +675,10 @@ if __name__=="__main__":
     
     
     #make the training
-    #models = buildmodels(models,Xtrain,ymat,cv_split=8,gridSearch=True,n_jobs=8)
+    models = buildmodels(models,Xtrain,ymat,cv_split=8,gridSearch=True,n_jobs=8)
     #showMisclass(models[0],Xtrain,ymat.iloc[:,0],t=2.0)
     #modelsFeatureSelection(models,Xtrain,Xtest,ymat)
-    modelsGreedySelection(models,Xtrain,Xtest,ymat)
+    #modelsGreedySelection(models,Xtrain,Xtest,ymat)
     
     for i in range(nt):
 	print "TARGET: %-10s" %(ymat.columns[i])

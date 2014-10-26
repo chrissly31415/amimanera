@@ -272,37 +272,36 @@ def createModels():
     #xmodel = XModel("leaps2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
     #ensemble.append(xmodel)
     
-    #leaps selected lin reg
+    #SVM greedy selected selected lin reg
     #Ca RMSE=
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('Ca_test'),compressIR=150,deleteFeatures=getFeatures('co2'))
-    model = LinearRegression()
-    xmodel = XModel("test2_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('Ca_svm'),compressIR=150,deleteFeatures=getFeatures('co2'),makeDerivative='1st',removeVar=0.1)
+    model = model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0, verbose = 0))])
+    xmodel = XModel("svmGreedy_Ca",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Ca']])
     ensemble.append(xmodel)
     
     #P RMSE=
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('P_test'),compressIR=150,deleteFeatures=getFeatures('co2'))
-    model = LinearRegression()
-    xmodel = XModel("test2_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('P_svm'),compressIR=150,deleteFeatures=getFeatures('co2'),makeDerivative='1st',removeVar=0.1)
+    model = model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0, verbose = 0))])
+    xmodel = XModel("svmGreedy_P",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['P']])
     ensemble.append(xmodel)
     
     #pH RMSE=
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('pH_test'),compressIR=150,deleteFeatures=getFeatures('co2'))
-    model = LinearRegression()
-    xmodel = XModel("test2_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('pH_svm'),compressIR=150,deleteFeatures=getFeatures('co2'),makeDerivative='1st',removeVar=0.1)
+    model = model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0, verbose = 0))])
+    xmodel = XModel("svmGreedy_pH",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['pH']])
     ensemble.append(xmodel)
     
     #SOC RMSE=
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('SOC_test'),compressIR=150,deleteFeatures=getFeatures('co2'))
-    model = LinearRegression()
-    xmodel = XModel("test2_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('SOC_svm'),compressIR=150,deleteFeatures=getFeatures('co2'),makeDerivative='1st',removeVar=0.1)
+    model = model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0, verbose = 0))])
+    xmodel = XModel("svmGreedy_SOC",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['SOC']])
     ensemble.append(xmodel)
     
     #Sand RMSE=
-    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('Sand_test'),compressIR=150,deleteFeatures=getFeatures('co2'))
-    model = LinearRegression()
-    xmodel = XModel("test2_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
+    (X,Xtest,ymat) = prepareDatasets(nsamples=-1,standardize=True,featureFilter=getFeatures('Sand_svm'),compressIR=150,deleteFeatures=getFeatures('co2'),makeDerivative='1st',removeVar=0.1)
+    model = model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', SVR(C=10000.0, gamma=0.0, verbose = 0))])
+    xmodel = XModel("svmGreedy_Sand",classifier=model,Xtrain=X,Xtest=Xtest,ytrain=ymat[['Sand']])
     ensemble.append(xmodel)
-    
     
     
     #ridge model (with 1st derivate)
@@ -1097,9 +1096,9 @@ if __name__=="__main__":
     #models_LS=['leaps2','svm3','svm2','pcridge2','pls2','elnet2','pcreg2','gbm2','compridge2','ridge2']
     #models_LS=['leaps2']
     #models_LS=['svm2','elnet2','pls2','ridge2','ridge2']
-    models_LS=['test2']
+    models_LS=['svmGreedy']
     #useCols=['A']
     useCols=None
-    trainAllEnsembles(models_LS,plotting=True,mode='mean',subfile='/home/loschen/Desktop/datamining-kaggle/african_soil/submissions/testb.csv')
+    trainAllEnsembles(models_LS,plotting=True,mode='mean',subfile='/home/loschen/Desktop/datamining-kaggle/african_soil/submissions/testc.csv')
     #trainEnsemble(model,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1509b.csv')
     
