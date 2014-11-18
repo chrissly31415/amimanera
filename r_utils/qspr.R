@@ -311,6 +311,15 @@ normalizeData<-function(lX) {
   return(lX)
 }
 
+removeZeroVars<-function(ldata) {
+    cs<-colSums(abs(ldata)==0)
+    if (0 %in% cs) {
+      ldata<-ldata[,which(colSums((ldata))!=0)]
+    }    
+  return(ldata)
+}
+
+
 removeColVar<-function(ldata,cvalue) {
   library(caret)
   cormat<-cor(ldata)
@@ -482,6 +491,12 @@ compRMSE<-function(a,b) {
   rmse<-sqrt(mse/sum(!is.na(a)))
   #cat("RMSE:",rmse)
   return(rmse)
+}
+
+compAARD<-function(a,b) {
+  aard<-sum((abs(a-b)/b),na.rm=TRUE)
+  aard<-aard/sum(!is.na(a))
+  return(aard)
 }
 
 compLOGLOSS<-function(predicted,actual) {
@@ -1042,28 +1057,36 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",iter=500,mtry=5) {
 }
 
 trainDBN<-function(lX,ly,lXtest=NULL,lytest=NULL){
-  require(h2o)
+  library(h2o)
   #setup heo library : http://cran.r-project.org/web/packages/h2o/h2o.pdf
   localH2O <- h2o.init(ip = "localhost", port = 54321, startH2O = TRUE, Xmx = '2g')
+  #localH2O <- h2o.init()
   
-  data<-cbind(lX,ly) 
+  
+  data<-cbind(lX,target=ly)
+  print(summary(data))
   data_h2o <- as.h2o(localH2O, data, key = 'data')
   
   model <- 
-    h2o.deeplearning(x = 1:ncol(lX),  # column numbers for predictors
-                     y = ncol(data),   # column number for label
+    h2o.deeplearning(x = colnames(lX),  # columns predictors
+                     y = c("target"),   # columns label
                      data = data_h2o, # data in H2O format
+                     #nfolds = 3, not implemented yet
                      classification = FALSE,
-                     activation = "MaxoutWithDropout", # or 'Tanh' TanhWithDropout
-                     #activation = "RectifierWithDropout", # or 'MaxoutWithDropout'
-                     input_dropout_ratio = 0.2, # % of inputs dropout
-                     hidden_dropout_ratios = c(0.5,0.5), # % for nodes dropout
+                     #activation = "MaxoutWithDropout", # or 'Tanh' TanhWithDropout
+                     activation = "RectifierWithDropout", # or 'MaxoutWithDropout'
+                     hidden = c(100,100), # three layers of 50 nodes
+                     input_dropout_ratio = 0 ,# % of inputs dropout
+                     hidden_dropout_ratios = c(0.0,0.0), # % for nodes dropout
                      #balance_classes = TRUE, 
                      seed=42,
-                     loss='MeanSquare',
-                     l2=1e-10,
-                     hidden = c(50,50), # three layers of 50 nodes
-                     epochs = 2000) # max. no. of epochs
+                     #loss='MeanSquare',
+                     l1 = c(0,1e-5), 
+                     l2 = c(0,1e-5), 
+                     rho = 0.99, 
+                     epsilon = 1e-8,
+                     train_samples_per_iteration = -2,
+                     epochs = 100) # max. no. of epochs
   
   if (is.null(lXtest) && is.null(lytest)) {
     cat("Prediction on training data:\n")
@@ -1075,6 +1098,17 @@ trainDBN<-function(lX,ly,lXtest=NULL,lytest=NULL){
     ly<-ly_test
   }
     
+  ## Collect cross-validation error
+  MSE <- model@sumtable[[1]]$prediction_error   #If cvmodel is a grid search model
+  #MSE <- model@model$valid_sqr_error            #If cvmodel is not a grid search model
+  RMSE <- sqrt(MSE)
+  CMRMSE <- CMRMSE + RMSE #column-mean-RMSE
+  MSEs[resp] <- MSE
+  RMSEs[resp] <- RMSE
+  cat("\nCross-validated MSEs so far:", MSEs)
+  cat("\nCross-validated RMSEs so far:", RMSEs)
+  cat("\nCross-validated CMRMSE so far:", CMRMSE/resp)
+  
   pred_h2o <- h2o.predict(model, Xtest_h2o)
   finalpred <- as.data.frame(pred_h2o)[,1]
 
@@ -1095,6 +1129,8 @@ printErrors<-function(model,lX,ly,id) {
   pred<-data.frame(id,predicted=model$predicted,exp=ly,se,er)
   pred<-pred[with(pred, order(-se,decreasing=F)), ]
   write.table(pred,file="prediction_rf.csv",sep=";",row.names=FALSE)  
+  aard<-compAARD(model$predicted,model$y)
+  cat("AARD:",aard*100,"\n")
 }
 
 ###PLOTTING###
