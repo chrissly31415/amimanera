@@ -790,12 +790,7 @@ def makeLabels(a,cutoff):
     else: return 'b'
 
     
-def binarizeProbs(a,cutoff):   
-    """
-    turn probabilities to 1 and 0
-    """
-    if a>cutoff: return 1.0
-    else: return 0.0
+
 
 
 def analyzeLearningCurve(model,X,y,lw,folds=8):

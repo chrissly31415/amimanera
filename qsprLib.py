@@ -29,17 +29,20 @@ from sklearn.feature_extraction import DictVectorizer
 from sklearn.decomposition import TruncatedSVD,PCA
 from sklearn.pipeline import Pipeline
 
-from sklearn.feature_selection import SelectKBest,SelectPercentile, chi2, f_classif,f_regression,GenericUnivariateSelect
+from sklearn.feature_selection import SelectKBest,SelectPercentile, chi2, f_classif,f_regression,GenericUnivariateSelect,VarianceThreshold
 from sklearn.naive_bayes import BernoulliNB,MultinomialNB,GaussianNB
 from sklearn.cluster import k_means
 from sklearn.isotonic import IsotonicRegression
 
-from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier,LinearRegression,Ridge
-from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor,BaggingClassifier,RandomForestRegressor
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier,LinearRegression,Ridge,BayesianRidge,ElasticNet,RidgeCV,LassoLarsCV,Lasso,LarsCV
+from sklearn.cross_decomposition import PLSRegression,PLSSVD
+from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor,BaggingRegressor,BaggingClassifier,RandomForestRegressor
+from sklearn.neighbors import KNeighborsClassifier,KNeighborsRegressor
 from sklearn.svm import LinearSVC,SVC,SVR
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.learning_curve import learning_curve
+
+
 
 def one_hot_encoder(data, col, replace=False):
     """ Takes a dataframe and a list of columns that need to be encoded.
@@ -355,14 +358,11 @@ def buildModel(lmodel,lXs,ly,sweights=None,feature_names=None):
     Final model building part
     """ 
     print "Xvalidation..."
-    scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=5, scoring='roc_auc',n_jobs=5)
-    print "AUC: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
+    scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=5, scoring='mean_squared_error',n_jobs=5)
+    scores = (-1*scores)**0.5
+    print "SCORE: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
     print "Building model with all instances..."
-    if isinstance(lmodel,RandomForestClassifier) or isinstance(lmodel,SGDClassifier):
-	    lmodel.set_params(n_jobs=4)
-	    lmodel.fit(lXs,ly,sample_weight=sweights)
-    else:
-	    lmodel.fit(lXs,ly)
+    lmodel.fit(lXs,ly)
     
     #analyzeModel(lmodel,feature_names)
     return(lmodel)
@@ -522,7 +522,7 @@ def rfFeatureImportance(forest,Xold,Xold_test,n):
     print("Feature ranking:")
 
     for f in range(len(indices)):
-	print("%d. feature %64s %d (%f)" % (f + 1, Xold.columns[indices[f]], indices[f], importances[indices[f]]))
+	print("%d. feature %64s %d - %f" % (f + 1, Xold.columns[indices[f]], indices[f], importances[indices[f]]))
 	
     # Plot the feature importances of the forest  
     plt.bar(left=np.arange(len(indices)),height=importances[indices] , width=0.35, color='r')
@@ -547,7 +547,7 @@ def rfFeatureImportance(forest,Xold,Xold_test,n):
     
 def linearFeatureSelection(lmodel,Xold,Xold_test,n):
     """
-    Analysis of data if coef_ are available for sparse matrices
+    Analysis of data if coef_ are available for sparse matrices, better use t-scores
     """
     print "Selecting features based on important coefficients..."
     if hasattr(lmodel, 'coef_') and isinstance(Xold,sparse.csr.csr_matrix): 
@@ -569,7 +569,61 @@ def linearFeatureSelection(lmodel,Xold,Xold_test,n):
 	Xreduced_test = Xtmp[:Xold_test.shape[0]]
 	Xreduced = Xtmp[Xold_test.shape[0]:]
 	return(Xreduced,Xreduced_test)
+
+def greedyFeatureSelection(lmodel,lX,ly,itermax=10,itermin=5,targets=None ,start_features=None,verbose=False, cv=5, n_jobs=4,scoring='mean_squared_error'):
+	features=[]
 	
+	if targets is None:
+	    targets = lX.columns
+	
+	if start_features is not None:
+	    features=start_features
+	else:
+	    features=[col for col in lX.columns if not col in targets]
+	
+	scores = []
+	score_opt=1E10
+	for i in xrange(itermax):
+	    print "Round %4d"%(i),
+	    score_best=1E9
+	    for k in xrange(len(targets)):
+		act_feature = targets[k]
+		if act_feature in set(features):continue
+		
+		features.append(act_feature)
+		
+		
+		score = (-1*cross_validation.cross_val_score(lmodel,lX.loc[:,features],ly,fit_params=None, scoring=scoring,cv=cv,n_jobs=n_jobs))**0.5
+		
+		if verbose:
+		    print "TARGET: %-12s - <score>= %0.3f (+/- %0.4f) score,iteration best= %0.4f score,overall best: %0.4f" % (act_feature, score.mean(), score.std(),score_best,score_opt)
+		
+		if score.mean()<score_best:
+		  score_best=score.mean()
+		  new_feat=act_feature
+		  features_best=features[:]
+		del features[-1]
+	    features.append(new_feat)
+	    scores.append(score_best)
+	    
+	    if (i>itermin and (score_opt>score_best)):
+		    print "Converged with threshold: %0.6f"%(np.abs(score_opt-score_best))
+		    score_opt=score_best
+		    opt_list=features_best
+		    break	    
+	    if score_best<score_opt:
+		    score_opt=score_best
+		    opt_list=features_best
+		
+	    print " nr features: %5d "%(len(features)),
+	    print " score,iteration best= %0.4f score,overall best: %0.4f \n%r" % (score_best,score_opt,features)
+	 
+	print "Scores:",scores
+	
+	print "Best score: %6.4f with %5d features:\n%r"%(score_opt,len(opt_list),opt_list)
+	plt.plot(scores)
+	plt.show()
+
 def iterativeFeatureSelection(lmodel,Xold,Xold_test,ly,iterations,nrfeats):
 	"""
 	Iterative feature selection e.g. via random Forest
@@ -604,48 +658,117 @@ def removeInstances(lXs,ly,preds,t,returnSD=True):
 	ly_reduced=ly[np.asarray(boolindex)]
 	return (lXs_reduced,ly_reduced)
 
-def removeZeroVariance(X,Xtest):
+def removeLowVariance(X_all,threshhold=1E-5):
 	"""
 	remove useless data
 	"""
+	idx = np.asarray(X_all.std()<=threshhold)
+	if len(X_all.columns[idx])>0:
+		print "Dropped %4d zero variance columns (threshold=%6.3f): %r"%(np.sum(idx),threshhold,X_all.columns[idx])
+		X_all.drop(X_all.columns[idx], axis=1,inplace=True)
+	else:
+		print "Variance filter dropped nothing (threshhold = %6.3f)."%(threshhold)
+	
+	return(X_all)
+	
+
+def pcAnalysis(X,Xtest,y=None,w=None,ncomp=2,transform=False,classification=False):
+    """
+    PCA 
+    """  
+    pca = PCA(n_components=ncomp)
+    if transform:
+        print "PC reduction"
+        X_all = pd.concat([Xtest, X])
+        
+        X_r = pca.fit_transform(np.asarray(X_all)) 
+        print(pca.explained_variance_ratio_)
+        #split
+        X_r_train = X_r[len(Xtest.index):]
+        X_r_test = X_r[:len(Xtest.index)]
+        return (X_r_train,X_r_test)
+    
+    elif classification:
+        print "PC analysis for classification"
+        X_all = pd.concat([Xtest, X])
+        #this is transformation is necessary otherwise PCA gives rubbish!!
+        ytrain = np.asarray(y)        
+        X_r = pca.fit_transform(np.asarray(X_all))  
+        
+        if w is None:
+            plt.scatter(X_r[ytrain == 0,0], X_r[ytrain == 0,1], c='r', label="background",alpha=0.1)
+            plt.scatter(X_r[ytrain == 1,0], X_r[ytrain == 1,1], c='g',label="signal",alpha=0.1)
+        else:
+            plt.scatter(X_r[ytrain == 0,0], X_r[ytrain == 0,1], c='r', label="background",s=w[ytrain==0]*25.0,alpha=0.1)
+            plt.scatter(X_r[ytrain == 1,0], X_r[ytrain == 1,1], c='g',label="signal",s=w[ytrain==1]*1000.0,alpha=0.1)
+
+        print(pca.explained_variance_ratio_) 
+        plt.legend()
+        #plt.xlim(-3500,2000)
+        #plt.ylim(-1000,2000)
+        plt.draw()
+    else:
+	print "PC analysis for train/test"
 	X_all = pd.concat([Xtest, X])
-	idx = np.asarray(X_all.std()==0)
-	print "Dropped zero variance columns:",X_all.columns[idx]
-	X_all.drop(X_all.columns[idx], axis=1,inplace=True)
-	X = X_all[len(Xtest.index):]
-        Xtest = X_all[:len(Xtest.index)]
-	return(X,Xtest)
+	X_r = pca.fit_transform(np.asarray(X_all))
+	plt.scatter(X_r[len(Xtest.index):,0], X_r[len(Xtest.index):,1], c='r', label="train",alpha=0.5)
+	plt.scatter(X_r[:len(Xtest.index),0], X_r[:len(Xtest.index),1], c='g',label="test",alpha=0.5)
+	print("Explained variance:",pca.explained_variance_ratio_) 
+	plt.legend()
+	plt.show()
+
+	
+def root_mean_squared_error(x,y):
+	return mean_squared_error(x,y)**0.5
+	
+def mean_absolute_error(x,y):
+	x = x.flatten()
+	y = y.flatten()
+	return np.mean(np.abs(x-y))
 	
 	
-def getOOBCVPredictions(lmodel,lXs,lXs_test,ly,folds=8,repeats=1,returnSD=True):
+def getOOBCVPredictions(lmodel,lXs,ly,folds=8,repeats=1,returnSD=True,score_func='rmse'):
 	"""
 	Get cv oob predictions for classifiers
 	"""
+	funcdict={}
+	if score_func=='rmse':
+	    funcdict['scorer_funct']=root_mean_squared_error
+	else:
+	    funcdict['scorer_funct']=roc_auc_score
+	
+	
 	print "Computing oob predictions..."
 	if isinstance(lmodel,RandomForestClassifier) or isinstance(lmodel,SGDClassifier):
 		lmodel.set_params(n_jobs=4)
 	oobpreds=np.zeros((lXs.shape[0],repeats))
 	for j in xrange(repeats):
 	    #print lmodel.get_params()
-	    cv = KFold(lXs.shape[0], n_folds=folds, indices=True,random_state=j,shuffle=True)
+	    cv = KFold(lXs.shape[0], n_folds=folds,random_state=j,shuffle=True)
 	    scores=np.zeros(folds)	
 	    for i, (train, test) in enumerate(cv):
 		Xtrain = lXs.iloc[train]
 		Xtest = lXs.iloc[test]
 		#print Xtest['avglinksize'].head(3)
 		lmodel.fit(Xtrain, ly[train])
-		oobpreds[test,j] = lmodel.predict_proba(Xtest)[:,1]
-		scores[i]=roc_auc_score(ly[test],oobpreds[test,j])
+		if score_func=='rmse':
+		    oobpreds[test,j] = lmodel.predict(Xtest)
+		    scores[i]=funcdict['scorer_funct'](ly[test],oobpreds[test,j])
+		else:  
+		    oobpreds[test,j] = lmodel.predict_proba(Xtest)[:,1]
+		    scores[i]=funcdict['scorer_funct'](ly[test],oobpreds[test,j])
 		#print "AUC: %0.2f " % (scores[i])
 		#save oobpredictions
 	    print "Iteration:",j,
-	    print " <AUC>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
-	    oobscore=roc_auc_score(ly,oobpreds[:,j])
-	    print " AUC,oob: %0.3f" %(oobscore)
-	scores=[roc_auc_score(ly,oobpreds[:,j]) for j in xrange(repeats)]
+	    print " <score>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
+	    
+	    oobscore=funcdict['scorer_funct'](ly,oobpreds[:,j])
+	    print " score,oob: %0.3f" %(oobscore)
+	    
+	scores=[funcdict['scorer_funct'](ly,oobpreds[:,j]) for j in xrange(repeats)]
 	#simple averaging of blending
 	oob_avg=np.mean(oobpreds,axis=1)
-	print "Summary: <AUC,oob>: %0.3f (%d repeats)" %(roc_auc_score(ly,oob_avg),repeats,)	
+	print "Summary: <score,oob>: %0.3f (%d repeats)" %(funcdict['scorer_funct'](ly,oob_avg),repeats,)	
 	if returnSD:
 	    oob_avg=np.std(oobpreds,axis=1)
 	return(oob_avg)
@@ -720,40 +843,51 @@ def filterClassNoise(lmodel,lXs,lXs_test,ly):
 	lXs_reduced,ly_reduced = removeInstances(lXs,ly,preds,optt)	
 	return(lXs_reduced,lXs_test,ly_reduced)
 	
-def showMisclass(lXs,lXs_test,ly,t=0.95):
+def showMisclass(lmodel,lXs,ly,t=0.0,bubblesizes=None):
     """
     Show bubble plot of strongest misclassifications...
     """
-    folds=8
-    repeats=3
+    folds=4
+    repeats=1
     print "Show strongly misclassified classes..."
-    preds=getOOBCVPredictions(model,Xs,Xs_test,y,folds,repeats,returnSD=False)
-    res=np.abs(ly-preds)
-    err=pd.DataFrame({'abs_err' : pd.Series(res)})
-    ly=pd.DataFrame({'y' : pd.Series(y)})
+    preds=getOOBCVPredictions(lmodel,lXs,ly,folds,repeats,returnSD=False)
+
+    abs_err=pd.DataFrame({'abs_err' : pd.Series(np.abs(ly-preds))})
+    residue=pd.DataFrame({'residue' : pd.Series((ly-preds))})
+    ly=pd.DataFrame({'y' : pd.Series(ly)})
     preds=pd.DataFrame({'preds' : pd.Series(preds)})
-    lXs_plot=pd.concat([ly,preds,err], axis=1)
+    
+    lXs_plot=pd.concat([ly,preds,residue,abs_err], axis=1)
     lXs_plot.index=lXs.index
     lXs_plot=pd.concat([lXs_plot,lXs], axis=1)
+    lXs_plot.sort(columns='abs_err',inplace=True)
+    
     boolindex=lXs_plot['abs_err']>t
+    
     lXs_plot=lXs_plot[boolindex]
     print "Number of instances left:",lXs_plot.shape[0]
-    col1='1'
-    col2='2'
-    #bubblesizes=lXs_plot['non_markup_alphanum_characters']
-    bubblesizes=lXs_plot['body_length']
-    print bubblesizes
-    #print lXs_plot.ix[3155]
-    sct = plt.scatter(lXs_plot[col1], lXs_plot[col2],c=lXs_plot['y'],s=bubblesizes, linewidths=2, edgecolor='black')
+    col1='preds'
+    col2='residue'
+    #bubblesizes=lXs_plot['y']*50
+    bubblesizes=30
+    
+    #sct = plt.scatter(lXs_plot[col1], lXs_plot[col2],c=lXs_plot['abs_err'],s=bubblesizes, linewidths=2, edgecolor='black')
+    sct = plt.scatter(lXs_plot[col1], lXs_plot[col2],s=bubblesizes, linewidths=2, edgecolor='black')
     sct.set_alpha(0.75)
+    
+    print "%4s %6s %6s %8s"%("index",'y','preds','residue')
     for row_index, row in lXs_plot.iterrows():
 	plt.text(row[col1], row[col2],row_index,size=10,horizontalalignment='center')
-	print "INDEX:",row_index," Y:",row['y']," PRED:",row['preds']," body_length:",row['body_length']
+	print "%4d %6.3f %6.3f %8.3f"%(row_index,row['y'],row['preds'],row['residue'])
+    print "%4s %6s %6s %8s"%("index",'y','preds','residue')
+    
     plt.xlabel(col1)
     plt.ylabel(col2)
-    plt.title("red:1 blue:0")
+    plt.title("error")
     plt.show()
-    #now got to page interactively
+    
+    
+
     
 def scaleData(lXs,lXs_test=None,cols=None,centerZero=False):
     """
@@ -781,7 +915,13 @@ def scaleData(lXs,lXs_test=None,cols=None,centerZero=False):
 	return (lXs,lXs_test)
     else:
 	return lX_all
-    
+ 
+def binarizeProbs(a,cutoff):   
+    """
+    turn probabilities to 1 and 0
+    """
+    if a>cutoff: return 1.0
+    else: return 0.0
        
 def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, scoring=f1_score, train_sizes=np.linspace(.1, 1.0, 5)):
     """
@@ -839,3 +979,12 @@ def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, sc
 
     plt.legend(loc="best")
     return plt
+    
+    
+#some global vars
+funcdict={}
+funcdict['rmse']=root_mean_squared_error
+funcdict['auc']=roc_auc_score
+funcdict['mae']=mean_absolute_error
+funcdict['msq']=mean_squared_error
+

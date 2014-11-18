@@ -3,19 +3,23 @@
 #    (c) by chrissly31415  2014                                                #
 ################################################################################
 
-
-rm(list = ls(all = TRUE))
-#in case R was aborted
-if (sink.number()>1) sink()
-
-args <- commandArgs(TRUE)
-options(error=recover)
+require(foreach)
+require(doSNOW)
 
 if (.Platform$OS.type=='unix') {
     cat("We are on linux.\n")
     source("./boruta_select.R")
+    source("./xvalidation.R")
+    source("./gaFeatureSelection.R")
 } else {
     cat("We are on windows.\n")
+    
+    #rm(list = ls(all = TRUE))
+    #in case R was aborted
+    if (sink.number()>1) sink()
+    args <- commandArgs(TRUE)
+    options(error=recover)
+    
     rootdir<-"D:/data_mining/amimanera/r_utils"
     source(paste(rootdir,"/xvalidation.R",sep=""))
     source(paste(rootdir,"/boruta_select.R",sep=""))
@@ -327,7 +331,7 @@ removeColVar<-function(ldata,cvalue) {
   c<-findCorrelation(cormat, cutoff = cvalue, verbose = FALSE)
   removed<-ldata[,c]
   cat("Removed variables according to cutoff: ",cvalue," \n")
-  print(summary(removed))
+  #print(summary(removed))
   ldata<-ldata[,-c]
   return(ldata)
 }
@@ -353,31 +357,12 @@ linRegPredict<-function(fit,lX_test,exp,lid_test=NULL) {
 }
 
 
-linRegTrain<-function(lX,ly,lid,plot) {
+linRegTrain<-function(lX,ly,lid=NULL,plot=T) {
   ldata=data.frame(lX,target=ly) 
   fit <- lm(target ~ ., data=ldata)
-  #H0:
   #fit<-lm(mpK ~ Ringbonds + Alkylatoms + Conjugated.bonds + X.rotbdsmod + hb_self + Area + E_dielec +nbr11, data=ldata)
-  #S0:
-  #fit<-lm(mpK ~  Alkylatoms + Internal.H.bonds + X.rotbdsmod + rbwring + Area + HB.don_m1 +nbr11, data=ldata)
-  #Sfus
-  #fit<-lm(mpK ~  Area + X.rotbdsmod + Tmult + nbr11, data=ldata)
-  #andreas:
-  #fit <- lm(mpK ~ avratio + Txentropy_noVDW+Conjugated.bonds +E_dielec +HB.don_m3+nbr11 + nbr2u1+  nbr2s1+	nbr3u1+	nbr3s1	+ nbr2u2u	+nbr2s2u+	nbr2s2s+	nbr3u2u+	nbr3s2u+nbr3u2s+	nbr3s2s+rbwring+other_rotbonds+Tmult+nbr_honly, data=ldata)
-  #fit <- lm(mpK ~ avratio + Txentropy+Conjugated.bonds+hb_self +E_dielec +HB.don_m3+nbr11 +other_rotbonds+Tmult_inv+rbwring+nbr_honly, data=ldata)
-  #fit <- lm(mpK ~ avratio + entropy+ Ringbonds+Internal.H.bonds+Conjugated.bonds +hb_self +HB.acc_m1+HB.don_m1+Volume+ X.rotbdsmod +E_dielec+Tmult, data=ldata)
-  #fit <- lm(mpK ~ avratio + entropy+ Ringbonds +hb_self +HB.don_m1+ X.rotbdsmod +E_dielec, data=ldata)
-  #best model, ons RMSE 46
-  #fit <- lm(mpK ~ avratio+hb_self_mod + Txentropy +Conjugated.bonds + X..moment4 +HB.acc_m3+HB.don_m4+Rotatable.bonds+nbr11+nbr_honly+n_total, data=ldata)
-  #proposed model, ons RMSE 48
-  #fit <- lm(target ~ avratio + hb_self_lowT+ Molweight..g.mol. +Conjugated.bonds +Area+ HB.don_m1 +E_dielec +Rotatable.bonds+nbr11+X.rotbdsmod, data=ldata)
-  #str(fit)
-  #abline(fit)
-  #pred<-predict(fit,lX_test)
-  #str(pred)
   if (plot==T) {
     print(summary(fit))
-    #print(summary(ldata))
     plot(fit$fitted.values,ly,col="blue",pch=1, xlab = "predicted", ylab = "exp")
     abline(0,1, col = "black")
     #points(pred,ly_test,col="red",pch=2)
@@ -392,9 +377,13 @@ linRegTrain<-function(lX,ly,lid,plot) {
     se<-(er)^2
     plot(ly,er,col="blue",pch=1, xlab = "target", ylab = "residual")
     #points(se,col="red",pch=1)  
-    pred<-data.frame(lid,predicted=fit$fitted.values,exp=ly,se,er)
+    if (!is.null(lid)) {
+	pred<-data.frame(lid,predicted=fit$fitted.values,exp=ly,se,er)
+    } else {
+	pred<-data.frame(predicted=fit$fitted.values,exp=ly,se,er)
+    }
     pred<-pred[with(pred, order(-se)), ]
-    #write.table(pred,file="prediction.csv",sep=",",row.names=FALSE)
+    write.table(pred,file="prediction.csv",sep=",",row.names=FALSE)
     print(colnames(lX))
   }  
   return(fit)
@@ -420,15 +409,15 @@ varSelectGA<-function(lX,ly) {
 }
 
 
-variableSelection<-function(lX,ly,mode,nvariables) {
+variableSelection<-function(lX,ly,mode,nvariables,plotting=F) {
   ldata<-data.frame(lX,target=ly)
   # All Subsets Regression
   library(leaps)
   #subsets<-regsubsets(target~.,data=ldata,nbest=1,nvmax=12,method="exhaustive",force.in=match("Tmult",names(ldata))) 
   nvariables<-nvariables
   subsets<-regsubsets(target~.,data=ldata,nbest=1,nvmax=nvariables,method=mode,force.in=NULL)
-  # plot a table of models showing variables in each model. models are ordered by the selection statistic.
-  plot(subsets,scale="r2")
+  
+  
   # view results 
   final<-summary(subsets)
   #str(final)
@@ -436,8 +425,22 @@ variableSelection<-function(lX,ly,mode,nvariables) {
   vars <- which(final$which[i,])  # id variables of best model
   #remove intercept
   vars<-vars[2:length(vars)]-1
-  print(vars)
   bestdata<-data.frame(ldata[,vars])
+  #print in reusable format e.g. python
+  if (plotting==T) {
+      # plot a table of models showing variables in each model. models are ordered by the selection statistic.
+      plot(subsets,scale="r2")
+      cat("\n[")
+      for (i in 1:ncol(bestdata)) {
+	cat("\"",names(bestdata)[i],"\"",sep="")
+	if (i!=ncol(bestdata)) {
+	    cat(",",sep="")
+	  } else {
+	    cat("]\n\n")
+	  }
+      }
+  }
+  
   
   # plot statistic by subset size 
   #library(car)
@@ -656,10 +659,10 @@ gbm_grid<-function(lX,ly,lossfn="auc",treemethod="gbm") {
       for(k in iterseq) {
         if (treemethod=="gbm") {
           cat("Iterations:",k," int.depth:",i, " shrinkage:",j," ")
-          gbm_xval(lX,ly,numberTrees=k,nrfolds=5,intdepth=i,sh=j,minsnode=5,repeatcv=2,lossfn=lossfn,method=treemethod)
+          xval_oob(lX,ly,numberTrees=k,nrfolds=5,intdepth=i,sh=j,minsnode=5,repeatcv=2,lossfn=lossfn,method=treemethod)
         } else {
           cat("Iterations:",k," mtry:",i," ")
-          gbm_xval(lX,ly,numberTrees=k,nrfolds=5,mtry=i,repeatcv=2,lossfn=lossfn,method=treemethod)
+          xval_oob(lX,ly,numberTrees=k,nrfolds=5,mtry=i,repeatcv=2,lossfn=lossfn,method=treemethod)
         }
         cat("\n")
       }
@@ -668,21 +671,16 @@ gbm_grid<-function(lX,ly,lossfn="auc",treemethod="gbm") {
   
 }
 
-gbm_xval<-function(Xl,yl,numberTrees=500,nrfolds=5,intdepth=2,sh=0.01,minsnode=5,repeatcv=2,lossfn="rmse",method="gbm",mtry=5) {
-  require(gbm)
-  require(randomForest)
-  require(foreach)
-  require(doSNOW)
+xval_oob<-function(Xl,yl,iterations=500,nrfolds=5,intdepth=2,sh=0.01,minsnode=5,repeatcv=2,lossfn="rmse",method="gbm",mtry=5,oobfile='oob_res.csv') {
   #parallel cv loop
   #outer loop
   lossdat<-foreach(j = 1:repeatcv,.combine="cbind") %do% {
       train<-createFoldIndices(Xl,k=nrfolds)
-      #inner loop
-      cl<-makeCluster(nrfolds, type = "SOCK",outfile="")
+      cl<-makeCluster(nrfolds, type = "SOCK")
       registerDoSNOW(cl) 
-      #oob<-vec.or.mat(nrow(Xl),1)
-      res<-foreach(i = 1:nrfolds,.packages=c('gbm','randomForest'),.combine="rbind",.export=c("compRMSE","computeAUC","oinfo")) %dopar% {
-        cat("###FOLD: ",i," Iterations: ",numberTrees," ") 
+      #inner parallel loop
+      res<-foreach(i = 1:nrfolds,.packages=c('gbm','randomForest'),.combine="rbind",.export=c("compRMSE","computeAUC","oinfo","linRegTrain","variableSelection")) %dopar% {
+        cat("###FOLD: ",i," Iterations: ",iterations," ") 
         idx <- which(train == i)
         Xtrain<-Xl[-idx,]
         ytrain<-yl[-idx]
@@ -690,29 +688,40 @@ gbm_xval<-function(Xl,yl,numberTrees=500,nrfolds=5,intdepth=2,sh=0.01,minsnode=5
         ytest<-yl[idx]
         if (lossfn=="auc") {
           if (method=="gbm") {
-            gbm1<-gbm.fit(Xtrain ,ytrain,distribution="bernoulli",n.trees=numberTrees,interaction.depth=intdepth,shrinkage=sh,n.minobsinnode = minsnode,verbose=F)
-            results<-predict.gbm(gbm1,Xtest,n.trees=numberTrees,type="response")
-          } else {
+            gbm1<-gbm.fit(Xtrain ,ytrain,distribution="bernoulli",n.trees=iterations,interaction.depth=intdepth,shrinkage=sh,n.minobsinnode = minsnode,verbose=F)
+            results<-predict.gbm(gbm1,Xtest,n.trees=iterations,type="response")
+          } else if (method=='randomForest') {
             #RF
-            rf1 <- randomForest(Xtrain,ytrain,ntree=numberTrees,mtry=mtry,importance = F,nodesize =10)
+            rf1 <- randomForest(Xtrain,ytrain,ntree=iterations,mtry=mtry,importance = F,nodesize =10)
             results<-predict(rf1,Xtest,type="vote")[,2]
+          } else if (method=='linear') {
+	    #linear regression
+	    #Xtrain<-variableSelection(Xtrain,ytrain,"forward",iterations)
+	    fit<-linRegTrain(Xtrain,ytrain,NULL,F)
+	    results<-predict(fit,Xtest)
           }
-          auc<-computeAUC(results,ytest,F)
-          } else {
+          score<-computeAUC(results,ytest,F)
+        } else {
           if (method=="gbm") {
-            gbm1<-gbm.fit(Xtrain ,ytrain,distribution="gaussian",n.trees=numberTrees,interaction.depth=intdepth,shrinkage=sh,n.minobsinnode = minsnode,verbose=F)
-            results<-predict.gbm(gbm1,Xtest,n.trees=numberTrees,type="response")
-            } else {
+            gbm1<-gbm.fit(Xtrain ,ytrain,distribution="gaussian",n.trees=iterations,interaction.depth=intdepth,shrinkage=sh,n.minobsinnode = minsnode,verbose=F)
+            results<-predict.gbm(gbm1,Xtest,n.trees=iterations,type="response")
+            } else if (method=='randomForest') {
               #RF
-              rf1 <- randomForest(Xtrain,ytrain,ntree=numberTrees,mtry=mtry,importance = F,nodesize =10)
+              rf1 <- randomForest(Xtrain,ytrain,ntree=iterations,mtry=mtry,importance = F,nodesize =10)
               results<-predict(rf1,Xtest)             
+            } else if (method=='linear') {
+	      #linear regression
+	      Xtrain<-variableSelection(Xtrain,ytrain,"forward",iterations)
+	      fit<-linRegTrain(Xtrain,ytrain,NULL,F)
+	      results<-predict(fit,Xtest)
             }
-          auc<-compRMSE(results,ytest)
+          score<-compRMSE(results,ytest)
           }        
-        cat(" LOSS with GBM:",auc,"\n") 
+        cat(" LOSS:",score,"\n") 
+        #returning dataframe with predictions and truth
         final<-data.frame(idx,results,ytest)
         return(final)
-      }#end inner loop
+      }#end parallel inner loop
       res<-res[order(res$idx),]
       if (lossfn=="auc") {
         auc_cv<-computeAUC(res$results,res$ytest)
@@ -721,26 +730,27 @@ gbm_xval<-function(Xl,yl,numberTrees=500,nrfolds=5,intdepth=2,sh=0.01,minsnode=5
         auc_cv<-compRMSE(res$results,res$ytest)
         cat("RMSE, CV:",auc_cv,"\n")
       }  
-      
       stopCluster(cl)
       return(res$results)
   }#end outer loop
   print(summary(lossdat))
   oob_mean<-apply(lossdat, 1, function(x) mean(x))
-  oob_std<-apply(lossdat, 1, function(x) sd(x))
-  print(summary(oob_std))
-  write.table(data.frame(oob_std),file="gbm_sd.csv",sep=",",row.names=FALSE)
+  #oob_std<-apply(lossdat, 1, function(x) sd(x))
+  #print(summary(oob_std))
+  #write.table(data.frame(oob_std),file="gbm_sd.csv",sep=",",row.names=FALSE)
   if (lossfn=="auc") {
-    auc_iter<-apply(lossdat, 2, function(x) computeAUC(x,yl,F))
-    cat("AUC of iterations:",auc_iter,"\n")
+    score_iter<-apply(lossdat, 2, function(x) computeAUC(x,yl,F))
+    cat("AUC of iterations:",score_iter,"\n")
     cat("<AUC,oob>:",computeAUC(oob_mean,yl,F),"\n") 
   } else {
-    auc_iter<-apply(lossdat, 2, function(x) compRMSE(x,yl))
-    cat("RMSE of iterations:",auc_iter,"\n")
-    cat("<RMSE,oob>:",compRMSE(oob_mean,yl),"\n") 
+    score_iter<-apply(lossdat, 2, function(x) compRMSE(x,yl))
+    cat("RMSE of iterations:",score_iter,"\n")
+    cat("<RMSE,oob>:",compRMSE(oob_mean,yl)," RMSE,mean:",mean(score_iter)," sdev:",sd(score_iter),"\n") 
   }
-  res<-data.frame(label=oob_mean)
-  write.table(res,file="gbm_oob.csv",sep=",",row.names=FALSE)
+  res<-data.frame(prediction=oob_mean)
+  if (!is.null(oobfile)) {
+      write.table(res,file=oobfile,sep=",",row.names=FALSE)
+  }
   return(res)
 }
 
@@ -1053,7 +1063,7 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",iter=500,mtry=5) {
   } else {
     cat("Final AUC:",mean(loss)," stdev: ",sd(loss),"\n")
   }
-  
+  return(mean(loss))
 }
 
 trainDBN<-function(lX,ly,lXtest=NULL,lytest=NULL){
