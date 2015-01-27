@@ -40,7 +40,9 @@ from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,E
 from sklearn.neighbors import KNeighborsClassifier,KNeighborsRegressor
 from sklearn.svm import LinearSVC,SVC,SVR
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.cluster import KMeans,MiniBatchKMeans
 from sklearn.learning_curve import learning_curve
+from sklearn.multiclass import OneVsRestClassifier
 
 
 
