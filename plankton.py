@@ -25,14 +25,17 @@ from nolearn.dbn import DBN
 import cv2
 
 from sklearn import cross_validation
-from sklearn.cross_validation import StratifiedKFold
+from sklearn.cross_validation import StratifiedKFold,LeavePLabelOut
 from sklearn.metrics import classification_report
 from sklearn.lda import LDA
+
+from sklearn.feature_extraction import image
 
 from sklearn.neural_network import BernoulliRBM
 
 from matplotlib import pyplot as plt
 from matplotlib import colors
+import matplotlib.cm as cm
 from pylab import cm
 
 import zipfile
@@ -45,17 +48,17 @@ from qsprLib import *
 
 
 #TODO
+#http://danielnouri.org/notes/2014/12/17/using-convolutional-neural-nets-to-detect-facial-keypoints-tutorial/
 #http://www.kaggle.com/c/datasciencebowl/forums/t/11421/converting-images-to-standard-scale-code
 #transformation
 #http://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_imgproc/py_geometric_transformations/py_geometric_transformations.html
- #extract patches
-  #http://scikit-learn.org/stable/auto_examples/decomposition/plot_image_denoising.html#example-decomposition-plot-image-denoising-py
-  #onlnie
-  #http://scikit-learn.org/stable/auto_examples/cluster/plot_dict_face_patches.html#example-cluster-plot-dict-face-patches-py
+#extract patches
+#http://scikit-learn.org/stable/auto_examples/decomposition/plot_image_denoising.html#example-decomposition-plot-image-denoising-py
+#onlnie
+#http://scikit-learn.org/stable/auto_examples/cluster/plot_dict_face_patches.html#example-cluster-plot-dict-face-patches-py
 
 
-def prepareData(loadData=False,extractFeatures=False,maxPixel = 48,doSVD=25,subsample=None,nudgeData=False,dilation=4,kmeans=None,randomRotate=True,useOnlyFeats=False,stripFeats=True):
-  
+def prepareData(subset=1000,loadData=False,extractFeatures=False,maxPixel = 48,doSVD=25,subsample=None,nudgeData=False,dilation=4,kmeans=None,randomRotate=True,useOnlyFeats=False,stripFeats=True,createExtraFeatures=True,patchWork=True,standardize=True,location='train'):
   # just load processed data
   if loadData:
       X = pd.read_csv('train_tmp.csv',index_col=0)
@@ -65,18 +68,20 @@ def prepareData(loadData=False,extractFeatures=False,maxPixel = 48,doSVD=25,subs
   else:
     #extract the features
     if extractFeatures:
-      df = createFeatures(maxPixel=maxPixel,location='train',dilation=dilation)
+      df = createFeatures(maxPixel=maxPixel,location=location,dilation=dilation)
       X_test = createFeatures(maxPixel,location='test',dilation=dilation)
       #createFeatures(resizeIt,rawFeats,maxPixel=maxPixel,location='train_48_mod',dilation=dilation)
       #createFeatures(resizeIt,rawFeats,maxPixel,location='test_48_mod',dilation=dilation)
     else:
      #load extracted features 
-      print "Load extracted features..."
-      df = pd.read_csv('competition_data/'+'train'+'_'+str(maxPixel)+'.csv', sep=",", na_values=['?'],index_col=0)
+      print "Load extracted features from: ",location
+      df = pd.read_csv('competition_data/'+location+'_'+str(maxPixel)+'.csv', sep=",", na_values=['?'],index_col=0)
       X_test = pd.read_csv('competition_data/'+'test'+'_'+str(maxPixel)+'.csv', sep=",", na_values=['?'],index_col=0)
       
     #print df_test
     #df.loc[:,['ratio','label']].hist()
+    if subset is not None:
+      df = df.loc[np.random.choice(df.index, subset, replace=False)]
     
     idx = df.shape[1]-1
     X = df.iloc[:,0:idx]
@@ -92,22 +97,28 @@ def prepareData(loadData=False,extractFeatures=False,maxPixel = 48,doSVD=25,subs
     print "Shape X_test:",X_test.shape
     print "Shape y:",y.shape
     
-    X,X_feat = splitFrame(X,n_features=12)
-    X_test,X_test_feat = splitFrame(X_test,n_features=12)
+    X,X_feat = splitFrame(X,n_features=23)
+    X_test,X_test_feat = splitFrame(X_test,n_features=23)
     
     if nudgeData:
       X,y = nudge_dataset(X,y,maxPixel,dilation)
       
     if randomRotate:
       X,y = makeRotation(X,y,maxPixel)
-      X_test = makeRotation(X_test,y=None,maxPixel)
+      X_test = makeRotation(X_test,None,maxPixel)
     
+    
+    if createExtraFeatures:
+	#makeBriefFeatures(X,maxPixel)
+	X = makeExtraFeatures(X,maxPixel)
+	X_test = makeExtraFeatures(X_test,maxPixel)
     #if computeAddFeats:
       #X = makeAddFeats(X,maxPixel,dilation)
       #X_test = makeAddFeats(X_test,maxPixel,dilation)
       #print "New shape X:",X.shape
       #print "New shape X_test:",X_test.shape
     
+	
     #Do dimension reduction on train and! test
     if doSVD is not None:
 	  print "Singular value decomposition..."
@@ -159,12 +170,113 @@ def prepareData(loadData=False,extractFeatures=False,maxPixel = 48,doSVD=25,subs
   
   class_names = getClassNames()
   
+  if standardize==True:
+    print "Standardize data..."
+    X_all = pd.concat([X_test, X])
+    X_all = scaleData(X_all)
+    X = X_all[len(X_test.index):]
+    X_test = X_all[:len(X_test.index)]
+    
+  
+  if patchWork:
+	doPatchWork(X,y,maxPixel)
+  
   print "Final Shape X:",X.shape
   print "Final Shape X_test:",X_test.shape
   #print "Shape y:",y.shape
   
   return X,y,class_names,X_test
 
+
+def doPatchWork(lX,ly=None,maxPixel=None,showEigenImages=False):
+    """
+    Extract patches....
+    """
+    #http://scikit-learn.org/stable/auto_examples/cluster/plot_dict_face_patches.html
+    #http://scikit-learn.org/stable/modules/preprocessing.html
+    #http://nbviewer.ipython.org/github/dmrd/hackclass-sklearn/blob/master/image_classification.ipynb
+    #http://scikit-learn.org/stable/auto_examples/applications/face_recognition.html
+    patchSize=20
+    n_components=20
+    max_patches=5
+    
+    print "Extract patches, original shape:",lX.shape
+    tmp=[]
+    tmpy=[]
+    for i,row in enumerate(lX.values):
+	img = np.reshape(row, (maxPixel, maxPixel))
+	patches = image.extract_patches_2d(img, (patchSize, patchSize), max_patches=max_patches)
+	patches = np.reshape(patches, (len(patches), -1))
+	tmp.append(patches)
+	tmpy.append([ly for _ in range(max_patches)])
+	#if ly is not None: ly = pd.Series(np.concatenate([ly for _ in range(6)], axis=0))
+    
+    data = np.concatenate(tmp, axis=0)
+    ly = np.concatenate(tmpy, axis=0)
+    print "Extract patches, new shape:",data.shape
+    print "New shape y:",ly.shape
+    
+    pca = RandomizedPCA(n_components, whiten=True)
+    data = pca.fit_transform(data)
+    print "Extracted patches, after PCA shape:",data.shape
+    print "PCA components shape:",pca.components_.shape
+    
+    eigenfaces = pca.components_.reshape((n_components, patchSize, patchSize))
+    
+    print "Show eigen data:",eigenfaces.shape
+    
+    if showEigenImages:
+      for img in eigenfaces:
+	  showImage(img,patchSize,fac=10,matrix=True)
+
+    lX = pd.DataFrame(data)
+    return (lX,ly)
+	
+
+def makeBriefFeatures(lX,maxPixel):
+    #http://docs.opencv.org/trunk/doc/py_tutorials/py_feature2d/py_orb/py_orb.html
+    #http://stackoverflow.com/questions/7232651/how-does-opencv-orb-feature-detector-work
+    #http://stackoverflow.com/questions/7232651/how-does-opencv-orb-feature-detector-work
+    #http://stackoverflow.com/questions/10168686/algorithm-improvement-for-coca-cola-can-shape-recognition/10169025#10169025
+    print "Make Brief Descriptors"
+    print cv2.__version__
+    #orb = cv2.ORB(nfeatures=500)
+    surf = cv2.SURF(4000)#http://docs.opencv.org/trunk/doc/py_tutorials/py_feature2d/py_surf_intro/py_surf_intro.html
+    #fast = cv2.FastFeatureDetector()
+    #
+    star = cv2.FeatureDetector_create("STAR")
+    brief = cv2.DescriptorExtractor_create("BRIEF")
+    
+    for row in lX.values:
+      #32bit float grayscale
+      img = np.reshape(row, (maxPixel, maxPixel)).astype("float32")#!!!
+      print img.shape
+      showImage(img,maxPixel,fac=10,matrix=True)
+      img2 = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+      print img2.shape
+      showImage(img2,maxPixel,fac=10,matrix=True)
+
+      #8bit int grayscale
+      img = (img * 255).astype("uint8")
+      #plt.imshow(img)#wrong colorscale
+      #plt.show()
+      
+      #kp = orb.detect(img,None)
+      
+      #kp, des = orb.compute(img, kp)
+      kp, des = surf.detectAndCompute(img,None)
+      #kp = star.detect(img,None)
+      #kp, des = brief.compute(img, kp)
+      #kp = fast.detect(img,None)
+      
+      print "Keyp",kp
+      print "des",des
+      
+      #img2 = cv2.drawKeypoints(img,kp,color=(0,255,0), flags=0)
+      img = cv2.drawKeypoints(img, kp, color=(255,0,0))
+      showImage(img,maxPixel,fac=10,matrix=True)
+
+    
 
 def attachFeatures(lX,lX_feat):
     """
@@ -214,7 +326,7 @@ def getDirectoryNames(location="train"):
 def makeRowProps(imageName,imageSize,lX,row,dilation=4):
 
     image = imread(imageName, as_grey=True)     
-    image_dilated, axisratio,area,euler_number,perimeter,convex_area,eccentricity,equivalent_diameter,extent,filled_area,orientation,solidity,nregions = getImageFeatures(image,dilation)
+    image_dilated, axisratio,area,euler_number,perimeter,convex_area,eccentricity,equivalent_diameter,extent,filled_area,orientation,solidity,nregions,inertia_te,moments_hu,centroid = getImageFeatures(image,dilation)
     image = resize(image, (maxPixel, maxPixel))#before or after image creation???
 
     # Store the rescaled image pixels and the axis ratio
@@ -231,10 +343,21 @@ def makeRowProps(imageName,imageSize,lX,row,dilation=4):
     lX[row, imageSize+9] = orientation
     lX[row, imageSize+10] = solidity
     lX[row, imageSize+11] = nregions
+    lX[row, imageSize+12] = inertia_te[0]
+    lX[row, imageSize+13] = inertia_te[1]
+    lX[row, imageSize+14] = moments_hu[0]
+    lX[row, imageSize+15] = moments_hu[1]
+    lX[row, imageSize+16] = moments_hu[2]
+    lX[row, imageSize+17] = moments_hu[3]
+    lX[row, imageSize+18] = moments_hu[4]
+    lX[row, imageSize+19] = moments_hu[5]
+    lX[row, imageSize+20] = moments_hu[6]
+    lX[row, imageSize+21] = centroid[0]
+    lX[row, imageSize+22] = centroid[1]
     
 
 def createFeatures(maxPixel = 25,location="train",dilation=4,appendFeats=True):
-    print "Extracting features for "+location,
+    print "Extracting features for ",location,"  dilation:",dilation," maxpixel:",maxPixel 
     #get the total training images
     numberofImages = 0
     
@@ -263,7 +386,7 @@ def createFeatures(maxPixel = 25,location="train",dilation=4,appendFeats=True):
     
     imageSize = maxPixel * maxPixel
     if appendFeats:
-      n_addFeats = 12
+      n_addFeats = 23
     else:
       n_addFeats = 0
     num_features = imageSize + n_addFeats # for our ratio
@@ -320,6 +443,7 @@ def createFeatures(maxPixel = 25,location="train",dilation=4,appendFeats=True):
     colnames = [ "p"+str(x+1) for x in xrange(lX.shape[1]-n_addFeats)]
     if appendFeats:
       colnames = colnames + ['axisratio','area','euler_number','perimeter','convex_area','eccentricity','equivalent_diameter','extent','filled_area','orientation','solidity','nregions']
+      colnames = colnames + ['inertia_te1','inertia_te2','moments_hu1','moments_hu2','moments_hu3','moments_hu4','moments_hu5','moments_hu6','moments_hu7','centroidx','centroidy']
     #Create a DataFrame object to make subsetting the data on the class 
     df = pd.DataFrame(lX)
     if 'train' in location: 
@@ -350,6 +474,9 @@ def getLargestRegion(props, labelmap, imagethres):
   
   
 def getImageFeatures(image,pdilation=4):
+    #http://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_feature2d/py_brief/py_brief.html
+    #http://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_feature2d/py_table_of_contents_feature2d/py_table_of_contents_feature2d.html
+    #http://stackoverflow.com/questions/13329357/extractsurf-always-returning-the-same-direction
     #http://scikit-image.org/docs/dev/api/skimage.measure.html#regionprops
     image = image.copy()
     # Create the thresholded image to eliminate some of the background
@@ -417,8 +544,29 @@ def getImageFeatures(image,pdilation=4):
       solidity = maxregion.solidity
     
     nregions = len(region_list)
+        
+    inertia_te = np.zeros((2,1))
+    if hasattr(maxregion,'inertia_tensor_eigvals'):
+      inertia_te[0] = maxregion.inertia_tensor_eigvals[0]
+      inertia_te[1] = maxregion.inertia_tensor_eigvals[1]
+      
+    moments_hu = np.zeros((7,1))
+    if hasattr(maxregion,'inertia_tensor_eigvals'):
+      moments_hu[0] = maxregion.moments_hu[0]
+      moments_hu[1] = maxregion.moments_hu[1]
+      moments_hu[2] = maxregion.moments_hu[2]
+      moments_hu[3] = maxregion.moments_hu[3]
+      moments_hu[4] = maxregion.moments_hu[4]
+      moments_hu[5] = maxregion.moments_hu[5]
+      moments_hu[6] = maxregion.moments_hu[6]
+      
+    centroid = np.zeros((2,1))
+    if hasattr(maxregion,'centroid'):
+      centroid[0] = maxregion.centroid[0]
+      centroid[1] = maxregion.centroid[1]
     
-    return imdilated,ratio,area,euler_number,perimeter,convex_area,eccentricity,equivalent_diameter,extent,filled_area,orientation,solidity,nregions
+    
+    return imdilated,ratio,area,euler_number,perimeter,convex_area,eccentricity,equivalent_diameter,extent,filled_area,orientation,solidity,nregions,inertia_te,moments_hu,centroid
 
 
 def multiclass_log_loss(y_true, y_pred, eps=1e-15):
@@ -446,32 +594,7 @@ def multiclass_log_loss(y_true, y_pred, eps=1e-15):
     return loss
 
 
-#@profile
-def buildModelMLL(clf,lX,ly,class_names):
-  print "Training the model..."
-  print clf
-  ly = ly.values
-  lX = lX.values
-  
-  cv = StratifiedKFold(ly, n_folds=5)
-  #create vector with length of lX.shape[0] but with 1,2,3,...n,1,2,3,...n,1,2,3,
-  
-  cv = LeavePLabelOut(labels,)
-  #cv = StratifiedShuffleSplit(ly, n_iter=10, test_size=0.5)
-   
-  ypred = ly * 0
-  yproba = np.zeros((len(ly),len(set(ly))))
-  
-  for train, test in cv:
-      ytrain, ytest = ly[train], ly[test]
-      clf.fit(lX[train,:], ytrain)
-      ypred[test] = clf.predict(lX[test,:])
-      yproba[test] = clf.predict_proba(lX[test,:])
-      
-  print classification_report(ly, ypred, target_names=class_names)
-  mll = multiclass_log_loss(ly, yproba)
-  print "multiclass logloss: %6.2f" %(mll)
-  return(clf)
+
   
 
 def testRBM():
@@ -484,10 +607,59 @@ def testRBM():
   print model.score_samples(X)
   print model.gibbs
 
+def calcEntropy(img):
+    #hist,_ = np.histogram(img, np.arange(0, 256), normed=True)
+    hist = cv2.calcHist([img],[0],None,[256],[0,256])
+    hist = hist.ravel()/hist.sum()
+    #logs = np.nan_to_num(np.log2(hist))
+    #print hist
+    #plt.plot(hist)
+    #plt.show()
+    logs = np.log2(hist+1E-5)
+    #hist_loghist = hist * logs
+    entropy = -1 * (hist*logs).sum()
+    return entropy
+
+def entropyJob(row,maxPixel):
+      #8bit int grayscale
+      img = np.reshape(row*255, (maxPixel, maxPixel)).astype("uint8")
+      result2 = np.zeros(img.shape, dtype=np.float32)
+      h, w = img.shape
+      subwin_size = 5
+      for y in xrange(subwin_size, h-subwin_size):
+	for x in xrange(subwin_size, w-subwin_size):
+	    subwin = img[y-subwin_size:y+subwin_size, x-subwin_size:x+subwin_size]
+	    entropy = calcEntropy(subwin)    # Calculate entropy
+	    result2.itemset(y,x,entropy)
+
+      result2 = result2.ravel()
+      #plt.plot(result2)
+      #plt.show()
+      return result2
+
+#http://stackoverflow.com/questions/16647116/faster-way-to-analyze-each-sub-window-in-an-image
+def makeExtraFeatures(lX,maxPixel):
+    print "Make Extra Descriptors"
+    tmp = np.apply_along_axis(entropyJob, 1, lX,maxPixel)
+    tmp = pd.DataFrame(tmp)
+    colnames = [ 'entr'+str(x) for x in xrange(tmp.shape[1]) ]
+    tmp.columns = colnames
+    tmp = removeLowVariance(tmp)
+    print tmp.describe()
+    lX = pd.concat([lX,tmp],axis=1)
+    print "Shape after entropy features:",lX.shape
+    return lX
+
 
 def rotJob(row,matrix):
     image = row.reshape(maxPixel, maxPixel)
     image_new = cv2.warpAffine(image,matrix,(maxPixel,maxPixel))
+    image_new = image_new.ravel()
+    return image_new
+
+def flipJob(row,mode):
+    image = row.reshape(maxPixel, maxPixel)
+    image_new = cv2.flip(image,mode)
     image_new = image_new.ravel()
     return image_new
   
@@ -501,26 +673,29 @@ def makeRotation(lX, ly=None,maxPixel=25):
     if ly is not None: ly = ly.values
     names = lX.columns[0:imageSize]
     lX = lX.values[:,0:imageSize]
-    
-    
-    
+       
+    #Rotation
     M1 = cv2.getRotationMatrix2D((maxPixel/2,maxPixel/2),90,1)
     M2 = cv2.getRotationMatrix2D((maxPixel/2,maxPixel/2),270,1)
     M3 = cv2.getRotationMatrix2D((maxPixel/2,maxPixel/2),180,1)
     matrices = [M1,M2,M2]
-    
-    #rotate = lambda x,m : cv2.warpAffine(x.reshape(maxPixel, maxPixel),m,(maxPixel,maxPixel)).ravel()
-    
     tmp = np.asarray([np.apply_along_axis(rotJob, 1, lX, m) for m in matrices])
     newn = tmp.shape[0]*tmp.shape[1]
     tmp = np.reshape(tmp,(newn,maxPixel*maxPixel))
-    #tmp = np.concatenate([lX] + tmp)
+
+    #Flip
+    mode = [1,0]
+    tmp2 = np.asarray([np.apply_along_axis(flipJob, 1, lX, m) for m in mode])
+    newn = tmp2.shape[0]*tmp2.shape[1]
+    tmp2 = np.reshape(tmp2,(newn,maxPixel*maxPixel))
+    print "Shape tmp2:",tmp2.shape
     
     #showImage(lX[44],maxPixel,10)
     #showImage(tmp[44],maxPixel,10)
     lX = np.concatenate((lX,tmp),axis=0)
+    lX = np.concatenate((lX,tmp2),axis=0)
     lX = pd.DataFrame(lX,columns=names)
-    if ly is not None: ly = pd.Series(np.concatenate([ly for _ in range(4)], axis=0))
+    if ly is not None: ly = pd.Series(np.concatenate([ly for _ in range(6)], axis=0))
   
     print "Shape X after rotation:",lX.shape
     
@@ -532,9 +707,14 @@ def makeRotation(lX, ly=None,maxPixel=25):
     
 
 
-def showImage(row,maxPixel,fac=10):
-    print row.shape
-    image = (row * 255).reshape((maxPixel, maxPixel)).astype("uint8")     
+def showImage(row,maxPixel,fac=10,matrix=True):
+    
+    if matrix:
+      #image = (row * 255).astype("uint8") 
+      image = row
+    else:
+      #image = (row * 255).reshape((maxPixel, maxPixel)).astype("uint8") 
+      image = row.reshape((maxPixel, maxPixel)).astype("uint8")
 	
     newx,newy = image.shape[1]*fac,image.shape[0]*fac #new size (w,h)
     newimage = cv2.resize(image,(newx,newy))
@@ -593,37 +773,37 @@ def nudge_dataset(lX, ly,maxPixel=25,dilation=4):
     ly = pd.Series(np.concatenate([ly for _ in range(4)], axis=0))
     return X_new, ly
 
-def makeAddFeats(lX,maxPixel,dilation):
-    imageSize = maxPixel * maxPixel
-    #recompute other features
-    print "recompute additional features!"
-    num_features = lX.shape[1] + 12 # for our ratio
-    X_new = np.zeros((lX.shape[0], num_features), dtype=float)
-    for i,image in enumerate(lX.values):
-	image = image.reshape(maxPixel, maxPixel)
-	image_dilated,axisratio,area,euler_number,perimeter,convex_area,eccentricity,equivalent_diameter,extent,filled_area,orientation,solidity,nregions = getImageFeatures(image,dilation)
-	X_new[i, 0:imageSize] = np.reshape(image, (1, imageSize))
-	X_new[i, imageSize] = axisratio
-	X_new[i, imageSize+1] = area
-	X_new[i, imageSize+2] = euler_number
-	X_new[i, imageSize+3] = perimeter
-	X_new[i, imageSize+4] = convex_area
-	X_new[i, imageSize+5] = eccentricity
-	X_new[i, imageSize+6] = equivalent_diameter
-	X_new[i, imageSize+7] = extent
-	X_new[i, imageSize+8] = filled_area
-	X_new[i, imageSize+9] = orientation
-	X_new[i, imageSize+10] = solidity
-	X_new[i, imageSize+11] = nregions
-	if i%5000==0:
-	  print "Feature for image %4d "%(i)
-    # Loop through the classes two at a time and compare their distributions of the Width/Length Ratio
-    colnames = [ "p"+str(x+1) for x in xrange(X_new.shape[1]-12)]
-    colnames = colnames + ['axisratio','area','euler_number','perimeter','convex_area','eccentricity','equivalent_diameter','extent','filled_area','orientation','solidity','nregions']
-    #Create a DataFrame object to make subsetting the data on the class 
-    X_new = pd.DataFrame(X_new)
-    X_new.columns = colnames 
-    return(X_new)
+#def makeAddFeats(lX,maxPixel,dilation):
+    #imageSize = maxPixel * maxPixel
+    ##recompute other features
+    #print "recompute additional features!"
+    #num_features = lX.shape[1] + 12 # for our ratio
+    #X_new = np.zeros((lX.shape[0], num_features), dtype=float)
+    #for i,image in enumerate(lX.values):
+	#image = image.reshape(maxPixel, maxPixel)
+	#image_dilated,axisratio,area,euler_number,perimeter,convex_area,eccentricity,equivalent_diameter,extent,filled_area,orientation,solidity,nregions = getImageFeatures(image,dilation)
+	#X_new[i, 0:imageSize] = np.reshape(image, (1, imageSize))
+	#X_new[i, imageSize] = axisratio
+	#X_new[i, imageSize+1] = area
+	#X_new[i, imageSize+2] = euler_number
+	#X_new[i, imageSize+3] = perimeter
+	#X_new[i, imageSize+4] = convex_area
+	#X_new[i, imageSize+5] = eccentricity
+	#X_new[i, imageSize+6] = equivalent_diameter
+	#X_new[i, imageSize+7] = extent
+	#X_new[i, imageSize+8] = filled_area
+	#X_new[i, imageSize+9] = orientation
+	#X_new[i, imageSize+10] = solidity
+	#X_new[i, imageSize+11] = nregions
+	#if i%5000==0:
+	  #print "Feature for image %4d "%(i)
+    ## Loop through the classes two at a time and compare their distributions of the Width/Length Ratio
+    #colnames = [ "p"+str(x+1) for x in xrange(X_new.shape[1]-12)]
+    #colnames = colnames + ['axisratio','area','euler_number','perimeter','convex_area','eccentricity','equivalent_diameter','extent','filled_area','orientation','solidity','nregions']
+    ##Create a DataFrame object to make subsetting the data on the class 
+    #X_new = pd.DataFrame(X_new)
+    #X_new.columns = colnames 
+    #return(X_new)
   
 
 
@@ -648,6 +828,42 @@ def showClasses(Xtrain, ytrain, shownames=None,class_names=None,maxPixel=25,fac=
 	cv2.waitKey(0)
   
 
+#@profile
+def buildModelMLL(clf,lX,ly,class_names,trainFull=True):
+  print "Training the model..."
+  print clf
+  ly = ly.values
+  lX = lX.values
+  multiplier = 4
+  cv = StratifiedKFold(ly, n_folds=5)
+  #create vector with length of lX.shape[0] but with 1,2,3,...n,1,2,3,...n,1,2,3,
+  #we do not want to have leakage in cv
+  #labels = np.repeat(numpy.random.shuffle(numpy.arange(lX.shape[0]/4),lX.shape[0]/multiplier)
+  labels = np.tile(np.random.randint(0,5,lX.shape[0]/4),4)
+  print labels
+  print "shape labels:",labels.shape
+  
+  #cv = LeavePLabelOut(labels,1)
+  #cv = StratifiedShuffleSplit(ly, n_iter=10, test_size=0.5)
+  cv =StratifiedKFold(ly,5)
+   
+  ypred = ly * 0
+  yproba = np.zeros((len(ly),len(set(ly))))
+  
+  for i,(train, test) in enumerate(cv):
+      print "train set: ",i," shape: ",lX[train,:].shape
+      ytrain, ytest = ly[train], ly[test]
+      clf.fit(lX[train,:], ytrain)
+      ypred[test] = clf.predict(lX[test,:])
+      yproba[test] = clf.predict_proba(lX[test,:])
+      
+  print classification_report(ly, ypred, target_names=class_names)
+  mll = multiclass_log_loss(ly, yproba)
+  print "multiclass logloss: %6.2f" %(mll)
+  #training on all data
+  if trainFull:
+    clf.fit(lX, ly)
+  return(clf)
 
 
 def makeSubmission(model,Xtest,class_names,filename='subXX.csv',zipping=False):
@@ -657,6 +873,7 @@ def makeSubmission(model,Xtest,class_names,filename='subXX.csv',zipping=False):
   
   if (Xtest.shape[0]>nrows):
     n_frames = Xtest.shape[0] / nrows
+    print "We have to average prediction results on:", n_frames," replications."   
     preds_all = np.zeros((n_frames,nrows,ref.shape[1]))
     #tmp = Xtest.values
     #tmp = np.reshape(tmp, (rows, ref.shape[1]*n_frames), order='F')    
@@ -666,7 +883,7 @@ def makeSubmission(model,Xtest,class_names,filename='subXX.csv',zipping=False):
     idx_end = nrows
     for i in xrange(n_frames):
 	Xtest_act = Xtest.iloc[idx_s:idx_end,:]
-	preds_all[i,:,:] = model.predict(Xtest_act)
+	preds_all[i,:,:] = model.predict_proba(Xtest_act)
 	idx_s = idx_end
 	idx_end = idx_end + nrows
     
@@ -727,22 +944,27 @@ if __name__=="__main__":
   pd.set_option('display.max_columns', 14)
   pd.set_option('display.max_rows', 40)
   
+  location='train'
+  subset=None
   loadData=False
   extractFeatures=False
   nudgeData=False
   maxPixel=25#25
-  doSVD=40
+  doSVD=None
   subsample=None
-  dilation=4
+  dilation=5
   dokmeans=None
-  randomRotate=True
+  randomRotate=False
   useOnlyFeats=False
   stripFeats=True
+  createExtraFeatures=False
+  standardize=True
+  patchWork=True
   
   #checkSubmission('/home/loschen/programs/cxxnet/example/kaggle_bowl/cxx_standard2.csv')
   #sys.exit(1)
   
-  Xtrain, ytrain, class_names,Xtest = prepareData(loadData=loadData,extractFeatures=extractFeatures,maxPixel = maxPixel,doSVD=doSVD,subsample=subsample,nudgeData=nudgeData,dilation=dilation,kmeans=dokmeans,randomRotate=randomRotate,useOnlyFeats=useOnlyFeats,stripFeats=stripFeats)
+  Xtrain, ytrain, class_names,Xtest = prepareData(subset=subset,loadData=loadData,extractFeatures=extractFeatures,maxPixel = maxPixel,doSVD=doSVD,subsample=subsample,nudgeData=nudgeData,dilation=dilation,kmeans=dokmeans,randomRotate=randomRotate,useOnlyFeats=useOnlyFeats,stripFeats=stripFeats,createExtraFeatures=createExtraFeatures,patchWork=patchWork,standardize=standardize,location=location)
   print Xtrain.describe()
   model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='gini', max_features='auto',oob_score=False)
   #model = SGDClassifier(loss="log", eta0=1.0, learning_rate="constant",n_iter=5, n_jobs=4, penalty=None, shuffle=False)#~percetpron
@@ -753,14 +975,14 @@ if __name__=="__main__":
   #model = Pipeline(steps=[('rbm', BernoulliRBM(n_components =300,learning_rate = 0.1,n_iter=15, random_state=0, verbose=True)), ('lr', LogisticRegression())])
   #model = LDA()#6.38
   
-  model = buildModelMLL(model,Xtrain,ytrain,class_names)
+  model = buildModelMLL(model,Xtrain,ytrain,class_names,trainFull=False)
   
   #with open("tmp.pkl", "w") as f: pickle.dump(model, f)
   
   #with open("tmp.pkl", "r") as f: model = pickle.load(f)  
   
   
-  makeSubmission(model,Xtest,class_names,"sub25012015a.csv") 
+  #makeSubmission(model,Xtest,class_names,"sub10022015a.csv") 
   
   
   names=['amphipods','appendicularian_straight','artifacts']

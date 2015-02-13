@@ -26,7 +26,7 @@ from sklearn.cross_validation import StratifiedKFold,KFold,StratifiedShuffleSpli
 from sklearn.metrics import roc_auc_score,classification_report,make_scorer,f1_score,precision_score,mean_squared_error
 #from sklearn.utils.extmath import density
 from sklearn.feature_extraction import DictVectorizer
-from sklearn.decomposition import TruncatedSVD,PCA
+from sklearn.decomposition import TruncatedSVD,PCA,RandomizedPCA
 from sklearn.pipeline import Pipeline
 
 from sklearn.feature_selection import SelectKBest,SelectPercentile, chi2, f_classif,f_regression,GenericUnivariateSelect,VarianceThreshold
@@ -866,7 +866,6 @@ def scaleData(lXs,lXs_test=None,cols=None,centerZero=False):
     if cols is None:
 	cols = lXs.columns
     
-    print "Data scaling..."
     if lXs_test is not None:
 	lX_all = pd.concat([lXs_test, lXs])
     else:
