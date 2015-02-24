@@ -295,6 +295,7 @@ prepareData_cdk<-function(ldata,lowT,highT,testSet) {
 oinfo<-function(O) {
   cat("#class:",class(O))
   cat(" #dimension:",dim(O)," ")
+  cat(" #length:",length(O)," ")
   cat(" #size",object.size(O)/1000000," MB\n")
 }
 
@@ -328,21 +329,24 @@ removeColVar<-function(ldata,cvalue) {
   library(caret)
   cormat<-cor(ldata)
   #print(cormat)
-  c<-findCorrelation(cormat, cutoff = cvalue, verbose = FALSE)
-  removed<-ldata[,c]
-  cat("Removed variables according to cutoff: ",cvalue," \n")
-  #print(summary(removed))
-  ldata<-ldata[,-c]
+  c<-findCorrelation(cormat, cutoff = cvalue, verbose = TRUE)
+  removed<-colnames(ldata[,c])
+  cat("Removed variables according to cutoff: ",cvalue," :")
+  cat(removed,"\n")
+  #ldata<-subset(ldata,select=-(removed))
+  ldata<-ldata[,!(names(ldata) %in% removed)]
   return(ldata)
 }
 
 linRegPredict<-function(fit,lX_test,exp,lid_test=NULL) {
-  print(lid_test$SMILES)
+  if (!is.null(lid_test)) {
+    print(lid_test$SMILES)
+  }
   pred<-predict(fit,lX_test) 
   plot(pred,exp,col = "blue")
   abline(0,1, col = "black")
   se<-(pred-exp)^2
-  cat("LINEAR MODEL TEST RMSE:",compRMSE(pred,exp),"\n")
+  #cat("LINEAR MODEL TEST RMSE:",compRMSE(pred,exp),"\n")
   if (is.null(lid_test)) {
     predout<-data.frame(predicted=pred,exp=exp,se)
   } else {
@@ -582,11 +586,22 @@ pc_correct<-function(actual,predicted) {
   return(pc)
 }
 
+
+sigmoid<-function(x,a=1.0,b=0.0) {
+  value<-1/(1+exp(-a*(x-b)))
+  return(value)
+}
+
+
 computeAUC<-function(predicted,truth,verbose=F) {
   require("ROCR")
+  #print(summary(truth))
   pred<-prediction(predicted, truth)
   perf <- performance(pred,"tpr","fpr")
-  if (verbose) plot(perf,col="black",lty=3, lwd=3)
+  if (verbose) {
+    plot(perf,col="blue",lty=3, lwd=3,xlim=c(0,1))
+    abline(0.0,1.0, col = "black",lwd=3,xlim=c(0,1))
+  }
   auc<-performance(pred,"auc")
   auc<-unlist(slot(auc, "y.values"))
   #str(auc)
@@ -797,13 +812,11 @@ trainRF<-function(lX,ly,iter=500,m.try=if (!is.null(ly) && !is.factor(ly)) max(f
       print(nlevels(ly))
       cat("Random forest OOB err rate:",mydata.rf$err.rate[iter],"\n")
       #tmp<-mydata.rf$predicted
-      tmp<-mydata.rf$votes[,2]
+      tmp<-mydata.rf$votes[,2]   
       #hist(as.numeric(mydata.rf$predicted))
       hist(as.numeric(tmp))
-      #cat(mydata.rf$votes)
-      ldata<-data.frame(predicted=as.numeric(as.character(tmp)),truth=as.numeric(as.character(ly)))
-      #plot(ldata,col="blue",pch=1, xlab = "predicted", ylab = "exp")
-      #ldata<-data.frame(predicted=tmp,truth=as.numeric(as.character(ly)))
+      #ldata<-data.frame(predicted=as.numeric(as.character(tmp)),truth=as.numeric(as.character(ly)))      
+      ldata<-data.frame(predicted=tmp,truth=ly)
       computeAUC(ldata$predicted,ldata$truth,T)
       #pc_correct(ldata$predicted,ldata$truth)
     }
@@ -983,7 +996,7 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",iter=500,mtry=5) {
     ytrain<-train[,length(train)]
     #TRAINING
     if (modname=="rf") {
-      fit<-trainRF(Xtrain,ytrain,iter,mtry)
+      fit<-trainRF(Xtrain,ytrain,iter,mtry,verbose=T)
     }
     else if (modname=="gam") {
       fit<-gam_model(Xtrain,ytrain,F)
@@ -1017,8 +1030,24 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",iter=500,mtry=5) {
         cat("gbm: 0-1 distribution...")
         fit<-gbm.fit(Xtrain,ytrain,distribution="bernoulli",n.trees=iter,interaction.depth=20,shrinkage=0.001,verbose=F)
       }   
-    } else {       
-      fit<-linRegTrain(Xtrain,ytrain,NULL,F)
+    } else if (modname=="mars") {
+      cat("TRAIN MARS: ") 
+      if (lossfn=="rmse") {
+        fit<-earth(x=Xtrain,y=ytrain,degree=2, nprune = 6, trace=0)
+      } else {
+        cat("mars: 0-1 distribution...")
+        fit<-earth(x=Xtrain,y=ytrain,degree=2, nprune = 4, glm=list(family=binomial), trace=0)
+      }
+      
+    } else {   
+      if (lossfn=="rmse") {
+        fit<-linRegTrain(Xtrain,ytrain,NULL,F)
+      } else {
+        fit <- glm(target ~ ., data=data.frame(Xtrain,target=ytrain),family=binomial(link="logit"))
+        #fit<-glm.fit(Xtrain,ytrain,family=binomial(link="logit"))
+        
+      }
+
     }
     #PREDICTION
     test<-return_fold(all_folds,i,test=T)
@@ -1029,6 +1058,7 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",iter=500,mtry=5) {
         pred<-predict(fit,Xtest)
       } else {
         pred<-predict(fit,Xtest,type="vote")[,2]
+        print(summary(pred))
       }    
     }
     else if (modname=="gam") {
@@ -1046,8 +1076,16 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",iter=500,mtry=5) {
       cat("TEST GBM: ")
       pred<-predict(fit,Xtest,n.trees=iter,type="response")
       print(summary(data.frame(pred)))
+    } else if (modname=="mars") {
+      cat("TEST MARS: ")
+      pred<-predict(fit, Xtest,type="response")
     } else {
-      pred<-linRegPredict(fit,Xtest,ytest,NULL)
+      if (lossfn=="rmse") {
+        pred<-linRegPredict(fit,Xtest,ytest,NULL)
+      } else {
+        pred<-predict(fit,newdata=Xtest,type=c("response"))
+      }  
+      
     }
     cat("n(test set):",length(ytest),"\n")
     if (lossfn=="rmse") {
@@ -1179,9 +1217,9 @@ makeBubblePlot<-function(model,lX,ly) {
     #theme(axis.text.x = element_text(colour="black",size=20,angle=90,hjust=.5,vjust=.5,face="plain"),
     #      axis.text.y = element_text(colour="black",size=20,angle=0,hjust=1,vjust=0,face="plain"))+
     theme_classic(base_size=20)
-  #print(p)  
+  print(p)  
   ggsave('mp2.png',  p)
-  #ggsave('mp1.png',  p, width = 200, height = 200, units = "mm",dpi = 300, scale = 1)
+  ggsave('mp1.png',  p, width = 300, height = 200, units = "mm",dpi = 300, scale = 1)
 }
 
 #http://is-r.blogspot.de/2012/11/plotting-correlation-ellipses.html
@@ -1193,7 +1231,7 @@ correlationEllipses<-function(cor){
   xc <- cor
   colors <- c("#A50F15","#DE2D26","#FB6A4A","#FCAE91","#FEE5D9","white",
               "#EFF3FF","#BDD7E7","#6BAED6","#3182BD","#08519C")
-  colors <- c("#000000","#636363","#8A8A8A","#B0B0B0","#C9C9C9","white","#C9C9C9","#B0B0B0","#8A8A8A","#636363","000000")
+  #colors <- c("#000000","#636363","#8A8A8A","#B0B0B0","#C9C9C9","white","#C9C9C9","#B0B0B0","#8A8A8A","#636363","000000")
   tmp<-colors[5*xc + 6]
   #   png(
   #     "corr.png",

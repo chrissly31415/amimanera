@@ -30,9 +30,19 @@ rf_select<-function(lX,ly,iter,nvar) {
   
   #select top nvar
   dd<-dd[1:nvar,,drop=F]
-  validCols<-rownames(dd)
-  cat("\n####Selection: ",validCols,"\n")
+  validCols<-rownames(dd)  
   lX<-subset(lX,select=validCols)
+  
+  cat("\n####Selection: \n")
+  for (i in 1:ncol(lX)) {
+    cat("\"",names(lX)[i],"\"",sep="")
+    if (i!=ncol(lX)) {
+      cat(",",sep="")
+    } else {
+      cat("\n\n")
+    }
+  }
+  
   #print(summary(lX))
   return(lX) 
   #str(mydata.rf$importance)
