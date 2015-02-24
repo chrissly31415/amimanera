@@ -8,9 +8,10 @@ require(doSNOW)
 
 if (.Platform$OS.type=='unix') {
     cat("We are on linux.\n")
-    source("./boruta_select.R")
-    source("./xvalidation.R")
-    source("./gaFeatureSelection.R")
+    rootdir<-"/home/loschen/Desktop/amimanera/r_utils"
+    source(paste(rootdir,"/boruta_select.R",sep=""))
+    source(paste(rootdir,"/xvalidation.R",sep=""))
+    source(paste(rootdir,"/gaFeatureSelection.R",sep=""))
 } else {
     cat("We are on windows.\n")
     
@@ -513,7 +514,10 @@ compLOGLOSS<-function(predicted,actual) {
   return(result)
 }
 
-
+compRSQ<-function(predicted,actual) {
+   rsq<-cor(predicted,actual,method="pearson")
+   return(rsq**2)
+}
 
 
 gam_model<-function(lX,ly,verbose) {

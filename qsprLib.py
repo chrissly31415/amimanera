@@ -22,11 +22,11 @@ from sklearn.preprocessing import StandardScaler,PolynomialFeatures
 from sklearn.feature_extraction.text import CountVectorizer,HashingVectorizer,TfidfVectorizer
 #from sklearn import metrics
 from sklearn import cross_validation,grid_search
-from sklearn.cross_validation import StratifiedKFold,KFold,StratifiedShuffleSplit,ShuffleSplit
+from sklearn.cross_validation import StratifiedKFold,KFold,StratifiedShuffleSplit,ShuffleSplit,train_test_split
 from sklearn.metrics import roc_auc_score,classification_report,make_scorer,f1_score,precision_score,mean_squared_error
 #from sklearn.utils.extmath import density
 from sklearn.feature_extraction import DictVectorizer
-from sklearn.decomposition import TruncatedSVD,PCA
+from sklearn.decomposition import TruncatedSVD,PCA,RandomizedPCA
 from sklearn.pipeline import Pipeline
 
 from sklearn.feature_selection import SelectKBest,SelectPercentile, chi2, f_classif,f_regression,GenericUnivariateSelect,VarianceThreshold
@@ -40,7 +40,9 @@ from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,E
 from sklearn.neighbors import KNeighborsClassifier,KNeighborsRegressor
 from sklearn.svm import LinearSVC,SVC,SVR
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.cluster import KMeans,MiniBatchKMeans
 from sklearn.learning_curve import learning_curve
+from sklearn.multiclass import OneVsRestClassifier
 
 
 
@@ -284,35 +286,6 @@ def ensemblePredictions(classifiers,blender,lXs,ly,lXs_test,lidx,lidx_train,oob_
     pred_df.index.name='urlid'
     pred_df.to_csv(filename)
     
-def pyGridSearch(lmodel,lX,ly):  
-    """   
-    Grid search with sklearn internal tool
-    """ 
-    print "Grid search..."
-    #parameters = {'C':[1000,10000,100], 'gamma':[0.001,0.0001]}
-    #parameters = {'max_depth':[3,6,9], 'learning_rate':[0.5,0.1,0.01,0.05],'n_estimators':[150,300,500]}#gbm
-    #parameters = {'max_depth':[2], 'learning_rate':[0.01,0.001],'n_estimators':[3000]}#gbm
-    #parameters = {'n_estimators':[500], 'max_features':[5,10,15]}#rf
-    #parameters = {'n_estimators':[2000,3000], 'learning_rate':[0.08,0.04,0.02]}#adaboost
-    #parameters = {'n_estimators':[400,600,800], 'max_features':[10,15,20],'min_samples_leaf':[10,20]}#rf
-    parameters = {'alpha':[0.0001,0.001,0.01,0.1],'n_iter':[5,10,100,150],'penalty':['l1','l2']}#SGD
-    #parameters = {'C':[0.1,1,10]}#SVC
-    #parameters = {'filter__percentile': [100,80,50,25] , 'model__alpha':[1.0,0.8,0.5,0.1]}#opt nb
-    #parameters = {'filter__percentile': [16,15,14,13,12] , 'model__n_neighbors':[125,130,135,150,200]}#knn
-    #parameters = {'n_neighbors':[1,2,3,5,8,10]}#knn
-    #parameters = {'filter__percentile': [6,5,4,3,2,1], 'model__n_estimators': [500], 'model__max_features':['auto'], 'model__min_samples_leaf':[10] }#rf
-    #parameters = {'filter__percentile': [100,95,80,70,60,50,25], 'model__C': [0.5,1.0, 10.0], 'model__intercept_scaling': [0.1,1.0,10,100,1000] }#pipeline
-    #parameters = {'filter__percentile': [100,98,95,80,70,60,50,25], 'model__C': [0.5,1.0, 10.0,0.1],'model__penalty': ['l1','l2'] }#pipeline
-    #parameters = {'filter__percentile': [90,80], 'model__n_estimators': [600,500],'model__learning_rate': [0.1] }#pipeline
-    
-    clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
-    clf_opt.fit(lX,ly)
-    
-    for params, mean_score, scores in clf_opt.grid_scores_:
-        print("%0.3f (+/- %0.3f) for %r"
-              % (mean_score.mean(), scores.std(), params))
-    return(clf_opt.best_estimator_)
-    
 
 def weightedGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,scale_wt='auto',n_jobs=1,local_scorer='roc_auc'):
     """
@@ -340,8 +313,7 @@ def weightedGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=Fa
     #parameters['model__n_neighbors']=[40,60]}#knn
     #parameters['model__alpha']=[1.0,0.8,0.5,0.1]#opt nb
     #parameters = {'n_neighbors':[10,30,40,50],'algorithm':['ball_tree'],'weights':['distance']}#knn
-    clf_opt=grid_search.GridSearchCV(lmodel, parameters,n_jobs=n_jobs,verbose=1,scoring=local_scorer,cv=nfolds,fit_params=fit_params,refit=True)
-    
+    clf_opt=grid_search.GridSearchCV(lmodel, parameters,n_jobs=n_jobs,verbose=1,scoring=local_scorer,cv=nfolds,fit_params=fit_params,refit=True)   
     clf_opt.fit(lX,ly)
     #dir(clf_opt)
     for params, mean_score, scores in clf_opt.grid_scores_:       
@@ -353,18 +325,16 @@ def weightedGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=Fa
     
     
     
-def buildModel(lmodel,lXs,ly,sweights=None,feature_names=None):
+def buildModel(lmodel,lXs,ly,sample_weights=None,scoring=None,cv=5):
     """   
     Final model building part
     """ 
     print "Xvalidation..."
-    scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=5, scoring='mean_squared_error',n_jobs=5)
-    scores = (-1*scores)**0.5
+    scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=cv, scoring=scoring,n_jobs=1)
+    #scores = (-1*scores)**0.5
     print "SCORE: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
     print "Building model with all instances..."
     lmodel.fit(lXs,ly)
-    
-    #analyzeModel(lmodel,feature_names)
     return(lmodel)
     
 def density(m):
@@ -896,7 +866,6 @@ def scaleData(lXs,lXs_test=None,cols=None,centerZero=False):
     if cols is None:
 	cols = lXs.columns
     
-    print "Data scaling..."
     if lXs_test is not None:
 	lX_all = pd.concat([lXs_test, lXs])
     else:
