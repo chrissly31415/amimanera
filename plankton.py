@@ -18,8 +18,12 @@ from skimage.morphology import watershed
 from skimage import measure
 from skimage import morphology
 from skimage.feature import peak_local_max
+from skimage.util import view_as_blocks,view_as_windows
+
 from scipy.ndimage import convolve
 from scipy import ndimage
+from scipy.ndimage.interpolation import rotate
+import pprint
 
 from nolearn.dbn import DBN
 import cv2
@@ -48,6 +52,7 @@ from qsprLib import *
 
 
 #TODO
+#GPU cards: https://timdettmers.wordpress.com/2014/08/14/which-gpu-for-deep-learning/
 #http://danielnouri.org/notes/2014/12/17/using-convolutional-neural-nets-to-detect-facial-keypoints-tutorial/
 #http://www.kaggle.com/c/datasciencebowl/forums/t/11421/converting-images-to-standard-scale-code
 #transformation
@@ -57,13 +62,14 @@ from qsprLib import *
 #onlnie
 #http://scikit-learn.org/stable/auto_examples/cluster/plot_dict_face_patches.html#example-cluster-plot-dict-face-patches-py
 
-
-def prepareData(subset=1000,loadData=False,extractFeatures=False,maxPixel = 48,doSVD=25,subsample=None,nudgeData=False,dilation=4,kmeans=None,randomRotate=True,useOnlyFeats=False,stripFeats=True,createExtraFeatures=True,patchWork=True,standardize=True,location='train'):
+def prepareData(subset=1000,loadTempData=False,extractFeatures=False,maxPixel = 48,doSVD=25,subsample=None,nudgeData=False,dilation=4,kmeans=None,randomRotate=True,useOnlyFeats=False,stripFeats=True,createExtraFeatures=True,convolution=True,alignImages=True,standardize=True,location='train'):
   # just load processed data
-  if loadData:
+  if loadTempData:
       X = pd.read_csv('train_tmp.csv',index_col=0)
-      X_test = pd.read_csv('test_tmp.csv',index_col=0)      
-      y = pd.read_csv('labels_tmp.csv', sep=",", na_values=['?'],index_col=0).iloc[:,-1]
+      X_test = pd.read_csv('test_tmp.csv',index_col=0)
+      #X_test = X
+      y = pd.read_csv('labels_tmp.csv', sep=",", na_values=['?'],index_col=0,header=None).iloc[:,-1]
+      y = y.astype('int8')
       
   else:
     #extract the features
@@ -72,11 +78,15 @@ def prepareData(subset=1000,loadData=False,extractFeatures=False,maxPixel = 48,d
       X_test = createFeatures(maxPixel,location='test',dilation=dilation)
       #createFeatures(resizeIt,rawFeats,maxPixel=maxPixel,location='train_48_mod',dilation=dilation)
       #createFeatures(resizeIt,rawFeats,maxPixel,location='test_48_mod',dilation=dilation)
+      #X_test = X_test.astype(np.float32)
+      
     else:
      #load extracted features 
       print "Load extracted features from: ",location
       df = pd.read_csv('competition_data/'+location+'_'+str(maxPixel)+'.csv', sep=",", na_values=['?'],index_col=0)
       X_test = pd.read_csv('competition_data/'+'test'+'_'+str(maxPixel)+'.csv', sep=",", na_values=['?'],index_col=0)
+      #print "Skipping test..."
+      #X_test = df
       
     #print df_test
     #df.loc[:,['ratio','label']].hist()
@@ -86,6 +96,11 @@ def prepareData(subset=1000,loadData=False,extractFeatures=False,maxPixel = 48,d
     idx = df.shape[1]-1
     X = df.iloc[:,0:idx]
     y = df.iloc[:,-1]
+    
+    X = X.astype(np.float32)
+    X_test = X_test.astype(np.float32)
+    y = y.astype('int8')
+    
 
     if subsample is not None:
       cv = StratifiedShuffleSplit(y, n_iter=1, test_size=1.0-subsample)
@@ -96,9 +111,12 @@ def prepareData(subset=1000,loadData=False,extractFeatures=False,maxPixel = 48,d
     print "Shape X:",X.shape
     print "Shape X_test:",X_test.shape
     print "Shape y:",y.shape
-    
+
     X,X_feat = splitFrame(X,n_features=23)
     X_test,X_test_feat = splitFrame(X_test,n_features=23)
+    
+    if alignImages:
+      X = makeAlignment(X,X_feat['orientation'],X_feat['centroidx'],X_feat['centroidy'],maxPixel)
     
     if nudgeData:
       X,y = nudge_dataset(X,y,maxPixel,dilation)
@@ -164,73 +182,241 @@ def prepareData(subset=1000,loadData=False,extractFeatures=False,maxPixel = 48,d
 	X = X_feat
 	X_test = X_test_feat
 	  
-    X.to_csv('train_tmp.csv')
-    X_test.to_csv('test_tmp.csv')
-    y.to_csv('labels_tmp.csv')
-  
-  class_names = getClassNames()
-  
-  if standardize==True:
-    print "Standardize data..."
-    X_all = pd.concat([X_test, X])
-    X_all = scaleData(X_all)
-    X = X_all[len(X_test.index):]
-    X_test = X_all[:len(X_test.index)]
+    if standardize==True:
+      print "Standardize data..."
+      X,X_test = scaleData(X,X_test,normalize=True)
+
+    if convolution:
+      print X.shape
+      X = doConvolution(X,maxPixel=maxPixel)
     
-  
-  if patchWork:
-	doPatchWork(X,y,maxPixel)
-  
-  print "Final Shape X:",X.shape
-  print "Final Shape X_test:",X_test.shape
+#    if standardize==True:
+#      print "Standardize data ..."
+#      X,X_test = scaleData(X,X_test)
+	
+    #print "Saving temp data..."
+    #X.to_csv('train_tmp.csv')
+    #X_test.to_csv('test_tmp.csv')
+    #y.to_csv('labels_tmp.csv')
+    
+  print "Final Shape X:",X.shape, " size (MB):",float(X.values.nbytes)/1.0E6
+  print "Final Shape X_test:",X_test.shape, " size (MB):",float(X_test.values.nbytes)/1.0E6
   #print "Shape y:",y.shape
-  
+  class_names = getClassNames()
   return X,y,class_names,X_test
 
 
-def doPatchWork(lX,ly=None,maxPixel=None,showEigenImages=False):
+def makeAlignment(lX,lX_orient,lX_centerx,lX_centery,maxPixel,crop=2):
+    imageSize = maxPixel * maxPixel
+    
+    #cropped_size = (maxPixel-2*crop)*(maxPixel-2*crop)
+    names = lX.columns
+    lX_new = np.zeros((lX.shape[0],lX.shape[1]),dtype=np.float32)
+    t0 = time()
+    for i,img in enumerate(lX.values):
+	img = np.reshape(img, (maxPixel, maxPixel)).astype('float32')
+	#crop border
+	img[0:crop,:]=1.0
+	img[-crop:,:]=1.0
+	img[:,0:crop]=1.0
+	img[:,-crop:]=1.0	
+	img = 1.0 - img
+	
+	#print "Orientation:",lX_orient[i], " Degree:",np.degrees(lX_orient[i])
+	#showImage(img,maxPixel,fac=10,matrix=True)
+	#
+	#
+	angle = np.degrees(lX_orient[i])
+	#angle = 0.0
+	M1 = cv2.getRotationMatrix2D((maxPixel/2,maxPixel/2),np.degrees(angle),1)
+	img_new = cv2.warpAffine(img,M1,(maxPixel,maxPixel))
+	img_new = 1.0 - img_new
+	#img_new = rotate(img, angle, reshape=False)
+	#img_new = 255 - img_new
+	#showImage(img_new,maxPixel,fac=10,matrix=True)
+	lX_new[i]=img_new.ravel().astype('float32')
+
+    print("Alignment done in %0.3fs" % (time() - t0))
+    lX_new = pd.DataFrame(lX_new,columns = names,dtype=np.float32)
+    print lX_new.shape
+    print lX_new.describe()
+    return lX_new
+    
+
+def extractBlocks(npatches,blocksize=4):
+    side_length = np.sqrt(npatches)
+    print "side_length,patches",side_length
+    if not side_length.is_integer():
+      print "ERROR: no integer side length!"
+      sys.exit(1)
+    else:
+      side_length = int(side_length)
+    m = np.arange(0,npatches).reshape((side_length,side_length))
+    blocks = view_as_blocks(m,(blocksize,blocksize))
+    
+    blocks = np.reshape(blocks, (blocks.shape[0]*blocks.shape[1],blocksize*blocksize))
+    print "Extracting ",blocks.shape[0]," blocks:",blocksize,"X",blocksize
+
+    return blocks
+    
+
+
+def padImage(img,pad=1):
+    height = img.shape[0]
+    width = img.shape[1]
+    padImg = np.zeros((height+2*pad,width+2*pad))
+    padImg[pad:-pad,pad:-pad]=img
+    return padImg
+
+#@profile
+def doConvolution(lX,ly=None,maxPixel=None,patchSize=5,n_components=144,stepsize=2,pad=1,blocksize=4,showEigenImages=False):
     """
     Extract patches....
     """
+    #@TODO new quater array
+    #@TODO incl testset....
     #http://scikit-learn.org/stable/auto_examples/cluster/plot_dict_face_patches.html
     #http://scikit-learn.org/stable/modules/preprocessing.html
     #http://nbviewer.ipython.org/github/dmrd/hackclass-sklearn/blob/master/image_classification.ipynb
     #http://scikit-learn.org/stable/auto_examples/applications/face_recognition.html
-    patchSize=20
-    n_components=20
-    max_patches=5
     
-    print "Extract patches, original shape:",lX.shape
-    tmp=[]
-    tmpy=[]
-    for i,row in enumerate(lX.values):
-	img = np.reshape(row, (maxPixel, maxPixel))
-	patches = image.extract_patches_2d(img, (patchSize, patchSize), max_patches=max_patches)
+    #http://scikit-image.org/docs/0.10.x/api/skimage.util.html#view-as-blocks
+    #pp = pprint.PrettyPrinter()
+       
+    max_patches=None    
+    whiten_pca=True
+    pooling=True   
+    
+    #data_type='float32'
+    
+    print "Image width=height",maxPixel
+    print "Patch size:",patchSize
+    print "Stride:",stepsize
+    print "PCA components:",n_components  
+    print "Pad:",pad
+    print "Pooling:",pooling
+    print "Pooling patches blocksize:",blocksize
+      
+    #npatches = (maxPixel - patchSize +1+2*pad)*(maxPixel - patchSize +1+2*pad)/stepsize
+    npatchesx = (maxPixel+2*pad - patchSize)/stepsize +1
+    npatches = npatchesx * npatchesx
+    print "number of patches:",npatches
+    
+    print "Original shape:",lX.shape, " size (MB):",float(lX.values.nbytes)/1.0E6, " dtype:",lX.values.dtype
+    tmpy=[]    
+    t0 = time()
+    #data = np.zeros((lX.shape[0],npatches,patchSize*patchSize),dtype=np.float32)
+    data = np.zeros((lX.shape[0],npatches,patchSize*patchSize),dtype=np.uint8)
+    #Online...!?
+    for i,img in enumerate(lX.values):
+	img = np.reshape(img*255, (maxPixel, maxPixel)).astype('uint8')
+	#standardize patch
+	#img = (img -img.mean())/np.sqrt(img.var()+0.001) 
+	
+	#img = np.reshape(img, (maxPixel, maxPixel)).astype('float32')
+	if pad:
+	  img = padImage(img,pad=pad)
+	patches = view_as_windows(img,(patchSize, patchSize),stepsize)
+	patches = np.reshape(patches, (patches.shape[0]*patches.shape[1],patchSize, patchSize))
 	patches = np.reshape(patches, (len(patches), -1))
-	tmp.append(patches)
-	tmpy.append([ly for _ in range(max_patches)])
-	#if ly is not None: ly = pd.Series(np.concatenate([ly for _ in range(6)], axis=0))
+	data[i,:,:]=patches
+	#data.append(patches)
+
+
+    print("Extract patches done in %0.3fs" % (time() - t0))
     
-    data = np.concatenate(tmp, axis=0)
-    ly = np.concatenate(tmpy, axis=0)
-    print "Extract patches, new shape:",data.shape
-    print "New shape y:",ly.shape
+    data = np.reshape(data,(lX.shape[0]*npatches,patchSize*patchSize))
     
-    pca = RandomizedPCA(n_components, whiten=True)
+    print "Extract patches, new shape:",data.shape, " size (MB):",float(data.nbytes)/1.0E6, " dtype:",data.dtype
+        
+    #pca = RandomizedPCA(n_components, whiten=whiten_pca)
+    #pca=TruncatedSVD(n_components=n_components, algorithm='randomized', n_iter=5, tol=0.0)
+    pca = MiniBatchKMeans(init='k-means++', n_clusters=n_components, n_init=5)
+    #pca = FastICA(n_components=n_components,whiten=whiten_pca)
+   
+    #pca = MiniBatchSparsePCA(n_components=n_components,alpha=0.5,n_jobs=4)
+    #pca = MiniBatchDictionaryLearning(n_components=n_components,alpha=0.5,n_jobs=4)
+    #pca = SparseCoder(dictionary=pca.cluster_centers_)
+    print pca
+         
+    #transform data to 64bit!!!
     data = pca.fit_transform(data)
-    print "Extracted patches, after PCA shape:",data.shape
-    print "PCA components shape:",pca.components_.shape
+    #data = pca.fit(data[::4])
+    #data = pca.transform(data)
     
-    eigenfaces = pca.components_.reshape((n_components, patchSize, patchSize))
-    
-    print "Show eigen data:",eigenfaces.shape
+
+    if isinstance(pca,RandomizedPCA):
+      print "PCA components shape:",pca.components_.shape
+      print("Explained variance",pca.explained_variance_ratio_.sum())
+      plt.plot(pca.explained_variance_ratio_)
+      plt.show()
+      
+    if isinstance(pca,MiniBatchKMeans):
+      ck = pca.cluster_centers_
+      print "Cluster centers (aka dictionary D (ncomponents x nfeatures) S aka code (nsamples x ncomponents):  SD=Xi):",ck.shape
     
     if showEigenImages:
-      for img in eigenfaces:
-	  showImage(img,patchSize,fac=10,matrix=True)
+      #eigenfaces = pca.components_.reshape((n_components, patchSize, patchSize)) 
+      eigenfaces = pca.cluster_centers_.reshape((n_components, patchSize, patchSize))
+      #eigenfaces = pca.components_
+      plt.figure(figsize=(4.2, 4))
+      for i, comp in enumerate(eigenfaces[:n_components]):
+	  plt.subplot(n_components/4, 4, i + 1)
+	  plt.imshow(comp, cmap=plt.cm.gray_r,
+		    interpolation='nearest')
+	  plt.xticks(())
+	  plt.yticks(())
+      plt.suptitle('Dictionary learned from patches\n')
+      plt.subplots_adjust(0.08, 0.02, 0.92, 0.85, 0.08, 0.23)
+      plt.show()
+      #for img in eigenfaces:
+      #	  showImage(img,patchSize,fac=10,matrix=True)
+    #  
+    #print "Eigen patches shape:",eigenfaces.shape
+    print "Extracted patches, after PCA shape:",data.shape, " size (MB):",float(data.nbytes)/1.0E6, " dtype:",data.dtype
+    
+    ##pooling
+    nsamples = data.shape[0]/npatches
+    print "number of samples",nsamples
+    
+    data = np.reshape(data, (nsamples,npatches,-1))
+    print "New shape:",data.shape      
 
-    lX = pd.DataFrame(data)
-    return (lX,ly)
+    masks = extractBlocks(npatches,blocksize=blocksize)
+    #print masks
+    
+    arrays = np.split(data, nsamples)
+    tmp = []
+    for i,ar in enumerate(arrays):
+      ar = np.reshape(ar, (npatches,n_components))
+      if pooling:	
+	#pool
+	pool = np.zeros((masks.shape[0],n_components))
+	for j,m in enumerate(masks):
+	  ar_tmp = np.sum(ar[m],axis=0)#sum or mean does not matter
+	  #ar_tmp = np.amax(ar[m],axis=0)
+	  #ar_tmp = np.mean(ar[m],axis=0)
+	  pool[j]=ar_tmp
+      
+	pool = np.reshape(pool,(masks.shape[0]*n_components))
+	tmp.append(pool)
+      else:
+	ar = np.reshape(ar, (npatches*n_components))
+	tmp.append(ar)
+
+      
+    #data = np.concatenate(tmp, axis=0) 
+    data = np.asarray(tmp)
+    print "New shape after pooling:",data.shape, " size (MB):",float(data.nbytes)/1.0E6
+
+
+    
+    lX = pd.DataFrame(data,dtype=np.float32)
+    print "datatype:",lX.dtypes[0]
+    if ly is not None:
+      return (lX,ly)
+    else:
+      return lX
 	
 
 def makeBriefFeatures(lX,maxPixel):
@@ -773,39 +959,6 @@ def nudge_dataset(lX, ly,maxPixel=25,dilation=4):
     ly = pd.Series(np.concatenate([ly for _ in range(4)], axis=0))
     return X_new, ly
 
-#def makeAddFeats(lX,maxPixel,dilation):
-    #imageSize = maxPixel * maxPixel
-    ##recompute other features
-    #print "recompute additional features!"
-    #num_features = lX.shape[1] + 12 # for our ratio
-    #X_new = np.zeros((lX.shape[0], num_features), dtype=float)
-    #for i,image in enumerate(lX.values):
-	#image = image.reshape(maxPixel, maxPixel)
-	#image_dilated,axisratio,area,euler_number,perimeter,convex_area,eccentricity,equivalent_diameter,extent,filled_area,orientation,solidity,nregions = getImageFeatures(image,dilation)
-	#X_new[i, 0:imageSize] = np.reshape(image, (1, imageSize))
-	#X_new[i, imageSize] = axisratio
-	#X_new[i, imageSize+1] = area
-	#X_new[i, imageSize+2] = euler_number
-	#X_new[i, imageSize+3] = perimeter
-	#X_new[i, imageSize+4] = convex_area
-	#X_new[i, imageSize+5] = eccentricity
-	#X_new[i, imageSize+6] = equivalent_diameter
-	#X_new[i, imageSize+7] = extent
-	#X_new[i, imageSize+8] = filled_area
-	#X_new[i, imageSize+9] = orientation
-	#X_new[i, imageSize+10] = solidity
-	#X_new[i, imageSize+11] = nregions
-	#if i%5000==0:
-	  #print "Feature for image %4d "%(i)
-    ## Loop through the classes two at a time and compare their distributions of the Width/Length Ratio
-    #colnames = [ "p"+str(x+1) for x in xrange(X_new.shape[1]-12)]
-    #colnames = colnames + ['axisratio','area','euler_number','perimeter','convex_area','eccentricity','equivalent_diameter','extent','filled_area','orientation','solidity','nregions']
-    ##Create a DataFrame object to make subsetting the data on the class 
-    #X_new = pd.DataFrame(X_new)
-    #X_new.columns = colnames 
-    #return(X_new)
-  
-
 
 def showClasses(Xtrain, ytrain, shownames=None,class_names=None,maxPixel=25,fac=10,nexamples=5):
   imageSize = maxPixel * maxPixel
@@ -835,7 +988,7 @@ def buildModelMLL(clf,lX,ly,class_names,trainFull=True):
   ly = ly.values
   lX = lX.values
   multiplier = 4
-  cv = StratifiedKFold(ly, n_folds=5)
+
   #create vector with length of lX.shape[0] but with 1,2,3,...n,1,2,3,...n,1,2,3,
   #we do not want to have leakage in cv
   #labels = np.repeat(numpy.random.shuffle(numpy.arange(lX.shape[0]/4),lX.shape[0]/multiplier)
@@ -851,11 +1004,13 @@ def buildModelMLL(clf,lX,ly,class_names,trainFull=True):
   yproba = np.zeros((len(ly),len(set(ly))))
   
   for i,(train, test) in enumerate(cv):
-      print "train set: ",i," shape: ",lX[train,:].shape
+      
       ytrain, ytest = ly[train], ly[test]
       clf.fit(lX[train,:], ytrain)
       ypred[test] = clf.predict(lX[test,:])
       yproba[test] = clf.predict_proba(lX[test,:])
+      mll = multiclass_log_loss(ly[test], yproba[test])
+      print "train set: ",i," shape: ",lX[train,:].shape, " mll:",mll
       
   print classification_report(ly, ypred, target_names=class_names)
   mll = multiclass_log_loss(ly, yproba)
@@ -931,7 +1086,28 @@ def checkSubmission(subfile='cxx_standard2.csv'):
   plt.show()
   
   
-  
+def makeGridSearch(lmodel,lX,ly,n_jobs=1):
+
+    parameters = {'alpha':[0.01,0.1,],'n_iter':[150,250],'penalty':['l2','l1']}#SGD
+    #parameters = {'learn_rates':[0.3,0.2,0.1],'learn_rate_decays':[1.0,0.9,0.8],'epochs':[40]}#DBN
+    #parameters = {'n_estimators':[500,1000], 'max_features':['auto'],'min_samples_leaf':[1,5]}#xrf+xrf
+    #parameters = {}
+    cv = StratifiedKFold(ly,2)
+    score_fnc = make_scorer(multiclass_log_loss, greater_is_better=False, needs_proba=True)
+    clf  = grid_search.GridSearchCV(lmodel, parameters,n_jobs=1,verbose=1,scoring=score_fnc,cv=cv,refit=True)
+    clf.fit(lX,ly)
+    best_score=1.0E5
+    print("%6s %6s %6s %r" % ("OOB", "MEAN", "SDEV", "PARAMS"))
+    for params, mean_score, cvscores in clf.grid_scores_:
+	oob_score = mean_score
+	cvscores = cvscores
+	mean_score = cvscores.mean()
+	print("%6.3f %6.3f %6.3f %r" % (oob_score, mean_score, cvscores.std(), params))
+	#if mean_score < best_score:
+	#    best_score = mean_score
+	#    scores[i,:] = cvscores
+	
+    return clf.best_estimator_
 
 if __name__=="__main__":
   np.random.seed(42)
@@ -944,10 +1120,11 @@ if __name__=="__main__":
   pd.set_option('display.max_columns', 14)
   pd.set_option('display.max_rows', 40)
   
+  
   location='train'
-  subset=None
-  loadData=False
   extractFeatures=False
+  loadTempData=False
+  subset=None   
   nudgeData=False
   maxPixel=25#25
   doSVD=None
@@ -959,23 +1136,39 @@ if __name__=="__main__":
   stripFeats=True
   createExtraFeatures=False
   standardize=True
-  patchWork=True
+  convolution=True
+  alignImages=False
   
   #checkSubmission('/home/loschen/programs/cxxnet/example/kaggle_bowl/cxx_standard2.csv')
   #sys.exit(1)
   
-  Xtrain, ytrain, class_names,Xtest = prepareData(subset=subset,loadData=loadData,extractFeatures=extractFeatures,maxPixel = maxPixel,doSVD=doSVD,subsample=subsample,nudgeData=nudgeData,dilation=dilation,kmeans=dokmeans,randomRotate=randomRotate,useOnlyFeats=useOnlyFeats,stripFeats=stripFeats,createExtraFeatures=createExtraFeatures,patchWork=patchWork,standardize=standardize,location=location)
-  print Xtrain.describe()
-  model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='gini', max_features='auto',oob_score=False)
-  #model = SGDClassifier(loss="log", eta0=1.0, learning_rate="constant",n_iter=5, n_jobs=4, penalty=None, shuffle=False)#~percetpron
-  #model = DBN([Xtrain.shape[1], 100, -1],learn_rates = 0.3,learn_rate_decays = 0.9,epochs = 10,verbose = 1)
-  #model = GradientBoostingClassifier(loss='deviance',n_estimators=100, learning_rate=0.1, max_depth=2,subsample=.5,verbose=False)
-  #model = LogisticRegression(C=100.0)
-  #model = SGDClassifier(alpha=0.1,n_iter=25,shuffle=True,loss='log',penalty='l2',n_jobs=4,verbose=True)#mll=4.38?
-  #model = Pipeline(steps=[('rbm', BernoulliRBM(n_components =300,learning_rate = 0.1,n_iter=15, random_state=0, verbose=True)), ('lr', LogisticRegression())])
-  #model = LDA()#6.38
+  Xtrain, ytrain, class_names,Xtest = prepareData(subset=subset,loadTempData=loadTempData,extractFeatures=extractFeatures,maxPixel = maxPixel,doSVD=doSVD,subsample=subsample,nudgeData=nudgeData,dilation=dilation,kmeans=dokmeans,randomRotate=randomRotate,useOnlyFeats=useOnlyFeats,stripFeats=stripFeats,createExtraFeatures=createExtraFeatures,convolution=convolution,alignImages=alignImages,standardize=standardize,location=location)
+  Xtrain = scaleData(Xtrain)
+  print "Xtrain dtype:",Xtrain.dtypes[0]
+  print "ytrain dtype:",ytrain.dtype
   
-  model = buildModelMLL(model,Xtrain,ytrain,class_names,trainFull=False)
+  #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=5,criterion='gini', max_features='auto',oob_score=False)
+  #model = SGDClassifier(loss="log", eta0=1.0, learning_rate="constant",n_iter=5, n_jobs=4, penalty=None, shuffle=False)#~percetpron
+  
+  #model = DBN([Xtrain.shape[1], 500, -1],learn_rates = 0.3,learn_rate_decays = 0.9,epochs = 30,verbose = 1)#2.15
+  #model = GradientBoostingClassifier(loss='deviance',n_estimators=100, learning_rate=0.1, max_depth=2,subsample=.5,verbose=False)
+  #model = LogisticRegression(C=1.0)#3.02
+  #Xtrain = scaleData(Xtrain)
+  #print Xtrain.describe()
+  model = SGDClassifier(alpha=0.01,n_iter=250,shuffle=False,loss='log',penalty='l2',n_jobs=4,verbose=False)#mll=3.0
+  #model = Pipeline(steps=[('rbm', BernoulliRBM(n_components =300,learning_rate = 0.1,n_iter=15, random_state=0, verose=True)), ('lr', LogisticRegression())])
+  #model = LDA()#4.84
+  #model = LinearSVC(penalty='l2', loss='l2', dual=True, tol=0.0001, C=1.0, multi_class='ovr', fit_intercept=True, intercept_scaling=1, class_weight=None, verbose=0, random_state=None)
+  #model = SVC(C=10, kernel='linear', shrinking=True, probability=True, tol=0.001, cache_size=200)#SLOW!15 min mll=2.52
+  #model = SVC(C=100, kernel='rbf', shrinking=True, probability=True, tol=0.001, cache_size=200)
+  #model = KNeighborsClassifier(n_neighbors=5)#13
+  
+  if isinstance(model,DBN) or isinstance(model,SGDClassifier) or isinstance(model,LogisticRegression):
+    Xtrain = removeLowVariance(Xtrain)
+    Xtrain = scaleData(Xtrain,normalize=True)
+  
+  #model = buildModelMLL(model,Xtrain,ytrain,class_names,trainFull=False)
+  model = makeGridSearch(model,Xtrain,ytrain,n_jobs=2)
   
   #with open("tmp.pkl", "w") as f: pickle.dump(model, f)
   

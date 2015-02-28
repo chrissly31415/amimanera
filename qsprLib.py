@@ -26,7 +26,7 @@ from sklearn.cross_validation import StratifiedKFold,KFold,StratifiedShuffleSpli
 from sklearn.metrics import roc_auc_score,classification_report,make_scorer,f1_score,precision_score,mean_squared_error
 #from sklearn.utils.extmath import density
 from sklearn.feature_extraction import DictVectorizer
-from sklearn.decomposition import TruncatedSVD,PCA,RandomizedPCA
+from sklearn.decomposition import TruncatedSVD,PCA,RandomizedPCA, FastICA, MiniBatchSparsePCA, SparseCoder,DictionaryLearning,MiniBatchDictionaryLearning
 from sklearn.pipeline import Pipeline
 
 from sklearn.feature_selection import SelectKBest,SelectPercentile, chi2, f_classif,f_regression,GenericUnivariateSelect,VarianceThreshold
@@ -859,22 +859,26 @@ def showMisclass(lmodel,lXs,ly,t=0.0,bubblesizes=None):
     
 
     
-def scaleData(lXs,lXs_test=None,cols=None,centerZero=False):
+def scaleData(lXs,lXs_test=None,cols=None,normalize=True,epsilon=1E-15):
     """
     standard scaling of data, also possible with sklearn StandardScaler but not with dataframe
     """
     if cols is None:
 	cols = lXs.columns
-    
+
     if lXs_test is not None:
 	lX_all = pd.concat([lXs_test, lXs])
     else:
 	lX_all = lXs
-	
-    if centerZero:
-	lX_all[cols] = (lX_all[cols] - lX_all[cols].mean()) / (lX_all[cols].max() - lX_all[cols].min())
-    else:
+
+    if normalize:
+	print "Normalize data..."
 	lX_all[cols] = (lX_all[cols] - lX_all[cols].min()) / (lX_all[cols].max() - lX_all[cols].min())
+    #standardize
+    else:
+	print "Standardize data with epsilon:",epsilon
+	#lX_all[cols] = (lX_all[cols] - lX_all[cols].mean()) / np.sqrt(lX_all[cols].var()+epsilon)
+	lX_all[cols] = (lX_all[cols] - lX_all[cols].mean()) / lX_all[cols].std()
     
     #print lX_all[cols].describe()
     
