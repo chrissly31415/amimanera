@@ -53,6 +53,7 @@ from qsprLib import *
 
 #TODO
 #GPU cards: https://timdettmers.wordpress.com/2014/08/14/which-gpu-for-deep-learning/
+#realtime transform python: https://github.com/benanne/kaggle-galaxies/blob/master/realtime_augmentation.py
 #http://danielnouri.org/notes/2014/12/17/using-convolutional-neural-nets-to-detect-facial-keypoints-tutorial/
 #http://www.kaggle.com/c/datasciencebowl/forums/t/11421/converting-images-to-standard-scale-code
 #transformation
@@ -269,36 +270,32 @@ def padImage(img,pad=1):
     return padImg
 
 #@profile
-def doConvolution(lX,ly=None,maxPixel=None,patchSize=5,n_components=144,stepsize=2,pad=1,blocksize=4,showEigenImages=False):
+def doConvolution(lX,ly=None,maxPixel=None,patchSize=5,n_components=15,stride=2,pad=1,blocksize=4,showEigenImages=False):
     """
     Extract patches....
     """
-    #@TODO new quater array
     #@TODO incl testset....
     #http://scikit-learn.org/stable/auto_examples/cluster/plot_dict_face_patches.html
     #http://scikit-learn.org/stable/modules/preprocessing.html
     #http://nbviewer.ipython.org/github/dmrd/hackclass-sklearn/blob/master/image_classification.ipynb
     #http://scikit-learn.org/stable/auto_examples/applications/face_recognition.html
-    
-    #http://scikit-image.org/docs/0.10.x/api/skimage.util.html#view-as-blocks
-    #pp = pprint.PrettyPrinter()
-       
     max_patches=None    
     whiten_pca=True
     pooling=True   
     
     #data_type='float32'
     
-    print "Image width=height",maxPixel
-    print "Patch size:",patchSize
-    print "Stride:",stepsize
-    print "PCA components:",n_components  
-    print "Pad:",pad
+    print "Image width:",maxPixel
+    print "Image height:",maxPixel
+    print "Pad         :",pad
+    print "Patch size  :",patchSize
+    print "Stride      :",stride
+    print "PCA components:",n_components
     print "Pooling:",pooling
     print "Pooling patches blocksize:",blocksize
       
-    #npatches = (maxPixel - patchSize +1+2*pad)*(maxPixel - patchSize +1+2*pad)/stepsize
-    npatchesx = (maxPixel+2*pad - patchSize)/stepsize +1
+    #npatches = (maxPixel - patchSize +1+2*pad)*(maxPixel - patchSize +1+2*pad)/stride
+    npatchesx = (maxPixel+2*pad - patchSize)/stride +1
     npatches = npatchesx * npatchesx
     print "number of patches:",npatches
     
@@ -316,7 +313,7 @@ def doConvolution(lX,ly=None,maxPixel=None,patchSize=5,n_components=144,stepsize
 	#img = np.reshape(img, (maxPixel, maxPixel)).astype('float32')
 	if pad:
 	  img = padImage(img,pad=pad)
-	patches = view_as_windows(img,(patchSize, patchSize),stepsize)
+	patches = view_as_windows(img,(patchSize, patchSize),stride)
 	patches = np.reshape(patches, (patches.shape[0]*patches.shape[1],patchSize, patchSize))
 	patches = np.reshape(patches, (len(patches), -1))
 	data[i,:,:]=patches
@@ -328,19 +325,27 @@ def doConvolution(lX,ly=None,maxPixel=None,patchSize=5,n_components=144,stepsize
     data = np.reshape(data,(lX.shape[0]*npatches,patchSize*patchSize))
     
     print "Extract patches, new shape:",data.shape, " size (MB):",float(data.nbytes)/1.0E6, " dtype:",data.dtype
-        
+    
+    #if whiten_pca:
+    #  print "Intermediate PCA!"
+    #  pca = RandomizedPCA(patchSize*patchSize, whiten=whiten_pca)
+    #  data = pca.fit_transform(data)
+    #do a pca first
     #pca = RandomizedPCA(n_components, whiten=whiten_pca)
+    #http://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.vq.kmeans.html
+    #http://ufldl.stanford.edu/wiki/index.php/Implementing_PCA/Whitening
     #pca=TruncatedSVD(n_components=n_components, algorithm='randomized', n_iter=5, tol=0.0)
-    pca = MiniBatchKMeans(init='k-means++', n_clusters=n_components, n_init=5)
+    pca0 = MiniBatchKMeans(init='k-means++', n_clusters=n_components, n_init=5)
     #pca = FastICA(n_components=n_components,whiten=whiten_pca)
-   
+    pca0.fit(data)
     #pca = MiniBatchSparsePCA(n_components=n_components,alpha=0.5,n_jobs=4)
     #pca = MiniBatchDictionaryLearning(n_components=n_components,alpha=0.5,n_jobs=4)
-    #pca = SparseCoder(dictionary=pca.cluster_centers_)
+    #pca = SparseCoder(dictionary=pca0.cluster_centers_,transform_n_nonzero_coefs=n_components,transform_algorithm='lars',transform_alpha=None,n_jobs=4)
+    pca = SparseCoder(dictionary=pca0.cluster_centers_,transform_n_nonzero_coefs=n_components,transform_algorithm='omp',transform_alpha=None,n_jobs=4)
     print pca
-         
+    data = pca.fit_transform(data)     
     #transform data to 64bit!!!
-    data = pca.fit_transform(data)
+    
     #data = pca.fit(data[::4])
     #data = pca.transform(data)
     
@@ -361,7 +366,7 @@ def doConvolution(lX,ly=None,maxPixel=None,patchSize=5,n_components=144,stepsize
       #eigenfaces = pca.components_
       plt.figure(figsize=(4.2, 4))
       for i, comp in enumerate(eigenfaces[:n_components]):
-	  plt.subplot(n_components/4, 4, i + 1)
+	  plt.subplot(n_components/3, 3, i + 1)
 	  plt.imshow(comp, cmap=plt.cm.gray_r,
 		    interpolation='nearest')
 	  plt.xticks(())
@@ -408,9 +413,7 @@ def doConvolution(lX,ly=None,maxPixel=None,patchSize=5,n_components=144,stepsize
     #data = np.concatenate(tmp, axis=0) 
     data = np.asarray(tmp)
     print "New shape after pooling:",data.shape, " size (MB):",float(data.nbytes)/1.0E6
-
-
-    
+  
     lX = pd.DataFrame(data,dtype=np.float32)
     print "datatype:",lX.dtypes[0]
     if ly is not None:
@@ -1087,14 +1090,14 @@ def checkSubmission(subfile='cxx_standard2.csv'):
   
   
 def makeGridSearch(lmodel,lX,ly,n_jobs=1):
-
-    parameters = {'alpha':[0.01,0.1,],'n_iter':[150,250],'penalty':['l2','l1']}#SGD
+    parameters = {'C':[1000,10,0.1]}#Linear SVC
+    #parameters = {'alpha':[0.01,0.1,],'n_iter':[150,250],'penalty':['l2','l1']}#SGD
     #parameters = {'learn_rates':[0.3,0.2,0.1],'learn_rate_decays':[1.0,0.9,0.8],'epochs':[40]}#DBN
     #parameters = {'n_estimators':[500,1000], 'max_features':['auto'],'min_samples_leaf':[1,5]}#xrf+xrf
     #parameters = {}
     cv = StratifiedKFold(ly,2)
     score_fnc = make_scorer(multiclass_log_loss, greater_is_better=False, needs_proba=True)
-    clf  = grid_search.GridSearchCV(lmodel, parameters,n_jobs=1,verbose=1,scoring=score_fnc,cv=cv,refit=True)
+    clf  = grid_search.GridSearchCV(lmodel, parameters,n_jobs=1,verbose=1,scoring=score_fnc,cv=cv,refit=False)
     clf.fit(lX,ly)
     best_score=1.0E5
     print("%6s %6s %6s %r" % ("OOB", "MEAN", "SDEV", "PARAMS"))
@@ -1147,15 +1150,14 @@ if __name__=="__main__":
   print "Xtrain dtype:",Xtrain.dtypes[0]
   print "ytrain dtype:",ytrain.dtype
   
-  #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=5,criterion='gini', max_features='auto',oob_score=False)
+  model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=5,criterion='gini', max_features='auto',oob_score=False)
   #model = SGDClassifier(loss="log", eta0=1.0, learning_rate="constant",n_iter=5, n_jobs=4, penalty=None, shuffle=False)#~percetpron
   
   #model = DBN([Xtrain.shape[1], 500, -1],learn_rates = 0.3,learn_rate_decays = 0.9,epochs = 30,verbose = 1)#2.15
   #model = GradientBoostingClassifier(loss='deviance',n_estimators=100, learning_rate=0.1, max_depth=2,subsample=.5,verbose=False)
   #model = LogisticRegression(C=1.0)#3.02
-  #Xtrain = scaleData(Xtrain)
   #print Xtrain.describe()
-  model = SGDClassifier(alpha=0.01,n_iter=250,shuffle=False,loss='log',penalty='l2',n_jobs=4,verbose=False)#mll=3.0
+  #model = SGDClassifier(alpha=0.01,n_iter=250,shuffle=True,loss='log',penalty='l2',n_jobs=4,verbose=False)#mll=3.0
   #model = Pipeline(steps=[('rbm', BernoulliRBM(n_components =300,learning_rate = 0.1,n_iter=15, random_state=0, verose=True)), ('lr', LogisticRegression())])
   #model = LDA()#4.84
   #model = LinearSVC(penalty='l2', loss='l2', dual=True, tol=0.0001, C=1.0, multi_class='ovr', fit_intercept=True, intercept_scaling=1, class_weight=None, verbose=0, random_state=None)
@@ -1163,12 +1165,12 @@ if __name__=="__main__":
   #model = SVC(C=100, kernel='rbf', shrinking=True, probability=True, tol=0.001, cache_size=200)
   #model = KNeighborsClassifier(n_neighbors=5)#13
   
-  if isinstance(model,DBN) or isinstance(model,SGDClassifier) or isinstance(model,LogisticRegression):
+  if isinstance(model,DBN) or isinstance(model,SGDClassifier) or isinstance(model,LogisticRegression) or isinstance(model,SVC):
     Xtrain = removeLowVariance(Xtrain)
     Xtrain = scaleData(Xtrain,normalize=True)
   
-  #model = buildModelMLL(model,Xtrain,ytrain,class_names,trainFull=False)
-  model = makeGridSearch(model,Xtrain,ytrain,n_jobs=2)
+  model = buildModelMLL(model,Xtrain,ytrain,class_names,trainFull=False)
+  #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=4)
   
   #with open("tmp.pkl", "w") as f: pickle.dump(model, f)
   

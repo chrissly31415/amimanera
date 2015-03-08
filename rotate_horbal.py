@@ -8,11 +8,34 @@ from datetime import datetime
 import PIL
 from PIL import Image,ImageFilter
 import matplotlib.pyplot as plt
+import numpy as np
 
 #Usage: python ./rotate_images.py /home/xxx/data/train
-rotation_angles = [90, 180, 270]
- 
-def create_image_rotations(image):
+#rotation_angles = [90, 180, 270]
+rotation_angles = [180]
+
+direction_vectors = [
+        [[0, 2, 0],
+         [0, 0, 0],
+         [0, 0, 0]],
+
+        [[0, 0, 0],
+         [2, 0, 0],
+         [0, 0, 0]],
+
+        [[0, 0, 0],
+         [0, 0, 2],
+         [0, 0, 0]],
+
+        [[0, 0, 0],
+         [0, 0, 0],
+         [0, 2, 0]]]
+
+shift = lambda x, w: convolve(x, mode='constant',
+                                  weights=w)
+
+
+def create_image_modifications(image):
     whitec = PIL.ImageColor.getrgb("white")
     
     imgs = [(image.convert("RGBA").rotate(a, expand = 1), a) for a in rotation_angles]
@@ -34,6 +57,35 @@ def create_image_rotations(image):
     
     return imgs
 
+
+def rotate_image(image,angle):
+    img = image.convert("RGBA").rotate(angle, expand = 1)
+    bg = Image.new("RGB", im.size, whitec)
+    bg.paste(im, im)
+    return bg,angle
+
+def flip_image(image,fliptype=PIL.Image.FLIP_LEFT_RIGHT):
+    img_mirror = image.convert("RGBA").transpose(fliptype)
+    return img_mirror, str(fliptype)
+
+def translate_image(image):
+    img = np.array(image)
+    print img.shape
+    #translate...
+    vector = direction_vectors[0]
+    img = np.apply_along_axis(shift, 1, img, vector)
+
+    img = Image.fromarray(img)
+    return img,'transl'
+
+
+def makeGradient(image):
+    img = img.filter(ImageFilter.FIND_EDGES)      
+    w, h = img.size
+    cs = 1
+    img = img.crop((cs, cs, w-cs, h-cs))
+    return img,"grad"
+  
     
 def getDirectoryNames(location="train"):
     directory_names = list(set(glob.glob(os.path.join(location, "*"))).difference(set(glob.glob(os.path.join(location,"*.*")))))
@@ -63,10 +115,15 @@ if __name__ == '__main__':
 	    img = Image.open(imgf)
 	    
 	    if gradient_only:
-	      img = img.filter(ImageFilter.FIND_EDGES)
-	      img.save(image_path + '/' + image_file + '.jpg')
+	      img = img.filter(ImageFilter.FIND_EDGES)	      
+	      w, h = img.size
+	      cs = 1
+	      img = img.crop((cs, cs, w-cs, h-cs))
+	      imgp = image_path + '/' + image_file + '.jpg'
+	      img.save(imgp)
+	      
 	    else:
-	      rimgs = create_image_rotations(img)
+	      rimgs = create_image_modifications(img)
 	      for rimg, rot in rimgs:
 		  rimg.save(image_path + '/' + image_file + '_mod' + str(rot) + '.jpg')
     
