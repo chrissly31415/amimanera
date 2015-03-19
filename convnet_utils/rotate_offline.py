@@ -11,7 +11,7 @@ import numpy as np
 import PIL
 from PIL import Image,ImageFilter,ImageChops
 
-#Usage: python ./rotate_images.py /home/xxx/data/train
+#Usage: python ./rotate_offline.py /home/xxx/data/train
 #rotation_angles = [180]
 
 
@@ -119,7 +119,7 @@ if __name__ == '__main__':
 	    image_path = '/'.join(spimgf[:-1])
 	    image_file = spimgf[-1].split('.')[0]
 	    #print "Rd:",random()
-	    print "Open:",imgf
+	    #print "Open:",imgf
 	    img = Image.open(imgf)
 	    
 	    

@@ -1,5 +1,6 @@
 #!/usr/bin/python 
 # coding: utf-8
+# submission script for kaggle data science bowl
 
 import os
 import sys
@@ -12,7 +13,11 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-endings = ['_orig','_mod90','_mod180','_mod270','_modfliptb','_modfliplr']
+#endings = ['_orig','_mod90','_mod180','_mod270','_modfliptb','_modfliplr']
+endings = ['_orig','_mod90','_mod180','_mod270','_modtrans1','_modtrans2','_modresize1','_modresize2','_modshear1','_modshear2']
+train_folder = '/home/loschen/programs/cxxnet/example/kaggle_bowl/data/test_last/'
+predict_model='pred_model6.conf'
+
 #endings = ['_orig','_mod180','_modfliptb','_modfliplr']
 print "Suffices:",endings
 
@@ -21,7 +26,7 @@ def createTestList():
       random.seed(888)
 
       task = 'test'
-      train_folder = '/home/loschen/programs/cxxnet/example/kaggle_bowl/data/test_4fold/'
+      
       sample = './sampleSubmission.csv'
       outfile = 'test'+suffix+'.lst'
       
@@ -73,7 +78,7 @@ def make_predictions():
 	  orig_lst_file = 'test'+suffix+'.lst'
 	  tmp_lst_file = 'test.lst'
 	  shutil.copyfile(orig_lst_file, tmp_lst_file)
-	  call_str = "../../bin/cxxnet pred_model2.conf"
+	  call_str = "../../bin/cxxnet "+predict_model
 	  subprocess.call(call_str,shell=True)
 	  #rename test.txt
 	  out_file = 'test'+suffix+'.txt'
@@ -113,6 +118,15 @@ def format_predictions():
 	    fo.writerow(row)
 
 def average_predictions(basename='cxx_',lendings=endings,weights=None):
+    print weights
+    if weights is not None:
+	if len(weights) <> len(lendings):
+	  print "Weights and ending do not match."
+	  sys.exit(1)
+	weights = weights/np.sum(weights)
+	print "Weights:", weights
+	
+      
     sample = basename+lendings[0]+'.csv'
     ref = pd.read_csv(sample, sep=",", na_values=['?'],index_col=0)
     nrows = ref.shape[0]
@@ -125,9 +139,11 @@ def average_predictions(basename='cxx_',lendings=endings,weights=None):
 	tmp.sort_index(inplace=True)
 	#print tmp.describe()
 	if weights is not None:
+	  print "Suffix:",suffix," weight:",weights[i]
 	  preds_all[i] = weights[i]*tmp.values
 	else:
 	  preds_all[i] = tmp.values
+	
 	#ax1 = tmp.iloc[:,2:10].hist(bins=40)
 	#plt.title('tmp_'+str(i))
 	#raw_input()
@@ -144,7 +160,7 @@ def average_predictions(basename='cxx_',lendings=endings,weights=None):
 
     #print preds.describe()
   
-    filename = basename+'average_blend2.csv'
+    filename = basename+'blend4.csv'
     filename = '/home/loschen/calc/amimanera/competition_data/submissions/'+filename
     preds.to_csv(filename,index_label='image')
     
@@ -161,7 +177,7 @@ def test_submissions(clip=True):
 #	print tmp.describe().iloc[:,1:5]
 #	raw_input()
 	
-    filename = 'cxx_addlayer.csv'
+    filename = 'sampleSubmission.csv'
     filename = '/home/loschen/calc/amimanera/competition_data/submissions/'+filename
     tmp = pd.read_csv(filename, sep=",", na_values=['?'],index_col=0)
     print tmp.describe().iloc[:,1:5]
@@ -175,7 +191,8 @@ if __name__=="__main__":
     #make_predictions()
     #format_predictions()
     #average_predictions(lendings=endings)
-    average_predictions(lendings=['large_rot_mean','addlayer2_avg'],weights=[0.25,0.75])
+    #average_predictions(lendings=endings,weights=[0.2,0.1,0.1,0.1,0.1,0.1,0.05,0.05,0.05,0.05])
+    average_predictions(lendings=['model5_avg','model6_avg'],weights=[0.25,0.75])
     #average_predictions(lendings=['large_rot_mean','addlayer2_avg'],weights=None)
     #average_predictions()
     test_submissions(clip=False)
