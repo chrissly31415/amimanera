@@ -43,14 +43,44 @@ loadData<-function(filename,separator=";") {
   
 }
 
-prepareData_standard<-function(ldata,removeZeroCols=T,useInterval=F,lowT=0,highT=1000,removeCols=TRUE) {
+prepareData_standard<-function(ldata,removeZeroCols=T,drugLike=T,outlierRemoval=T,useInterval=F,lowT=0,highT=1000,removeCols=TRUE) {
   #REMOVE ROWS
-  if (useInterval==T) {
+  cat(">>Number of samples:",nrow(ldata),"\n")
+  if (useInterval) {
+    cat("Applying T-intervall Filter\n")   
     ldata<-ldata[ldata$mpK<highT,]
     ldata<-ldata[ldata$mpK>lowT,]
+    cat(">>Number of samples:",nrow(ldata),"\n")   
   }
+  
+  #Pseudo lipinski filter
+  if (drugLike) {    
+    cat("Applying drug-likeliness Filter\n")   
+    ldata<-ldata[ldata$molweight>=150,]
+    cat(">>Filter MW>=150:",nrow(ldata),"\n")
+    ldata<-ldata[ldata$molweight<=500,]
+    cat(">>Filter MW<=500:",nrow(ldata),"\n")
+    ldata<-ldata[ldata$rotatable_bonds<=7,]
+    cat(">>Filter rotbonds<=7:",nrow(ldata),"\n")
+    if("Donor" %in% colnames(ldata)) ldata<-ldata[ldata$Donor<=5,]
+    if("Acceptor" %in% colnames(ldata)) ldata<-ldata[ldata$Acceptor<=10,] 
+    cat(">>Number of samples:",nrow(ldata),"\n")
+  }
+  
   #remove outliers
-  #ldata<-ldata[ldata$SMILES!="CCCCC(CCCC)=O",]
+  if (outlierRemoval) {
+    cat("Outlier removal\n")
+    idx<-grep("Si",ldata$SMILES, perl=TRUE)
+    #cat(ldata$SMILES[idx])
+    ldata<-ldata[-idx,]
+    #ldata<-subset(ldata,select=-idx)
+    #remove adamantanes
+    idx<-grep("adamant",ldata$name, perl=TRUE)
+    #cat(ldata$name[idx])
+    ldata<-ldata[-idx,]
+    cat(">>Number of samples:",nrow(ldata),"\n")
+  }
+
   smiles<-ldata[,2:3]
   ldata<-ldata[,6:length(ldata)]
   #REMOVE COLS
@@ -591,13 +621,32 @@ pc_correct<-function(actual,predicted) {
 }
 
 
-sigmoid<-function(x,a=1.0,b=0.0) {
+sigmoidal<-function(x,a=1.0,b=0.0) {
   value<-1/(1+exp(-a*(x-b)))
   return(value)
 }
 
+#computes enrichment factor
+computeEF<-function(predicted,truth,returnMax=FALSE,top=1) {
+  res<-data.frame(pred=predicted,truth=truth)
+  res<-res[with(res, order(-predicted)), ]
+  Nfh<- match(1, res$truth)
+  nh<-sum(res$truth)
+  N<-length(res$truth)
 
-computeAUC<-function(predicted,truth,verbose=F) {
+  if (returnMax) {
+    EF<-N/nh
+  } else {
+    EF<-(1.0/Nfh)/(nh/N)
+  }
+  #cat("Nfh:",Nfh,"\n")
+  #cat("nh:",nh,"\n")
+  #cat("N:",N,"\n")
+  #cat("Ef:",EF,"\n")
+  return(EF)
+}
+
+computeAUC<-function(predicted,truth,titlename=NULL,verbose=F) {
   require("ROCR")
   #print(summary(truth))
   pred<-prediction(predicted, truth)
@@ -605,11 +654,14 @@ computeAUC<-function(predicted,truth,verbose=F) {
   if (verbose) {
     plot(perf,col="blue",lty=3, lwd=3,xlim=c(0,1))
     abline(0.0,1.0, col = "black",lwd=3,xlim=c(0,1))
+    if (!is.null(titlename)) {
+      title(titlename)
+    }
   }
   auc<-performance(pred,"auc")
   auc<-unlist(slot(auc, "y.values"))
   #str(auc)
-  if (verbose) cat("AUC:",auc,"\n")
+  #if (verbose) cat("AUC:",auc,"\n")
   return(auc)
 }
 
@@ -668,20 +720,20 @@ caret_train<-function(Xl,yl,classification=F,lmethod="gbm") {
   #
 }
 
-gbm_grid<-function(lX,ly,lossfn="auc",treemethod="gbm") {
+gbm_grid<-function(lX,ly,lossfn="auc",treemethod="gbm",repeatcv=3,parameters=list(depth=c(4,8),shseq=c(0.01,0.02),iterations=c(500))) {
   df<-data.frame(lX,ly)
-  intseq<-c(3,4,5,6)#can also be mtry
-  shseq<-c(0.02)
-  iterseq<-c(250,300,400)
-  for(i in intseq) {
+  depth<-parameters[["depth"]] #can also be mtry
+  shseq<-parameters[["shseq"]]
+  iterations<-parameters[["iterations"]]#number of tress  
+  for(i in depth) {
     for(j in shseq) {
-      for(k in iterseq) {
+      for(k in iterations) {
         if (treemethod=="gbm") {
           cat("Iterations:",k," int.depth:",i, " shrinkage:",j," ")
-          xval_oob(lX,ly,numberTrees=k,nrfolds=5,intdepth=i,sh=j,minsnode=5,repeatcv=2,lossfn=lossfn,method=treemethod)
+          xval_oob(lX,ly,iterations=k,nrfolds=5,intdepth=i,sh=j,minsnode=5,repeatcv=repeatcv,lossfn=lossfn,method=treemethod)
         } else {
           cat("Iterations:",k," mtry:",i," ")
-          xval_oob(lX,ly,numberTrees=k,nrfolds=5,mtry=i,repeatcv=2,lossfn=lossfn,method=treemethod)
+          xval_oob(lX,ly,iterations=k,nrfolds=5,mtry=i,repeatcv=repeatcv,lossfn=lossfn,method=treemethod)
         }
         cat("\n")
       }
@@ -709,30 +761,30 @@ xval_oob<-function(Xl,yl,iterations=500,nrfolds=5,intdepth=2,sh=0.01,minsnode=5,
           if (method=="gbm") {
             gbm1<-gbm.fit(Xtrain ,ytrain,distribution="bernoulli",n.trees=iterations,interaction.depth=intdepth,shrinkage=sh,n.minobsinnode = minsnode,verbose=F)
             results<-predict.gbm(gbm1,Xtest,n.trees=iterations,type="response")
-          } else if (method=='randomForest') {
+          } else if (method=='randomForest' || method=='rf') {
             #RF
-            rf1 <- randomForest(Xtrain,ytrain,ntree=iterations,mtry=mtry,importance = F,nodesize =10)
+            rf1 <- randomForest(Xtrain,ytrain,ntree=iterations,mtry=mtry,importance = F)
             results<-predict(rf1,Xtest,type="vote")[,2]
           } else if (method=='linear') {
-	    #linear regression
-	    #Xtrain<-variableSelection(Xtrain,ytrain,"forward",iterations)
-	    fit<-linRegTrain(Xtrain,ytrain,NULL,F)
-	    results<-predict(fit,Xtest)
+      	    #linear regression
+      	    #Xtrain<-variableSelection(Xtrain,ytrain,"forward",iterations)
+      	    fit<-linRegTrain(Xtrain,ytrain,NULL,F)
+      	    results<-predict(fit,Xtest)
           }
           score<-computeAUC(results,ytest,F)
         } else {
           if (method=="gbm") {
             gbm1<-gbm.fit(Xtrain ,ytrain,distribution="gaussian",n.trees=iterations,interaction.depth=intdepth,shrinkage=sh,n.minobsinnode = minsnode,verbose=F)
             results<-predict.gbm(gbm1,Xtest,n.trees=iterations,type="response")
-            } else if (method=='randomForest') {
+            } else if (method=='randomForest'|| method=='rf') {
               #RF
-              rf1 <- randomForest(Xtrain,ytrain,ntree=iterations,mtry=mtry,importance = F,nodesize =10)
+              rf1 <- randomForest(Xtrain,ytrain,ntree=iterations,mtry=mtry,importance = F)
               results<-predict(rf1,Xtest)             
             } else if (method=='linear') {
-	      #linear regression
-	      Xtrain<-variableSelection(Xtrain,ytrain,"forward",iterations)
-	      fit<-linRegTrain(Xtrain,ytrain,NULL,F)
-	      results<-predict(fit,Xtest)
+      	      #linear regression
+      	      Xtrain<-variableSelection(Xtrain,ytrain,"forward",iterations)
+      	      fit<-linRegTrain(Xtrain,ytrain,NULL,F)
+      	      results<-predict(fit,Xtest)
             }
           score<-compRMSE(results,ytest)
           }        
@@ -766,7 +818,7 @@ xval_oob<-function(Xl,yl,iterations=500,nrfolds=5,intdepth=2,sh=0.01,minsnode=5,
     cat("RMSE of iterations:",score_iter,"\n")
     cat("<RMSE,oob>:",compRMSE(oob_mean,yl)," RMSE,mean:",mean(score_iter)," sdev:",sd(score_iter),"\n") 
   }
-  res<-data.frame(prediction=oob_mean)
+  res<-data.frame(prediction=oob_mean,experiment=yl)
   if (!is.null(oobfile)) {
       write.table(res,file=oobfile,sep=",",row.names=FALSE)
   }
@@ -793,7 +845,7 @@ trainRF<-function(lX,ly,iter=500,m.try=if (!is.null(ly) && !is.factor(ly)) max(f
     cat("...regression\n")
     nr.samples<-nrow(lX)
     rmse<-mean(sqrt(mydata.rf$mse)*(nr.samples-1)/nr.samples)
-    stdev<-sd(mydata.rf$mse)
+    stdev<-sd(sqrt(mydata.rf$mse))
     if (verbose==T) {     
       cat("RF RMSE:",rmse,"stddev:",stdev," ")
       cat("R^2:",mean(mydata.rf$rsq),"\n")
@@ -988,7 +1040,7 @@ outlierDetection<-function(lX,ly,nrPCA,sortOnResidues=FALSE,plot=TRUE,lfit=NULL,
 
 
 #model:rf,iter,gam,svm,boost,gbm
-xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",iter=500,mtry=5) {
+xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",iter=500,mtry=5,gbm_steps=5) {
   require(e1071)
   require(gbm)
   ldata=data.frame(lX,target=ly)
@@ -998,6 +1050,9 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",iter=500,mtry=5) {
     train<-return_fold(all_folds,i,test=F)
     Xtrain<-train[,1:ncol(train)-1]
     ytrain<-train[,length(train)]
+    test<-return_fold(all_folds,i,test=T)
+    Xtest<-test[,1:ncol(test)-1]
+    ytest<-test[,length(test)]
     #TRAINING
     if (modname=="rf") {
       fit<-trainRF(Xtrain,ytrain,iter,mtry,verbose=T)
@@ -1024,16 +1079,47 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",iter=500,mtry=5) {
       } else {
         loss<-computeAUC(finalpred,ytrain,F)
         cat("AUC:",loss,"\n")
-      }
-      
+      } 
+    #GRADIENT BOOSTING WITH EARLY STOPPING
     } else if (modname=="gbm") {
-      cat("TRAIN GBM: ")
-      if (lossfn=="rmse") {
-        fit<-gbm.fit(Xtrain,ytrain,distribution="gaussian",n.trees=iter,interaction.depth=5,shrinkage=0.01,verbose=F)
-      } else {
-        cat("gbm: 0-1 distribution...")
-        fit<-gbm.fit(Xtrain,ytrain,distribution="bernoulli",n.trees=iter,interaction.depth=20,shrinkage=0.001,verbose=F)
-      }   
+      cat("TRAIN GBM with steps: ",gbm_steps,"\n")
+      iter_local<-iter/gbm_steps
+      cat("Iter:",iter,"\n")
+      fits<- vector(mode = "list", length = length(gbm_steps))
+      loss_test<-mat.or.vec(gbm_steps,1)
+      loss_train<-mat.or.vec(gbm_steps,1)
+      for (i in 1:gbm_steps) {     
+        if (i==1) {
+          if (lossfn=="rmse") {
+            cat("gbm: regression...\n")
+            fits[[i]]<-gbm.fit(Xtrain,ytrain,distribution="gaussian",n.trees=iter_local,interaction.depth=6,shrinkage=0.005,verbose=F)         
+            } else {
+            cat("gbm: 0-1 distribution...\n")
+            fits[[i]]<-gbm.fit(Xtrain,ytrain,distribution="bernoulli",n.trees=iter_local,interaction.depth=20,shrinkage=0.001,verbose=F)
+          }
+          
+        } else {  
+          fits[[i]]<-gbm.more(fits[[i-1]],iter_local,verbose=F)
+          inbag<-predict(fits[[i]],n.trees=iter_local*i,Xtrain,type="response")          
+          oobag<-predict(fits[[i]],n.trees=iter_local*i,Xtest,type="response")
+          loss_train[i]<-compRMSE(inbag,ytrain)
+          loss_test[i]<-compRMSE(oobag,ytest)
+          #cat("iter: ",i,"RMSE,train:",loss_train[i],"  RMSE,test:",loss_test[i]," \n")
+          cat(sprintf("iter: %6d RMSE,train: %6.2f RMSE,test: %6.2f\n",iter_local*i,loss_train[i],loss_test[i]))
+        }        
+        x<-seq(1,gbm_steps)
+        if (i==2) {
+          plot(x,loss_train,type="p",col="red")         
+        } else if (i>2) {
+          flush.console()
+          points(x,loss_train,type="p",col="red")
+          points(x,loss_test,type="p",col="green")
+        }
+        
+      }  
+      
+      
+      
     } else if (modname=="mars") {
       cat("TRAIN MARS: ") 
       if (lossfn=="rmse") {
@@ -1051,12 +1137,8 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",iter=500,mtry=5) {
         #fit<-glm.fit(Xtrain,ytrain,family=binomial(link="logit"))
         
       }
-
     }
     #PREDICTION
-    test<-return_fold(all_folds,i,test=T)
-    Xtest<-test[,1:ncol(test)-1]
-    ytest<-test[,length(test)]
     if (modname=="rf") {
       if (lossfn=="rmse") {
         pred<-predict(fit,Xtest)
@@ -1077,8 +1159,8 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",iter=500,mtry=5) {
       residues<-predict(rfmodel,Xtest)       
       pred<-linpred+residues
     } else if (modname=="gbm") {
-      cat("TEST GBM: ")
-      pred<-predict(fit,Xtest,n.trees=iter,type="response")
+      cat("TEST GBM with steps: ",gbm_steps,"\n")
+      pred<-predict(fits[[gbm_steps]],Xtest,n.trees=iter,type="response")
       print(summary(data.frame(pred)))
     } else if (modname=="mars") {
       cat("TEST MARS: ")

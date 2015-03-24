@@ -11,7 +11,7 @@ require(doSNOW)
 # modified by Chrissly31415                                                   #
 ###############################################################################
 
-bagged_net<-function(Xtrainl,Xtestl,y,hiddenl=2,nprocs=8,iterations=10,lossfn="auc",orthog=FALSE,idtrain=NULL,idtest=NULL) {
+bagged_net<-function(Xtrainl,y,Xtestl=NULL,hiddenl=50,nprocs=8,iterations=10,lossfn="auc",idtrain=NULL,idtest=NULL,verbose=F) {
   if (lossfn=="logloss") {
     loss_fnc<-compLOGLOSS
     loss_str="LOGLOSS"
@@ -21,43 +21,32 @@ bagged_net<-function(Xtrainl,Xtestl,y,hiddenl=2,nprocs=8,iterations=10,lossfn="a
   } else {
     loss_fnc<-computeAUC
     loss_str="AUC"
-  }
-  
+  }  
   cl<-makeCluster(nprocs, type = "SOCK",outfile="")
   registerDoSNOW(cl)
-  bagged.nnet <- foreach(i=1:iterations,.packages='nnet',.verbose=FALSE,.export=c("computeAUC","compRMSE","compLOGLOSS")) %dopar% {  
+  bagged.nnet <- foreach(i=1:iterations,.packages='nnet',.verbose=verbose,.export=c("computeAUC","compRMSE","compLOGLOSS")) %dopar% {  
     set.seed(i+42)
-    ##Train it
-    trainidx<-c(rep(TRUE,nrow(Xtrainl)),rep(FALSE,nrow(Xtestl)))
-    Xmerged<-rbind(Xtrainl,Xtestl)
+    ##Combine train set and test set(for prediction)
+    #trainidx<-c(rep(TRUE,nrow(Xtrainl)),rep(FALSE,nrow(Xtestl)))
+    #Xmerged<-rbind(Xtrainl,Xtestl)
     bagsize=nrow(Xtrainl)
     bagidx <- sample.int(nrow(Xtrainl),bagsize,replace=TRUE)
     cat("BAGSIZE:",dim(Xtrainl[bagidx,])," ")
     oobidx <- c(!(seq(1,nrow(Xtrainl)) %in% bagidx))
     cat("ITER:",i," OOBSIZE:",dim(Xtrainl[oobidx,]))
-    if (orthog) {
-      #orthogonalisation, does it really help? NO!!!
-      prcomp.fit<-prcomp(Xtrainl[bagidx,])
-      curr.ortho <- predict(prcomp.fit,Xmerged)
-      Xtrain<-data.frame(curr.ortho[trainidx,])
-      Xtest<-data.frame(curr.ortho[!trainidx,])
-    } else {
-      Xtrain<-Xmerged[trainidx,]
-      Xtest<-Xmerged[!trainidx,]
-    }
     curr.decay<-rlnorm(1,log(2),0.5)
     #curr.decay<-rlnorm(1,-1.0,sdlog=0.5)
     #curr.decay<-5e-4
     #curr.decay<-0.0
     cat(" DECAY:",curr.decay)
-    nnet.fit <- nnet(y=y[bagidx],x=Xtrain[bagidx,],linout=if (lossfn=="rmse") TRUE else FALSE,entropy=if (lossfn=="rmse") FALSE else TRUE,size=hiddenl,decay=curr.decay,maxit=1500,MaxNWts=5000,trace=FALSE)
+    nnet.fit <- nnet(y=y[bagidx],x=Xtrainl[bagidx,],linout=if (lossfn=="rmse") TRUE else FALSE,entropy=if (lossfn=="rmse") FALSE else TRUE,size=hiddenl,decay=curr.decay,maxit=1500,MaxNWts=5000,trace=FALSE)
     #nnet.fit <- nnet(y=y[bagidx],x=Xtrain[bagidx,], size = hiddenl, rang = 0.1, decay = curr.decay, maxit = 200)
     str(nnet.fit)
-    pred<-rep(NA,nrow(Xtrain))
-    pred[oobidx]<-predict(nnet.fit,Xtrain[oobidx,])  
+    pred<-rep(NA,nrow(Xtrainl))
+    pred[oobidx]<-predict(nnet.fit,Xtrainl[oobidx,])  
     cat(" LOSS:",loss_fnc(pred[oobidx],y[oobidx]),"\n")
     
-    test.pred<-predict(nnet.fit,Xtest)
+    test.pred<-predict(nnet.fit,Xtestl)
     return(list(oob.pred=pred,decay=curr.decay,test.pred=test.pred))
   }
   stopCluster(cl)
