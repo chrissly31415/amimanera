@@ -623,7 +623,7 @@ if __name__=="__main__":
 	#model = Pipeline([('pca', PCA(n_components=doPCA)), ('model', LinearRegression())])
 	#model = Pipeline([('pca', PCA(n_components=doPCA)), ('model', SGDRegressor(alpha=0.00001,n_iter=150,shuffle=True,loss='squared_loss',penalty='l2'))])
 	#model = Pipeline([('pca', PCA(n_components=200)), ('model', RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_split=2,min_samples_leaf=5,n_jobs=1,criterion='mse', max_features='auto',oob_score=False))])
-	#model = Pipeline([('svd', TruncatedSVD(n_components=25, algorithm=Xtrain'randomized', n_iter=5, tol=0.0)), ('model', RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_split=2,min_samples_leaf=5,n_jobs=1,criterion='mse', max_features='auto',oob_score=False))])
+	#model = Pipeline([('svd', TruncatedSVD(n_components=25, algorithm='randomized', n_iter=5, tol=0.0)), ('model', RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_split=2,min_samples_leaf=5,n_jobs=1,criterion='mse', max_features='auto',oob_score=False))])
 	#model = Pipeline([('pca', PCA(n_components=doPCA)), ('model', SVR(C=1.0, gamma=0.0, verbose = 0))])
 	#model = Pipeline([('filter', SelectPercentile(f_regression, percentile=50)), ('model', SVR(kernel='rbf',epsilon=0.1,C=10000.0, gamma=0.0, verbose = 0))])
 	#model = Pipeline([('filter',SelectPercentile(f_regression, percentile=99)), ('model', SGDRegressor(alpha=0.001,n_iter=250,shuffle=True,loss='huber',penalty='elasticnet',epsilon=1.0))])

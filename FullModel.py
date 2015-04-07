@@ -17,12 +17,13 @@ class XModel:
    """
    modelcount = 0
 
-   def __init__(self, name,classifier,Xtrain,Xtest,ytrain=None,sample_weight=None,cutoff=None,scale_wt=1.0):
+   def __init__(self, name,classifier,Xtrain,Xtest,ytrain=None,sample_weight=None,cutoff=None,class_names=None):
       self.name = name
       self.classifier = classifier
       self.Xtrain=Xtrain
       self.Xtest=Xtest
       self.ytrain=ytrain
+      self.class_names=class_names
        
       if isinstance(Xtrain,sp.sparse.csr.csr_matrix) or isinstance(Xtrain,sp.sparse.csc.csc_matrix):
 	self.sparse=True
@@ -32,12 +33,10 @@ class XModel:
       
       self.oob_preds=np.zeros((Xtrain.shape[0],1))
       self.preds=np.zeros((Xtest.shape[0],1))
-      #self.ytrain=np.zeros((Xtrain.shape[0],1))
       
       self.cutoff=cutoff
       if cutoff is not None:
 	self.use_proba=True
-      self.scale_wt=scale_wt
 	
       XModel.modelcount += 1
 
@@ -51,16 +50,16 @@ class XModel:
       if self.sample_weight is not None:
 	  print "sample_weight:" , self.sample_weight.shape,
 	  print " type        :" , type(self.sample_weight)
-	  print "scale weight :" , self.scale_wt
 	  
       if self.ytrain is not None:
 	  print "y <-  target :" , self.ytrain.shape
       #print "sparse data  :" , self.sparse 
       if self.cutoff is not None: print "proba cutoff  :" , self.cutoff
+      if self.class_names is not None: print "class names  :" , self.class_names
       
-      print "predictions mean %6.3f :" %(np.mean(self.preds)),
+      print "<predictions> : %6.3f" %(np.mean(self.preds)),
       print " Dim:", self.preds.shape
-      print "oob preds mean %6.3f  :" %(np.mean(self.oob_preds)),
+      print "<oob preds>   : %6.3f" %(np.mean(self.oob_preds)),
       print " Dim:", self.oob_preds.shape
       
       

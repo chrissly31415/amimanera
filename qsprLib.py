@@ -18,12 +18,13 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import pylab as pl
 
-from sklearn.preprocessing import StandardScaler,PolynomialFeatures
+from sklearn.preprocessing import StandardScaler,PolynomialFeatures,OneHotEncoder
 from sklearn.feature_extraction.text import CountVectorizer,HashingVectorizer,TfidfVectorizer
+from sklearn.feature_extraction import FeatureHasher
 #from sklearn import metrics
 from sklearn import cross_validation,grid_search
 from sklearn.cross_validation import StratifiedKFold,KFold,StratifiedShuffleSplit,ShuffleSplit,train_test_split
-from sklearn.metrics import roc_auc_score,classification_report,make_scorer,f1_score,precision_score,mean_squared_error
+from sklearn.metrics import roc_auc_score,classification_report,make_scorer,f1_score,precision_score,mean_squared_error,accuracy_score,log_loss
 #from sklearn.utils.extmath import density
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.decomposition import TruncatedSVD,PCA,RandomizedPCA, FastICA, MiniBatchSparsePCA, SparseCoder,DictionaryLearning,MiniBatchDictionaryLearning
@@ -44,31 +45,7 @@ from sklearn.cluster import KMeans,MiniBatchKMeans
 from sklearn.learning_curve import learning_curve
 from sklearn.multiclass import OneVsRestClassifier
 
-
-
-def one_hot_encoder(data, col, replace=False):
-    """ Takes a dataframe and a list of columns that need to be encoded.
-    Returns a 3-tuple comprising the data, the vectorized data,{
-    and the fitted vectorizor.
-    credits to https://gist.github.com/kljensen/5452382
-    #use pd.get_dummies!!! instead, needs integer values 
-    """
-    vec=DictVectorizer()
-    tmp=[]
-    print data.columns
-    for row in data.loc[:,[col]].itertuples():
-	d=dict({'cat': row[1]})
-	tmp.append(d)  
-    tmp=vec.fit_transform(tmp).toarray()
-    vecData = pd.DataFrame(tmp)
-    vecData.columns = vec.get_feature_names()
-    print "New features:",vecData.columns
-    print vecData.describe()
-    vecData.index = data.index
-    if replace is True:
-	data = data.drop(col, axis=1)
-	data = data.join(vecData)
-    return data
+from nolearn.lasagne import NeuralNet
 
     
 def removeCorrelations(X_all,threshhold):
@@ -126,59 +103,7 @@ def sigmoid(z):
     """
     g = 1.0/(1.0+np.exp(-z));
     return(g)
-	      
-	      
-def modelEvaluation(lmodel,lXs,ly):
-    """
-    MODEL EVALUATION
-    """
-    ly = np.asarray(ly)
-    print "Model evaluation..."
-    folds=8
-    #parameters=np.logspace(-14, -7, num=8, base=2.0)#SDG
-    #parameters=np.logspace(-7, 0, num=8, base=2.0)#LG
-    #parameters=[250,500,1000,2000]#rf
-    parameters=[100.0,10.0,8.0,5.0,2.0,1.5,1.2]#chi2
-    #parameters=[2,3,4,5]#gbm
-    #parameters=np.logspace(-7, -0, num=8, base=2.0)
-    print "Parameter space:",parameters
-    #feature selection within xvalidation
-    oobpreds=np.zeros((lXs.shape[0],len(parameters)))
-    for j,p in enumerate(parameters):
-	#if isinstance(lmodel,SGDClassifier):
-	#    lmodel.set_params(alpha=p)
-	#if (isinstance(lmodel,LogisticRegression) or isinstance(lmodel,SVC)) and p<1000:
-	#    lmodel.set_params(C=p)
-	#if isinstance(lmodel,RandomForestClassifier) :
-	#    lmodel.set_params(max_features=p)
-	#if isinstance(lmodel,GradientBoostingClassifier):
-	#    lmodel.set_params(max_depth=p)
-        #print lmodel.get_params()
-        cv = KFold(lXs.shape[0], n_folds=folds,indices=True, random_state=j)
-	scores=np.zeros(folds)	
-	for i, (train, test) in enumerate(cv):
-	    #print("Extracting %s best features by a chi-squared test" % p)
-	    #ch2 = SelectKBest(chi2, k=p)
-	    #ch2 = SelectPercentile(chi2,percentile=p)
-	    #Xtrain = ch2.fit_transform(lXs[train], ly[train])
-	    #Xtest = ch2.transform(lXs[test]) 
-	    Xtrain = lXs.iloc[train]
-	    Xtest = lXs.iloc[test]
-	    lmodel.fit(Xtrain, ly[train])
-	    oobpreds[test,j] = lmodel.predict_proba(Xtest)[:,1]
-	    scores[i]=roc_auc_score(ly[test],oobpreds[test,j])
-	    #print "AUC: %0.2f " % (scores[i])
-	    #save oobpredictions
-	print "Iteration:",j," parameter:",p,
-	print " <AUC>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
-	print " AUC oob: %0.3f" %(roc_auc_score(ly,oobpreds[:,j]))
-	#Filter data
-	#predmod=lofFilter(oobpreds[:,j],p)
-	#print " AUC calibrated: %0.3f" %(roc_auc_score(ly,predmod))
-	
-    scores=[roc_auc_score(ly,oobpreds[:,j]) for j in xrange(len(parameters))]
-    plt.plot(parameters,scores,'ro')
-    
+	         
 def ensembleBuilding(lXs,ly):
     """
     train ensemble
@@ -325,7 +250,7 @@ def weightedGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=Fa
     
     
     
-def buildModel(lmodel,lXs,ly,sample_weights=None,scoring=None,cv=5):
+def buildRegressionModel(lmodel,lXs,ly,sample_weights=None,scoring=None,cv=5):
     """   
     Final model building part
     """ 
@@ -336,13 +261,67 @@ def buildModel(lmodel,lXs,ly,sample_weights=None,scoring=None,cv=5):
     print "Building model with all instances..."
     lmodel.fit(lXs,ly)
     return(lmodel)
+
+
+def buildModel(clf,lX,ly,cv=None,scoring=None,n_jobs=8,trainFull=True):
+    score = cross_validation.cross_val_score(clf,lX,ly,fit_params=None, scoring=scoring,cv=cv,n_jobs=n_jobs)
+    print "cv-score: %6.3f +/- %6.3f" %(-1*score.mean(),score.std())
+    if trainFull:
+      print "Train on all data..."
+      clf.fit(lX,ly)
+    return(clf)
+
+def buildClassificationModel(clf,lX,ly,class_names=None,trainFull=False,cv=None):
+  """   
+  Final model building part
+  """ 
+  print "Training the model..."
+  print class_names
+  if isinstance(lX,pd.DataFrame): lX  = lX.values
+
+  #cv = StratifiedShuffleSplit(ly, n_iter=n_folds, test_size=0.125)
+  #cv =StratifiedKFold(ly,n_folds)
+   
+  ypred = np.zeros((len(ly),))
+  yproba = np.zeros((len(ly),len(set(ly))))
+  mll = np.zeros((len(cv),1))
+  for i,(train, test) in enumerate(cv):  
+      if isinstance(clf,NeuralNet):
+	  print "Initialize layers..."
+	  clf.initialize()
+	  clf.initialize_layers()
+      ytrain, ytest = ly[train], ly[test]
+      clf.fit(lX[train,:], ytrain)
+      ypred[test] = clf.predict(lX[test,:])
+      yproba[test] = clf.predict_proba(lX[test,:])
+      mll[i] = multiclass_log_loss(ly[test], yproba[test])
+      acc = accuracy_score(ly[test], ypred[test])
+      print "train set: %2d samples: %5d/%5d mll: %4.3f accuracy: %4.3f"%(i,lX[train,:].shape[0],lX[test,:].shape[0],mll[i],acc)
+      
+  print classification_report(ly, ypred, target_names=class_names)
+  mll_oob = multiclass_log_loss(ly, yproba)
+  
+  print "oob multiclass logloss: %6.3f" %(mll_oob)
+  print "avg multiclass logloss: %6.3f +/- %6.3f" %(mll.mean(),mll.std())
+  #training on all data
+  if trainFull:
+    clf.fit(lX, ly)
+  return(clf)
+
     
 def density(m):
     """
-    For sparse matrices
+    For sparse & dense matrices
     """
-    entries=m.shape[0]*m.shape[1]
-    return m.nnz/float(entries)
+    if isinstance(m,pd.DataFrame) or isinstance(m,np.ndarray):
+      nz = np.count_nonzero(m.values)
+      print "Non-zeros     : %12d"%(nz)
+      te = m.shape[0]*m.shape[1]
+      print "Total elements: %12d"%(te)
+      print "Ratio         : %12.2f"%(float(nz)/float(te))
+    else:
+      entries=m.shape[0]*m.shape[1]
+      return m.nnz/float(entries)
 
 
 def buildWeightedModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,nfolds=8,useProba=True,scale_wt=None,n_jobs=1,verbose=False,local_scorer='roc_auc'):
@@ -376,70 +355,6 @@ def buildWeightedModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,nfolds=8,usePro
     
     return(lmodel)
     
-    
-
-def analyzeLearningCurve(model,X,y,lw,folds=8):
-    """
-    make a learning curve according to http://scikit-learn.org/dev/auto_examples/plot_learning_curve.html
-    """
-
-    #cv = cross_validation.ShuffleSplit(X.shape[0], n_iter=10, test_size=0.2, random_state=0)
-    #cv = KFold(X.shape[0], n_folds=folds,shuffle=True)  
-    cv = StratifiedKFold(y, n_folds=folds)
-    #learn_score = make_scorer(roc_auc_score)
-    #learn_score = make_scorer(score_func=ams_score,use_proba=useProba)
-    learn_score=make_scorer(f1_score)
-    plot_learning_curve(model, "learning curve", X, y, ylim=(0.1, 1.01), cv=cv, n_jobs=4,scoring=learn_score)
-  
- 
-def group_sparse_old(Xold,Xold_test, degree=2,append=True):
-    """ 
-    multiply columns of sparse data
-    """
-    print "Grouping sparse data..."
-    #only for important data
-    (lXs,lXs_test) = linearFeatureSelection(model,Xold,Xold_test,200)
-    #also transform old data
-    #(Xold,Xold_test) = linearFeatureSelection(model,Xold,Xold_test,5000)
-    
-    Xtmp=sparse.vstack((lXs_test,lXs),format="csr")
-    #turn into pandas dataframe for grouping
-    new_data=None
-    m,n = Xtmp.shape
-    for indices in itertools.combinations(range(n), degree):
-        #print "idx:",indices
-	col1,col2 =indices
-	out1 = Xtmp.tocsc()[:,col1]
-	out1 = out1.transpose(copy=False)
-	out2 = Xtmp.tocsc()[:,col2]
-	tmp = np.ravel(np.asarray(out2.todense()))
-	diag2 = sparse.spdiags(tmp,[0],out2.shape[0],out2.shape[0],format="csc")
-	#out1+diag2-max(out1,diag2)
-	prod = out1*diag2
-	prod = prod.transpose()
-	dens=density(prod)
-	#print " Non-zeros: %4.3f " %(dens)
-	if new_data is None:  
-	    new_data=sparse.csc_matrix(prod)
-	elif dens>0.0:
-	    new_data=sparse.hstack((new_data,prod),format="csr")
-	
-    print "Shape of interactions matrix:",new_data.shape,
-    print " Non-zeros: %4.3f " %(density(new_data))
-
-    #makting test data
-    Xreduced_test = new_data[:Xold_test.shape[0]]
-    if append: 
-	Xreduced_test=sparse.hstack((Xold_test,Xreduced_test),format="csr")
-    print "New test data:",Xreduced_test.shape
-    
-    #making train data
-    Xreduced = new_data[Xold_test.shape[0]:]
-    if append:
-	Xreduced=sparse.hstack((Xold,Xreduced),format="csr")
-    print "New test data:",Xreduced.shape
-    
-    return(Xreduced,Xreduced_test)
 
 def group_sparse(Xold,Xold_test, degree=2,append=True):
     """ 
@@ -486,16 +401,18 @@ def rfFeatureImportance(forest,Xold,Xold_test,n):
       print "Missing attribute feature_importances_"
       return
     importances = forest.feature_importances_
-    #std = np.std([tree.feature_importances_ for tree in forest.estimators_],axis=0)#perhas we need it later
+    std = np.std([tree.feature_importances_ for tree in forest.estimators_],axis=0)#perhas we need it later
+    
     indices = np.argsort(importances)[::-1]
+    print indices
     # Print the feature ranking
     print("Feature ranking:")
 
-    for f in range(len(indices)):
-	print("%d. feature %64s %d - %f" % (f + 1, Xold.columns[indices[f]], indices[f], importances[indices[f]]))
+    for i,f in enumerate(indices):
+	print("%3d. feature %16s %3d - %6.4f +/- %6.4f" % (i, Xold.columns[f], f, importances[f] , std[f]))
 	
     # Plot the feature importances of the forest  
-    plt.bar(left=np.arange(len(indices)),height=importances[indices] , width=0.35, color='r')
+    plt.bar(left=np.arange(len(indices)),height=importances[indices] , width=0.35, color='r',yerr=std[indices])
     plt.ylabel('Importance')
     plt.title("Feature importances")
     #stack train and test data
@@ -540,7 +457,7 @@ def linearFeatureSelection(lmodel,Xold,Xold_test,n):
 	Xreduced = Xtmp[Xold_test.shape[0]:]
 	return(Xreduced,Xreduced_test)
 
-def greedyFeatureSelection(lmodel,lX,ly,itermax=10,itermin=5,targets=None ,start_features=None,verbose=False, cv=5, n_jobs=4,scoring='mean_squared_error'):
+def greedyFeatureSelection(lmodel,lX,ly,itermax=10,itermin=5,targets=None ,start_features=None,verbose=False, cv=5, n_jobs=4,scoring_func='mean_squared_error'):
 	features=[]
 	
 	if targets is None:
@@ -562,8 +479,9 @@ def greedyFeatureSelection(lmodel,lX,ly,itermax=10,itermin=5,targets=None ,start
 		
 		features.append(act_feature)
 		
-		
-		score = (-1*cross_validation.cross_val_score(lmodel,lX.loc[:,features],ly,fit_params=None, scoring=scoring,cv=cv,n_jobs=n_jobs))**0.5
+		score = cross_validation.cross_val_score(lmodel,lX.loc[:,features],ly,fit_params=None, scoring=scoring_func,cv=cv,n_jobs=n_jobs)
+		if 'mean_squared_error' in str(scoring_func):
+		  score = -1*(score)**0.5
 		
 		if verbose:
 		    print "TARGET: %-12s - <score>= %0.3f (+/- %0.4f) score,iteration best= %0.4f score,overall best: %0.4f" % (act_feature, score.mean(), score.std(),score_best,score_opt)
@@ -594,13 +512,14 @@ def greedyFeatureSelection(lmodel,lX,ly,itermax=10,itermin=5,targets=None ,start
 	plt.plot(scores)
 	plt.show()
 
-def iterativeFeatureSelection(lmodel,Xold,Xold_test,ly,iterations,nrfeats):
+def iterativeFeatureSelection(lmodel,Xold,Xold_test,ly,iterations=5,nrfeats=1,scoring=None,cv=None,n_jobs=8):
 	"""
 	Iterative feature selection e.g. via random Forest
 	"""
 	for i in xrange(iterations):
 	    print ">>>Iteration: ",i,"<<<"
-	    lmodel = buildModel(lmodel,Xold,ly)
+	    #lmodel = buildModel(lmodel,Xold,ly,cv=cv,scoring=scoring,n_jobs=n_jobs,trainFull=True)
+	    lmodel.fit(Xold,ly)
 	    (Xold,Xold_test)=rfFeatureImportance(lmodel,Xold,Xold_test,nrfeats)
 	    #Xold.to_csv("../stumbled_upon/data/Xlarge_"+str(i)+".csv")
 	    #Xold_test.to_csv("../stumbled_upon/data/XXlarge_test_"+str(i)+".csv")
@@ -632,7 +551,13 @@ def removeLowVariance(X_all,threshhold=1E-5):
 	"""
 	remove useless data
 	"""
+	
+	if isinstance(X_all,sparse.csc_matrix):
+	    print "Making matrix dense again..."
+	    X_all = pd.DataFrame(X_all.toarray())
+	
 	idx = np.asarray(X_all.std()<=threshhold)
+	print idx
 	if len(X_all.columns[idx])>0:
 		print "Dropped %4d zero variance columns (threshold=%6.3f): %r"%(np.sum(idx),threshhold,X_all.columns[idx])
 		X_all.drop(X_all.columns[idx], axis=1,inplace=True)
@@ -662,12 +587,13 @@ def pcAnalysis(X,Xtest,y=None,w=None,ncomp=2,transform=False,classification=Fals
         print "PC analysis for classification"
         X_all = pd.concat([Xtest, X])
         #this is transformation is necessary otherwise PCA gives rubbish!!
-        ytrain = np.asarray(y)        
+        ytrain = np.asarray(y)
+        
         X_r = pca.fit_transform(np.asarray(X_all))  
         
         if w is None:
-            plt.scatter(X_r[ytrain == 0,0], X_r[ytrain == 0,1], c='r', label="background",alpha=0.1)
-            plt.scatter(X_r[ytrain == 1,0], X_r[ytrain == 1,1], c='g',label="signal",alpha=0.1)
+            plt.scatter(X_r[ytrain == 0,0], X_r[ytrain == 0,1], c='r', label="1",alpha=0.1)
+            plt.scatter(X_r[ytrain == 1,0], X_r[ytrain == 1,1], c='g',label="0",alpha=0.1)
         else:
             plt.scatter(X_r[ytrain == 0,0], X_r[ytrain == 0,1], c='r', label="background",s=w[ytrain==0]*25.0,alpha=0.1)
             plt.scatter(X_r[ytrain == 1,0], X_r[ytrain == 1,1], c='g',label="signal",s=w[ytrain==1]*1000.0,alpha=0.1)
@@ -695,8 +621,11 @@ def mean_absolute_error(x,y):
 	x = x.flatten()
 	y = y.flatten()
 	return np.mean(np.abs(x-y))
-	
-	
+
+
+def multiclass_log_loss(y_true, y_pred, eps=1e-15):
+    return log_loss(y_true,y_pred, eps=eps, normalize=True)
+
 def getOOBCVPredictions(lmodel,lXs,ly,folds=8,repeats=1,returnSD=True,score_func='rmse'):
 	"""
 	Get cv oob predictions for classifiers
@@ -812,6 +741,7 @@ def filterClassNoise(lmodel,lXs,lXs_test,ly):
 	print "Optimum threshhold %4.2f index: %d with score: %4.4f" %(optt,top[-1],scores[top[-1]])
 	lXs_reduced,ly_reduced = removeInstances(lXs,ly,preds,optt)	
 	return(lXs_reduced,lXs_test,ly_reduced)
+
 	
 def showMisclass(lmodel,lXs,ly,t=0.0,bubblesizes=None):
     """
@@ -859,7 +789,7 @@ def showMisclass(lmodel,lXs,ly,t=0.0,bubblesizes=None):
     
 
     
-def scaleData(lXs,lXs_test=None,cols=None,normalize=True,epsilon=1E-15):
+def scaleData(lXs,lXs_test=None,cols=None,normalize=False,epsilon=0.0):
     """
     standard scaling of data, also possible with sklearn StandardScaler but not with dataframe
     """
@@ -876,9 +806,12 @@ def scaleData(lXs,lXs_test=None,cols=None,normalize=True,epsilon=1E-15):
 	lX_all[cols] = (lX_all[cols] - lX_all[cols].min()) / (lX_all[cols].max() - lX_all[cols].min())
     #standardize
     else:
-	print "Standardize data with epsilon:",epsilon
-	#lX_all[cols] = (lX_all[cols] - lX_all[cols].mean()) / np.sqrt(lX_all[cols].var()+epsilon)
-	lX_all[cols] = (lX_all[cols] - lX_all[cols].mean()) / lX_all[cols].std()
+	if epsilon>1E-15:
+	  print "Standardize data with epsilon:",epsilon
+	  lX_all[cols] = (lX_all[cols] - lX_all[cols].mean()) / np.sqrt(lX_all[cols].var()+epsilon)
+	else:
+	  print "Standardize data"
+	  lX_all[cols] = (lX_all[cols] - lX_all[cols].mean()) / lX_all[cols].std()
     
     #print lX_all[cols].describe()
     
@@ -895,7 +828,91 @@ def binarizeProbs(a,cutoff):
     """
     if a>cutoff: return 1.0
     else: return 0.0
-       
+    
+def make_polynomials2(Xtrain,Xtest=None,degree=2,cutoff=100):
+    """
+    Generate polynomial features
+    """
+    if Xtest is not None: Xtrain = Xtrain[len(Xtest.index):]
+    m,n = Xtrain.shape
+    indices = list(itertools.combinations(range(n), degree))
+    new_data=[]
+    colnames=[]
+    for i,j in indices:
+      ##Xnew = (Xtrain.values[:, np.newaxis, i] * Xtrain.values[:, j, np.newaxis]).reshape(len(Xtrain), -1)
+      name = str(Xtrain.columns[i])+"x"+str(Xtrain.columns[j])
+      Xnew = (Xtrain.values[:, i] * Xtrain.values[:, j])
+      #Xnew = (Xtrain.iloc[:, i] * Xtrain.iloc[:, j])
+      n_nonnull = (Xnew != 0).astype(int).sum()
+      if n_nonnull>cutoff:
+	new_data.append(Xnew)
+	colnames.append(name)
+      
+    new_data = pd.DataFrame(np.array(new_data).T,columns=colnames)
+    
+    return new_data
+
+
+
+def makeGridSearch(lmodel,lX,ly,n_jobs=1,refit=True,cv=5,scoring='roc_auc'):
+    print "Start GridSearch..."
+    #parameters = {'filter__param': [30,50],'model__C':[1]}
+    #parameters = {'pca__n_components':[30],'model__C':[1]}
+    #parameters = {'model__C':[1,0.1,0.01,0.001]}#Linear SVC+LOGREG
+    #parameters = {'C':[1]}#Linear SVC+LOGREG
+    parameters = {'C':[1E-1,1E-3,1E-5],'penalty':['L1','L2']}#Linear SVC+LOGREG
+    #parameters = {'n_estimators':[50],'alpha_L1':[1E-1],'lambda_L2':[1E-1]}#XGBOOST GBLINEAR
+    #parameters = {'alpha':[1,1E-2,1E-4,1E-6],'n_iter':[100,400,800],'penalty':['l2']}#SGD
+    #parameters = {'alpha':[1,1E-2,1E-4],'n_iter':[250],'penalty':['l2']}#SGD
+    #parameters = {'learn_rates':[0.3,0.2],'learn_rate_decays':[1.0,0.9],'epochs':[40]}#DBN
+    #parameters = {'hidden1_num_units': [300],'dropout1_p':[0.1,0.2,0.3],'hidden2_num_units': [300],'dropout2_p':[0.25],'hidden3_num_units': [300],'dropout3_p':[0.5],'update_learning_rate':[0.001,0.002,0.0025],'max_epochs':[1000]}#Lasagne
+    #parameters = {'hidden1_num_units': [200],'dropout1_p':[0.0,0.1,0.25],'hidden2_num_units': [200],'dropout2_p':[0.0,0.1,0.25],'hidden3_num_units': [200],'dropout3_p':[0.5],'max_epochs':[1000]}#Lasagne
+    #parameters = {'hidden1_num_units': [500,1000],'update_learning_rate':[0.0001,0.0005],'max_epochs':[500],'dropout1_p':[0.0,.2]}#Lasagne
+    #parameters = {'hidden1_num_units': [500,500],'update_learning_rate':[0.0001,0.0005],'max_epochs':[500],'dropout1_p':[0.0,.2]}#Lasagne
+    #parameters = {'hidden1_num_units': [1000],'update_learning_rate':[0.0002],'max_epochs':[1000],'dropout1_p':[0.2]}#Lasagne
+    #parameters = {'n_estimators':[500], 'max_features':[20],'max_depth':[None],'max_leaf_nodes':[None],'min_samples_leaf':[1,5],'min_samples_split':[2,10],'criterion':['gini']}#xrf+xrf
+    #parameters = {'class_weight': [{0: 1.,1: 1., 2: 1.,3: 1.,4: 1.,5: 1.,6: 1.,7: 1.,8: 1.,9: 1.}]}
+    #parameters = {'n_estimators':[400,500,600],'max_depth':[10],'learning_rate':[0.03],'subsample':[0.5]}#XGB
+    #parameters = {'n_estimators':[20],'max_depth':[10],'learning_rate':[0.05],'subsample':[0.5]}#XGB
+    #parameters = {}
+    
+    clf  = grid_search.GridSearchCV(lmodel, parameters,n_jobs=n_jobs,verbose=2,scoring=scoring,cv=cv,refit=refit)
+    clf.fit(lX,ly)
+    best_score=1.0E5
+    print("%6s %6s %6s %r" % ("OOB", "MEAN", "SDEV", "PARAMS"))
+    for params, mean_score, cvscores in clf.grid_scores_:
+	oob_score = -1* mean_score
+	cvscores = -1 * cvscores
+	mean_score = cvscores.mean()
+	print("%6.3f %6.3f %6.3f %r" % (oob_score, mean_score, cvscores.std(), params))
+	#if mean_score < best_score:
+	#    best_score = mean_score
+	#    scores[i,:] = cvscores
+	
+    if refit:
+      return clf.best_estimator_
+    else:
+      return None
+
+
+def df_info(X):
+    if isinstance(X,pd.DataFrame): X = X.values 
+    print "Shape:",X.shape, " size (MB):",float(X.nbytes)/1.0E6, " dtype:",X.dtype
+
+
+def analyzeLearningCurve(model,X,y,cv=8,score_func='roc_auc_score'):
+    """
+    make a learning curve according to http://scikit-learn.org/dev/auto_examples/plot_learning_curve.html
+    """
+
+    #cv = cross_validation.ShuffleSplit(X.shape[0], n_iter=10, test_size=0.2, random_state=0)
+    #cv = KFold(X.shape[0], n_folds=folds,shuffle=True)  
+    plot_learning_curve(model, "learning curve", X, y, ylim=(0.1, 1.01), cv=cv, n_jobs=1,scoring='accuracy')
+    
+ 
+
+
+ 
 def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, scoring=f1_score, train_sizes=np.linspace(.1, 1.0, 5)):
     """
     Generate a simple plot of the test and traning learning curve.
@@ -960,4 +977,4 @@ funcdict['rmse']=root_mean_squared_error
 funcdict['auc']=roc_auc_score
 funcdict['mae']=mean_absolute_error
 funcdict['msq']=mean_squared_error
-
+funcdict['log_loss']=multiclass_log_loss
