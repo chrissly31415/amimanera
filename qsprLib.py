@@ -46,7 +46,9 @@ from sklearn.cluster import KMeans,MiniBatchKMeans
 from sklearn.learning_curve import learning_curve
 from sklearn.multiclass import OneVsRestClassifier
 
-from nolearn.lasagne import NeuralNet
+from sklearn.base import clone
+
+from sklearn.calibration import CalibratedClassifierCV
 
     
 def removeCorrelations(X_all,threshhold):
@@ -82,6 +84,16 @@ def makePredictions(lmodel,lXs_test,lidx,filename):
     pred_df = pd.DataFrame(preds, index=lidx, columns=['label'])
     pred_df.to_csv(filename)
     
+
+def make_calibration(lmodel,Xtrain,ytrain):
+    """
+    Make Platt/isotonic calibration with sklearn
+    """
+    calli_clf = CalibratedClassifierCV(lmodel, method='isotonic', cv=3)
+    calli_clf.fit(Xtrain,ytrain)
+    print calli_clf.calibrated_classifiers_
+    
+
     
 def analyzeModel(lmodel,feature_names):
     """
@@ -274,7 +286,7 @@ def buildModel(clf,lX,ly,cv=None,scoring=None,n_jobs=8,trainFull=True,verbose=Fa
     else:
       return score
 
-def buildClassificationModel(clf,lX,ly,class_names=None,trainFull=False,cv=None):
+def buildClassificationModel(clf_orig,lX,ly,class_names=None,trainFull=False,cv=None):
   """   
   Final model building part
   """ 
@@ -289,10 +301,7 @@ def buildClassificationModel(clf,lX,ly,class_names=None,trainFull=False,cv=None)
   yproba = np.zeros((len(ly),len(set(ly))))
   mll = np.zeros((len(cv),1))
   for i,(train, test) in enumerate(cv):  
-      if isinstance(clf,NeuralNet):
-	  print "Initialize layers..."
-	  clf.initialize()
-	  clf.initialize_layers()
+      clf = clone(clf_orig)
       ytrain, ytest = ly[train], ly[test]
       clf.fit(lX[train,:], ytrain)
       ypred[test] = clf.predict(lX[test,:])
@@ -308,8 +317,8 @@ def buildClassificationModel(clf,lX,ly,class_names=None,trainFull=False,cv=None)
   print "avg multiclass logloss: %6.3f +/- %6.3f" %(mll.mean(),mll.std())
   #training on all data
   if trainFull:
-    clf.fit(lX, ly)
-  return(clf)
+    clf_orig.fit(lX, ly)
+  return(clf_orig)
 
     
 def density(m):
@@ -970,8 +979,18 @@ def make_polynomials(Xtrain,Xtest=None,degree=2,cutoff=100):
     return new_data
 
 
+# Utility function to report best scores
+def report(grid_scores, n_top=3):
+    top_scores = sorted(grid_scores, key=itemgetter(1), reverse=True)[:n_top]
+    for i, score in enumerate(top_scores):
+        print("Model with rank: {0}".format(i + 1))
+        print("Mean validation score: {0:.3f} (std: {1:.3f})".format(
+              score.mean_validation_score,
+              np.std(score.cv_validation_scores)))
+        print("Parameters: {0}".format(score.parameters))
+        print("")
 
-def makeGridSearch(lmodel,lX,ly,n_jobs=1,refit=True,cv=5,scoring='roc_auc'):
+def makeGridSearch(lmodel,lX,ly,n_jobs=1,refit=True,cv=5,scoring='roc_auc',random_iter=-1):
     print "Start GridSearch..."
     #parameters = {'filter__param': [30,50],'model__C':[1]}
     #parameters = {'pca__n_components':[30],'model__C':[1]}
@@ -982,22 +1001,26 @@ def makeGridSearch(lmodel,lX,ly,n_jobs=1,refit=True,cv=5,scoring='roc_auc'):
     #parameters = {'alpha':[1,1E-2,1E-4,1E-6],'n_iter':[100,400,800],'penalty':['l2']}#SGD
     #parameters = {'alpha':[1,1E-2,1E-4],'n_iter':[250],'penalty':['l2']}#SGD
     #parameters = {'learn_rates':[0.3,0.2],'learn_rate_decays':[1.0,0.9],'epochs':[40]}#DBN
-    #parameters = {'hidden1_num_units': [300],'dropout1_p':[0.3,0.1],'hidden2_num_units': [300],'dropout2_p':[0.5],'update_learning_rate':[0.006,0.008,0.01],'objective_alpha':[1E-5,1E-7]}#Lasagne
+    parameters = {'hidden1_num_units': [300],'dropout1_p':[0.3,0.5],'hidden2_num_units': [300],'dropout2_p':[0.5,0.0],'update_learning_rate':[0.01,0.008],'objective_alpha':[1E-10]}#Lasagne
     #parameters = {'hidden1_num_units': [200],'dropout1_p':[0.0,0.1,0.25],'hidden2_num_units': [200],'dropout2_p':[0.0,0.1,0.25],'hidden3_num_units': [200],'dropout3_p':[0.5],'max_epochs':[1000]}#Lasagne
     #parameters = {'hidden1_num_units': [500,1000],'update_learning_rate':[0.0001,0.0005],'max_epochs':[500],'dropout1_p':[0.0,.2]}#Lasagne
     #parameters = {'hidden1_num_units': [500,500],'update_learning_rate':[0.0001,0.0005],'max_epochs':[500],'dropout1_p':[0.0,.2]}#Lasagne
     #parameters = {'hidden1_num_units': [200,300],'max_epochs':[1000],'dropout1_p':[0.1,0.2,0.3]}#Lasagne
     #parameters = {'n_estimators':[500], 'max_features':[20],'max_depth':[None],'max_leaf_nodes':[None],'min_samples_leaf':[1,5],'min_samples_split':[2,10],'criterion':['gini']}#xrf+xrf
     #parameters = {'class_weight': [{0: 1.,1: 1., 2: 1.,3: 1.,4: 1.,5: 1.,6: 1.,7: 1.,8: 1.,9: 1.},{0: 2.,1: 1., 2: 2.,3: 1.,4: 1.,5: 1.,6: 1.,7: 1.,8: 1.,9: 1.}]}
-    parameters = {'n_estimators':[400,600],'max_depth':[6],'learning_rate':[0.05,0.02],'subsample':[0.5]}#XGB
+    #parameters = {'n_estimators':[400],'max_depth':[8,10],'learning_rate':[0.05,0.02],'subsample':[0.5]}#XGB
     #parameters = {'n_estimators':[20],'max_depth':[10],'learning_rate':[0.05],'subsample':[0.5]}#XGB
     #parameters = {}
     
-    clf  = grid_search.GridSearchCV(lmodel, parameters,n_jobs=n_jobs,verbose=2,scoring=scoring,cv=cv,refit=refit)
-    clf.fit(lX,ly)
+    if random_iter<0:
+	search  = grid_search.GridSearchCV(lmodel, parameters,n_jobs=n_jobs,verbose=2,scoring=scoring,cv=cv,refit=refit)
+    else:
+	search  = grid_search.RandomizedSearchCV(lmodel, param_distributions=parameters, n_iter=random_iter)
+    
+    search.fit(lX,ly)
     best_score=1.0E5
     print("%6s %6s %6s %r" % ("OOB", "MEAN", "SDEV", "PARAMS"))
-    for params, mean_score, cvscores in clf.grid_scores_:
+    for params, mean_score, cvscores in search.grid_scores_:
 	oob_score = -1* mean_score
 	cvscores = -1 * cvscores
 	mean_score = cvscores.mean()
@@ -1005,9 +1028,11 @@ def makeGridSearch(lmodel,lX,ly,n_jobs=1,refit=True,cv=5,scoring='roc_auc'):
 	#if mean_score < best_score:
 	#    best_score = mean_score
 	#    scores[i,:] = cvscores
-	
+    
+    report(search.grid_scores_)
+
     if refit:
-      return clf.best_estimator_
+      return search.best_estimator_
     else:
       return None
 
