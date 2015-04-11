@@ -646,6 +646,21 @@ computeEF<-function(predicted,truth,returnMax=FALSE,top=1) {
   return(EF)
 }
 
+computeMultiLogLoss <- function(act, pred,verbose=F)   {
+      eps = 1e-15;
+      nr <- nrow(pred)
+      pred = matrix(sapply( pred, function(x) max(eps,x)), nrow = nr)      
+      pred = matrix(sapply( pred, function(x) min(1-eps,x)), nrow = nr)
+      cat("pred:",pred,"\n")
+      ll = sum(act*log(pred) )
+      ll = ll * -1/(nrow(act)) 
+      if (verbose) {
+	cat("logloss:",ll,"\n")
+      }
+      return(ll);
+    }
+
+
 computeAUC<-function(predicted,truth,titlename=NULL,verbose=F) {
   require("ROCR")
   #print(summary(truth))
@@ -831,7 +846,8 @@ trainRF<-function(lX,ly,iter=500,m.try=if (!is.null(ly) && !is.factor(ly)) max(f
   cat("Training random forest...")
   require(randomForest)
   mydata.rf <- randomForest(lX,ly,ntree=iter,mtry=m.try,importance = fimportance,nodesize =node.size)
-  
+  print(mydata.rf)
+  print(summary(mydata.rf))
   if (fimportance) {
     imp<-importance(mydata.rf,type=1)
     varImpPlot(mydata.rf,type=1,main="")
@@ -853,7 +869,7 @@ trainRF<-function(lX,ly,iter=500,m.try=if (!is.null(ly) && !is.factor(ly)) max(f
       results<-data.frame(predicted=mydata.rf$predicted,exp=mydata.rf$y)
       plot(results,col="blue",pch=1, xlab = "predicted", ylab = "exp")
       abline(0,1, col = "black")
-      t<-paste("RF wtih ",nrow(lX)," data points and ",ncol(lX), " variables.")
+      t<-paste("RF with ",nrow(lX)," data points and ",ncol(lX), " variables.")
       title(main = t) 
       #residues: pred-y 
       results<-data.frame(exp=mydata.rf$y,residue=mydata.rf$predicted-mydata.rf$y)
@@ -861,7 +877,16 @@ trainRF<-function(lX,ly,iter=500,m.try=if (!is.null(ly) && !is.factor(ly)) max(f
       title(main = "RF residuals (y-pred)")
       se<-(mydata.rf$predicted-mydata.rf$y)^2
       ldata<-data.frame(predicted=mydata.rf$predicted,exp=mydata.rf$y,se)
-    }      
+    }
+  } else if (length(mydata.rf$classes)>2) {
+    cat(" multi classification:",mydata.rf$classes,"\n")
+    #cat(mydata.rf$votes)
+    #ly is factor
+    ly<-as.numeric(as.integer(ly))
+    str(ly)
+    score<-computeMultiLogLoss(ly,mydata.rf$votes,T)
+    cat(score)
+    
   } else {
     cat(" classification\n")
     if (verbose==T) {

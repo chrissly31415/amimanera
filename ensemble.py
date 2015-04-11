@@ -27,14 +27,15 @@ def createModels():
     #xmodel = XModel("xgboost1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
     #ensemble.append(xmodel)
 
-    #RF
+    #RF1
     #(Xtrain,ytrain,Xtest,labels) = prepareDataset()
     #model = RandomForestClassifier(n_estimators=100,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='entropy', max_features=20,oob_score=False)
     #xmodel = XModel("rf1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
     #ensemble.append(xmodel)
 
-    #DNN CV~0.485
-    (Xtrain,ytrain,Xtest,labels) = prepareDataset(standardize=True,log_transform=True)
+    #DNN1 CV~0.485
+    #(Xtrain,ytrain,Xtest,labels) = prepareDataset(standardize=True,log_transform=True)
+    """
     model = NeuralNet(
     layers=[  # three layers: one hidden layer
         ('input', layers.InputLayer),      
@@ -85,9 +86,83 @@ def createModels():
     max_epochs=1000,  # we want to train this many epochs
     verbose=1,
     )
-    xmodel = XModel("dnn1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
-    ensemble.append(xmodel)
+    """
+    #xmodel = XModel("dnn1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    #ensemble.append(xmodel)
 
+    #DNN2 CV~0.
+    #(Xtrain,ytrain,Xtest,labels) = prepareDataset(standardize=True,log_transform=False)
+    """
+    model = NeuralNet(
+    layers=[  # three layers: one hidden layer
+        ('input', layers.InputLayer),      
+        ('hidden1', layers.DenseLayer),
+        ('dropout1', layers.DropoutLayer),
+        ('hidden2', layers.DenseLayer),
+        ('dropout2', layers.DropoutLayer),
+        ('output', layers.DenseLayer),
+        ],
+    # layer parameters:
+    input_shape=(None,Xtrain.shape[1]),  # 96x96 input pixels per batch
+    
+    hidden1_num_units=300,  # number of units in hidden layer
+    hidden1_nonlinearity=nonlinearities.rectify,
+    dropout1_p=0.2,
+    
+    hidden2_num_units=300,
+    hidden2_nonlinearity=nonlinearities.rectify,
+    dropout2_p=0.3,
+   
+    
+    output_nonlinearity=nonlinearities.softmax,  # output layer uses identity function
+    output_num_units=9,  
+
+    eval_size=0.0,
+    #objective=L2Regularization,
+    #objective_alpha=0.001,
+    batch_iterator_train=BatchIterator(batch_size=2048),
+    batch_iterator_test=BatchIterator(batch_size=2048),
+    
+    # optimization method:
+    update=nesterov_momentum,
+    update_learning_rate=theano.shared(float32(0.004)),
+    update_momentum=theano.shared(float32(0.9)),
+
+    #on_epoch_finished=[
+    #    AdjustVariable('update_learning_rate', start=0.002, stop=0.00001),
+    #    AdjustVariable('update_momentum', start=0.9, stop=0.999),
+    #    #EarlyStopping(patience=200),
+    #    ],
+
+
+    regression=False,  # flag to indicate we're dealing with regression problem
+    max_epochs=1000,  # we want to train this many epochs
+    verbose=1,
+    )
+    """
+    #xmodel = XModel("dnn1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    #ensemble.append(xmodel)
+
+    #LOGREG1
+    #start_set = ['feat_11', 'feat_60', 'feat_34', 'feat_14', 'feat_90', 'feat_15', 'feat_62', 'feat_42', 'feat_39', 'feat_36', 'feat_75', 'feat_68', 'feat_9', 'feat_43', 'feat_40', 'feat_76', 'feat_86', 'feat_26', 'feat_35', 'feat_59', 'feat_47', 'feat_17', 'feat_48', 'feat_69', 'feat_50', 'feat_91', 'feat_92', 'feat_56', 'feat_53', 'feat_25', 'feat_84', 'feat_57', 'feat_78', 'feat_58', 'feat_41', 'feat_32', 'feat_67', 'feat_72', 'feat_77', 'feat_64', 'feat_20', 'feat_71', 'feat_83', 'feat_19', 'feat_23', 'feat_88', 'feat_33', 'feat_73', 'feat_93', 'feat_3', 'feat_81', 'feat_13']
+    #(Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples=-1,standardize=True,polynomialFeatures=2,featureFilter=start_set,addFeatures=False)
+    #model = LogisticRegression(C=0.1,class_weight=None,penalty='L1')
+    #xmodel = XModel("logreg1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    #ensemble.append(xmodel)
+    
+    #XGBOOST1 CV~0.45
+    #(Xtrain,ytrain,Xtest,labels) = prepareDataset()
+    #model = XgboostClassifier(n_estimators=400,learning_rate=0.05,max_depth=10,subsample=.5,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
+    #xmodel = XModel("xgboost1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    #ensemble.append(xmodel)
+    
+        
+    #GBC1 ~0.52
+    (Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples=-1,addFeatures=True)
+    model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.05, max_depth=6,subsample=.5,verbose=1)
+    xmodel = XModel("gbc1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    ensemble.append(xmodel)
+    
     #some info
     for m in ensemble:
 	m.summary()
@@ -187,7 +262,7 @@ def createOOBdata_parallel(ensemble,repeats=2,nfolds=8,n_jobs=1,score_func='log_
 	    
 	    print "Iteration:",j,
 	    print " <score>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
-	    print " score,oob: %0.3f" %(oobscore[j]),
+	    print " score,oob: %0.3f" %(oobscore[j])
 	    #print " ## <mae>: %0.3f (+/- %0.3f)" % (scores_mae.mean(), scores_mae.std()),
 	    #print " score3,oob: %0.3f" %(maescore[j])
 	    
@@ -221,8 +296,13 @@ def fit_and_score(xmodel,X,y,train,test,sample_weight=None,scale_wt=None,use_pro
     """
     Score function for parallel oob creation
     """
-    Xtrain = X.iloc[train]
-    Xvalid = X.iloc[test]
+    if isinstance(X,pd.DataFrame): 
+	Xtrain = X.iloc[train]
+	Xvalid = X.iloc[test]
+    else:
+	Xtrain = X[train]
+	Xvalid = X[test]
+	
     ytrain = y[train]
     
     if sample_weight is not None: 
@@ -387,11 +467,12 @@ def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_l
     Blending using sklearn classifier
     """
     folds=8
-    blender=LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
+    
+    #blender=LogisticRegression(penalty='l2', tol=0.0001, C=100)
     #blender = Pipeline([('filter', SelectPercentile(f_regression, percentile=25)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=0.1))])
     #blender=SGDClassifier(alpha=0.1, n_iter=50,penalty='l2',loss='log',n_jobs=folds)
     #blender=AdaBoostClassifier(learning_rate=0.01,n_estimators=50)
-    #blender=RandomForestClassifier(n_estimators=50,n_jobs=4, max_features='auto',oob_score=False)
+    blender=RandomForestClassifier(n_estimators=500,n_jobs=4, max_features='auto',oob_score=False,min_samples_leaf=10,max_depth=None)
     #blender=ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False)
     #blender=RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
     #blender=ExtraTreesRegressor(n_estimators=500,max_depth=None)
@@ -401,6 +482,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_l
     blend_scores=np.zeros(folds)
     n_classes = oobpreds.shape[1]/len(ensemble)
     blend_oob=np.zeros((oobpreds.shape[0],n_classes))
+    print blender
     for i, (train, test) in enumerate(cv):
 	Xtrain = oobpreds.iloc[train]
 	Xtest = oobpreds.iloc[test]
@@ -412,19 +494,19 @@ def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_l
 	    blend_oob[test] = blender.predict(Xtest)
 	blend_scores[i]=funcdict[score_func](ly[test],blend_oob[test])
     
-    print " <"+score_func+">: %0.4f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()),
+    print " <"+score_func+">: %0.6f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()),
     oob_auc=funcdict[score_func](ly,blend_oob)
-    print " "+score_func+": %0.4f" %(oob_auc)
+    print " "+score_func+": %0.6f" %(oob_auc)
     
     if hasattr(blender,'coef_'):
-      print "%-16s %5s %5s" %("model",score_func,"coef")
+      print "%-16s %10s %10s" %("model",score_func,"coef")
       idx = 0
       for i,model in enumerate(ensemble):
 	idx_start = n_classes*i
 	idx_end = n_classes*(i+1)
 	coldata=np.asarray(oobpreds.iloc[:,idx_start:idx_end])
 	score=funcdict[score_func](ly, coldata)
-	print "%-16s %5.3f%5.3f" %(model,score,blender.coef_[0][i])
+	print "%-16s %10.3f%10.3f" %(model,score,blender.coef_[0][i])
       print "sum coef: %4.4f"%(np.sum(blender.coef_))
     #plt.plot(range(len(ensemble)),scores,'ro')
     
@@ -484,7 +566,7 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',normali
     n_classes = Xtrain.shape[1]/len(ensemble)
     
     lowerbound=0.0
-    upperbound=0.3
+    upperbound=0.5
     constr=None
     constr=[lambda x,z=i: x[z]-lowerbound for i in range(n_models)]
     constr2=[lambda x,z=i: upperbound-x[z] for i in range(n_models)]
@@ -545,13 +627,7 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',normali
 	plt.show()
     
     
-    makePredictions(None,preds,filename='/home/loschen/Desktop/datamining-kaggle/otto/submissions/ensemble1.csv')
-    #return dataframes with blending results
-    #Xtrain['blend']=ypred
-    #Xtest['blend']=preds
-    #Xtrain['ytrain']=y
-
-    #return(Xtrain,Xtest)
+    makePredictions(None,preds,filename=subfile)
 
 
 def linearBlend(ensemble,Xtrain,Xtest,y,weights=None,score_func='rmse',test_indices=None,normalize=True,takeMean=False,removeZeroModels=0.0,alpha=None,subfile="",plotting=False):
@@ -715,63 +791,7 @@ def selectModelsGreedy(ensemble,startensemble=[],niter=2,mode='classical',useCol
     plt.plot(score_list)
     plt.show()
     return topensemble
-    
-def trainAllEnsembles(models,mode='linearBlend',plotting=False,subfile=""):
-    """
-    Train ensembles for all targets 
-    """
-    targets=["Ca","P","pH","SOC","Sand"]
-    train_list=[]
-    test_list=[]
-    for target in targets:
-	#generate submodels
-	submodels=[model +"_"+target for model in models]
-	Xtrain,Xtest = trainEnsemble(submodels,mode=mode,useCols=None,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile="")
-	
-	print Xtrain.describe()
-	print Xtest.describe()
-	
-	train_list.append(Xtrain)
-	test_list.append(Xtest)
-    
-    #Final statistics#
-    print "%10s "%("target"),
-    for col in Xtest.columns:
-	print "%14s "%(col),
-    print ""
-    
-    score_blend=np.zeros(len(targets))
-    score_models=np.zeros((len(targets),len(Xtest.columns)))
-    for i,(target,Xtrain,Xtest) in enumerate(zip(targets,train_list,test_list)):
-	score_blend[i]=funcdict['rmse'](Xtrain.ytrain,Xtrain.blend)
-	print "%10s"%(target),
-	for j,col in enumerate(Xtest.columns):
-	    score_models[i,j]=funcdict['rmse'](Xtrain.ytrain,Xtrain[col])
-	    print " %14.3f"%(score_models[i,j]),
-	
-	print ""
-	
-	if plotting:
-	    plt.hist(Xtrain.blend,bins=50,alpha=0.3,label='train')
-	    plt.hist(Xtest.blend,bins=50,alpha=0.3,label='test')
-	    plt.legend()
-	    plt.show()
-	
-    
-    print "%10s"%('avg.'),
-    for i in xrange(score_models.shape[1]):
-	print " %14.3f"%(score_models[:,i].mean()),
-    
-    
-    print "\navg,blend: %6.3f (+- %6.3f)"%(score_blend.mean(),score_blend.std())
-    #print "avg,blend: %6.3f (+- %6.3f)"%(score_blend[].mean(),score_blend.std())
-    
-    if subfile is not "":
-	sample = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/sample_submission.csv')
-	for target,Xtest in zip(targets,test_list):
-	    sample[target] = Xtest.blend
-	print "Saving submission to ",subfile
-	sample.to_csv(subfile, index = False)
+
  
 def blendSubmissions(fileList,coefList):
     """
@@ -784,12 +804,12 @@ def blendSubmissions(fileList,coefList):
 if __name__=="__main__":
     np.random.seed(123)
     #ensemble=createModels()
-    #ensemble=createOOBdata_parallel(ensemble,repeats=1,nfolds=8,n_jobs=1) #oob data averaging leads to significant variance reduction
+    #ensemble=createOOBdata_parallel(ensemble,repeats=3,nfolds=8,n_jobs=8) #oob data averaging leads to significant variance reduction
     
-    models=['xgboost1','dnn1','rf1']
+    models=['xgboost1','dnn1','rf1','logreg1','onehot1']
     #useCols=['A']
     useCols=None
-    trainEnsemble_multiclass(models,mode='linear',useCols=None,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile="XXX.csv")
-    #trainAllEnsembles(models_LS,plotting=True,mode='mean',subfile='/home/loschen/Desktop/datamining-kaggle/african_soil/submissions/testd.csv')
+    trainEnsemble_multiclass(models,mode='linear',useCols=None,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/otto/submissions/ensemble1.csv')
+   
     #trainEnsemble(model,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1509b.csv')
     

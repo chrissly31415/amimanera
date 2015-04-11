@@ -53,8 +53,8 @@ class XgboostClassifier(BaseEstimator):
 	if sample_weight is not None:
 	    sample_weight = np.asarray(sample_weight)
 	
-        #xgmat = xgb.DMatrix(X, label=y, missing=self.NA, weight=sample_weight)
-        xgmat = xgb.DMatrix(X, label=y)
+        #xgmat = xgb.DMatrix(X, label=y, missing=self.NA, weight=sample_weight)#NA ??
+        xgmat = xgb.DMatrix(X, label=y, missing=self.NA)#NA=0 as regulariziation->gives rubbish
         
         #plst = self.param.items()+[('eval_metric')]
         #set up parameters
