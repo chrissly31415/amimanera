@@ -39,8 +39,6 @@ def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomial
   Xtest = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/otto/test.csv')
   #sample = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/otto/sampleSubmission.csv')
 
-  
-
   # drop ids and get labels
   labels = Xtrain.target.values
   Xtrain = Xtrain.drop('id', axis=1)
@@ -51,6 +49,7 @@ def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomial
   
   if nsamples != -1: 
       rows = np.random.randint(0,len(Xtrain.index), nsamples)
+      print "unique: %6.2f"%(float(np.unique(rows).shape[0])/float(rows.shape[0]))
       Xtrain = Xtrain.iloc[rows,:]
       ytrain = ytrain[rows]
   
@@ -87,9 +86,13 @@ def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomial
   if polynomialFeatures is not None and polynomialFeatures is not False:
       print "Polynomial feature of degree:",polynomialFeatures,
       X_poly = make_polynomials(Xall)
+      if isinstance(polynomialFeatures,list):
+	  X_poly = X_poly[polynomialFeatures]
+      
       Xall = pd.concat([Xall, X_poly],axis=1)
       #print Xall.describe()
       print "...",Xall.shape
+      
   
   if doSVD: 
       print "SVD..."
@@ -117,13 +120,13 @@ def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomial
     #mad,rank
       print "Additional columns"
       Xall_orig = Xall.copy()
-      #Xall['row_sum'] = Xall_orig.sum(axis=1)
-      #Xall['row_median'] = Xall_orig.median(axis=1)
-      #Xall['row_max'] = Xall_orig.max(axis=1)
-      #Xall['row_min'] = Xall_orig.max(axis=1)
+      Xall['row_sum'] = Xall_orig.sum(axis=1)
+      Xall['row_median'] = Xall_orig.median(axis=1)
+      Xall['row_max'] = Xall_orig.max(axis=1)
+      #Xall['row_min'] = Xall_orig.min(axis=1)
       #Xall['row_mean'] = Xall_orig.mean(axis=1)
       #Xall['row_kurtosis'] = Xall_orig.kurtosis(axis=1)
-      #Xall['row_mad'] = Xall_orig.mad(axis=1)
+      Xall['row_mad'] = Xall_orig.mad(axis=1)
       
       Xall['arg_max'] = pd.DataFrame(Xall_orig.values).idxmax(axis=1)
       #print Xall['arg_max']
@@ -359,6 +362,7 @@ def makePredictions(model=None,Xtest=None,filename='submission.csv'):
 #DataFrame(randn(1000000,20)).to_hdf('test.h5','df',complevel=9,complib='blosc')
 #sampleweights for classes 0,1, 3
 #large decay rates and regularization
+#http://scikit-learn.org/stable/auto_examples/calibration/plot_calibration_multiclass.html#example-calibration-plot-calibration-multiclass-py
 
 if __name__=="__main__":
     """   
@@ -376,28 +380,31 @@ if __name__=="__main__":
     print "scipy:",sp.__version__
     #import sklearn
     #print "sklearn:",sklearn.__version__
+    #after linear feature selection, features are orderd according to their effect
+    ordered92=['feat_11', 'feat_60', 'feat_34', 'feat_14', 'feat_90', 'feat_15', 'feat_62', 'feat_42', 'feat_39', 'feat_36', 'feat_75', 'feat_68', 'feat_9', 'feat_43', 'feat_40', 'feat_76', 'feat_86', 'feat_26', 'feat_35', 'feat_59', 'feat_47', 'feat_17', 'feat_48', 'feat_69', 'feat_50', 'feat_91', 'feat_92', 'feat_56', 'feat_53', 'feat_25', 'feat_84', 'feat_57', 'feat_78', 'feat_58', 'feat_41', 'feat_32', 'feat_67', 'feat_72', 'feat_77', 'feat_64', 'feat_20', 'feat_71', 'feat_83', 'feat_19', 'feat_23', 'feat_88', 'feat_33', 'feat_73', 'feat_93', 'feat_3', 'feat_81', 'feat_13', 'feat_6', 'feat_31', 'feat_52', 'feat_4', 'feat_82', 'feat_51', 'feat_28', 'feat_2', 'feat_12', 'feat_21', 'feat_80', 'feat_49', 'feat_54', 'feat_65', 'feat_5', 'feat_63', 'feat_46', 'feat_27', 'feat_44', 'feat_55', 'feat_7', 'feat_61', 'feat_70', 'feat_10', 'feat_18', 'feat_22', 'feat_38', 'feat_8', 'feat_89', 'feat_16', 'feat_66', 'feat_45', 'feat_30', 'feat_79', 'feat_1', 'feat_24', 'feat_74', 'feat_87', 'feat_37', 'feat_29']
+    all_features=[u'feat_1', u'feat_2', u'feat_3', u'feat_4', u'feat_5', u'feat_6', u'feat_7', u'feat_8', u'feat_9', u'feat_10', u'feat_11', u'feat_12', u'feat_13', u'feat_14', u'feat_15', u'feat_16', u'feat_17', u'feat_18', u'feat_19', u'feat_20', u'feat_21', u'feat_22', u'feat_23', u'feat_24', u'feat_25', u'feat_26', u'feat_27', u'feat_28', u'feat_29', u'feat_30', u'feat_31', u'feat_32', u'feat_33', u'feat_34', u'feat_35', u'feat_36', u'feat_37', u'feat_38', u'feat_39', u'feat_40', u'feat_41', u'feat_42', u'feat_43', u'feat_44', u'feat_45', u'feat_46', u'feat_47', u'feat_48', u'feat_49', u'feat_50', u'feat_51', u'feat_52', u'feat_53', u'feat_54', u'feat_55', u'feat_56', u'feat_57', u'feat_58', u'feat_59', u'feat_60', u'feat_61', u'feat_62', u'feat_63', u'feat_64', u'feat_65', u'feat_66', u'feat_67', u'feat_68', u'feat_69', u'feat_70', u'feat_71', u'feat_72', u'feat_73', u'feat_74', u'feat_75', u'feat_76', u'feat_77', u'feat_78', u'feat_79', u'feat_80', u'feat_81', u'feat_82', u'feat_83', u'feat_84', u'feat_85', u'feat_86', u'feat_87', u'feat_88', u'feat_89', u'feat_90', u'feat_91', u'feat_92', u'feat_93']
+    start_set = ['feat_11', 'feat_60', 'feat_34', 'feat_14', 'feat_90', 'feat_15', 'feat_62', 'feat_42', 'feat_39', 'feat_36', 'feat_75', 'feat_68', 'feat_9', 'feat_43', 'feat_40', 'feat_76', 'feat_86', 'feat_26', 'feat_35', 'feat_59', 'feat_47', 'feat_17', 'feat_48', 'feat_69', 'feat_50', 'feat_91', 'feat_92', 'feat_56', 'feat_53', 'feat_25', 'feat_84', 'feat_57', 'feat_78', 'feat_58', 'feat_41', 'feat_32', 'feat_67', 'feat_72', 'feat_77', 'feat_64', 'feat_20', 'feat_71', 'feat_83', 'feat_19', 'feat_23', 'feat_88', 'feat_33', 'feat_73', 'feat_93', 'feat_3', 'feat_81', 'feat_13']
+    ga_set=[u'feat_1', u'feat_3', u'feat_9', u'feat_10', u'feat_11', u'feat_12', u'feat_13', u'feat_14', u'feat_15', u'feat_16', u'feat_18', u'feat_23', u'feat_24', u'feat_25', u'feat_26', u'feat_27', u'feat_28', u'feat_32', u'feat_33', u'feat_34', u'feat_35', u'feat_36', u'feat_39', u'feat_40', u'feat_41', u'feat_42', u'feat_43', u'feat_45', u'feat_47', u'feat_48', u'feat_49', u'feat_53', u'feat_56', u'feat_57', u'feat_59', u'feat_60', u'feat_62', u'feat_63', u'feat_64', u'feat_67', u'feat_68', u'feat_69', u'feat_71', u'feat_72', u'feat_73', u'feat_77', u'feat_79', u'feat_80', u'feat_81', u'feat_84', u'feat_86', u'feat_88', u'feat_90', u'feat_92', u'rnd2', u'arg_max', u'row_sd']    
+    interactions=['feat_34xfeat_83','feat_42xfeat_26', 'feat_34xfeat_48', 'feat_9xfeat_67','feat_60xfeat_43','feat_34xfeat_43','feat_11xfeat_64','feat_34xfeat_25','feat_60xfeat_15']   
+    addedFeatures=[u'row_sum', u'row_median', u'row_max', u'row_mad', u'arg_max', u'arg_min', u'non_null', u'row_sd']
+    addedFeatures_short=[u'arg_max', u'row_sd']
     
-    nsamples=-1
-    standardize=False
-    polynomialFeatures=None#'load'
+    nsamples=-1#61878
+    standardize=True
+    polynomialFeatures=interactions#'load'
     featureHashing=False
     OneHotEncoding=False
     analyzeIt=False
     call_group_data=False
-    log_transform=False
+    log_transform=True
     addNoiseColumns=None
-    addFeatures=False
+    addFeatures=True
     doSVD=None
     binning=None
     
-    #after linear feature selection, features are orderd according to their effect
-    all_ordered=['feat_11', 'feat_60', 'feat_34', 'feat_14', 'feat_90', 'feat_15', 'feat_62', 'feat_42', 'feat_39', 'feat_36', 'feat_75', 'feat_68', 'feat_9', 'feat_43', 'feat_40', 'feat_76', 'feat_86', 'feat_26', 'feat_35', 'feat_59', 'feat_47', 'feat_17', 'feat_48', 'feat_69', 'feat_50', 'feat_91', 'feat_92', 'feat_56', 'feat_53', 'feat_25', 'feat_84', 'feat_57', 'feat_78', 'feat_58', 'feat_41', 'feat_32', 'feat_67', 'feat_72', 'feat_77', 'feat_64', 'feat_20', 'feat_71', 'feat_83', 'feat_19', 'feat_23', 'feat_88', 'feat_33', 'feat_73', 'feat_93', 'feat_3', 'feat_81', 'feat_13', 'feat_6', 'feat_31', 'feat_52', 'feat_4', 'feat_82', 'feat_51', 'feat_28', 'feat_2', 'feat_12', 'feat_21', 'feat_80', 'feat_49', 'feat_54', 'feat_65', 'feat_5', 'feat_63', 'feat_46', 'feat_27', 'feat_44', 'feat_55', 'feat_7', 'feat_61', 'feat_70', 'feat_10', 'feat_18', 'feat_22', 'feat_38', 'feat_8', 'feat_89', 'feat_16', 'feat_66', 'feat_45', 'feat_30', 'feat_79', 'feat_1', 'feat_24', 'feat_74', 'feat_87', 'feat_37', 'feat_29']
-    start_set = ['feat_11', 'feat_60', 'feat_34', 'feat_14', 'feat_90', 'feat_15', 'feat_62', 'feat_42', 'feat_39', 'feat_36', 'feat_75', 'feat_68', 'feat_9', 'feat_43', 'feat_40', 'feat_76', 'feat_86', 'feat_26', 'feat_35', 'feat_59', 'feat_47', 'feat_17', 'feat_48', 'feat_69', 'feat_50', 'feat_91', 'feat_92', 'feat_56', 'feat_53', 'feat_25', 'feat_84', 'feat_57', 'feat_78', 'feat_58', 'feat_41', 'feat_32', 'feat_67', 'feat_72', 'feat_77', 'feat_64', 'feat_20', 'feat_71', 'feat_83', 'feat_19', 'feat_23', 'feat_88', 'feat_33', 'feat_73', 'feat_93', 'feat_3', 'feat_81', 'feat_13']
-    ga_set=[u'feat_1', u'feat_3', u'feat_9', u'feat_10', u'feat_11', u'feat_12', u'feat_13', u'feat_14', u'feat_15', u'feat_16', u'feat_18', u'feat_23', u'feat_24', u'feat_25', u'feat_26', u'feat_27', u'feat_28', u'feat_32', u'feat_33', u'feat_34', u'feat_35', u'feat_36', u'feat_39', u'feat_40', u'feat_41', u'feat_42', u'feat_43', u'feat_45', u'feat_47', u'feat_48', u'feat_49', u'feat_53', u'feat_56', u'feat_57', u'feat_59', u'feat_60', u'feat_62', u'feat_63', u'feat_64', u'feat_67', u'feat_68', u'feat_69', u'feat_71', u'feat_72', u'feat_73', u'feat_77', u'feat_79', u'feat_80', u'feat_81', u'feat_84', u'feat_86', u'feat_88', u'feat_90', u'feat_92', u'rnd2', u'arg_max', u'row_sd']    
-    interactions=['feat_34xfeat_83','feat_42xfeat_26', 'feat_34xfeat_48', 'feat_9xfeat_67','feat_60xfeat_43','feat_34xfeat_43','feat_11xfeat_64','feat_34xfeat_25','feat_60xfeat_15']   
-    featureFilter=None
-    final_filter = None
-    
+    #featureFilter=all_ordered
+    featureFilter=ordered92
+    final_filter=ordered92+addedFeatures+interactions
     
     Xtrain, ytrain, Xtest, labels  = prepareDataset(nsamples=nsamples,standardize=standardize,featureHashing=featureHashing,OneHotEncoding=OneHotEncoding,polynomialFeatures=polynomialFeatures,featureFilter=featureFilter,final_filter=final_filter, call_group_data=call_group_data,log_transform=log_transform,addNoiseColumns=addNoiseColumns,addFeatures=addFeatures,doSVD=doSVD,binning=binning,analyzeIt=analyzeIt)
     
@@ -421,21 +428,27 @@ if __name__=="__main__":
     #model = SGDClassifier(alpha=1E-6,n_iter=250,shuffle=True,loss='log',penalty='l2',n_jobs=1,learning_rate='optimal',verbose=False)
     #model = SGDClassifier(alpha=1E-6,n_iter=800,shuffle=True,loss='modified_huber',penalty='l2',n_jobs=8,learning_rate='optimal',verbose=False)#mll=0.68
     
-    #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=8,criterion='gini', max_features=20)
+    #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features=20)
+    #model = CalibratedClassifierCV(basemodel, method='isotonic', cv=3)
+    
     #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=8,criterion='gini', max_features=20,oob_score=False,class_weight='subsample')
     #model =  ExtraTreesClassifier(bootstrap=False,n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=4,criterion='entropy', max_features=20,oob_score=False)
     
-    model = GradientBoostingClassifier(loss='deviance',n_estimators=200, learning_rate=0.05, max_depth=6,subsample=.5,verbose=1)
+    #model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.03, max_depth=10,subsample=.5,verbose=1)
+    
+    #model = SVC(kernel='rbf',C=10.0, gamma=0.0, verbose = 0, probability=True)
+    #model=  OneVsRestClassifier(model,n_jobs=1)
     
     #model = XgboostClassifier(booster='gblinear',n_estimators=50,alpha_L1=0.1,lambda_L2=0.1,n_jobs=2,objective='multi:softprob',eval_metric='mlogloss',silent=1)#0.63
-    #model = XgboostClassifier(n_estimators=400,learning_rate=0.05,max_depth=10,subsample=.5,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)#0.45
-    #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,subsample=.5,n_jobs=2,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
+    #model = XgboostClassifier(n_estimators=380,learning_rate=0.05,max_depth=10,subsample=.5,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=0.2)#0.45
+    #model = XgboostClassifier(n_estimators=200,learning_rate=0.1,max_depth=10,subsample=.75,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=0.0)#0.46
     #model = basemodel
     #model = BaggingClassifier(base_estimator=basemodel,n_estimators=10,n_jobs=1,verbose=1)#for some reason parallelization does not work...?estimated 12h runs 10 bagging iterations with 400 trees in 8fold crossvalidation
     #model = SVC(C=10, kernel='linear', shrinking=True, probability=True, tol=0.001, cache_size=200)
     #model = OneVsRestClassifier(basemodel,n_jobs=8)
+    #model = CalibratedClassifierCV(model, method='isotonic', cv=3)
     #########NN-STANDARDIZE############!!!
-    """
+
     model = NeuralNet(
     layers=[  # three layers: one hidden layer
         ('input', layers.InputLayer),      
@@ -443,30 +456,30 @@ if __name__=="__main__":
         ('dropout1', layers.DropoutLayer),
         ('hidden2', layers.DenseLayer),
         ('dropout2', layers.DropoutLayer),
-#         ('hidden3', layers.DenseLayer),
-#        ('dropout3', layers.DropoutLayer),
+        ('hidden3', layers.DenseLayer),
+        ('dropout3', layers.DropoutLayer),
 #         ('hidden4', layers.DenseLayer),
 #        ('dropout4', layers.DropoutLayer),
         ('output', layers.DenseLayer),
         ],
     # layer parameters:
     input_shape=(None,Xtrain.shape[1]), 
-    hidden1_num_units=300,  # number of units in hidden layer #200
+    hidden1_num_units=500,  # number of units in hidden layer #200
     #hidden1_nonlinearity=nonlinearities.rectify,
     
     hidden1_nonlinearity=nonlinearities.rectify,
     #hidden1_nonlinearity=nonlinearities.leaky_rectify,
     #hidden1_nonlinearity=nonlinearities.sigmoid,
     #hidden1_nonlinearity=nonlinearities.linear,
-    dropout1_p=0.2,
+    dropout1_p=0.1,
     
-    hidden2_num_units=300, #300
+    hidden2_num_units=500, #300
     hidden2_nonlinearity=nonlinearities.rectify,
-    dropout2_p=0.3,
+    dropout2_p=0.5,
     
-    #hidden3_num_units=300,
-    #hidden3_nonlinearity=nonlinearities.rectify,
-    #dropout3_p=0.4,
+    hidden3_num_units=500,
+    hidden3_nonlinearity=nonlinearities.rectify,
+    dropout3_p=0.0,
     
     #hidden4_num_units=200,
     #hidden4_nonlinearity=nonlinearities.rectify,
@@ -484,46 +497,45 @@ if __name__=="__main__":
     objective_alpha=1E-5,
     # optimization method:
     update=nesterov_momentum,
-    update_learning_rate=theano.shared(float32(0.005)),
+    update_learning_rate=theano.shared(float32(0.01)),
     #update_learning_rate=0.002,
     update_momentum=theano.shared(float32(0.9)),
     #update_momentum=0.9,
 
     regression=False,  # flag to indicate we're dealing with regression problem
-    max_epochs=1200,  # we want to train this many epochs
+    max_epochs=1000,  # we want to train this many epochs
     verbose=1,
     
-    
-    #on_epoch_finished=[
-    #    AdjustVariable('update_learning_rate', start=0.002, stop=0.0005),
-    #    AdjustVariable('update_momentum', start=0.9, stop=0.999),
-        #EarlyStopping(patience=200),
-    #    ],  
+    on_epoch_finished=[
+        #AdjustVariable('update_learning_rate', start=0.02, stop=0.005),
+        #AdjustVariable('update_momentum', start=0.9, stop=0.999),
+        EarlyStopping(patience=200),
+     #   ],  
     )
-    """
+
     #model = BaggingClassifier(base_estimator=basemodel,n_estimators=5,n_jobs=1,verbose=1)
     
     scoring_func = make_scorer(multiclass_log_loss, greater_is_better=False, needs_proba=True)
     
-    #greedyFeatureSelection(model,Xtrain,ytrain,itermax=40,itermin=30,pool_features=Xtrain.iloc[:,52:].columns ,start_features=start_set+interactions,verbose=True, cv=StratifiedKFold(ytrain,4), n_jobs=4,scoring_func=scoring_func)
     
     #analyzeLearningCurve(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,24,test_size=0.125),score_func=scoring_func)
-    #iterativeFeatureSelection(model,Xtrain,Xtest,ytrain,iterations=1,nrfeats=1,scoring=scoring_func,cv=StratifiedKFold(ytrain,5),n_jobs=1)
+    
 
     #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedKFold(ytrain,8,shuffle=True))
-    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,4,shuffle=True),scoring=scoring_func,n_jobs=1,trainFull=False,verbose=True)
+    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,n_jobs=2,trainFull=False,verbose=True)
     #model = buildModel(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.125),scoring=scoring_func,n_jobs=1,trainFull=False,verbose=True)
     #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.125))
-    #model.fit(Xtrain.values,ytrain)
-    #model.fit(Xtrain,ytrain)
     #plotNN(model)
     
     #genetic_feature_selection(model,Xtrain,ytrain,Xtest,pool_features=None,start_features=ga_set,scoring_func=scoring_func,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.2),n_iter=10,n_pop=20,n_jobs=2)
     #genetic_feature_selection(model,Xtrain,ytrain,Xtest,pool_features=None,start_features=start_set,scoring_func=scoring_func,cv=StratifiedKFold(ytrain,4,shuffle=True),n_iter=10,n_pop=20,n_jobs=4)
+    #iterativeFeatureSelection(model,Xtrain,Xtest,ytrain,iterations=1,nrfeats=1,scoring=scoring_func,cv=StratifiedKFold(ytrain,5),n_jobs=1)
+    #greedyFeatureSelection(model,Xtrain,ytrain,itermax=40,itermin=30,pool_features=Xtrain.iloc[:,93:].columns ,start_features=None,verbose=True, cv=StratifiedKFold(ytrain,8,shuffle=True), n_jobs=8,scoring_func=scoring_func)
     
-    model = makeGridSearch(model,Xtrain,ytrain,n_jobs=4,refit=False,cv=StratifiedKFold(ytrain,4,shuffle=True),scoring=scoring_func)
+    
+    model = makeGridSearch(model,Xtrain,ytrain,n_jobs=1,refit=False,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,random_iter=-1)
     #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=1,refit=False,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.125),scoring=scoring_func)
-    #makePredictions(model,Xtest,filename='/home/loschen/Desktop/datamining-kaggle/otto/submissions/submission07042015a.csv')
+    #makePredictions(model,Xtest,filename='/home/loschen/Desktop/datamining-kaggle/otto/submissions/submission12042015a.csv')
     plt.show()
     print("Model building done in %fs" % (time() - t0))
 

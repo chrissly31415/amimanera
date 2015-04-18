@@ -21,7 +21,7 @@ class XgboostClassifier(BaseEstimator):
     sklearn: http://scikit-learn.org/stable/index.html
     based on the kaggle forum thread: https://www.kaggle.com/c/higgs-boson/forums/t/8184/public-starting-guide-to-get-above-3-60-ams-score/44691#post44691
     """
-    def __init__(self,n_estimators=120,learning_rate=0.1,max_depth=6,subsample=1.0,objective='binary:logistic',eval_metric='auc',booster='gbtree',n_jobs=1,cutoff=0.50,NA=-999.0,alpha_L1=0.0001,lambda_L2=1,silent=1):
+    def __init__(self,n_estimators=120,learning_rate=0.1,max_depth=6,subsample=1.0,objective='binary:logistic',eval_metric='auc',booster='gbtree',n_jobs=1,cutoff=0.50,NA=-999.0,alpha_L1=0.0001,lambda_L2=1,silent=1,eval_size=0.0):
 	"""
 	Constructor
 	"""
@@ -38,6 +38,7 @@ class XgboostClassifier(BaseEstimator):
 	self.silent = silent
 	self.alpha_L1 = alpha_L1
 	self.lambda_L2 = lambda_L2
+	self.eval_size = eval_size
 	
 	self.isRegressor=False
 	self.classes_=-1
@@ -53,8 +54,22 @@ class XgboostClassifier(BaseEstimator):
 	if sample_weight is not None:
 	    sample_weight = np.asarray(sample_weight)
 	
+	if self.eval_size>0.0:
+	    n_test = int(self.eval_size * X.shape[0])
+	    idx_test = np.random.choice(xrange(X.shape[0]),n_test,False)
+	    idx_train = [x for x in xrange(X.shape[0]) if x not in idx_test]
+	    Xeval = X[idx_test,:]
+	    yeval = y[idx_test]
+	    X = X[idx_train,:]
+	    y = y[idx_train]
+	    print "Xeval:",Xeval.shape
+	    print "X:",X.shape
+	    deval = xgb.DMatrix(Xeval,label=yeval)
+	    
+	    
         #xgmat = xgb.DMatrix(X, label=y, missing=self.NA, weight=sample_weight)#NA ??
-        xgmat = xgb.DMatrix(X, label=y, missing=self.NA)#NA=0 as regulariziation->gives rubbish
+        dtrain = xgb.DMatrix(X, label=y, missing=self.NA)#NA=0 as regulariziation->gives rubbish
+        
         
         #plst = self.param.items()+[('eval_metric')]
         #set up parameters
@@ -74,8 +89,12 @@ class XgboostClassifier(BaseEstimator):
         
         plst = param.items()
         
-	watchlist = [ (xgmat,'train') ]
-        self.xgboost_model = xgb.train(plst, xgmat, self.n_estimators, watchlist)
+	#watchlist = [ (dtrain,'train') ]
+	if self.eval_size>0.0:
+	    watchlist  = [(dtrain,'train'),(deval,'eval')]
+	    self.xgboost_model = xgb.train(plst, dtrain, self.n_estimators, watchlist)
+	else:
+	    self.xgboost_model = xgb.train(plst, dtrain, self.n_estimators)
 
     def predict(self, X):
 	y = self.predict_proba(X)

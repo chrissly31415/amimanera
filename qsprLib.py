@@ -44,7 +44,7 @@ from sklearn.svm import LinearSVC,SVC,SVR
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.cluster import KMeans,MiniBatchKMeans
 from sklearn.learning_curve import learning_curve
-from sklearn.multiclass import OneVsRestClassifier
+from sklearn.multiclass import OneVsRestClassifier,OneVsOneClassifier
 
 from sklearn.base import clone
 
@@ -592,7 +592,7 @@ def greedyFeatureSelection(lmodel,lX,ly,itermax=10,itermin=5,pool_features=None 
 		
 		
 		if verbose:
-		    print "(%4d/%4d) TARGET: %-12s - <score>= %0.4f (+/- %0.5f) score,iteration best= %0.4f score,overall best: %0.4f features: %5d time: %6.2f" % (a,len(pool_features),act_feature, score.mean(), score.std(),score_best,score_opt,lX.loc[:,features].shape[1],run_time)
+		    print "(%4d/%4d) TARGET: %-12s - <score>= %0.4f (+/- %0.5f) score,iteration best= %0.4f score,overall best: %0.4f features: %5d time: %6.2f" % (a+1,len(pool_features),act_feature, score.mean(), score.std(),score_best,score_opt,lX.loc[:,features].shape[1],run_time)
 		
 		if score.mean()<score_best:
 		  score_best=score.mean()
@@ -995,27 +995,28 @@ def makeGridSearch(lmodel,lX,ly,n_jobs=1,refit=True,cv=5,scoring='roc_auc',rando
     #parameters = {'filter__param': [30,50],'model__C':[1]}
     #parameters = {'pca__n_components':[30],'model__C':[1]}
     #parameters = {'model__C':[1,0.1,0.01,0.001]}#Linear SVC+LOGREG
-    #parameters = {'C':[1]}#Linear SVC+LOGREG
+    #parameters = {'C':[10]}#Linear SVC+LOGREG
     #parameters = {'C':[1.0],'penalty':['l2']}#Linear SVC+LOGREG
     #parameters = {'n_estimators':[50],'alpha_L1':[1E-1],'lambda_L2':[1E-1]}#XGBOOST GBLINEAR
     #parameters = {'alpha':[1,1E-2,1E-4,1E-6],'n_iter':[100,400,800],'penalty':['l2']}#SGD
     #parameters = {'alpha':[1,1E-2,1E-4],'n_iter':[250],'penalty':['l2']}#SGD
     #parameters = {'learn_rates':[0.3,0.2],'learn_rate_decays':[1.0,0.9],'epochs':[40]}#DBN
-    parameters = {'hidden1_num_units': [300],'dropout1_p':[0.3,0.5],'hidden2_num_units': [300],'dropout2_p':[0.5,0.0],'update_learning_rate':[0.01,0.008],'objective_alpha':[1E-10]}#Lasagne
-    #parameters = {'hidden1_num_units': [200],'dropout1_p':[0.0,0.1,0.25],'hidden2_num_units': [200],'dropout2_p':[0.0,0.1,0.25],'hidden3_num_units': [200],'dropout3_p':[0.5],'max_epochs':[1000]}#Lasagne
+    #parameters = {'hidden1_num_units': [300],'dropout1_p':[0.3,0.5],'hidden2_num_units': [300],'dropout2_p':[0.5,0.0],'update_learning_rate':[0.01,0.008],'objective_alpha':[1E-10]}#Lasagne
+    parameters = {'hidden1_num_units': [500],'dropout1_p':[0.5],'hidden2_num_units': [500],'dropout2_p':[0.1],'hidden3_num_units': [500],'dropout3_p':[0.0],'max_epochs':[1500],'objective_alpha':[1E-5],'update_learning_rate':[0.005,0.003]}#Lasagne
     #parameters = {'hidden1_num_units': [500,1000],'update_learning_rate':[0.0001,0.0005],'max_epochs':[500],'dropout1_p':[0.0,.2]}#Lasagne
     #parameters = {'hidden1_num_units': [500,500],'update_learning_rate':[0.0001,0.0005],'max_epochs':[500],'dropout1_p':[0.0,.2]}#Lasagne
     #parameters = {'hidden1_num_units': [200,300],'max_epochs':[1000],'dropout1_p':[0.1,0.2,0.3]}#Lasagne
     #parameters = {'n_estimators':[500], 'max_features':[20],'max_depth':[None],'max_leaf_nodes':[None],'min_samples_leaf':[1,5],'min_samples_split':[2,10],'criterion':['gini']}#xrf+xrf
     #parameters = {'class_weight': [{0: 1.,1: 1., 2: 1.,3: 1.,4: 1.,5: 1.,6: 1.,7: 1.,8: 1.,9: 1.},{0: 2.,1: 1., 2: 2.,3: 1.,4: 1.,5: 1.,6: 1.,7: 1.,8: 1.,9: 1.}]}
-    #parameters = {'n_estimators':[400],'max_depth':[8,10],'learning_rate':[0.05,0.02],'subsample':[0.5]}#XGB
+    #parameters = {'n_estimators':[300,400],'max_depth':[8,9,10],'learning_rate':[0.015,0.02,0.025,0.03],'subsample':[0.5,1.0]}#XGB+GBC
+    #parameters = {'n_estimators':[400],'max_depth':[9,10,11],'learning_rate':[0.05,0.06,0.04,0.03],'subsample':[0.5,1.0]}#XGB+GBC
     #parameters = {'n_estimators':[20],'max_depth':[10],'learning_rate':[0.05],'subsample':[0.5]}#XGB
     #parameters = {}
     
     if random_iter<0:
 	search  = grid_search.GridSearchCV(lmodel, parameters,n_jobs=n_jobs,verbose=2,scoring=scoring,cv=cv,refit=refit)
     else:
-	search  = grid_search.RandomizedSearchCV(lmodel, param_distributions=parameters, n_iter=random_iter)
+	search  = grid_search.RandomizedSearchCV(lmodel, param_distributions=parameters,n_jobs=n_jobs,verbose=2, scoring=scoring,cv=cv,refit=refit,n_iter=random_iter)
     
     search.fit(lX,ly)
     best_score=1.0E5
@@ -1029,7 +1030,7 @@ def makeGridSearch(lmodel,lX,ly,n_jobs=1,refit=True,cv=5,scoring='roc_auc',rando
 	#    best_score = mean_score
 	#    scores[i,:] = cvscores
     
-    report(search.grid_scores_)
+    #report(search.grid_scores_)
 
     if refit:
       return search.best_estimator_

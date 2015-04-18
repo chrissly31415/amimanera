@@ -27,9 +27,10 @@ def createModels():
     #xmodel = XModel("xgboost1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
     #ensemble.append(xmodel)
 
-    #RF1
+    #RF1 ~ 0.491
     #(Xtrain,ytrain,Xtest,labels) = prepareDataset()
-    #model = RandomForestClassifier(n_estimators=100,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='entropy', max_features=20,oob_score=False)
+    #basemodel = RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='entropy', max_features=20,oob_score=False)
+    #model = CalibratedClassifierCV(basemodel, method='isotonic', cv=3)
     #xmodel = XModel("rf1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
     #ensemble.append(xmodel)
 
@@ -156,12 +157,35 @@ def createModels():
     #xmodel = XModel("xgboost1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
     #ensemble.append(xmodel)
     
-        
+    #XGBOOST2 CV~0.46
+    #all_features=[u'feat_1', u'feat_2', u'feat_3', u'feat_4', u'feat_5', u'feat_6', u'feat_7', u'feat_8', u'feat_9', u'feat_10', u'feat_11', u'feat_12', u'feat_13', u'feat_14', u'feat_15', u'feat_16', u'feat_17', u'feat_18', u'feat_19', u'feat_20', u'feat_21', u'feat_22', u'feat_23', u'feat_24', u'feat_25', u'feat_26', u'feat_27', u'feat_28', u'feat_29', u'feat_30', u'feat_31', u'feat_32', u'feat_33', u'feat_34', u'feat_35', u'feat_36', u'feat_37', u'feat_38', u'feat_39', u'feat_40', u'feat_41', u'feat_42', u'feat_43', u'feat_44', u'feat_45', u'feat_46', u'feat_47', u'feat_48', u'feat_49', u'feat_50', u'feat_51', u'feat_52', u'feat_53', u'feat_54', u'feat_55', u'feat_56', u'feat_57', u'feat_58', u'feat_59', u'feat_60', u'feat_61', u'feat_62', u'feat_63', u'feat_64', u'feat_65', u'feat_66', u'feat_67', u'feat_68', u'feat_69', u'feat_70', u'feat_71', u'feat_72', u'feat_73', u'feat_74', u'feat_75', u'feat_76', u'feat_77', u'feat_78', u'feat_79', u'feat_80', u'feat_81', u'feat_82', u'feat_83', u'feat_84', u'feat_85', u'feat_86', u'feat_87', u'feat_88', u'feat_89', u'feat_90', u'feat_91', u'feat_92', u'feat_93']
+    #addedFeatures_short=[u'arg_max', u'row_sd']
+    #(Xtrain,ytrain,Xtest,labels) = prepareDataset(addFeatures=True,final_filter=all_features+addedFeatures_short)
+    #model = XgboostClassifier(n_estimators=200,learning_rate=0.1,max_depth=10,subsample=.75,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=0.0)
+    #xmodel = XModel("xgboost1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    #ensemble.append(xmodel)
+    
+    
     #GBC1 ~0.52
     (Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples=-1,addFeatures=True)
-    model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.05, max_depth=6,subsample=.5,verbose=1)
+    model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.03, max_depth=10,subsample=.5,verbose=1)
     xmodel = XModel("gbc1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
     ensemble.append(xmodel)
+    
+    #SVM1 ~ 0.45!!->0.64!!!!FAULTY???
+    #start_set = ['feat_11', 'feat_60', 'feat_34', 'feat_14', 'feat_90', 'feat_15', 'feat_62', 'feat_42', 'feat_39', 'feat_36', 'feat_75', 'feat_68', 'feat_9', 'feat_43', 'feat_40', 'feat_76', 'feat_86', 'feat_26', 'feat_35', 'feat_59', 'feat_47', 'feat_17', 'feat_48', 'feat_69', 'feat_50', 'feat_91', 'feat_92', 'feat_56', 'feat_53', 'feat_25', 'feat_84', 'feat_57', 'feat_78', 'feat_58', 'feat_41', 'feat_32', 'feat_67', 'feat_72', 'feat_77', 'feat_64', 'feat_20', 'feat_71', 'feat_83', 'feat_19', 'feat_23', 'feat_88', 'feat_33', 'feat_73', 'feat_93', 'feat_3', 'feat_81', 'feat_13']
+    #(Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples=45000,featureFilter=start_set,addFeatures=False)
+    #model = SVC(kernel='rbf',C=10.0, gamma=0.0, verbose = 0, probability=True)
+    #xmodel = XModel("svm1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    #ensemble.append(xmodel)    
+    
+    #bagxgb1
+    #(Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples=-1,addFeatures=False)
+    #basemodel = XgboostClassifier(n_estimators=400,learning_rate=0.05,max_depth=10,subsample=.5,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
+    #model = BaggingClassifier(base_estimator=basemodel,n_estimators=20,n_jobs=1,verbose=1)
+    #xmodel = XModel("bagxgb1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    #ensemble.append(xmodel)
+    
     
     #some info
     for m in ensemble:
@@ -426,8 +450,7 @@ def voting(ensemble,Xtrain,Xtest,y,test_indices,subfile):
     vfunc = np.vectorize(binarizeProbs)
     
     print "Majority voting for predictions"
-    weights=np.asarray(pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'], index_col=0)['Weight'])
-
+    #weights=np.asarray(pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'], index_col=0)['Weight'])
     
     for i,col in enumerate(Xtrain.columns):
 	cutoff = computeCutoff(Xtrain[col].values,False)
@@ -462,17 +485,17 @@ def voting(ensemble,Xtrain,Xtest,y,test_indices,subfile):
 	checksubmission(subfile)
     
 
-def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_loss',subfile="subXXX.csv"):
+def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_loss',subfile=""):
     """
     Blending using sklearn classifier
     """
-    folds=8
-    
+    folds=8  
     #blender=LogisticRegression(penalty='l2', tol=0.0001, C=100)
     #blender = Pipeline([('filter', SelectPercentile(f_regression, percentile=25)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=0.1))])
     #blender=SGDClassifier(alpha=0.1, n_iter=50,penalty='l2',loss='log',n_jobs=folds)
     #blender=AdaBoostClassifier(learning_rate=0.01,n_estimators=50)
     blender=RandomForestClassifier(n_estimators=500,n_jobs=4, max_features='auto',oob_score=False,min_samples_leaf=10,max_depth=None)
+    blender = CalibratedClassifierCV(blender, method='isotonic', cv=3)
     #blender=ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False)
     #blender=RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
     #blender=ExtraTreesRegressor(n_estimators=500,max_depth=None)
@@ -493,6 +516,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_l
 	    print "Warning: Using predict, no proba!"
 	    blend_oob[test] = blender.predict(Xtest)
 	blend_scores[i]=funcdict[score_func](ly[test],blend_oob[test])
+	print "Fold: %3d <%s>: %0.6f" % (i,score_func,blend_scores[i])
     
     print " <"+score_func+">: %0.6f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()),
     oob_auc=funcdict[score_func](ly,blend_oob)
@@ -522,7 +546,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_l
 	plt.hist(preds,bins=50,alpha=0.3,label='pred')
 	plt.legend()
 	plt.show()	
-	makePredictions(blender,testset,filename='/home/loschen/Desktop/datamining-kaggle/otto/submissions/ensemble1.csv')
+	makePredictions(blender,testset,filename=subfile)
 	
     return(blend_scores.mean())
 
@@ -566,7 +590,7 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',normali
     n_classes = Xtrain.shape[1]/len(ensemble)
     
     lowerbound=0.0
-    upperbound=0.5
+    upperbound=0.4
     constr=None
     constr=[lambda x,z=i: x[z]-lowerbound for i in range(n_models)]
     constr2=[lambda x,z=i: upperbound-x[z] for i in range(n_models)]
@@ -803,13 +827,14 @@ def blendSubmissions(fileList,coefList):
     
 if __name__=="__main__":
     np.random.seed(123)
-    #ensemble=createModels()
-    #ensemble=createOOBdata_parallel(ensemble,repeats=3,nfolds=8,n_jobs=8) #oob data averaging leads to significant variance reduction
+    ensemble=createModels()
+    ensemble=createOOBdata_parallel(ensemble,repeats=1,nfolds=8,n_jobs=8) #oob data averaging leads to significant variance reduction
     
-    models=['xgboost1','dnn1','rf1','logreg1','onehot1']
+    models=['bagxgb1_r1','xgboost1_r3','dnn1_r3','rf1_r3','logreg1_r3','onehot1_r3','gbc1_r1']
+    #models=['bagxgb1_r1']
     #useCols=['A']
     useCols=None
-    trainEnsemble_multiclass(models,mode='linear',useCols=None,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/otto/submissions/ensemble1.csv')
+    #trainEnsemble_multiclass(models,mode='classical',useCols=None,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/otto/submissions/submission14042015c.csv')
    
     #trainEnsemble(model,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1509b.csv')
     

@@ -43,14 +43,13 @@ def float32(k):
 
 
 class L2Regularization(Objective):
+  
     def __init__(self, input_layer, loss_function=None, aggregation='mean',**args):
 	Objective.__init__(self, input_layer, loss_function, aggregation)
-	print "L2 regularization:",args['alpha']
 	self.alpha=args['alpha']
-    #alpha = 0.0001
+    
     def get_loss(self, input=None, target=None, deterministic=False, **kwargs):
-        loss = super(L2Regularization, self).get_loss(input=input,
-target=target, deterministic=deterministic, **kwargs)
+        loss = super(L2Regularization, self).get_loss(input=input,target=target, deterministic=deterministic, **kwargs)
         if not deterministic:
             return loss + self.alpha * l2(self.input_layer)
         else:
