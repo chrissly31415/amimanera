@@ -42,6 +42,8 @@ def float32(k):
     return np.cast['float32'](k)
 
 
+Maxout = layers.pool.FeaturePoolLayer
+
 class L2Regularization(Objective):
   
     def __init__(self, input_layer, loss_function=None, aggregation='mean',**args):

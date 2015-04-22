@@ -45,31 +45,35 @@ class XgboostClassifier(BaseEstimator):
 	self.xgboost_model=None
 	#self.param['scale_pos_weight'] = 1.0 #scaling can be done also externally| for AMS metric
 
-    def fit(self, X, y, sample_weight=None):
+    def fit(self, lX, ly, sample_weight=None):
 	#avoid problems with pandas dataframes and DMatrix
-	if isinstance(X,pd.DataFrame): X = np.asarray(X)
-	if isinstance(y,pd.DataFrame): y = np.asarray(y)	
-	self.classes_ = np.unique(y)
+	if isinstance(lX,pd.DataFrame): lX = np.asarray(lX)
+	if isinstance(ly,pd.DataFrame): ly = np.asarray(ly)
+	
+	print "Fit:",lX.shape
+	
+	self.classes_ = np.unique(ly)
+	
+	
 	
 	if sample_weight is not None:
 	    sample_weight = np.asarray(sample_weight)
 	
 	if self.eval_size>0.0:
-	    n_test = int(self.eval_size * X.shape[0])
-	    idx_test = np.random.choice(xrange(X.shape[0]),n_test,False)
-	    idx_train = [x for x in xrange(X.shape[0]) if x not in idx_test]
-	    Xeval = X[idx_test,:]
-	    yeval = y[idx_test]
-	    X = X[idx_train,:]
-	    y = y[idx_train]
+	    n_test = int(self.eval_size * lX.shape[0])
+	    idx_test = np.random.choice(xrange(lX.shape[0]),n_test,False)
+	    idx_train = [x for x in xrange(lX.shape[0]) if x not in idx_test]
+	    Xeval = lX[idx_test,:]
+	    yeval = ly[idx_test]
+	    lX = lX[idx_train,:]
+	    ly = ly[idx_train]
 	    print "Xeval:",Xeval.shape
-	    print "X:",X.shape
+	    print "X:",lX.shape
 	    deval = xgb.DMatrix(Xeval,label=yeval)
 	    
 	    
         #xgmat = xgb.DMatrix(X, label=y, missing=self.NA, weight=sample_weight)#NA ??
-        dtrain = xgb.DMatrix(X, label=y, missing=self.NA)#NA=0 as regulariziation->gives rubbish
-        
+        dtrain = xgb.DMatrix(lX, label=ly, missing=self.NA)#NA=0 as regulariziation->gives rubbish
         
         #plst = self.param.items()+[('eval_metric')]
         #set up parameters
@@ -82,7 +86,7 @@ class XgboostClassifier(BaseEstimator):
         param['bst:max_depth'] = self.max_depth
         param['nthread'] = self.n_jobs
         param['silent'] = self.silent
-        param['num_class']=np.unique(y).shape[0] 
+        param['num_class']=np.unique(ly).shape[0] 
         
         param['alpha']=self.alpha_L1
         param['lambda']=self.lambda_L2
@@ -92,21 +96,27 @@ class XgboostClassifier(BaseEstimator):
 	#watchlist = [ (dtrain,'train') ]
 	if self.eval_size>0.0:
 	    watchlist  = [(dtrain,'train'),(deval,'eval')]
-	    self.xgboost_model = xgb.train(plst, dtrain, self.n_estimators, watchlist)
+	    self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators, evals=watchlist, early_stopping_rounds=None)
 	else:
-	    self.xgboost_model = xgb.train(plst, dtrain, self.n_estimators)
+	    watchlist  = [(dtrain,'train')]
+	    self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators,evals=watchlist)
 
-    def predict(self, X):
-	y = self.predict_proba(X)
-	idx = np.argmax(y,axis=1)
+    def predict(self, lX):
+	ly = self.predict_proba(lX)
+	idx = np.argmax(ly,axis=1)
         return idx
         
-    def predict_proba(self,X):
+    def predict_proba(self,lX):
 	#avoid problems with pandas dataframes and DMatrix
-	if isinstance(X,pd.DataFrame): X = np.asarray(X)
-        xgmat_test = xgb.DMatrix(X, missing=self.NA)
-        y = self.xgboost_model.predict(xgmat_test)
-        return y
+	if isinstance(lX,pd.DataFrame): lX = np.asarray(lX)
+        xgmat_test = xgb.DMatrix(lX, missing=self.NA)
+        ly = self.xgboost_model.predict(xgmat_test)
+        return ly
+    
+    #def set_params(random_state=None):
+    #    print "Agugu"
+        
+    
  
 class XgboostRegressor(XgboostClassifier):    
     def __init__(self):

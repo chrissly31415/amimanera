@@ -14,6 +14,8 @@ from sklearn.qda import QDA
 from pandas.tools.plotting import scatter_matrix
 
 from xgboost_sklearn import *
+import xgboost as xgb
+
 from OneHotEncoder import *
 
 from lasagne_tools import *
@@ -33,9 +35,9 @@ def analyzeDataset(Xtrain,Xtest,ytrain):
 #	raw_input()
 
 
-def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomialFeatures=None,OneHotEncoding=False,featureFilter=None,final_filter=None,call_group_data=False,addNoiseColumns=None,log_transform=None,addFeatures=False,doSVD=False,binning=False,analyzeIt=False):
+def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomialFeatures=None,OneHotEncoding=False,featureFilter=None,final_filter=None,call_group_data=False,addNoiseColumns=None,log_transform=None,addFeatures=False,doSVD=False,binning=False,analyzeIt=False,shuffleDF=True):
   # import data
-  Xtrain = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/otto/train.csv')
+  Xtrain = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/otto/train.csv').reset_index(drop=True)
   Xtest = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/otto/test.csv')
   #sample = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/otto/sampleSubmission.csv')
 
@@ -44,14 +46,27 @@ def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomial
   Xtrain = Xtrain.drop('id', axis=1)
   Xtrain = Xtrain.drop('target', axis=1).astype(np.int32)
   Xtest = Xtest.drop('id', axis=1).astype(np.int32)
-  
   ytrain = preprocessing.LabelEncoder().fit_transform(labels)
   
-  if nsamples != -1: 
-      rows = np.random.randint(0,len(Xtrain.index), nsamples)
+  if nsamples != -1:
+      if 'shuffle' in nsamples: 
+	  rows = np.random.choice(len(Xtrain.index), size=len(Xtrain.index),replace=False)
+      else:
+	  rows = np.random.randint(0,len(Xtrain.index), nsamples)
       print "unique: %6.2f"%(float(np.unique(rows).shape[0])/float(rows.shape[0]))
       Xtrain = Xtrain.iloc[rows,:]
       ytrain = ytrain[rows]
+      
+  if shuffleDF:
+      print "Shuffling data!!!"
+      ytrain = pd.DataFrame({'target' : pd.Series(ytrain)})
+      print ytrain
+      print Xtrain
+      train = pd.concat([Xtrain, ytrain],axis=1,ignore_index=True)
+      train = shuffle(train)
+      print train.describe()
+      ytrain = Xtrain['target']
+      Xtrain = Xtrain.drop('target', axis=1)
   
   #Xtrain = Xall[len(Xtest.index):]
   #Xtest = Xall[:len(Xtest.index)]
@@ -61,6 +76,7 @@ def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomial
   if analyzeIt:
     analyzeDataset(Xtrain,Xtest,ytrain)
     sys.exit(1)
+   
    
    
   Xall = pd.concat([Xtest, Xtrain],ignore_index=True)
@@ -94,10 +110,10 @@ def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomial
       print "...",Xall.shape
       
   
-  if doSVD: 
+  if doSVD is not None and doSVD is not False:
       print "SVD..."
-      tsvd=TruncatedSVD(n_components=25, algorithm='randomized', n_iter=5, tol=0.0)
-      #tsvd = RandomizedPCA(n_components=25, whiten=False)
+      #tsvd=TruncatedSVD(n_components=25, algorithm='randomized', n_iter=5, tol=0.0)
+      tsvd = RandomizedPCA(n_components=doSVD, whiten=False)
       Xall=tsvd.fit_transform(Xall)
       Xall = pd.DataFrame(Xall)
             
@@ -186,9 +202,11 @@ def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomial
   
   if log_transform:
 	print "log_transform"
+	
+	#Xtmp=Xall.applymap(lambda x: np.log(x+1.0))
+	#print Xtmp.describe()
 	Xall = Xall + 1.0
 	Xall=Xall.apply(np.log)
-	#Xall=Xall.apply(np.log)
 	print Xall.describe()
   
   if standardize:
@@ -363,6 +381,10 @@ def makePredictions(model=None,Xtest=None,filename='submission.csv'):
 #sampleweights for classes 0,1, 3
 #large decay rates and regularization
 #http://scikit-learn.org/stable/auto_examples/calibration/plot_calibration_multiclass.html#example-calibration-plot-calibration-multiclass-py
+#ensemble with hard voting -> calibration
+#shuffle split for ensemble building!!
+#interactions: http://www.kaggle.com/c/otto-group-product-classification-challenge/forums/t/13486/variable-interaction
+#tune subsample for XGB
 
 if __name__=="__main__":
     """   
@@ -370,7 +392,7 @@ if __name__=="__main__":
     """ 
     # Set a seed for consistant results
     t0 = time()
-    np.random.seed(42)
+    np.random.seed(123)
     #pd.set_option('display.height', 1000)
     #pd.set_option('display.max_rows', 500)
     #pd.set_option('display.max_columns', 500)
@@ -389,24 +411,44 @@ if __name__=="__main__":
     addedFeatures=[u'row_sum', u'row_median', u'row_max', u'row_mad', u'arg_max', u'arg_min', u'non_null', u'row_sd']
     addedFeatures_short=[u'arg_max', u'row_sd']
     
-    nsamples=-1#61878
+    #NNsetting
+    #"""
+    nsamples='shuffle'#61878
     standardize=True
-    polynomialFeatures=interactions#'load'
+    polynomialFeatures=None#'load'
     featureHashing=False
     OneHotEncoding=False
     analyzeIt=False
     call_group_data=False
     log_transform=True
     addNoiseColumns=None
-    addFeatures=True
+    addFeatures=False
     doSVD=None
     binning=None
-    
     #featureFilter=all_ordered
-    featureFilter=ordered92
-    final_filter=ordered92+addedFeatures+interactions
+    featureFilter=None
+    final_filter=None
+    shuffleDF=False
+    """
+    #Normal settings
+    nsamples=-1#61878
+    standardize=False
+    polynomialFeatures=None#'load'
+    featureHashing=False
+    OneHotEncoding=False
+    analyzeIt=False
+    call_group_data=False
+    log_transform=False
+    addNoiseColumns=None
+    addFeatures=False
+    doSVD=None
+    binning=None
+    #featureFilter=all_ordered
+    featureFilter=None
+    final_filter=None
+    #"""
     
-    Xtrain, ytrain, Xtest, labels  = prepareDataset(nsamples=nsamples,standardize=standardize,featureHashing=featureHashing,OneHotEncoding=OneHotEncoding,polynomialFeatures=polynomialFeatures,featureFilter=featureFilter,final_filter=final_filter, call_group_data=call_group_data,log_transform=log_transform,addNoiseColumns=addNoiseColumns,addFeatures=addFeatures,doSVD=doSVD,binning=binning,analyzeIt=analyzeIt)
+    Xtrain, ytrain, Xtest, labels  = prepareDataset(nsamples=nsamples,standardize=standardize,featureHashing=featureHashing,OneHotEncoding=OneHotEncoding,polynomialFeatures=polynomialFeatures,featureFilter=featureFilter,final_filter=final_filter, call_group_data=call_group_data,log_transform=log_transform,addNoiseColumns=addNoiseColumns,addFeatures=addFeatures,doSVD=doSVD,binning=binning,analyzeIt=analyzeIt,shuffleDF=shuffleDF)
     
     #Xtrain = sparse.csr_matrix(Xtrain)
     print type(Xtrain)
@@ -414,6 +456,7 @@ if __name__=="__main__":
     #ytrain = ytrain.astype(np.float32)
     #df_info(Xtrain)
     density(Xtrain)
+
 
     #model = LogisticRegression(C=1.0,penalty='l2')
     #model = LogisticRegression(C=1.0,class_weight=None,penalty='l2',solver='lbfgs', multi_class='ovr' )#0.671
@@ -434,97 +477,85 @@ if __name__=="__main__":
     #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=8,criterion='gini', max_features=20,oob_score=False,class_weight='subsample')
     #model =  ExtraTreesClassifier(bootstrap=False,n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=4,criterion='entropy', max_features=20,oob_score=False)
     
-    #model = GradientBoostingClassifier(loss='deviance',n_estimators=300, learning_rate=0.03, max_depth=10,subsample=.5,verbose=1)
+    #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=4, learning_rate=0.03, max_depth=10,subsample=.5,verbose=1)
     
     #model = SVC(kernel='rbf',C=10.0, gamma=0.0, verbose = 0, probability=True)
     #model=  OneVsRestClassifier(model,n_jobs=1)
     
     #model = XgboostClassifier(booster='gblinear',n_estimators=50,alpha_L1=0.1,lambda_L2=0.1,n_jobs=2,objective='multi:softprob',eval_metric='mlogloss',silent=1)#0.63
-    #model = XgboostClassifier(n_estimators=380,learning_rate=0.05,max_depth=10,subsample=.5,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=0.2)#0.45
-    #model = XgboostClassifier(n_estimators=200,learning_rate=0.1,max_depth=10,subsample=.75,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=0.0)#0.46
-    #model = basemodel
-    #model = BaggingClassifier(base_estimator=basemodel,n_estimators=10,n_jobs=1,verbose=1)#for some reason parallelization does not work...?estimated 12h runs 10 bagging iterations with 400 trees in 8fold crossvalidation
-    #model = SVC(C=10, kernel='linear', shrinking=True, probability=True, tol=0.001, cache_size=200)
-    #model = OneVsRestClassifier(basemodel,n_jobs=8)
-    #model = CalibratedClassifierCV(model, method='isotonic', cv=3)
-    #########NN-STANDARDIZE############!!!
+    #model = XgboostClassifier(n_estimators=800,learning_rate=0.025,max_depth=10,subsample=.5,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=0.0)#0.45
+    #model = XgboostClassifier(n_estimators=200,learning_rate=0.1,max_depth=10,subsample=.75,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)#0.46
+    #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,subsample=.5,n_jobs=8,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
 
+    #model = BaggingClassifier(base_estimator=basemodel1,n_estimators=2,n_jobs=1,verbose=2,random_state=None,max_samples=1.0)#for some reason parallelization does not work...?estimated 12h runs 10 bagging iterations with 400 trees in 8fold crossvalidation
+    #model = SVC(C=10, kernel='linear', shrinking=True, probability=True, tol=0.001, cache_size=200)
+    #model = OneVsRestClassifier(basemodel2,n_jobs=1)
+    #model = CalibratedClassifierCV(basemodel2, method='isotonic', cv=3)
+    #########NN-STANDARDIZE############!!!
+    #"""
     model = NeuralNet(
-    layers=[  # three layers: one hidden layer
-        ('input', layers.InputLayer),      
+    layers=[ 
+	('input', layers.InputLayer),      
         ('hidden1', layers.DenseLayer),
         ('dropout1', layers.DropoutLayer),
+        ('maxout1', Maxout),
         ('hidden2', layers.DenseLayer),
         ('dropout2', layers.DropoutLayer),
+        ('maxout2', Maxout),
         ('hidden3', layers.DenseLayer),
         ('dropout3', layers.DropoutLayer),
-#         ('hidden4', layers.DenseLayer),
-#        ('dropout4', layers.DropoutLayer),
+        ('maxout3', Maxout),
         ('output', layers.DenseLayer),
         ],
+
     # layer parameters:
     input_shape=(None,Xtrain.shape[1]), 
-    hidden1_num_units=500,  # number of units in hidden layer #200
-    #hidden1_nonlinearity=nonlinearities.rectify,
+    hidden1_num_units=600,  # number of units in hidden layer 
+    hidden1_nonlinearity=None,
+    dropout1_p=0.2,
+    maxout1_ds=2,
     
-    hidden1_nonlinearity=nonlinearities.rectify,
-    #hidden1_nonlinearity=nonlinearities.leaky_rectify,
-    #hidden1_nonlinearity=nonlinearities.sigmoid,
-    #hidden1_nonlinearity=nonlinearities.linear,
-    dropout1_p=0.1,
+    hidden2_num_units=600, #300
+    hidden2_nonlinearity=None,
+    dropout2_p=0.2,
+    maxout2_ds=2,
     
-    hidden2_num_units=500, #300
-    hidden2_nonlinearity=nonlinearities.rectify,
-    dropout2_p=0.5,
-    
-    hidden3_num_units=500,
-    hidden3_nonlinearity=nonlinearities.rectify,
-    dropout3_p=0.0,
-    
-    #hidden4_num_units=200,
-    #hidden4_nonlinearity=nonlinearities.rectify,
-    #dropout4_p=0.10,
-    
+    hidden3_num_units=600,
+    hidden3_nonlinearity=None,
+    dropout3_p=0.2,
+    maxout3_ds=2,
+
     output_nonlinearity=nonlinearities.softmax,  # output layer uses identity function
     output_num_units=9,  # 30 target values
 
     eval_size=0.0,
 
-    batch_iterator_train=BatchIterator(batch_size=4096),
-    batch_iterator_test=BatchIterator(batch_size=4096),
-    
-    objective=L2Regularization,
-    objective_alpha=1E-5,
-    # optimization method:
+    #objective=L2Regularization,
+    #objective_alpha=0.00005,
     update=nesterov_momentum,
-    update_learning_rate=theano.shared(float32(0.01)),
-    #update_learning_rate=0.002,
+    update_learning_rate=theano.shared(float32(0.001)),
     update_momentum=theano.shared(float32(0.9)),
-    #update_momentum=0.9,
 
     regression=False,  # flag to indicate we're dealing with regression problem
-    max_epochs=1000,  # we want to train this many epochs
+    max_epochs=100,  # we want to train this many epochs
     verbose=1,
     
     on_epoch_finished=[
-        #AdjustVariable('update_learning_rate', start=0.02, stop=0.005),
+        #AdjustVariable('update_learning_rate', start=0.002, stop=0.001),
         #AdjustVariable('update_momentum', start=0.9, stop=0.999),
-        EarlyStopping(patience=200),
-     #   ],  
+        #EarlyStopping(patience=20),
+        ],  
     )
-
-    #model = BaggingClassifier(base_estimator=basemodel,n_estimators=5,n_jobs=1,verbose=1)
+    #"""
+    #model = BaggingClassifier(base_estimator=model,n_estimators=2,n_jobs=1,verbose=1)
     
     scoring_func = make_scorer(multiclass_log_loss, greater_is_better=False, needs_proba=True)
-    
-    
     #analyzeLearningCurve(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,24,test_size=0.125),score_func=scoring_func)
-    
 
-    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedKFold(ytrain,8,shuffle=True))
-    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,n_jobs=2,trainFull=False,verbose=True)
-    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.125),scoring=scoring_func,n_jobs=1,trainFull=False,verbose=True)
-    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.125))
+    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=True,cv=StratifiedKFold(ytrain,8,shuffle=True))
+    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,n_jobs=8,trainFull=False,verbose=True)
+    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.1),scoring=scoring_func,n_jobs=1,trainFull=True,verbose=True)
+    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=True,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.1))
     #plotNN(model)
     
     #genetic_feature_selection(model,Xtrain,ytrain,Xtest,pool_features=None,start_features=ga_set,scoring_func=scoring_func,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.2),n_iter=10,n_pop=20,n_jobs=2)
@@ -532,10 +563,10 @@ if __name__=="__main__":
     #iterativeFeatureSelection(model,Xtrain,Xtest,ytrain,iterations=1,nrfeats=1,scoring=scoring_func,cv=StratifiedKFold(ytrain,5),n_jobs=1)
     #greedyFeatureSelection(model,Xtrain,ytrain,itermax=40,itermin=30,pool_features=Xtrain.iloc[:,93:].columns ,start_features=None,verbose=True, cv=StratifiedKFold(ytrain,8,shuffle=True), n_jobs=8,scoring_func=scoring_func)
     
-    
-    model = makeGridSearch(model,Xtrain,ytrain,n_jobs=1,refit=False,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,random_iter=-1)
-    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=1,refit=False,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.125),scoring=scoring_func)
-    #makePredictions(model,Xtest,filename='/home/loschen/Desktop/datamining-kaggle/otto/submissions/submission12042015a.csv')
+    #model.fit(Xtrain,ytrain)
+    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=1,refit=False,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,random_iter=20)
+    model = makeGridSearch(model,Xtrain,ytrain,n_jobs=1,refit=False,cv=StratifiedShuffleSplit(ytrain,4,test_size=0.125),scoring=scoring_func,random_iter=10)
+    makePredictions(model,Xtest,filename='/home/loschen/Desktop/datamining-kaggle/otto/submissions/submission23042015b.csv')
     plt.show()
     print("Model building done in %fs" % (time() - t0))
 
