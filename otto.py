@@ -35,7 +35,7 @@ def analyzeDataset(Xtrain,Xtest,ytrain):
 #	raw_input()
 
 
-def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomialFeatures=None,OneHotEncoding=False,featureFilter=None,final_filter=None,call_group_data=False,addNoiseColumns=None,log_transform=None,addFeatures=False,doSVD=False,binning=False,analyzeIt=False,shuffleDF=True):
+def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomialFeatures=None,OneHotEncoding=False,featureFilter=None,final_filter=None,call_group_data=False,addNoiseColumns=None,log_transform=None,addFeatures=False,doSVD=False,binning=False,analyzeIt=False):
   # import data
   Xtrain = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/otto/train.csv').reset_index(drop=True)
   Xtest = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/otto/test.csv')
@@ -52,22 +52,11 @@ def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomial
       if 'shuffle' in nsamples: 
 	  rows = np.random.choice(len(Xtrain.index), size=len(Xtrain.index),replace=False)
       else:
-	  rows = np.random.randint(0,len(Xtrain.index), nsamples)
+	  rows = np.random.randint(0,len(Xtrain.index), nsamples,replace=False)
       print "unique: %6.2f"%(float(np.unique(rows).shape[0])/float(rows.shape[0]))
       Xtrain = Xtrain.iloc[rows,:]
       ytrain = ytrain[rows]
       
-  if shuffleDF:
-      print "Shuffling data!!!"
-      ytrain = pd.DataFrame({'target' : pd.Series(ytrain)})
-      print ytrain
-      print Xtrain
-      train = pd.concat([Xtrain, ytrain],axis=1,ignore_index=True)
-      train = shuffle(train)
-      print train.describe()
-      ytrain = Xtrain['target']
-      Xtrain = Xtrain.drop('target', axis=1)
-  
   #Xtrain = Xall[len(Xtest.index):]
   #Xtest = Xall[:len(Xtest.index)]
   
@@ -385,6 +374,10 @@ def makePredictions(model=None,Xtest=None,filename='submission.csv'):
 #shuffle split for ensemble building!!
 #interactions: http://www.kaggle.com/c/otto-group-product-classification-challenge/forums/t/13486/variable-interaction
 #tune subsample for XGB
+# one versus all with pipeline!
+#tune gamma
+#ensembling: aggregation via argmax, then voting or one hote encoding and log reg 
+#ensembling: use gradient boosting...
 
 if __name__=="__main__":
     """   
@@ -392,7 +385,7 @@ if __name__=="__main__":
     """ 
     # Set a seed for consistant results
     t0 = time()
-    np.random.seed(123)
+    np.random.seed(12343)
     #pd.set_option('display.height', 1000)
     #pd.set_option('display.max_rows', 500)
     #pd.set_option('display.max_columns', 500)
@@ -431,7 +424,7 @@ if __name__=="__main__":
     shuffleDF=False
     """
     #Normal settings
-    nsamples=-1#61878
+    nsamples='shuffle'
     standardize=False
     polynomialFeatures=None#'load'
     featureHashing=False
@@ -446,9 +439,9 @@ if __name__=="__main__":
     #featureFilter=all_ordered
     featureFilter=None
     final_filter=None
-    #"""
+    """
     
-    Xtrain, ytrain, Xtest, labels  = prepareDataset(nsamples=nsamples,standardize=standardize,featureHashing=featureHashing,OneHotEncoding=OneHotEncoding,polynomialFeatures=polynomialFeatures,featureFilter=featureFilter,final_filter=final_filter, call_group_data=call_group_data,log_transform=log_transform,addNoiseColumns=addNoiseColumns,addFeatures=addFeatures,doSVD=doSVD,binning=binning,analyzeIt=analyzeIt,shuffleDF=shuffleDF)
+    Xtrain, ytrain, Xtest, labels  = prepareDataset(nsamples=nsamples,standardize=standardize,featureHashing=featureHashing,OneHotEncoding=OneHotEncoding,polynomialFeatures=polynomialFeatures,featureFilter=featureFilter,final_filter=final_filter, call_group_data=call_group_data,log_transform=log_transform,addNoiseColumns=addNoiseColumns,addFeatures=addFeatures,doSVD=doSVD,binning=binning,analyzeIt=analyzeIt)
     
     #Xtrain = sparse.csr_matrix(Xtrain)
     print type(Xtrain)
@@ -483,7 +476,7 @@ if __name__=="__main__":
     #model=  OneVsRestClassifier(model,n_jobs=1)
     
     #model = XgboostClassifier(booster='gblinear',n_estimators=50,alpha_L1=0.1,lambda_L2=0.1,n_jobs=2,objective='multi:softprob',eval_metric='mlogloss',silent=1)#0.63
-    #model = XgboostClassifier(n_estimators=800,learning_rate=0.025,max_depth=10,subsample=.5,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=0.0)#0.45
+    #model = XgboostClassifier(n_estimators=400,learning_rate=0.05,max_depth=10,subsample=.5,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=0.0)#0.45
     #model = XgboostClassifier(n_estimators=200,learning_rate=0.1,max_depth=10,subsample=.75,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)#0.46
     #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,subsample=.5,n_jobs=8,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
 
@@ -493,59 +486,7 @@ if __name__=="__main__":
     #model = CalibratedClassifierCV(basemodel2, method='isotonic', cv=3)
     #########NN-STANDARDIZE############!!!
     #"""
-    model = NeuralNet(
-    layers=[ 
-	('input', layers.InputLayer),      
-        ('hidden1', layers.DenseLayer),
-        ('dropout1', layers.DropoutLayer),
-        ('maxout1', Maxout),
-        ('hidden2', layers.DenseLayer),
-        ('dropout2', layers.DropoutLayer),
-        ('maxout2', Maxout),
-        ('hidden3', layers.DenseLayer),
-        ('dropout3', layers.DropoutLayer),
-        ('maxout3', Maxout),
-        ('output', layers.DenseLayer),
-        ],
-
-    # layer parameters:
-    input_shape=(None,Xtrain.shape[1]), 
-    hidden1_num_units=600,  # number of units in hidden layer 
-    hidden1_nonlinearity=None,
-    dropout1_p=0.2,
-    maxout1_ds=2,
-    
-    hidden2_num_units=600, #300
-    hidden2_nonlinearity=None,
-    dropout2_p=0.2,
-    maxout2_ds=2,
-    
-    hidden3_num_units=600,
-    hidden3_nonlinearity=None,
-    dropout3_p=0.2,
-    maxout3_ds=2,
-
-    output_nonlinearity=nonlinearities.softmax,  # output layer uses identity function
-    output_num_units=9,  # 30 target values
-
-    eval_size=0.0,
-
-    #objective=L2Regularization,
-    #objective_alpha=0.00005,
-    update=nesterov_momentum,
-    update_learning_rate=theano.shared(float32(0.001)),
-    update_momentum=theano.shared(float32(0.9)),
-
-    regression=False,  # flag to indicate we're dealing with regression problem
-    max_epochs=100,  # we want to train this many epochs
-    verbose=1,
-    
-    on_epoch_finished=[
-        #AdjustVariable('update_learning_rate', start=0.002, stop=0.001),
-        #AdjustVariable('update_momentum', start=0.9, stop=0.999),
-        #EarlyStopping(patience=20),
-        ],  
-    )
+    model = nnet2
     #"""
     #model = BaggingClassifier(base_estimator=model,n_estimators=2,n_jobs=1,verbose=1)
     
@@ -555,7 +496,7 @@ if __name__=="__main__":
     #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=True,cv=StratifiedKFold(ytrain,8,shuffle=True))
     #model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,n_jobs=8,trainFull=False,verbose=True)
     #model = buildModel(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.1),scoring=scoring_func,n_jobs=1,trainFull=True,verbose=True)
-    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=True,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.1))
+    model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=True,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.125))
     #plotNN(model)
     
     #genetic_feature_selection(model,Xtrain,ytrain,Xtest,pool_features=None,start_features=ga_set,scoring_func=scoring_func,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.2),n_iter=10,n_pop=20,n_jobs=2)
@@ -564,9 +505,9 @@ if __name__=="__main__":
     #greedyFeatureSelection(model,Xtrain,ytrain,itermax=40,itermin=30,pool_features=Xtrain.iloc[:,93:].columns ,start_features=None,verbose=True, cv=StratifiedKFold(ytrain,8,shuffle=True), n_jobs=8,scoring_func=scoring_func)
     
     #model.fit(Xtrain,ytrain)
-    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=1,refit=False,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,random_iter=20)
-    model = makeGridSearch(model,Xtrain,ytrain,n_jobs=1,refit=False,cv=StratifiedShuffleSplit(ytrain,4,test_size=0.125),scoring=scoring_func,random_iter=10)
-    makePredictions(model,Xtest,filename='/home/loschen/Desktop/datamining-kaggle/otto/submissions/submission23042015b.csv')
+    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=8,refit=False,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,random_iter=-1)
+    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=1,refit=False,cv=StratifiedShuffleSplit(ytrain,4,test_size=0.125),scoring=scoring_func,random_iter=100)
+    #makePredictions(model,Xtest,filename='/home/loschen/Desktop/datamining-kaggle/otto/submissions/submission24042015a.csv')
     plt.show()
     print("Model building done in %fs" % (time() - t0))
 
