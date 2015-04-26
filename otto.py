@@ -35,7 +35,7 @@ def analyzeDataset(Xtrain,Xtest,ytrain):
 #	raw_input()
 
 
-def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomialFeatures=None,OneHotEncoding=False,featureFilter=None,final_filter=None,call_group_data=False,addNoiseColumns=None,log_transform=None,addFeatures=False,doSVD=False,binning=False,analyzeIt=False):
+def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomialFeatures=None,OneHotEncoding=False,featureFilter=None,final_filter=None,call_group_data=False,addNoiseColumns=None,log_transform=None,addFeatures=False,doSVD=False,binning=False,analyzeIt=False,separateClass=False):
   # import data
   Xtrain = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/otto/train.csv').reset_index(drop=True)
   Xtest = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/otto/test.csv')
@@ -61,6 +61,13 @@ def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomial
   #Xtest = Xall[:len(Xtest.index)]
   
   # encode labels 
+  
+  if separateClass is not None and separateClass is not False:
+     print "Separating class",separateClass
+     print ytrain
+     ytrain = (ytrain==separateClass)
+     print separateClass
+     print ytrain
   
   if analyzeIt:
     analyzeDataset(Xtrain,Xtest,ytrain)
@@ -98,18 +105,7 @@ def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomial
       #print Xall.describe()
       print "...",Xall.shape
       
-  
-  if doSVD is not None and doSVD is not False:
-      print "SVD..."
-      #tsvd=TruncatedSVD(n_components=25, algorithm='randomized', n_iter=5, tol=0.0)
-      tsvd = RandomizedPCA(n_components=doSVD, whiten=False)
-      Xall=tsvd.fit_transform(Xall)
-      Xall = pd.DataFrame(Xall)
-            
-      #df_info(Xall)
-  
-        
-  
+
   
   if addNoiseColumns is False or addNoiseColumns is not None:
 	print "Adding %d random noise columns"%(addNoiseColumns)
@@ -197,6 +193,17 @@ def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomial
 	Xall = Xall + 1.0
 	Xall=Xall.apply(np.log)
 	print Xall.describe()
+  
+    
+  if doSVD is not None and doSVD is not False:
+      print "SVD..."
+      #tsvd=TruncatedSVD(n_components=doSVD, algorithm='randomized', n_iter=5, tol=0.0)
+      tsvd = RandomizedPCA(n_components=doSVD, whiten=True)
+      print tsvd
+      Xall=tsvd.fit_transform(Xall)
+      Xall = pd.DataFrame(Xall)
+      print Xall.describe()
+      #df_info(Xall)
   
   if standardize:
     Xall = scaleData(lXs=Xall,lXs_test=None)
@@ -374,10 +381,14 @@ def makePredictions(model=None,Xtest=None,filename='submission.csv'):
 #shuffle split for ensemble building!!
 #interactions: http://www.kaggle.com/c/otto-group-product-classification-challenge/forums/t/13486/variable-interaction
 #tune subsample for XGB
-# one versus all with pipeline!
+# one versus all with pipeline i.e. feature selection!?
 #tune gamma
 #ensembling: aggregation via argmax, then voting or one hote encoding and log reg 
-#ensembling: use gradient boosting...
+#ensembling: use gradient boosting for building the ensemble...
+#use RF with SVD? --->NO??
+#look at accuracies for OneVsOneClassifier->no predict_proba
+#modify objective for xgboost for taking care of class 0,1 and 3?
+#bag xgb with colsample_bytree
 
 if __name__=="__main__":
     """   
@@ -385,7 +396,7 @@ if __name__=="__main__":
     """ 
     # Set a seed for consistant results
     t0 = time()
-    np.random.seed(12343)
+    np.random.seed(421)
     #pd.set_option('display.height', 1000)
     #pd.set_option('display.max_rows', 500)
     #pd.set_option('display.max_columns', 500)
@@ -403,6 +414,7 @@ if __name__=="__main__":
     interactions=['feat_34xfeat_83','feat_42xfeat_26', 'feat_34xfeat_48', 'feat_9xfeat_67','feat_60xfeat_43','feat_34xfeat_43','feat_11xfeat_64','feat_34xfeat_25','feat_60xfeat_15']   
     addedFeatures=[u'row_sum', u'row_median', u'row_max', u'row_mad', u'arg_max', u'arg_min', u'non_null', u'row_sd']
     addedFeatures_short=[u'arg_max', u'row_sd']
+    addedFeatures_best=[u'row_median',u'arg_max',u'row_max',u'non_null',u'arg_min']
     
     #NNsetting
     #"""
@@ -421,7 +433,8 @@ if __name__=="__main__":
     #featureFilter=all_ordered
     featureFilter=None
     final_filter=None
-    shuffleDF=False
+    separateClass=3
+
     """
     #Normal settings
     nsamples='shuffle'
@@ -441,7 +454,7 @@ if __name__=="__main__":
     final_filter=None
     """
     
-    Xtrain, ytrain, Xtest, labels  = prepareDataset(nsamples=nsamples,standardize=standardize,featureHashing=featureHashing,OneHotEncoding=OneHotEncoding,polynomialFeatures=polynomialFeatures,featureFilter=featureFilter,final_filter=final_filter, call_group_data=call_group_data,log_transform=log_transform,addNoiseColumns=addNoiseColumns,addFeatures=addFeatures,doSVD=doSVD,binning=binning,analyzeIt=analyzeIt)
+    Xtrain, ytrain, Xtest, labels  = prepareDataset(nsamples=nsamples,standardize=standardize,featureHashing=featureHashing,OneHotEncoding=OneHotEncoding,polynomialFeatures=polynomialFeatures,featureFilter=featureFilter,final_filter=final_filter, call_group_data=call_group_data,log_transform=log_transform,addNoiseColumns=addNoiseColumns,addFeatures=addFeatures,doSVD=doSVD,binning=binning,analyzeIt=analyzeIt,separateClass=separateClass)
     
     #Xtrain = sparse.csr_matrix(Xtrain)
     print type(Xtrain)
@@ -463,9 +476,8 @@ if __name__=="__main__":
     #model = QDA()
     #model = SGDClassifier(alpha=1E-6,n_iter=250,shuffle=True,loss='log',penalty='l2',n_jobs=1,learning_rate='optimal',verbose=False)
     #model = SGDClassifier(alpha=1E-6,n_iter=800,shuffle=True,loss='modified_huber',penalty='l2',n_jobs=8,learning_rate='optimal',verbose=False)#mll=0.68
-    
-    #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features=20)
-    #model = CalibratedClassifierCV(basemodel, method='isotonic', cv=3)
+    model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=4,criterion='gini', max_features=20)
+    model = CalibratedClassifierCV(model, method='isotonic', cv=3)
     
     #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=8,criterion='gini', max_features=20,oob_score=False,class_weight='subsample')
     #model =  ExtraTreesClassifier(bootstrap=False,n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=4,criterion='entropy', max_features=20,oob_score=False)
@@ -473,30 +485,41 @@ if __name__=="__main__":
     #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=4, learning_rate=0.03, max_depth=10,subsample=.5,verbose=1)
     
     #model = SVC(kernel='rbf',C=10.0, gamma=0.0, verbose = 0, probability=True)
-    #model=  OneVsRestClassifier(model,n_jobs=1)
+    #model=  OneVsOneClassifier(model,n_jobs=8)
     
     #model = XgboostClassifier(booster='gblinear',n_estimators=50,alpha_L1=0.1,lambda_L2=0.1,n_jobs=2,objective='multi:softprob',eval_metric='mlogloss',silent=1)#0.63
-    #model = XgboostClassifier(n_estimators=400,learning_rate=0.05,max_depth=10,subsample=.5,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=0.0)#0.45
+    #model = XgboostClassifier(n_estimators=400,learning_rate=0.05,max_depth=10,subsample=.5,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=-1)#0.45
     #model = XgboostClassifier(n_estimators=200,learning_rate=0.1,max_depth=10,subsample=.75,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)#0.46
-    #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,subsample=.5,n_jobs=8,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
+    #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,subsample=.5,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
 
     #model = BaggingClassifier(base_estimator=basemodel1,n_estimators=2,n_jobs=1,verbose=2,random_state=None,max_samples=1.0)#for some reason parallelization does not work...?estimated 12h runs 10 bagging iterations with 400 trees in 8fold crossvalidation
     #model = SVC(C=10, kernel='linear', shrinking=True, probability=True, tol=0.001, cache_size=200)
-    #model = OneVsRestClassifier(basemodel2,n_jobs=1)
-    #model = CalibratedClassifierCV(basemodel2, method='isotonic', cv=3)
-    #########NN-STANDARDIZE############!!!
-    #"""
-    model = nnet2
+    #model = OneVsRestClassifier(model,n_jobs=1)
+    #
+    #model = nnet3
+    #model = nnet3
+    
+    #with open('nnet1.pickle', 'rb') as f:  # !
+    #        net_pretrain = pickle.load(f)  # !
+    #        model.load_weights_from(net_pretrain)
+    #model = CalibratedClassifierCV(model, method='isotonic', cv=3)
     #"""
     #model = BaggingClassifier(base_estimator=model,n_estimators=2,n_jobs=1,verbose=1)
     
     scoring_func = make_scorer(multiclass_log_loss, greater_is_better=False, needs_proba=True)
     #analyzeLearningCurve(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,24,test_size=0.125),score_func=scoring_func)
 
-    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=True,cv=StratifiedKFold(ytrain,8,shuffle=True))
+    model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedKFold(ytrain,8,shuffle=True))
     #model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,n_jobs=8,trainFull=False,verbose=True)
     #model = buildModel(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.1),scoring=scoring_func,n_jobs=1,trainFull=True,verbose=True)
-    model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=True,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.125))
+    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=True,cv=StratifiedShuffleSplit(ytrain,1,test_size=0.01))
+    
+    #model.fit(Xtrain.values, ytrain)
+    #with open('nnet1.pickle', 'wb') as f:
+    #  pickle.dump(model, f, -1)
+   
+    
+    
     #plotNN(model)
     
     #genetic_feature_selection(model,Xtrain,ytrain,Xtest,pool_features=None,start_features=ga_set,scoring_func=scoring_func,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.2),n_iter=10,n_pop=20,n_jobs=2)
@@ -505,8 +528,11 @@ if __name__=="__main__":
     #greedyFeatureSelection(model,Xtrain,ytrain,itermax=40,itermin=30,pool_features=Xtrain.iloc[:,93:].columns ,start_features=None,verbose=True, cv=StratifiedKFold(ytrain,8,shuffle=True), n_jobs=8,scoring_func=scoring_func)
     
     #model.fit(Xtrain,ytrain)
-    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=8,refit=False,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,random_iter=-1)
-    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=1,refit=False,cv=StratifiedShuffleSplit(ytrain,4,test_size=0.125),scoring=scoring_func,random_iter=100)
+    #parameters = {'n_estimators':[400,500],'max_depth':[10,11,12],'learning_rate':[0.04,0.05,0.06],'subsample':[0.5,0.75],'colsample_bytree':[1.0,0.8,0.6]}
+    parameters = {'hidden1_num_units': [600],'dropout1_p':[0.5,0.4,0.3],'hidden2_num_units': [600],'dropout2_p':[0.5,0.4,0.3],'hidden3_num_units': [600],'objective_alpha':[1E-9,0.000001,0.00005],'max_epochs':[50,60,70]}#Lasagne
+    #parameters = {'hidden1_num_units': [300,600],'dropout1_p':[0.5],'maxout1_ds':[2,3],'hidden2_num_units': [300,600],'dropout2_p':[0.0,0.25,0.5],'maxout2_ds':[2,3],'hidden3_num_units': [300,600],'dropout3_p':[0.0,0.25,0.5],'maxout3_ds':[2,3],'max_epochs':[75,150]}
+    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=1,refit=False,cv=StratifiedShuffleSplit(ytrain,4,test_size=0.125),scoring=scoring_func,parameters=parameters,random_iter=10)
+    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=1,refit=False,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,parameters=parameters,random_iter=10)
     #makePredictions(model,Xtest,filename='/home/loschen/Desktop/datamining-kaggle/otto/submissions/submission24042015a.csv')
     plt.show()
     print("Model building done in %fs" % (time() - t0))
