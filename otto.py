@@ -35,7 +35,8 @@ def analyzeDataset(Xtrain,Xtest,ytrain):
 #	raw_input()
 
 
-def prepareDataset(nsamples=-1,standardize=False,featureHashing=False,polynomialFeatures=None,OneHotEncoding=False,featureFilter=None,final_filter=None,call_group_data=False,addNoiseColumns=None,log_transform=None,addFeatures=False,doSVD=False,binning=False,analyzeIt=False,separateClass=False):
+def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,polynomialFeatures=None,OneHotEncoding=False,featureFilter=None,final_filter=None,call_group_data=False,addNoiseColumns=None,log_transform=None,addFeatures=False,doSVD=False,binning=False,analyzeIt=False,separateClass=False):
+  np.random.seed(seed)
   # import data
   Xtrain = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/otto/train.csv').reset_index(drop=True)
   Xtest = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/otto/test.csv')
@@ -389,6 +390,7 @@ def makePredictions(model=None,Xtest=None,filename='submission.csv'):
 #look at accuracies for OneVsOneClassifier->no predict_proba
 #modify objective for xgboost for taking care of class 0,1 and 3?
 #bag xgb with colsample_bytree
+#sample weights!
 
 if __name__=="__main__":
     """   
@@ -396,7 +398,7 @@ if __name__=="__main__":
     """ 
     # Set a seed for consistant results
     t0 = time()
-    np.random.seed(421)
+    
     #pd.set_option('display.height', 1000)
     #pd.set_option('display.max_rows', 500)
     #pd.set_option('display.max_columns', 500)
@@ -425,15 +427,16 @@ if __name__=="__main__":
     OneHotEncoding=False
     analyzeIt=False
     call_group_data=False
-    log_transform=True
+    log_transform=False
     addNoiseColumns=None
-    addFeatures=False
+    addFeatures=True
     doSVD=None
     binning=None
     #featureFilter=all_ordered
+    separateClass=None
     featureFilter=None
-    final_filter=None
-    separateClass=3
+    final_filter=all_features+addedFeatures_best
+    
 
     """
     #Normal settings
@@ -476,10 +479,11 @@ if __name__=="__main__":
     #model = QDA()
     #model = SGDClassifier(alpha=1E-6,n_iter=250,shuffle=True,loss='log',penalty='l2',n_jobs=1,learning_rate='optimal',verbose=False)
     #model = SGDClassifier(alpha=1E-6,n_iter=800,shuffle=True,loss='modified_huber',penalty='l2',n_jobs=8,learning_rate='optimal',verbose=False)#mll=0.68
-    model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=4,criterion='gini', max_features=20)
-    model = CalibratedClassifierCV(model, method='isotonic', cv=3)
+    #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=4,criterion='gini', max_features=20)
+    #model = CalibratedClassifierCV(model, method='isotonic', cv=3)
     
-    #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=8,criterion='gini', max_features=20,oob_score=False,class_weight='subsample')
+    #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=8,criterion='gini', max_features=20,oob_score=False)
+    #model = CalibratedClassifierCV(model, method='isotonic', cv=3)
     #model =  ExtraTreesClassifier(bootstrap=False,n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=4,criterion='entropy', max_features=20,oob_score=False)
     
     #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=4, learning_rate=0.03, max_depth=10,subsample=.5,verbose=1)
@@ -489,30 +493,29 @@ if __name__=="__main__":
     
     #model = XgboostClassifier(booster='gblinear',n_estimators=50,alpha_L1=0.1,lambda_L2=0.1,n_jobs=2,objective='multi:softprob',eval_metric='mlogloss',silent=1)#0.63
     #model = XgboostClassifier(n_estimators=400,learning_rate=0.05,max_depth=10,subsample=.5,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=-1)#0.45
-    #model = XgboostClassifier(n_estimators=200,learning_rate=0.1,max_depth=10,subsample=.75,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)#0.46
+    basemodel1 = XgboostClassifier(n_estimators=200,learning_rate=0.1,max_depth=10,subsample=.75,colsample_bytree=.8,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=0.0)#0.46
     #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,subsample=.5,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
-
-    #model = BaggingClassifier(base_estimator=basemodel1,n_estimators=2,n_jobs=1,verbose=2,random_state=None,max_samples=1.0)#for some reason parallelization does not work...?estimated 12h runs 10 bagging iterations with 400 trees in 8fold crossvalidation
+    model = BaggingClassifier(base_estimator=basemodel1,n_estimators=2,n_jobs=1,verbose=2,random_state=None,max_samples=0.9,max_features=0.9,bootstrap=False)#for some reason parallelization does not work...?estimated 12h runs 10 bagging iterations with 400 trees in 8fold crossvalidation
     #model = SVC(C=10, kernel='linear', shrinking=True, probability=True, tol=0.001, cache_size=200)
     #model = OneVsRestClassifier(model,n_jobs=1)
     #
     #model = nnet3
-    #model = nnet3
+    #model = nnet4
+    #model = nnet7
     
     #with open('nnet1.pickle', 'rb') as f:  # !
     #        net_pretrain = pickle.load(f)  # !
     #        model.load_weights_from(net_pretrain)
-    #model = CalibratedClassifierCV(model, method='isotonic', cv=3)
+    #
     #"""
-    #model = BaggingClassifier(base_estimator=model,n_estimators=2,n_jobs=1,verbose=1)
     
     scoring_func = make_scorer(multiclass_log_loss, greater_is_better=False, needs_proba=True)
     #analyzeLearningCurve(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,24,test_size=0.125),score_func=scoring_func)
 
-    model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedKFold(ytrain,8,shuffle=True))
-    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,n_jobs=8,trainFull=False,verbose=True)
+    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedKFold(ytrain,8,shuffle=True))
+    model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,n_jobs=8,trainFull=False,verbose=True)
     #model = buildModel(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.1),scoring=scoring_func,n_jobs=1,trainFull=True,verbose=True)
-    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=True,cv=StratifiedShuffleSplit(ytrain,1,test_size=0.01))
+    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedShuffleSplit(ytrain,1,test_size=0.001))
     
     #model.fit(Xtrain.values, ytrain)
     #with open('nnet1.pickle', 'wb') as f:
@@ -528,11 +531,13 @@ if __name__=="__main__":
     #greedyFeatureSelection(model,Xtrain,ytrain,itermax=40,itermin=30,pool_features=Xtrain.iloc[:,93:].columns ,start_features=None,verbose=True, cv=StratifiedKFold(ytrain,8,shuffle=True), n_jobs=8,scoring_func=scoring_func)
     
     #model.fit(Xtrain,ytrain)
-    #parameters = {'n_estimators':[400,500],'max_depth':[10,11,12],'learning_rate':[0.04,0.05,0.06],'subsample':[0.5,0.75],'colsample_bytree':[1.0,0.8,0.6]}
-    parameters = {'hidden1_num_units': [600],'dropout1_p':[0.5,0.4,0.3],'hidden2_num_units': [600],'dropout2_p':[0.5,0.4,0.3],'hidden3_num_units': [600],'objective_alpha':[1E-9,0.000001,0.00005],'max_epochs':[50,60,70]}#Lasagne
+    parameters = {'n_estimators':[120],'max_depth':[6],'learning_rate':[0.1],'subsample':[0.5],'colsample_bytree':[1.0],'gamma':[0.0,.5,1.0],'min_child_weight':[1,2]}
+    #parameters = {'hidden1_num_units': [500,600,700],'dropout1_p':[0.5],'hidden2_num_units': [500,600],'dropout2_p':[0.5],'hidden3_num_units': [500,300],'max_epochs':[75,100]}
+    #parameters = {'hidden1_num_units': [600],'dropout1_p':[0.5],'hidden2_num_units': [600],'dropout2_p':[0.5],'hidden3_num_units': [600],'objective_alpha':[1E-9,0.000001,0.00005],'max_epochs':[50,60,70]}#Lasagne
     #parameters = {'hidden1_num_units': [300,600],'dropout1_p':[0.5],'maxout1_ds':[2,3],'hidden2_num_units': [300,600],'dropout2_p':[0.0,0.25,0.5],'maxout2_ds':[2,3],'hidden3_num_units': [300,600],'dropout3_p':[0.0,0.25,0.5],'maxout3_ds':[2,3],'max_epochs':[75,150]}
-    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=1,refit=False,cv=StratifiedShuffleSplit(ytrain,4,test_size=0.125),scoring=scoring_func,parameters=parameters,random_iter=10)
-    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=1,refit=False,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,parameters=parameters,random_iter=10)
+    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=8,refit=False,cv=StratifiedShuffleSplit(ytrain,4,test_size=0.15),scoring=scoring_func,parameters=parameters,random_iter=10)
+    #parameters = {'objective_alpha':[1E-9,1E-7,1E-6,1E-5]}#Lasagne
+    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=8,refit=False,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,parameters=parameters,random_iter=-1)
     #makePredictions(model,Xtest,filename='/home/loschen/Desktop/datamining-kaggle/otto/submissions/submission24042015a.csv')
     plt.show()
     print("Model building done in %fs" % (time() - t0))

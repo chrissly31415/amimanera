@@ -3,12 +3,18 @@ import numpy as np
 
 from lasagne import layers
 from lasagne import nonlinearities
-from lasagne.updates import nesterov_momentum
+from lasagne.updates import nesterov_momentum,sgd,rmsprop,adadelta
+
 from lasagne.objectives import Objective
 from lasagne.regularization import l2
+from lasagne.objectives import categorical_crossentropy
+
+import random
+
 #from lasagne.regularization import l1
 from nolearn.lasagne import NeuralNet
 from nolearn.lasagne import BatchIterator
+from BatchNormalization import *
 
 import cPickle as pickle
 
@@ -46,6 +52,7 @@ def float32(k):
 
 Maxout = layers.pool.FeaturePoolLayer
 
+
 class L2Regularization(Objective):
   
     def __init__(self, input_layer, loss_function=None, aggregation='mean',**args):
@@ -58,6 +65,37 @@ class L2Regularization(Objective):
             return loss + self.alpha * l2(self.input_layer)
         else:
             return loss
+
+def shuffle(*arrays):
+    p = np.random.permutation(len(arrays[0]))
+    return [array[p] for array in arrays]
+
+
+class ShuffleBatchIterator(object):
+    def __init__(self, batch_size):
+        self.batch_size = batch_size
+
+    def __call__(self, X, y=None):
+        self.X, self.y = X, y
+        return self
+
+    def __iter__(self):
+        self.X, self.y = shuffle(self.X, self.y)
+        n_samples = self.X.shape[0]
+        bs = self.batch_size
+        for i in range((n_samples + bs - 1) / bs):	    
+            sl = slice(i * bs, (i + 1) * bs)
+            Xb = self.X[sl]
+            if self.y is not None:
+                yb = self.y[sl]
+            else:
+                yb = None
+            yield self.transform(Xb, yb)
+
+    def transform(self, Xb, yb):
+        return Xb, yb
+
+
 
 class EarlyStopping(object):
     def __init__(self, patience=100):
@@ -187,52 +225,278 @@ nnet3 = NeuralNet(
     verbose=1,
     )
 
+
+nnet4 = NeuralNet(#0.465?
+
+    layers=[ 
+      ('input', layers.InputLayer), 
+	('hidden1', layers.DenseLayer),
+	('dropout1', layers.DropoutLayer),
+	('hidden2', layers.DenseLayer),
+	('dropout2', layers.DropoutLayer),
+	('hidden3', layers.DenseLayer),
+	#('dropout3', layers.DropoutLayer),
+	('output', layers.DenseLayer),
+	],
+    # layer parameters:
+    input_shape=(None,93), 
+
+    hidden1_num_units=800, 
+    hidden1_nonlinearity=nonlinearities.rectify,
+    dropout1_p=0.5,
+
+    hidden2_num_units=800,
+    hidden2_nonlinearity=nonlinearities.rectify,
+    dropout2_p=0.5,
+
+    hidden3_num_units=600,
+    hidden3_nonlinearity=nonlinearities.rectify,
+    #dropout3_p=0.25,
+
+    output_nonlinearity=nonlinearities.softmax,  # output layer uses identity function
+    output_num_units=9,  # 30 target values
+
+    batch_iterator_train=ShuffleBatchIterator(batch_size = 32),
+    #batch_iterator_train=BatchIterator(batch_size = 32),
+    #objective=L2Regularization,
+    #objective_alpha=0.00005,
+
+    eval_size=0.125,
+
+    # optimization method:
+    update=nesterov_momentum,
+    update_learning_rate=theano.shared(float32(0.005)),
+    update_momentum=theano.shared(float32(0.9)),
+
+    on_epoch_finished=[
+	AdjustVariable('update_learning_rate', start=0.005, stop=0.00001),
+	#AdjustVariable('update_momentum', start=0.9, stop=0.999),
+	#EarlyStopping(patience=200),
+	],
+
+
+    regression=False,  # flag to indicate we're dealing with regression problem
+    max_epochs=50,  # we want to train this many epochs
+    verbose=1,
+    )
+
+
+nnet5 = NeuralNet(
+
+    layers=[ 
+      ('input', layers.InputLayer),      
+	('hidden1', layers.DenseLayer),
+	('dropout1', layers.DropoutLayer),
+	('hidden2', layers.DenseLayer),
+	('dropout2', layers.DropoutLayer),
+	('hidden3', layers.DenseLayer),
+	('output', layers.DenseLayer),
+	],
+    # layer parameters:
+    input_shape=(None,93),  
+
+    hidden1_num_units=500,  # number of units in hidden layer
+    hidden1_nonlinearity=nonlinearities.LeakyRectify(leakiness=0.1),
+    dropout1_p=0.5,
+
+    hidden2_num_units=500,
+    hidden2_nonlinearity=nonlinearities.LeakyRectify(leakiness=0.1),
+    dropout2_p=0.5,
+
+    hidden3_num_units=500,
+    #hidden3_nonlinearity=nonlinearities.LeakyRectify(leakiness=0.1),
+
+    output_nonlinearity=nonlinearities.softmax,  # output layer uses identity function
+    output_num_units=9,  # 30 target values
+
+    objective=L2Regularization,
+    objective_alpha=1E-9,
+
+    eval_size=0.2,
+
+    # optimization method:
+    update=nesterov_momentum,
+    update_learning_rate=theano.shared(float32(0.005)),
+    update_momentum=theano.shared(float32(0.9)),
+
+    on_epoch_finished=[
+	AdjustVariable('update_learning_rate', start=0.005, stop=0.0001),
+	#AdjustVariable('update_momentum', start=0.9, stop=0.999),
+	#EarlyStopping(patience=200),
+	],
+
+
+    regression=False,  # flag to indicate we're dealing with regression problem
+    max_epochs=100,  # we want to train this many epochs
+    verbose=1,
+    )
+
 nnet1 = NeuralNet(
     layers=[ 
 	('input', layers.InputLayer),
         ('hidden1', layers.DenseLayer),
-        ('dropout1', layers.DropoutLayer),
         ('maxout1', Maxout),
+        ('dropout1', layers.DropoutLayer),
         ('hidden2', layers.DenseLayer),
-        ('dropout2', layers.DropoutLayer),
         ('maxout2', Maxout),
+        ('dropout2', layers.DropoutLayer),
         ('hidden3', layers.DenseLayer),
+        ('maxout3', Maxout),
+        #('dropout3', layers.DropoutLayer),
         ('output', layers.DenseLayer),
         ],
 
     # layer parameters:
     input_shape=(None,93),
 
-    hidden1_num_units=600,  # number of units in hidden layer 
-    hidden1_nonlinearity=None,
-    dropout1_p=0.5,
+    hidden1_num_units=600,  
+    hidden1_nonlinearity=nonlinearities.identity,
     maxout1_ds=2,
+    dropout1_p=0.5,
+   
     
-    hidden2_num_units=600, #300
-    hidden2_nonlinearity=None,
-    dropout2_p=0.0,
+    hidden2_num_units=600, 
+    hidden2_nonlinearity=nonlinearities.identity,
     maxout2_ds=2,
+    dropout2_p=0.5,
     
-    hidden3_num_units=600,
+    
+    hidden3_num_units=600, 
+    hidden3_nonlinearity=nonlinearities.identity,
+    maxout3_ds=3,
+    #dropout3_p=0.5,
+    
+    batch_iterator_train=BatchIterator(batch_size = 64),
     
     output_nonlinearity=nonlinearities.softmax,  # output layer uses identity function
-    output_num_units=9,  # 30 target values
+    output_num_units=9, 
 
-    eval_size=0.2,
+    eval_size=0.15,
 
-    #objective=L2Regularization,
-    #objective_alpha=0.0001,
-    update=nesterov_momentum,
-    update_learning_rate=theano.shared(float32(0.01)),
+    #objective=categorical_crossentropy,
+    #objective_alpha=1E-6,
+    #update=nesterov_momentum,
+    update = sgd,
+    update_learning_rate=theano.shared(float32(0.005)),
     update_momentum=theano.shared(float32(0.9)),
 
     regression=False,  # flag to indicate we're dealing with regression problem
-    max_epochs=50,  # we want to train this many epochs
+    max_epochs=100,  # we want to train this many epochs
     verbose=1,
     
     on_epoch_finished=[
-        AdjustVariable('update_learning_rate', start=0.01, stop=0.001),
+        AdjustVariable('update_learning_rate', start=0.005, stop=0.0000001),
         #AdjustVariable('update_momentum', start=0.9, stop=0.999),
         #EarlyStopping(patience=20),
         ],  
     )
+    
+nnet6 = NeuralNet(
+    layers=[ 
+	('input', layers.InputLayer),
+        ('hidden1', layers.DenseLayer),
+        ('wta1', layers.FeatureWTALayer),
+        ('dropout1', layers.DropoutLayer),
+        ('hidden2', layers.DenseLayer),
+        ('wta2', layers.FeatureWTALayer),
+        ('dropout2', layers.DropoutLayer),
+        ('hidden3', layers.DenseLayer),
+        #('wta3', layers.FeatureWTALayer),
+        ('output', layers.DenseLayer),
+        ],
+
+    # layer parameters:
+    input_shape=(None,93),
+
+    hidden1_num_units=600,  
+    hidden1_nonlinearity=nonlinearities.identity,
+    wta1_ds=2,
+    dropout1_p=0.5,
+   
+    
+    hidden2_num_units=600, 
+    hidden2_nonlinearity=nonlinearities.identity,
+    wta2_ds=2,
+    dropout2_p=0.5,
+    
+    
+    hidden3_num_units=600, 
+    #hidden3_nonlinearity=nonlinearities.identity,
+    #wta3_ds=2,
+    #dropout3_p=0.5,
+    batch_iterator_train=ShuffleBatchIterator(batch_size = 32),
+    #batch_iterator_train=BatchIterator(batch_size = 32),
+    
+    output_nonlinearity=nonlinearities.softmax,  # output layer uses identity function
+    output_num_units=9, 
+
+    eval_size=0.15,
+
+    #objective=categorical_crossentropy,
+    #objective_alpha=1E-6,
+    update=nesterov_momentum,
+    #update = sgd,
+    update_learning_rate=theano.shared(float32(0.005)),
+    update_momentum=theano.shared(float32(0.9)),
+
+    regression=False,  # flag to indicate we're dealing with regression problem
+    max_epochs=100,  # we want to train this many epochs
+    verbose=1,
+    
+    on_epoch_finished=[
+        AdjustVariable('update_learning_rate', start=0.005, stop=0.00000001),
+        #AdjustVariable('update_momentum', start=0.9, stop=0.999),
+        #EarlyStopping(patience=20),
+        ],  
+    )    
+
+#http://didericksen.github.io/tswift/
+nnet7 = NeuralNet(
+    layers=[
+        ('input', layers.InputLayer),
+        #('dropout1', layers.DropoutLayer),
+        
+        ('hidden2', layers.DenseLayer),
+        ('dropout2', layers.DropoutLayer),
+        
+        ('hidden3', layers.DenseLayer),
+        ('dropout3', layers.DropoutLayer),
+        
+        ('hidden4', layers.DenseLayer),
+        #('dropout4', layers.DropoutLayer),
+        
+        ('output', layers.DenseLayer)
+        ],
+    input_shape = (None, 93),
+    #dropout1_p = 0.0,
+    
+    hidden2_num_units = 600,
+    dropout2_p = 0.5,
+    
+    hidden3_num_units = 600,
+    dropout3_p = 0.5,
+    
+    hidden4_num_units = 500,
+    #dropout4_p = 0.5,
+    
+    output_num_units = 9,
+    output_nonlinearity = lasagne.nonlinearities.softmax,
+
+
+    batch_iterator_train=ShuffleBatchIterator(batch_size = 128),
+    # optimization method:
+    update = rmsprop,
+    update_learning_rate=theano.shared(float32(0.002)),
+    
+    regression = False, 
+    max_epochs = 100,
+    verbose = 1,
+    
+    on_epoch_finished=[
+        AdjustVariable('update_learning_rate', start=0.002, stop=0.0001),
+        #EarlyStopping(patience=20),
+        ],
+    
+    )
+
+
