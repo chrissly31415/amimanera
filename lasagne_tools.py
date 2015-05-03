@@ -3,7 +3,7 @@ import numpy as np
 
 from lasagne import layers
 from lasagne import nonlinearities
-from lasagne.updates import nesterov_momentum,sgd,rmsprop,adadelta
+from lasagne.updates import nesterov_momentum,sgd,rmsprop,adadelta,adagrad
 
 from lasagne.objectives import Objective
 from lasagne.regularization import l2
@@ -14,7 +14,7 @@ import random
 #from lasagne.regularization import l1
 from nolearn.lasagne import NeuralNet
 from nolearn.lasagne import BatchIterator
-from BatchNormalization import *
+#from BatchNormalization import *
 
 import cPickle as pickle
 
@@ -454,7 +454,7 @@ nnet6 = NeuralNet(
 nnet7 = NeuralNet(
     layers=[
         ('input', layers.InputLayer),
-        #('dropout1', layers.DropoutLayer),
+        ('dropout1', layers.DropoutLayer),
         
         ('hidden2', layers.DenseLayer),
         ('dropout2', layers.DropoutLayer),
@@ -467,8 +467,8 @@ nnet7 = NeuralNet(
         
         ('output', layers.DenseLayer)
         ],
-    input_shape = (None, 93),
-    #dropout1_p = 0.0,
+    input_shape = (None, 98),
+    dropout1_p = 0.1,
     
     hidden2_num_units = 600,
     dropout2_p = 0.5,
@@ -480,23 +480,60 @@ nnet7 = NeuralNet(
     #dropout4_p = 0.5,
     
     output_num_units = 9,
-    output_nonlinearity = lasagne.nonlinearities.softmax,
+    output_nonlinearity = nonlinearities.softmax,
 
+    eval_size=0.15,
 
-    batch_iterator_train=ShuffleBatchIterator(batch_size = 128),
+    batch_iterator_train=ShuffleBatchIterator(batch_size = 64),
     # optimization method:
-    update = rmsprop,
-    update_learning_rate=theano.shared(float32(0.002)),
+    update = adagrad,
+    update_learning_rate=theano.shared(float32(0.03)),
     
     regression = False, 
-    max_epochs = 100,
+    max_epochs = 50,
     verbose = 1,
     
     on_epoch_finished=[
-        AdjustVariable('update_learning_rate', start=0.002, stop=0.0001),
+        AdjustVariable('update_learning_rate', start=0.03, stop=0.0001),
         #EarlyStopping(patience=20),
-        ],
-    
+        ],   
     )
 
 
+
+#https://www.kaggle.com/c/otto-group-product-classification-challenge/forums/t/13851/lasagne-with-2-hidden-layers
+nnet8 = NeuralNet(layers=[('input', layers.InputLayer),#0.454
+('dropout0', layers.DropoutLayer),
+('hidden1', layers.DenseLayer),
+('dropout1', layers.DropoutLayer),
+('hidden2', layers.DenseLayer),
+('dropout2', layers.DropoutLayer), 
+('output', layers.DenseLayer)],
+
+input_shape=(None, 98),
+dropout0_p=0.15,
+hidden1_num_units=800,
+
+dropout1_p=0.25,
+hidden2_num_units=600,
+
+dropout2_p=0.20,
+
+output_num_units=9,
+output_nonlinearity=nonlinearities.softmax,
+
+#batch_iterator_train=ShuffleBatchIterator(batch_size = 32),
+
+#update=nesterov_momentum,
+update=adagrad,
+update_learning_rate=theano.shared(float32(0.01)),
+#update_momentum=0.9, only used with nesterov_
+eval_size=0.0,
+verbose=1,
+max_epochs=150,
+
+ on_epoch_finished=[
+        AdjustVariable('update_learning_rate', start=0.01, stop=0.001),
+        #EarlyStopping(patience=20),
+        ],
+)

@@ -1016,7 +1016,7 @@ def makeGridSearch(lmodel,lX,ly,n_jobs=1,refit=True,cv=5,scoring='roc_auc',rando
       #parameters = {'class_weight': [{0: 1.,1: 1., 2: 1.,3: 1.,4: 1.,5: 1.,6: 1.,7: 1.,8: 1.,9: 1.},{0: 2.,1: 1., 2: 2.,3: 1.,4: 1.,5: 1.,6: 1.,7: 1.,8: 1.,9: 1.}]}
       #parameters = {'n_estimators':[300,400],'max_depth':[8,9,10],'learning_rate':[0.015,0.02,0.025,0.03],'subsample':[0.5,1.0]}#XGB+GBC
       #parameters = {'n_estimators':[400],'max_depth':[10],'learning_rate':[0.1,0.05,0.01],'subsample':[0.5]}#XGB+GBC
-      parameters = {'n_estimators':[200,400],'max_depth':[6,8],'learning_rate':[0.05,0.03],'subsample':[0.5]}#XGB
+      parameters = {'n_estimators':[200,250,300],'max_depth':[6,7],'learning_rate':[0.05,0.04],'subsample':[0.5]}#XGB
 
     
     if random_iter<0:
