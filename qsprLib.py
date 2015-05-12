@@ -997,6 +997,8 @@ def report(grid_scores, n_top=3):
 def makeGridSearch(lmodel,lX,ly,n_jobs=1,refit=True,cv=5,scoring='roc_auc',random_iter=-1,parameters={}):
     print "Start GridSearch..."
     if parameters is None:
+      #parameters = {'C':[10],'gamma':np.logspace(-5.0,-1.0,num=5)}
+      parameters = {'C':[5,10,20],'gamma':[0.004]}
       #parameters = {'filter__param': [30,50],'model__C':[1]}
       #parameters = {'pca__n_components':[30],'model__C':[1]}
       #parameters = {'model__C':[1,0.1,0.01,0.001]}#Linear SVC+LOGREG
@@ -1005,20 +1007,17 @@ def makeGridSearch(lmodel,lX,ly,n_jobs=1,refit=True,cv=5,scoring='roc_auc',rando
       #parameters = {'n_estimators':[50],'alpha_L1':[1E-1],'lambda_L2':[1E-1]}#XGBOOST GBLINEAR
       #parameters = {'alpha':[1E-6,1E-8],'n_iter':[100],'penalty':['l2']}#SGD
       #parameters = {'alpha':[1,1E-2,1E-4],'n_iter':[250],'penalty':['l2']}#SGD
-      #parameters = {'learn_rates':[0.3,0.2],'learn_rate_decays':[1.0,0.9],'epochs':[40]}#DBN
       #parameters = {'hidden1_num_units': [600],'dropout1_p':[0.0,0.1,0.2,0.3,0.4,0.5],'maxout1_ds':[2,3,4],'hidden2_num_units': [600],'dropout2_p':[0.0],'maxout2_ds':[2,3,4],'hidden3_num_units': [600],'dropout3_p':[0.0],'maxout3_ds':[2,3,4],'max_epochs':[50,100,150],'update_learning_rate':[0.001,0.002,0.004]}#Lasagne
       #parameters = {'hidden1_num_units': [300],'dropout1_p':[0.25,0.5],'hidden2_num_units': [300],'dropout2_p':[0.5,0.25],'update_learning_rate':[0.01,0.008],'objective_alpha':[1E-10]}#Lasagne
       #parameters = {'hidden1_num_units': [500],'dropout1_p':[0.5],'hidden2_num_units': [500],'dropout2_p':[0.5,0.0],'hidden3_num_units': [500],'dropout3_p':[0.5,0.0],'max_epochs':[150,100],'objective_alpha':[1E-3,1E-6,1E-9],'update_learning_rate':[0.004,0.003,0.002]}#Lasagne
       #parameters = {'hidden1_num_units': [500,1000],'update_learning_rate':[0.0001,0.0005],'max_epochs':[500],'dropout1_p':[0.0,.2]}#Lasagne
       #parameters = {'hidden1_num_units': [500,500],'update_learning_rate':[0.0001,0.0005],'max_epochs':[500],'dropout1_p':[0.0,.2]}#Lasagne
       #parameters = {'hidden1_num_units': [200,300],'max_epochs':[1000],'dropout1_p':[0.1,0.2,0.3]}#Lasagne
-      #parameters = {'n_estimators':[500], 'max_features':[18,20,22],'max_depth':[None],'max_leaf_nodes':[None],'min_samples_leaf':[1],'min_samples_split':[2],'criterion':['gini']}#xrf+xrf
+      #parameters = {'n_estimators':[600], 'max_features':[16,20,24],'max_depth':[None],'max_leaf_nodes':[None],'min_samples_leaf':[1],'min_samples_split':[2,10],'criterion':['gini']}#xrf+xrf
       #parameters = {'class_weight': [{0: 1.,1: 1., 2: 1.,3: 1.,4: 1.,5: 1.,6: 1.,7: 1.,8: 1.,9: 1.},{0: 2.,1: 1., 2: 2.,3: 1.,4: 1.,5: 1.,6: 1.,7: 1.,8: 1.,9: 1.}]}
       #parameters = {'n_estimators':[300,400],'max_depth':[8,9,10],'learning_rate':[0.015,0.02,0.025,0.03],'subsample':[0.5,1.0]}#XGB+GBC
       #parameters = {'n_estimators':[400],'max_depth':[10],'learning_rate':[0.1,0.05,0.01],'subsample':[0.5]}#XGB+GBC
-      parameters = {'n_estimators':[200,250,300],'max_depth':[6,7],'learning_rate':[0.05,0.04],'subsample':[0.5]}#XGB
-
-    
+      
     if random_iter<0:
 	search  = grid_search.GridSearchCV(lmodel, parameters,n_jobs=n_jobs,verbose=2,scoring=scoring,cv=cv,refit=refit)
     else:
@@ -1127,3 +1126,4 @@ funcdict['auc']=roc_auc_score
 funcdict['mae']=mean_absolute_error
 funcdict['msq']=mean_squared_error
 funcdict['log_loss']=multiclass_log_loss
+funcdict['accuracy_score']=accuracy_score

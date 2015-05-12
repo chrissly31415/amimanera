@@ -205,6 +205,343 @@ def createModels():
     ensemble.append(xmodel)
     """
     
+    #DNN4 baggend net
+    """
+    all_features=[u'feat_1', u'feat_2', u'feat_3', u'feat_4', u'feat_5', u'feat_6', u'feat_7', u'feat_8', u'feat_9', u'feat_10', u'feat_11', u'feat_12', u'feat_13', u'feat_14', u'feat_15', u'feat_16', u'feat_17', u'feat_18', u'feat_19', u'feat_20', u'feat_21', u'feat_22', u'feat_23', u'feat_24', u'feat_25', u'feat_26', u'feat_27', u'feat_28', u'feat_29', u'feat_30', u'feat_31', u'feat_32', u'feat_33', u'feat_34', u'feat_35', u'feat_36', u'feat_37', u'feat_38', u'feat_39', u'feat_40', u'feat_41', u'feat_42', u'feat_43', u'feat_44', u'feat_45', u'feat_46', u'feat_47', u'feat_48', u'feat_49', u'feat_50', u'feat_51', u'feat_52', u'feat_53', u'feat_54', u'feat_55', u'feat_56', u'feat_57', u'feat_58', u'feat_59', u'feat_60', u'feat_61', u'feat_62', u'feat_63', u'feat_64', u'feat_65', u'feat_66', u'feat_67', u'feat_68', u'feat_69', u'feat_70', u'feat_71', u'feat_72', u'feat_73', u'feat_74', u'feat_75', u'feat_76', u'feat_77', u'feat_78', u'feat_79', u'feat_80', u'feat_81', u'feat_82', u'feat_83', u'feat_84', u'feat_85', u'feat_86', u'feat_87', u'feat_88', u'feat_89', u'feat_90', u'feat_91', u'feat_92', u'feat_93']
+    addedFeatures_best=[u'row_median',u'arg_max',u'row_max',u'non_null',u'arg_min']
+    (Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples='shuffle',standardize=True,log_transform=True,doSVD=None,addFeatures=True,final_filter=all_features+addedFeatures_best)
+    basemodel = NeuralNet(layers=[('input', layers.InputLayer),#0.454
+    ('dropout0', layers.DropoutLayer),
+    ('hidden1', layers.DenseLayer),
+    ('dropout1', layers.DropoutLayer),
+    ('hidden2', layers.DenseLayer),
+    ('dropout2', layers.DropoutLayer), 
+    ('output', layers.DenseLayer)],
+
+    input_shape=(None, 98),
+    dropout0_p=0.15,
+    hidden1_num_units=800,
+
+    dropout1_p=0.25,
+    hidden2_num_units=600,
+
+    dropout2_p=0.20,
+
+    output_num_units=9,
+    output_nonlinearity=nonlinearities.softmax,
+
+    #batch_iterator_train=ShuffleBatchIterator(batch_size = 32),
+
+    #update=nesterov_momentum,
+    update=adagrad,
+    update_learning_rate=theano.shared(float32(0.01)),
+    #update_momentum=0.9, only used with nesterov_
+    eval_size=0.0,
+    verbose=1,
+    max_epochs=150,
+
+    on_epoch_finished=[
+	    AdjustVariable('update_learning_rate', start=0.01, stop=0.001),
+	    #EarlyStopping(patience=20),
+	    ],
+    )
+    model = BaggingClassifier(base_estimator=basemodel,n_estimators=10,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=1.0,bootstrap=False)
+    xmodel = XModel("dnn4_r1",classifier=model,Xtrain=Xtrain.values,Xtest=Xtest.values,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    ensemble.append(xmodel)
+    """
+    
+    
+    #DNN5 baggend net
+    """
+    all_features=[u'feat_1', u'feat_2', u'feat_3', u'feat_4', u'feat_5', u'feat_6', u'feat_7', u'feat_8', u'feat_9', u'feat_10', u'feat_11', u'feat_12', u'feat_13', u'feat_14', u'feat_15', u'feat_16', u'feat_17', u'feat_18', u'feat_19', u'feat_20', u'feat_21', u'feat_22', u'feat_23', u'feat_24', u'feat_25', u'feat_26', u'feat_27', u'feat_28', u'feat_29', u'feat_30', u'feat_31', u'feat_32', u'feat_33', u'feat_34', u'feat_35', u'feat_36', u'feat_37', u'feat_38', u'feat_39', u'feat_40', u'feat_41', u'feat_42', u'feat_43', u'feat_44', u'feat_45', u'feat_46', u'feat_47', u'feat_48', u'feat_49', u'feat_50', u'feat_51', u'feat_52', u'feat_53', u'feat_54', u'feat_55', u'feat_56', u'feat_57', u'feat_58', u'feat_59', u'feat_60', u'feat_61', u'feat_62', u'feat_63', u'feat_64', u'feat_65', u'feat_66', u'feat_67', u'feat_68', u'feat_69', u'feat_70', u'feat_71', u'feat_72', u'feat_73', u'feat_74', u'feat_75', u'feat_76', u'feat_77', u'feat_78', u'feat_79', u'feat_80', u'feat_81', u'feat_82', u'feat_83', u'feat_84', u'feat_85', u'feat_86', u'feat_87', u'feat_88', u'feat_89', u'feat_90', u'feat_91', u'feat_92', u'feat_93']
+    addedFeatures_best=[u'row_median',u'arg_max',u'row_max',u'non_null',u'arg_min']
+    (Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples='shuffle',standardize=True,log_transform=True,doSVD=None,addFeatures=True,final_filter=all_features+addedFeatures_best)
+    basemodel = NeuralNet(layers=[('input', layers.InputLayer),#0.454
+    ('dropout0', layers.DropoutLayer),
+    ('hidden1', layers.DenseLayer),
+    ('dropout1', layers.DropoutLayer),
+    ('hidden2', layers.DenseLayer),
+    ('dropout2', layers.DropoutLayer),
+    ('output', layers.DenseLayer)],
+
+    input_shape=(None, 93),
+    dropout0_p=0.15,
+    hidden1_num_units=800,
+
+    dropout1_p=0.25,
+    hidden2_num_units=600,
+
+    dropout2_p=0.15,
+
+    output_num_units=9,
+    output_nonlinearity=nonlinearities.softmax,
+
+    #batch_iterator_train=ShuffleBatchIterator(batch_size = 32),
+
+    #update=nesterov_momentum,
+    update=adagrad,
+    update_learning_rate=theano.shared(float32(0.01)),
+    #update_momentum=0.9, only used with nesterov_
+    eval_size=0.0,
+    verbose=1,
+    max_epochs=150,
+
+    on_epoch_finished=[
+            AdjustVariable('update_learning_rate', start=0.01, stop=0.001),
+            #EarlyStopping(patience=20),
+            ],
+    )
+    model = BaggingClassifier(base_estimator=basemodel,n_estimators=20,n_jobs=1,verbose=2,random_state=None,max_samples=0.95,max_features=.95,bootstrap=False)
+    xmodel = XModel("dnn5_r1",classifier=model,Xtrain=Xtrain.values,Xtest=Xtest.values,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    ensemble.append(xmodel)
+    """
+    
+    #DNN6 baggend net
+    """
+    all_features=[u'feat_1', u'feat_2', u'feat_3', u'feat_4', u'feat_5', u'feat_6', u'feat_7', u'feat_8', u'feat_9', u'feat_10', u'feat_11', u'feat_12', u'feat_13', u'feat_14', u'feat_15', u'feat_16', u'feat_17', u'feat_18', u'feat_19', u'feat_20', u'feat_21', u'feat_22', u'feat_23', u'feat_24', u'feat_25', u'feat_26', u'feat_27', u'feat_28', u'feat_29', u'feat_30', u'feat_31', u'feat_32', u'feat_33', u'feat_34', u'feat_35', u'feat_36', u'feat_37', u'feat_38', u'feat_39', u'feat_40', u'feat_41', u'feat_42', u'feat_43', u'feat_44', u'feat_45', u'feat_46', u'feat_47', u'feat_48', u'feat_49', u'feat_50', u'feat_51', u'feat_52', u'feat_53', u'feat_54', u'feat_55', u'feat_56', u'feat_57', u'feat_58', u'feat_59', u'feat_60', u'feat_61', u'feat_62', u'feat_63', u'feat_64', u'feat_65', u'feat_66', u'feat_67', u'feat_68', u'feat_69', u'feat_70', u'feat_71', u'feat_72', u'feat_73', u'feat_74', u'feat_75', u'feat_76', u'feat_77', u'feat_78', u'feat_79', u'feat_80', u'feat_81', u'feat_82', u'feat_83', u'feat_84', u'feat_85', u'feat_86', u'feat_87', u'feat_88', u'feat_89', u'feat_90', u'feat_91', u'feat_92', u'feat_93']
+    addedFeatures_best=[u'row_median',u'arg_max',u'row_max',u'non_null',u'arg_min']
+    (Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples='shuffle',standardize=True,log_transform=True,doSVD=None,addFeatures=True,final_filter=all_features+addedFeatures_best)
+    basemodel = NeuralNet(layers=[('input', layers.InputLayer),
+    ('dropout0', layers.DropoutLayer),
+    ('hidden1', layers.DenseLayer),
+    ('dropout1', layers.DropoutLayer),
+    ('hidden2', layers.DenseLayer),
+    ('dropout2', layers.DropoutLayer),
+    ('output', layers.DenseLayer)],
+
+    input_shape=(None, 98),
+    dropout0_p=0.15,
+    hidden1_num_units=800,
+
+    dropout1_p=0.25,
+    hidden2_num_units=600,
+
+    dropout2_p=0.20,
+
+    output_num_units=9,
+    output_nonlinearity=nonlinearities.softmax,
+
+    #batch_iterator_train=ShuffleBatchIterator(batch_size = 32),
+
+    #update=nesterov_momentum,
+    update=adagrad,
+    update_learning_rate=theano.shared(float32(0.01)),
+    #update_momentum=0.9, only used with nesterov_
+    eval_size=0.0,
+    verbose=1,
+    max_epochs=150,
+
+    on_epoch_finished=[
+            AdjustVariable('update_learning_rate', start=0.01, stop=0.001),
+            #EarlyStopping(patience=20),
+            ],
+    )
+    model = BaggingClassifier(base_estimator=basemodel,n_estimators=40,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=1.0,bootstrap=False)
+    xmodel = XModel("dnn6_r1",classifier=model,Xtrain=Xtrain.values,Xtest=Xtest.values,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    ensemble.append(xmodel)
+    """
+
+    #DNN7 baggend net
+    """
+    (Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples='shuffle',standardize=True,log_transform=True,doSVD=None)
+    basemodel = NeuralNet(layers=[('input', layers.InputLayer),#0.454
+    ('dropout0', layers.DropoutLayer),
+    ('hidden1', layers.DenseLayer),
+    ('dropout1', layers.DropoutLayer),
+    ('hidden2', layers.DenseLayer),
+    ('dropout2', layers.DropoutLayer),
+    ('output', layers.DenseLayer)],
+
+    input_shape=(None, 88),
+    dropout0_p=0.15,
+    hidden1_num_units=900,
+
+    dropout1_p=0.25,
+    hidden2_num_units=600,
+
+    dropout2_p=0.15,
+
+    output_num_units=9,
+    output_nonlinearity=nonlinearities.softmax,
+
+    #batch_iterator_train=ShuffleBatchIterator(batch_size = 64),
+
+    #update=nesterov_momentum,
+    update=adagrad,
+    update_learning_rate=theano.shared(float32(0.01)),
+    #update_momentum=0.9, only used with nesterov_
+    eval_size=0.0,
+    verbose=1,
+    max_epochs=150,
+
+    on_epoch_finished=[
+            AdjustVariable('update_learning_rate', start=0.01, stop=0.001),
+            #EarlyStopping(patience=20),
+            ],
+    )
+    model = BaggingClassifier(base_estimator=basemodel,n_estimators=1,n_jobs=1,verbose=2,random_state=None,max_samples=1.00,max_features=0.95,bootstrap=False)
+    xmodel = XModel("dnn7_r1",classifier=model,Xtrain=Xtrain.values,Xtest=Xtest.values,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    ensemble.append(xmodel)
+    """
+
+    #DNN8
+    """
+    (Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples='shuffle',standardize=True,log_transform=True,doSVD=None)
+    model = NeuralNet(layers=[('input', layers.InputLayer),#0.464
+    ('dropout0', layers.DropoutLayer),
+    ('hidden1', layers.DenseLayer),
+    ('dropout1', layers.DropoutLayer),
+    ('hidden2', layers.DenseLayer),
+    ('dropout2', layers.DropoutLayer), 
+    ('hidden3', layers.DenseLayer),
+    ('dropout3', layers.DropoutLayer), 
+    ('output', layers.DenseLayer)],
+
+    input_shape=(None, 93),
+    dropout0_p=0.05,
+
+    hidden1_num_units=900,
+    hidden1_nonlinearity=nonlinearities.rectify,
+    dropout1_p=0.5,
+
+    hidden2_num_units=500,
+    hidden2_nonlinearity=nonlinearities.rectify,
+    dropout2_p=0.25,
+
+    hidden3_num_units=250,
+    hidden3_nonlinearity=nonlinearities.rectify,
+    dropout3_p=0.25,
+
+    output_num_units=9,
+    output_nonlinearity=nonlinearities.softmax,
+
+    objective=L2Regularization,
+    objective_alpha=1E-6,
+
+    #batch_iterator_train=ShuffleBatchIterator(batch_size = 32),
+
+    #update=nesterov_momentum,
+    update=adagrad,
+    update_learning_rate=theano.shared(float32(0.02)),
+    #update_momentum=0.9, only used with nesterov_
+    eval_size=0.0,
+    verbose=1,
+    max_epochs=100,
+
+    on_epoch_finished=[
+	    AdjustVariable('update_learning_rate', start=0.02, stop=0.001),
+	    #EarlyStopping(patience=20),
+	    ],
+    )
+    xmodel = XModel("dnn8_r3",classifier=model,Xtrain=Xtrain.values,Xtest=Xtest.values,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    ensemble.append(xmodel)
+    """
+    
+    #DNN9
+    """
+    (Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples='shuffle',standardize=True,log_transform=True,doSVD=None)
+    basemodel = NeuralNet(layers=[('input', layers.InputLayer),
+    ('dropout0', layers.DropoutLayer),
+    ('hidden1', layers.DenseLayer),
+    ('dropout1', layers.DropoutLayer),
+    ('hidden2', layers.DenseLayer),
+    ('dropout2', layers.DropoutLayer), 
+    ('hidden3', layers.DenseLayer),
+    ('dropout3', layers.DropoutLayer), 
+    ('output', layers.DenseLayer)],
+
+    input_shape=(None, 93),
+    dropout0_p=0.05,
+
+    hidden1_num_units=900,
+    hidden1_nonlinearity=nonlinearities.rectify,
+    dropout1_p=0.5,
+
+    hidden2_num_units=500,
+    hidden2_nonlinearity=nonlinearities.rectify,
+    dropout2_p=0.25,
+
+    hidden3_num_units=250,
+    hidden3_nonlinearity=nonlinearities.rectify,
+    dropout3_p=0.25,
+
+    output_num_units=9,
+    output_nonlinearity=nonlinearities.softmax,
+
+    objective=L2Regularization,
+    objective_alpha=1E-6,
+
+    #batch_iterator_train=ShuffleBatchIterator(batch_size = 32),
+
+    #update=nesterov_momentum,
+    update=adagrad,
+    update_learning_rate=theano.shared(float32(0.02)),
+    #update_momentum=0.9, only used with nesterov_
+    eval_size=0.0,
+    verbose=1,
+    max_epochs=100,
+
+    on_epoch_finished=[
+	    AdjustVariable('update_learning_rate', start=0.02, stop=0.001),
+	    #EarlyStopping(patience=20),
+	    ],
+    )
+    model = BaggingClassifier(base_estimator=basemodel,n_estimators=10,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=1.0,bootstrap=False)
+    xmodel = XModel("dnn9_r1",classifier=model,Xtrain=Xtrain.values,Xtest=Xtest.values,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    ensemble.append(xmodel)
+    """
+    
+    #DNN10
+    (Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples='shuffle',standardize=True,log_transform=True,doSVD=None)
+    basemodel = NeuralNet(layers=[('input', layers.InputLayer),
+    ('dropout0', layers.DropoutLayer),
+    ('hidden1', layers.DenseLayer),
+    ('dropout1', layers.DropoutLayer),
+    ('hidden2', layers.DenseLayer),
+    ('dropout2', layers.DropoutLayer), 
+    ('hidden3', layers.DenseLayer),
+    ('dropout3', layers.DropoutLayer), 
+    ('output', layers.DenseLayer)],
+
+    input_shape=(None, 93),
+    dropout0_p=0.05,
+
+    hidden1_num_units=900,
+    hidden1_nonlinearity=nonlinearities.rectify,
+    dropout1_p=0.5,
+
+    hidden2_num_units=500,
+    hidden2_nonlinearity=nonlinearities.rectify,
+    dropout2_p=0.25,
+
+    hidden3_num_units=250,
+    hidden3_nonlinearity=nonlinearities.rectify,
+    dropout3_p=0.25,
+
+    output_num_units=9,
+    output_nonlinearity=nonlinearities.softmax,
+
+    objective=L2Regularization,
+    objective_alpha=1E-6,
+
+    #batch_iterator_train=ShuffleBatchIterator(batch_size = 32),
+
+    #update=nesterov_momentum,
+    update=adagrad,
+    update_learning_rate=theano.shared(float32(0.02)),
+    #update_momentum=0.9, only used with nesterov_
+    eval_size=0.0,
+    verbose=1,
+    max_epochs=100,
+
+    on_epoch_finished=[
+	    AdjustVariable('update_learning_rate', start=0.02, stop=0.001),
+	    #EarlyStopping(patience=20),
+	    ],
+    )
+    model = BaggingClassifier(base_estimator=basemodel,n_estimators=20,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=1.0,bootstrap=False)
+    xmodel = XModel("dnn10_r1",classifier=model,Xtrain=Xtrain.values,Xtest=Xtest.values,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    ensemble.append(xmodel)
     
     #LOGREG1
     #start_set = ['feat_11', 'feat_60', 'feat_34', 'feat_14', 'feat_90', 'feat_15', 'feat_62', 'feat_42', 'feat_39', 'feat_36', 'feat_75', 'feat_68', 'feat_9', 'feat_43', 'feat_40', 'feat_76', 'feat_86', 'feat_26', 'feat_35', 'feat_59', 'feat_47', 'feat_17', 'feat_48', 'feat_69', 'feat_50', 'feat_91', 'feat_92', 'feat_56', 'feat_53', 'feat_25', 'feat_84', 'feat_57', 'feat_78', 'feat_58', 'feat_41', 'feat_32', 'feat_67', 'feat_72', 'feat_77', 'feat_64', 'feat_20', 'feat_71', 'feat_83', 'feat_19', 'feat_23', 'feat_88', 'feat_33', 'feat_73', 'feat_93', 'feat_3', 'feat_81', 'feat_13']
@@ -260,10 +597,21 @@ def createModels():
     #xmodel = XModel("bagxgb2_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
     #ensemble.append(xmodel)
     
+    #bagxgb3
+    #all_features=[u'feat_1', u'feat_2', u'feat_3', u'feat_4', u'feat_5', u'feat_6', u'feat_7', u'feat_8', u'feat_9', u'feat_10', u'feat_11', u'feat_12', u'feat_13', u'feat_14', u'feat_15', u'feat_16', u'feat_17', u'feat_18', u'feat_19', u'feat_20', u'feat_21', u'feat_22', u'feat_23', u'feat_24', u'feat_25', u'feat_26', u'feat_27', u'feat_28', u'feat_29', u'feat_30', u'feat_31', u'feat_32', u'feat_33', u'feat_34', u'feat_35', u'feat_36', u'feat_37', u'feat_38', u'feat_39', u'feat_40', u'feat_41', u'feat_42', u'feat_43', u'feat_44', u'feat_45', u'feat_46', u'feat_47', u'feat_48', u'feat_49', u'feat_50', u'feat_51', u'feat_52', u'feat_53', u'feat_54', u'feat_55', u'feat_56', u'feat_57', u'feat_58', u'feat_59', u'feat_60', u'feat_61', u'feat_62', u'feat_63', u'feat_64', u'feat_65', u'feat_66', u'feat_67', u'feat_68', u'feat_69', u'feat_70', u'feat_71', u'feat_72', u'feat_73', u'feat_74', u'feat_75', u'feat_76', u'feat_77', u'feat_78', u'feat_79', u'feat_80', u'feat_81', u'feat_82', u'feat_83', u'feat_84', u'feat_85', u'feat_86', u'feat_87', u'feat_88', u'feat_89', u'feat_90', u'feat_91', u'feat_92', u'feat_93']
+    #addedFeatures_best=[u'row_median',u'arg_max',u'row_max',u'non_null',u'arg_min']
+    #(Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples='shuffle',addFeatures=True,final_filter=all_features+addedFeatures_best)
+    #basemodel1 = XgboostClassifier(n_estimators=500,learning_rate=0.05,max_depth=11,subsample=.75,colsample_bytree=0.6,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
+    #model = BaggingClassifier(base_estimator=basemodel1,n_estimators=30,n_jobs=1,verbose=1,random_state=None,max_samples=0.95,max_features=0.95,bootstrap=False)
+    #xmodel = XModel("bagxgb3_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    #ensemble.append(xmodel)
     
-    
-    #BAGNET1 CV?->EC2
-
+    #xgboost_ovo as additional feature..
+    #(Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples='shuffle',addFeatures=False)
+    #basemodel1 = XgboostClassifier(n_estimators=200,learning_rate=0.1,max_depth=10,subsample=.75,colsample_bytree=.8,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=0.0)
+    #model = OneVsOneClassifier(basemodel1)
+    #xmodel = XModel("xgboost_ovo_r1",classifier=model,Xtrain=Xtrain.values,Xtest=Xtest,ytrain=ytrain,class_names=None)
+    #ensemble.append(xmodel)
     
     #some info
     for m in ensemble:
@@ -271,7 +619,7 @@ def createModels():
     return(ensemble)
 
     
-def finalizeModel(m,binarizeProbas=False):
+def finalizeModel(m,binarizeProbas=False,use_proba=True):
 	"""
 	Make predictions and save them
 	"""
@@ -291,7 +639,10 @@ def finalizeModel(m,binarizeProbas=False):
 	    #oob from crossvalidation
 	    yoob = m.oob_preds
 	    #final prediction
-	    m.preds = m.classifier.predict_proba(m.Xtest)	    
+	    if use_proba:
+	      m.preds = m.classifier.predict_proba(m.Xtest)
+	    else:
+	      m.preds = m.classifier.predict(m.Xtest)
 	    ypred = m.preds
 	    
 	m.summary()	
@@ -317,7 +668,7 @@ def finalizeModel(m,binarizeProbas=False):
 	return(m)
     
 
-def createOOBdata_parallel(ensemble,repeats=2,nfolds=8,n_jobs=1,score_func='log_loss',verbose=False,calibrate=False,binarize=False,returnModel=False):
+def createOOBdata_parallel(ensemble,repeats=2,nfolds=8,n_jobs=1,score_func='log_loss',verbose=False,calibrate=False,binarize=False,returnModel=False,use_proba=True):
     """
     parallel oob creation
     """
@@ -349,8 +700,8 @@ def createOOBdata_parallel(ensemble,repeats=2,nfolds=8,n_jobs=1,score_func='log_
 	    parallel = Parallel(n_jobs=n_jobs, verbose=verbose,
 			    pre_dispatch='2*n_jobs')
 	    
-	    #parallel run
-	    oob_pred = parallel(delayed(fit_and_score)(clone(m.classifier), m.Xtrain, ly, train, test,use_proba=True,returnModel=False)
+	    #parallel run, returns a list of oob predictions
+	    oob_pred = parallel(delayed(fit_and_score)(clone(m.classifier), m.Xtrain, ly, train, test,use_proba=use_proba,returnModel=False)
 			  for train, test in cv)
 	  
 	    if returnModel:
@@ -358,6 +709,7 @@ def createOOBdata_parallel(ensemble,repeats=2,nfolds=8,n_jobs=1,score_func='log_
 		  print in_bagmodel
 	    
 	    for i,(train,test) in enumerate(cv):
+	        oob_pred[i] = oob_pred[i].reshape(oob_pred[i].shape[0],n_classes)
 		oob_preds[test,:,j] = oob_pred[i]
 		
 		scores[i]=funcdict[score_func](ly[test],oob_preds[test,:,j])
@@ -394,7 +746,7 @@ def createOOBdata_parallel(ensemble,repeats=2,nfolds=8,n_jobs=1,score_func='log_
 	else:
 	    m.classifier.fit(m.Xtrain,ly)
 	
-	m=finalizeModel(m)
+	m=finalizeModel(m,use_proba=use_proba)
 	
     return(ensemble)
     
@@ -448,6 +800,8 @@ def trainEnsemble_multiclass(ensemble,mode='linear',useCols=None,addMetaFeatures
 	print "Loading model:",i," name:",model
 	xmodel = XModel.loadModel(basedir+model)
 	class_names = xmodel.class_names
+	if class_names is None:
+	  class_names = ['Class']
 	print "OOB data:",xmodel.oob_preds.shape
 	print "pred data:",xmodel.preds.shape
 	print "y train:",xmodel.ytrain.shape
@@ -624,13 +978,18 @@ def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_l
     #blender = CalibratedClassifierCV(blender, method='isotonic', cv=3)
     #blender=ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False)
     #blender=RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
-    blender = XgboostClassifier(n_estimators=200,learning_rate=0.05,max_depth=6,subsample=.5,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
+    blender = XgboostClassifier(n_estimators=250,learning_rate=0.06,max_depth=3,subsample=.5,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
+    start_features=[u'dnn6_r1_Class_1', u'dnn6_r1_Class_2', u'dnn6_r1_Class_3', u'dnn6_r1_Class_4', u'dnn6_r1_Class_5', u'dnn6_r1_Class_6', u'dnn6_r1_Class_7', u'dnn6_r1_Class_8', u'dnn6_r1_Class_9',u'xgboost2_r3_Class_1', u'xgboost2_r3_Class_2', u'xgboost2_r3_Class_3', u'xgboost2_r3_Class_4', u'xgboost2_r3_Class_5', u'xgboost2_r3_Class_6', u'xgboost2_r3_Class_7', u'xgboost2_r3_Class_8', u'xgboost2_r3_Class_9', u'xgboost3_r3_Class_1', u'xgboost3_r3_Class_2', u'xgboost3_r3_Class_3', u'xgboost3_r3_Class_4', u'xgboost3_r3_Class_5', u'xgboost3_r3_Class_6', u'xgboost3_r3_Class_7', u'xgboost3_r3_Class_8', u'xgboost3_r3_Class_9','rf1_r3_Class_2', 'dnn1_r3_Class_4']
+    greedyFeatureSelection(blender,oobpreds,ly,itermax=100,itermin=70,pool_features=None ,start_features=start_features,verbose=True, cv=StratifiedKFold(ly,8,shuffle=True), n_jobs=8,scoring_func='log_loss')
+    
+    #blender = CalibratedClassifierCV(baseblender, method='sigmoid', cv=3)
     #blender=ExtraTreesRegressor(n_estimators=500,max_depth=None)
-    cv = StratifiedKFold(ly, n_folds=5,shuffle=True)
-    blender=makeGridSearch(blender,oobpreds,ly,n_jobs=2,refit=False,cv=cv,scoring='log_loss',random_iter=-1,parameters=None)
+    cv = StratifiedKFold(ly, n_folds=8,shuffle=True)
+    #parameters = {'n_estimators':[250,300],'max_depth':[3,4],'learning_rate':[0.07,0.06],'subsample':[0.5]}#XGB
+    #blender=makeGridSearch(blender,oobpreds,ly,n_jobs=2,refit=False,cv=cv,scoring='log_loss',random_iter=-1,parameters=parameters)
     
     blend_scores=np.zeros(len(cv))
-    n_classes = oobpreds.shape[1]/len(ensemble)
+    n_classes = 9 #oobpreds.shape[1]/len(ensemble)
     blend_oob=np.zeros((oobpreds.shape[0],n_classes))
     print blender
     for i, (train, test) in enumerate(cv):
@@ -641,6 +1000,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_l
 	    blend_oob[test] = blender.predict_proba(Xtest)
 	else:
 	    print "Warning: Using predict, no proba!"
+
 	    blend_oob[test] = blender.predict(Xtest)
 	blend_scores[i]=funcdict[score_func](ly[test],blend_oob[test])
 	print "Fold: %3d <%s>: %0.6f" % (i,score_func,blend_scores[i])
@@ -955,16 +1315,22 @@ def blendSubmissions(fileList,coefList):
 if __name__=="__main__":
     #np.random.seed(123)#never change this one
     #ensemble=createModels()
-    #ensemble=createOOBdata_parallel(ensemble,repeats=3,nfolds=8,n_jobs=1) #oob data averaging leads to significant variance reduction
-    
-    models=['bagxgb1_r1','xgboost1_r3','xgboost2_r3','xgboost3_r3','svm1_r3','logreg1_r3','rf1_r3','dnn1_r3','dnn2_r3','dnn2_r3','dnn3_r3','bagxgb2_r1']
-    #models=['bagxgb1_r1','xgboost1_r3','xgboost2_r3','xgboost3_r3','svm1_r3','rf1_r3','dnn1_r3','dnn2_r3','dnn3_r3','bagxgb2_r1']
-    #models=['xgboost2_r3','xgboost3_r3','dnn1_r3','svm1_r3','rf1_r3']
-    #models=['xgboost1_r3','dnn1_r3']
-    #models=['bagxgb1_r1']
+    #ensemble=createOOBdata_parallel(ensemble,repeats=1,nfolds=8,n_jobs=1,use_proba=True) #oob data averaging leads to significant variance reduction
+    #ensemble=createOOBdata_parallel(ensemble,repeats=1,nfolds=8,n_jobs=8,score_func='accuracy_score',use_proba=False)#OneVSOne
+    all_models=['bagxgb1_r1','bagxgb2_r1','bagxgb3_r1','dnn1_r3','dnn2_r3','dnn3_r3','dnn4_r1','dnn5_r1','dnn6_r1','dnn7_r1','dnn8_r3','logreg1_r3','rf1_r3','svm1_r3','xgboost1_r3','xgboost2_r3','xgboost3_r3','dnn9_r1']
+    r1_models=['bagxgb1_r1','bagxgb2_r1','bagxgb3_r1','dnn4_r1','dnn5_r1','dnn6_r1','dnn7_r1','logreg1_r3','rf1_r3','svm1_r3','dnn9_r1']
+    r3_models=['dnn1_r3','dnn2_r3','dnn3_r3','dnn8_r3','xgboost1_r3','xgboost2_r3','xgboost3_r3']#overfitted?
+    #models=['bagxgb1_r1','xgboost1_r3','xgboost2_r3','xgboost3_r3','svm1_r3','logreg1_r3','rf1_r3','dnn1_r3','dnn2_r3','dnn2_r3','dnn3_r3','bagxgb2_r1']
+    #models=['xgboost2_r3','xgboost3_r3','logreg1_r3','rf1_r3','dnn1_r3','dnn3_r3','bagxgb2_r1','dnn4_r1','dnn5_r1','bagxgb3_r1','dnn6_r1','xgboost_ovo_r1']
+    #models=['xgboost2_r3','xgboost3_r3','logreg1_r3','rf1_r3','dnn1_r3','svm1_r3','dnn3_r3','bagxgb3_r1','dnn6_r1','xgboost_ovo_r1']
+    #models=['xgboost2_r3','xgboost3_r3','logreg1_r3','rf1_r3','dnn1_r3','dnn3_r3','bagxgb3_r1','dnn6_r1','xgboost_ovo_r1']
+    #models=['xgboost2_r3','xgboost3_r3','rf1_r3','dnn1_r3','dnn3_r3','bagxgb2_r1','svm1_r3','bagxgb3_r1','dnn6_r1','xgboost_ovo_r1']
+    models=['xgboost2_r3','xgboost3_r3','logreg1_r3','rf1_r3','dnn1_r3','dnn3_r3','bagxgb3_r1','dnn6_r1','dnn8_r3','dnn9_r1']
+    models=r1_models+['xgboost_ovo_r1']
+    #models=['bagxgb3_r1','dnn6_r1','xgboost_ovo_r1']
     #useCols=['A']
     useCols=None
-    trainEnsemble_multiclass(models,mode='classical',useCols=None,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/otto/submissions/submission27042015a.csv')
+    trainEnsemble_multiclass(models,mode='classical',useCols=None,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/otto/submissions/submission12052015b.csv')
    
     #trainEnsemble(model,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1509b.csv')
     

@@ -383,14 +383,21 @@ def makePredictions(model=None,Xtest=None,filename='submission.csv'):
 #interactions: http://www.kaggle.com/c/otto-group-product-classification-challenge/forums/t/13486/variable-interaction
 #tune subsample for XGB
 # one versus all with pipeline i.e. feature selection!?
-#tune gamma
+#tune gamma ->NO
 #ensembling: aggregation via argmax, then voting or one hote encoding and log reg 
-#ensembling: use gradient boosting for building the ensemble...
+#ensembling: use gradient boosting for building the ensemble...!!!YES
 #use RF with SVD? --->NO??
 #look at accuracies for OneVsOneClassifier->no predict_proba
 #modify objective for xgboost for taking care of class 0,1 and 3?
 #bag xgb with colsample_bytree
 #sample weights!
+#use xgboost one vs one for ensemling only as metafeature
+#http://stackoverflow.com/questions/19575348/tricks-to-make-an-aws-spot-instance-persistent
+#bugfix in bagging.py
+#feature rank + feature quantiles
+# add ovo as feature first!!!
+# calibration with ensemble!!!
+# use early stopping!!
 
 if __name__=="__main__":
     """   
@@ -429,13 +436,13 @@ if __name__=="__main__":
     call_group_data=False
     log_transform=True
     addNoiseColumns=None
-    addFeatures=True
+    addFeatures=False
     doSVD=None
     binning=None
     #featureFilter=all_ordered
     separateClass=None
     featureFilter=None
-    final_filter=all_features+addedFeatures_best
+    final_filter=None#all_features+addedFeatures_best
     
 
     """
@@ -461,39 +468,42 @@ if __name__=="__main__":
     
     #Xtrain = sparse.csr_matrix(Xtrain)
     print type(Xtrain)
-    #Xtrain = Xtrain.astype(np.float32)
+    Xtrain = Xtrain.astype(np.float32)
     #ytrain = ytrain.astype(np.float32)
     #df_info(Xtrain)
     density(Xtrain)
-
+    Xtrain = Xtrain.values
 
     #model = LogisticRegression(C=1.0,penalty='l2')
     #model = LogisticRegression(C=1.0,class_weight=None,penalty='l2',solver='lbfgs', multi_class='ovr' )#0.671
     #model = LogisticRegression(C=1E-1,class_weight=None,penalty='l1',solver='liblinear', multi_class='ovr' )#0.671
     #model = LogisticRegression(C=1E-1,class_weight=None,penalty='l1' )
-    #model = Pipeline([('filter', GenericUnivariateSelect(f_classif, param=90,mode='percentile')), ('model', LogisticRegression(C=1.0))])
+    #model = Pipeline([('filter', GenericUnivariateSelect(chi2, param=97,mode='percentile')), ('model', LogisticRegression(C=1.0,solver='lbfgs', multi_class='ovr',class_weight='auto'))])
+    #model = OneVsRestClassifier(basemodel,n_jobs=1)
     #model = Pipeline([('filter', GenericUnivariateSelect(chi2, param=90,mode='percentile')), ('model', LogisticRegression(C=1.0))])
     #model = Pipeline([('pca', PCA(n_components=20)),('model', LogisticRegression(C=1.0))])
-    #model = Pipeline([('pca', TruncatedSVD(n_components=25, algorithm='randomized')),('model', RandomForestClassifier())])
-    #model = LDA()
-    #model = QDA()
+
     #model = SGDClassifier(alpha=1E-6,n_iter=250,shuffle=True,loss='log',penalty='l2',n_jobs=1,learning_rate='optimal',verbose=False)
     #model = SGDClassifier(alpha=1E-6,n_iter=800,shuffle=True,loss='modified_huber',penalty='l2',n_jobs=8,learning_rate='optimal',verbose=False)#mll=0.68
     #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=4,criterion='gini', max_features=20)
     #model = CalibratedClassifierCV(model, method='isotonic', cv=3)
-    
-    #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=8,criterion='gini', max_features=20,oob_score=False)
+    #model = KNeighborsClassifier(n_neighbors=5)
+    #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features=20,oob_score=False,class_weight='auto')
+    #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features=20,oob_score=False,class_weight=None)
     #model = CalibratedClassifierCV(model, method='isotonic', cv=3)
+    
     #model =  ExtraTreesClassifier(bootstrap=False,n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=4,criterion='entropy', max_features=20,oob_score=False)
     
     #basemodel = GradientBoostingClassifier(loss='deviance',n_estimators=4, learning_rate=0.03, max_depth=10,subsample=.5,verbose=1)
     
     #model = SVC(kernel='rbf',C=10.0, gamma=0.0, verbose = 0, probability=True)
-    #model=  OneVsOneClassifier(model,n_jobs=8)
     
     #model = XgboostClassifier(booster='gblinear',n_estimators=50,alpha_L1=0.1,lambda_L2=0.1,n_jobs=2,objective='multi:softprob',eval_metric='mlogloss',silent=1)#0.63
     #model = XgboostClassifier(n_estimators=400,learning_rate=0.05,max_depth=10,subsample=.5,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=-1)#0.45
-    #basemodel1 = XgboostClassifier(n_estimators=200,learning_rate=0.1,max_depth=10,subsample=.75,colsample_bytree=.8,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=0.0)#0.46
+    #basemodel1 = XgboostClassifier(n_estimators=10,learning_rate=0.1,max_depth=10,subsample=.75,colsample_bytree=.8,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=0.0)#0.46
+    #basemodel1 = LogisticRegression(C=1.0,penalty='l2')
+    #model = OneVsOneClassifier(basemodel1)
+    
     #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,subsample=.5,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
     #model = BaggingClassifier(base_estimator=basemodel1,n_estimators=1,n_jobs=1,verbose=2,random_state=None,max_samples=0.9,max_features=0.9,bootstrap=False)#for some reason parallelization does not work...?estimated 12h runs 10 bagging iterations with 400 trees in 8fold crossvalidation
     #model = SVC(C=10, kernel='linear', shrinking=True, probability=True, tol=0.001, cache_size=200)
@@ -501,23 +511,22 @@ if __name__=="__main__":
     #
     #model = nnet3
     #model = nnet4
-    model = nnet8
+    model = nnet9
     
     #with open('nnet1.pickle', 'rb') as f:  # !
     #        net_pretrain = pickle.load(f)  # !
     #        model.load_weights_from(net_pretrain)
     #
     #"""
-    model = BaggingClassifier(base_estimator=model,n_estimators=2,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=1.0,bootstrap=False)
+    #model = BaggingClassifier(base_estimator=model,n_estimators=2,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=1.0,bootstrap=False)
     
     scoring_func = make_scorer(multiclass_log_loss, greater_is_better=False, needs_proba=True)
+    #scoring_func = make_scorer(accuracy_score, greater_is_better=True, needs_proba=False)
     #analyzeLearningCurve(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,24,test_size=0.125),score_func=scoring_func)
-    Xtrain = Xtrain.values
-    ytrain = ytrain.astype(np.int32)
     model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedKFold(ytrain,8,shuffle=True))
     #model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,n_jobs=1,trainFull=False,verbose=True)
-    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.1),scoring=scoring_func,n_jobs=1,trainFull=True,verbose=True)
-    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.125))
+    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,4,test_size=0.125),scoring=scoring_func,n_jobs=1,trainFull=False,verbose=True)
+    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.01))
     
     #model.fit(Xtrain.values, ytrain)
     #with open('nnet1.pickle', 'wb') as f:
@@ -537,10 +546,11 @@ if __name__=="__main__":
     #parameters = {'hidden1_num_units': [500,600,700],'dropout1_p':[0.5],'hidden2_num_units': [500,600],'dropout2_p':[0.5],'hidden3_num_units': [500,300],'max_epochs':[75,100]}
     #parameters = {'hidden1_num_units': [600],'dropout1_p':[0.5],'hidden2_num_units': [600],'dropout2_p':[0.5],'hidden3_num_units': [600],'objective_alpha':[1E-9,0.000001,0.00005],'max_epochs':[50,60,70]}#Lasagne
     #parameters = {'hidden1_num_units': [300,600],'dropout1_p':[0.5],'maxout1_ds':[2,3],'hidden2_num_units': [300,600],'dropout2_p':[0.0,0.25,0.5],'maxout2_ds':[2,3],'hidden3_num_units': [300,600],'dropout3_p':[0.0,0.25,0.5],'maxout3_ds':[2,3],'max_epochs':[75,150]}
-    parameters = {'dropout0_p':[0.15,0.1],'hidden1_num_units': [600,700,800],'dropout1_p':[0.2,0.25],'hidden2_num_units': [600,700,800],'dropout2_p':[0.2,0.25],'max_epochs':[150]}
+    #parameters = {'dropout0_p':[0.05,0.1,0.15],'hidden1_num_units': [900],'dropout1_p':[0.5],'hidden2_num_units': [500],'dropout2_p':[0.5,0.4,0.25],'hidden3_num_units': [250],'dropout3_p':[0.5,0.4,0.25],'max_epochs':[100]}
     #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=1,refit=False,cv=StratifiedShuffleSplit(ytrain,4,test_size=0.125),scoring=scoring_func,parameters=parameters,random_iter=10)
     #parameters = {'objective_alpha':[1E-9,1E-7,1E-6,1E-5]}#Lasagne
-    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=8,refit=False,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,parameters=parameters,random_iter=-1)
+    print model.get_params()
+    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=8,refit=False,cv=StratifiedKFold(ytrain,5,shuffle=True),scoring=scoring_func,parameters=None,random_iter=-1)
     #makePredictions(model,Xtest,filename='/home/loschen/Desktop/datamining-kaggle/otto/submissions/submission24042015a.csv')
     plt.show()
     print("Model building done in %fs" % (time() - t0))

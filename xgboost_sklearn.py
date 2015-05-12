@@ -107,7 +107,8 @@ class XgboostClassifier(BaseEstimator):
 	    self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators, evals=watchlist, early_stopping_rounds=None)
 	else:
 	    watchlist  = [(dtrain,'train')]
-	    self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators,evals=watchlist)
+	    #self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators,evals=watchlist)
+	    self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators)
 
     def predict(self, lX):
 	ly = self.predict_proba(lX)

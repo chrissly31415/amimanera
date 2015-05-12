@@ -537,3 +537,53 @@ max_epochs=150,
         #EarlyStopping(patience=20),
         ],
 )
+ 
+#https://www.kaggle.com/c/otto-group-product-classification-challenge/forums/t/14134/deep-learning-h2o-0-44
+nnet9 = NeuralNet(layers=[('input', layers.InputLayer),#0.464
+('dropout0', layers.DropoutLayer),
+('hidden1', layers.DenseLayer),
+('dropout1', layers.DropoutLayer),
+('hidden2', layers.DenseLayer),
+('dropout2', layers.DropoutLayer), 
+('hidden3', layers.DenseLayer),
+('dropout3', layers.DropoutLayer), 
+('output', layers.DenseLayer)],
+
+input_shape=(None, 93),
+dropout0_p=0.05,
+
+hidden1_num_units=900,
+hidden1_nonlinearity=nonlinearities.rectify,
+dropout1_p=0.5,
+
+hidden2_num_units=500,
+hidden2_nonlinearity=nonlinearities.rectify,
+dropout2_p=0.25,
+
+hidden3_num_units=250,
+hidden3_nonlinearity=nonlinearities.rectify,
+dropout3_p=0.25,
+
+output_num_units=9,
+output_nonlinearity=nonlinearities.softmax,
+
+objective=L2Regularization,
+objective_alpha=1E-6,
+
+#batch_iterator_train=ShuffleBatchIterator(batch_size = 32),
+
+#update=nesterov_momentum,
+update=adagrad,
+update_learning_rate=theano.shared(float32(0.02)),
+#update_momentum=0.9, only used with nesterov_
+eval_size=0.0,
+verbose=1,
+max_epochs=100,
+
+ on_epoch_finished=[
+        AdjustVariable('update_learning_rate', start=0.02, stop=0.001),
+        #EarlyStopping(patience=20),
+        ],
+)
+ 
+ 
