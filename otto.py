@@ -19,6 +19,7 @@ import xgboost as xgb
 from OneHotEncoder import *
 
 from lasagne_tools import *
+from keras_tools import *
 
 
 def analyzeDataset(Xtrain,Xtest,ytrain):
@@ -35,7 +36,7 @@ def analyzeDataset(Xtrain,Xtest,ytrain):
 #	raw_input()
 
 
-def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,polynomialFeatures=None,OneHotEncoding=False,featureFilter=None,final_filter=None,call_group_data=False,addNoiseColumns=None,log_transform=None,addFeatures=False,doSVD=False,binning=False,analyzeIt=False,separateClass=False):
+def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,polynomialFeatures=None,OneHotEncoding=False,featureFilter=None,final_filter=None,call_group_data=False,addNoiseColumns=None,log_transform=None,sqrt_transform=False,addFeatures=False,doSVD=False,binning=False,analyzeIt=False,loadFeatures=None,separateClass=False):
   np.random.seed(seed)
   # import data
   Xtrain = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/otto/train.csv').reset_index(drop=True)
@@ -97,8 +98,14 @@ def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,p
 	print density(Xall)
 
   if polynomialFeatures is not None and polynomialFeatures is not False:
-      print "Polynomial feature of degree:",polynomialFeatures,
-      X_poly = make_polynomials(Xall)
+      print "Polynomial feature of degree:",polynomialFeatures
+      if  isinstance(polynomialFeatures,str) and 'load' in polynomialFeatures:
+	  X_poly = pd.read_csv('poly.csv').reset_index(drop=True)
+	  print X_poly.describe()
+      else:
+	  X_poly = make_polynomials(Xall)
+	  X_poly.to_csv('poly.csv')
+	  
       if isinstance(polynomialFeatures,list):
 	  X_poly = X_poly[polynomialFeatures]
       
@@ -145,6 +152,12 @@ def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,p
       #print Xall.loc[1:5,['sum_counts']]
       #raw_input()
 
+  #indices!!
+  if isinstance(loadFeatures,list):
+      for name in loadFeatures:
+	X_temp = pd.read_csv(X_temp).reset_index(drop=True)
+	print X_temp.describe()
+      
   if final_filter is not None or final_filter is not None:
       print "Using final_filter..."
       Xall=Xall[final_filter]
@@ -188,20 +201,22 @@ def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,p
   
   if log_transform:
 	print "log_transform"
-	
-	#Xtmp=Xall.applymap(lambda x: np.log(x+1.0))
-	#print Xtmp.describe()
 	Xall = Xall + 1.0
 	Xall=Xall.apply(np.log)
 	print Xall.describe()
   
-    
+  if sqrt_transform:
+        print "sqrt transform"
+        Xall = Xall + 3.0/8.0
+        Xall=Xall.apply(np.sqrt)
+        print Xall.describe()
+        
   if doSVD is not None and doSVD is not False:
-      print "SVD..."
+      print "SVD...components:",doSVD
       #tsvd=TruncatedSVD(n_components=doSVD, algorithm='randomized', n_iter=5, tol=0.0)
       tsvd = RandomizedPCA(n_components=doSVD, whiten=True)
       print tsvd
-      Xall=tsvd.fit_transform(Xall)
+      Xall=tsvd.fit_transform(Xall.values)
       Xall = pd.DataFrame(Xall)
       print Xall.describe()
       #df_info(Xall)
@@ -234,38 +249,6 @@ def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,p
   print "\n#Xtest:",Xtest.shape
   
   return (Xtrain,ytrain,Xtest,labels)
-
-
-#def make_polynomials_old(Xall,polynomialFeatures):
-  #print "Polynomial Features..."
-
-  #if isinstance(polynomialFeatures,str) and 'load' in polynomialFeatures:
-    #print "load..."
-    #Xall = pd.read_csv('tmp.csv',index_col=0,dtype=np.int32)
-    ##Xall.to_csv('tmp.csv')
-    ##Xall=sparse.csc_matrix(Xall.values)
-    #print type(Xall)
-  #else:#mini_batch features
-    #poly = PolynomialFeatures(polynomialFeatures,interaction_only=True)
-    #batch_size=5000
-    #n,m = Xall.shape
-    #n_features = 1 + m + m*(m-1)/2
-    #print "n_features",n_features
-    #X_new = np.zeros((Xall.shape[0],n_features))
-    #Xall = Xall.values
-    #for i in xrange(0,n,batch_size):
-	#il = min(i + batch_size,n)
-	#print "at idx:",il
-	##poly.fit(Xall[i:il,:])
-	##X_new[i:il,:] = poly.transform(Xall[i:il,:])
-	#X_new[i:il,:] = poly.fit_transform(Xall[i:il,:])
-    
-    #X_new = X_new.astype(np.int32)
-    #Xall = pd.DataFrame(X_new)
-    #Xall.to_csv('tmp.csv')
-  
-  #print df_info(Xall)
-  #return Xall
 
 def group_data(data, degree=2):
   """
@@ -365,12 +348,11 @@ def makePredictions(model=None,Xtest=None,filename='submission.csv'):
 #new columns: http://stackoverflow.com/questions/16139147/conditionally-combine-columns-in-pandas-data-frame
 #group data versus interaction!
 # use MKL with numpy https://gehrcke.de/2014/02/building-numpy-and-scipy-with-intel-compilers-and-intel-mkl-on-a-64-bit-machine/
-#use greedy algorithm with RF to select new features!!!
+#use greedy algorithm with RF to select new features->ALL features important
 #sklearn.multiclass.OneVsOneClassifier(estimator, n_jobs=1 with logistc reg
 #http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.basinhopping.html#scipy.optimize.basinhopping
 #http://pyevolve.sourceforge.net/0_6rc1/getstarted.html
 #leave one out encoding of categorical data: http://nycdatascience.com/news/featured-talk-1-kaggle-data-scientist-owen-zhang/
-#binning of variables -pandas.cut
 # weights of RF, give out LL for each class
 #Baggging of Neural Nets!
 #Reduce variance reduction within  ensemble creation!??
@@ -378,10 +360,10 @@ def makePredictions(model=None,Xtest=None,filename='submission.csv'):
 #sampleweights for classes 0,1, 3
 #large decay rates and regularization
 #http://scikit-learn.org/stable/auto_examples/calibration/plot_calibration_multiclass.html#example-calibration-plot-calibration-multiclass-py
-#ensemble with hard voting -> calibration
-#shuffle split for ensemble building!!
-#interactions: http://www.kaggle.com/c/otto-group-product-classification-challenge/forums/t/13486/variable-interaction
-#tune subsample for XGB
+#ensemble with hard voting -> calibration->NO
+#shuffle split for ensemble building!!...
+#interactions: http://www.kaggle.com/c/otto-group-product-classification-challenge/forums/t/13486/variable-interaction->OK
+#tune subsample for XGB->OK
 # one versus all with pipeline i.e. feature selection!?
 #tune gamma ->NO
 #ensembling: aggregation via argmax, then voting or one hote encoding and log reg 
@@ -389,14 +371,13 @@ def makePredictions(model=None,Xtest=None,filename='submission.csv'):
 #use RF with SVD? --->NO??
 #look at accuracies for OneVsOneClassifier->no predict_proba
 #modify objective for xgboost for taking care of class 0,1 and 3?
-#bag xgb with colsample_bytree
-#sample weights!
-#use xgboost one vs one for ensemling only as metafeature
+#bag xgb with colsample_bytree ->OK
+#sample weights ...
+#use xgboost one vs one for ensemling only as metafeature ->OK
 #http://stackoverflow.com/questions/19575348/tricks-to-make-an-aws-spot-instance-persistent
-#bugfix in bagging.py
 #feature rank + feature quantiles
 # add ovo as feature first!!!
-# calibration with ensemble!!!
+# calibration with ensemble!!!->NOVO
 # use early stopping!!
 
 if __name__=="__main__":
@@ -429,20 +410,22 @@ if __name__=="__main__":
     #"""
     nsamples='shuffle'#61878
     standardize=True
-    polynomialFeatures=None#'load'
+    polynomialFeatures=False#'load'
     featureHashing=False
     OneHotEncoding=False
     analyzeIt=False
     call_group_data=False
-    log_transform=True
+    log_transform=False
+    sqrt_transform=True
     addNoiseColumns=None
     addFeatures=False
     doSVD=None
     binning=None
     #featureFilter=all_ordered
     separateClass=None
-    featureFilter=None
-    final_filter=None#all_features+addedFeatures_best
+    featureFilter=None#start_set
+    final_filter=None#start_set+interactions#all_features+addedFeatures_best
+    loadFeatures=None
     
 
     """
@@ -464,7 +447,7 @@ if __name__=="__main__":
     final_filter=None
     """
     
-    Xtrain, ytrain, Xtest, labels  = prepareDataset(nsamples=nsamples,standardize=standardize,featureHashing=featureHashing,OneHotEncoding=OneHotEncoding,polynomialFeatures=polynomialFeatures,featureFilter=featureFilter,final_filter=final_filter, call_group_data=call_group_data,log_transform=log_transform,addNoiseColumns=addNoiseColumns,addFeatures=addFeatures,doSVD=doSVD,binning=binning,analyzeIt=analyzeIt,separateClass=separateClass)
+    Xtrain, ytrain, Xtest, labels  = prepareDataset(nsamples=nsamples,standardize=standardize,featureHashing=featureHashing,OneHotEncoding=OneHotEncoding,polynomialFeatures=polynomialFeatures,featureFilter=featureFilter,final_filter=final_filter, call_group_data=call_group_data,log_transform=log_transform,addNoiseColumns=addNoiseColumns,addFeatures=addFeatures,doSVD=doSVD,binning=binning,sqrt_transform=sqrt_transform,analyzeIt=analyzeIt,separateClass=separateClass)
     
     #Xtrain = sparse.csr_matrix(Xtrain)
     print type(Xtrain)
@@ -479,8 +462,8 @@ if __name__=="__main__":
     #model = LogisticRegression(C=1E-1,class_weight=None,penalty='l1',solver='liblinear', multi_class='ovr' )#0.671
     #model = LogisticRegression(C=1E-1,class_weight=None,penalty='l1' )
     #model = Pipeline([('filter', GenericUnivariateSelect(chi2, param=97,mode='percentile')), ('model', LogisticRegression(C=1.0,solver='lbfgs', multi_class='ovr',class_weight='auto'))])
-    #model = OneVsRestClassifier(basemodel,n_jobs=1)
-    #model = Pipeline([('filter', GenericUnivariateSelect(chi2, param=90,mode='percentile')), ('model', LogisticRegression(C=1.0))])
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_classif, param=95,mode='percentile')), ('model', LogisticRegression(C=10.0))])
+    #model = OneVsRestClassifier(model,n_jobs=1)
     #model = Pipeline([('pca', PCA(n_components=20)),('model', LogisticRegression(C=1.0))])
 
     #model = SGDClassifier(alpha=1E-6,n_iter=250,shuffle=True,loss='log',penalty='l2',n_jobs=1,learning_rate='optimal',verbose=False)
@@ -500,19 +483,22 @@ if __name__=="__main__":
     
     #model = XgboostClassifier(booster='gblinear',n_estimators=50,alpha_L1=0.1,lambda_L2=0.1,n_jobs=2,objective='multi:softprob',eval_metric='mlogloss',silent=1)#0.63
     #model = XgboostClassifier(n_estimators=400,learning_rate=0.05,max_depth=10,subsample=.5,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=-1)#0.45
-    #basemodel1 = XgboostClassifier(n_estimators=10,learning_rate=0.1,max_depth=10,subsample=.75,colsample_bytree=.8,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=0.0)#0.46
+    #basemodel1 = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,subsample=.5,n_jobs=1,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1,eval_size=0.0)#0.46
     #basemodel1 = LogisticRegression(C=1.0,penalty='l2')
     #model = OneVsOneClassifier(basemodel1)
     
-    #model = XgboostClassifier(n_estimators=120,learning_rate=0.1,max_depth=6,subsample=.5,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
-    #model = BaggingClassifier(base_estimator=basemodel1,n_estimators=1,n_jobs=1,verbose=2,random_state=None,max_samples=0.9,max_features=0.9,bootstrap=False)#for some reason parallelization does not work...?estimated 12h runs 10 bagging iterations with 400 trees in 8fold crossvalidation
-    #model = SVC(C=10, kernel='linear', shrinking=True, probability=True, tol=0.001, cache_size=200)
-    #model = OneVsRestClassifier(model,n_jobs=1)
-    #
-    #model = nnet3
-    #model = nnet4
-    model = nnet9
-    
+    #hyper_opt1 0.443
+    #basemodel1 = XgboostClassifier(n_estimators=200,learning_rate=0.13,max_depth=10,subsample=.82,colsample_bytree=0.56,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
+    #model = BaggingClassifier(base_estimator=basemodel1,n_estimators=10,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=0.94,bootstrap=False)#for some reason parallelization does not work...?estimated 12h runs 10 bagging iterations with 400 trees in 8fold crossvalidation
+
+    #hyper_opt2 0.446
+    #basemodel1 = XgboostClassifier(n_estimators=200,learning_rate=0.166,max_depth=11,subsample=.83,colsample_bytree=0.58,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
+    #model = BaggingClassifier(base_estimator=basemodel1,n_estimators=10,n_jobs=1,verbose=2,random_state=None,max_samples=0.93,max_features=0.92,bootstrap=False)
+
+    #model = nnet9
+    model = KerasNN(dims=93,nb_classes=9)
+    print ytrain.shape
+
     #with open('nnet1.pickle', 'rb') as f:  # !
     #        net_pretrain = pickle.load(f)  # !
     #        model.load_weights_from(net_pretrain)
@@ -523,10 +509,10 @@ if __name__=="__main__":
     scoring_func = make_scorer(multiclass_log_loss, greater_is_better=False, needs_proba=True)
     #scoring_func = make_scorer(accuracy_score, greater_is_better=True, needs_proba=False)
     #analyzeLearningCurve(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,24,test_size=0.125),score_func=scoring_func)
-    model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedKFold(ytrain,8,shuffle=True))
-    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,n_jobs=1,trainFull=False,verbose=True)
-    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,4,test_size=0.125),scoring=scoring_func,n_jobs=1,trainFull=False,verbose=True)
-    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.01))
+    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedKFold(ytrain,8,shuffle=True))
+    model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,n_jobs=1,trainFull=False,verbose=True)
+    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.01),scoring=scoring_func,n_jobs=1,trainFull=False,verbose=True)
+    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.01),cloneClassifier=False)
     
     #model.fit(Xtrain.values, ytrain)
     #with open('nnet1.pickle', 'wb') as f:
@@ -549,7 +535,6 @@ if __name__=="__main__":
     #parameters = {'dropout0_p':[0.05,0.1,0.15],'hidden1_num_units': [900],'dropout1_p':[0.5],'hidden2_num_units': [500],'dropout2_p':[0.5,0.4,0.25],'hidden3_num_units': [250],'dropout3_p':[0.5,0.4,0.25],'max_epochs':[100]}
     #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=1,refit=False,cv=StratifiedShuffleSplit(ytrain,4,test_size=0.125),scoring=scoring_func,parameters=parameters,random_iter=10)
     #parameters = {'objective_alpha':[1E-9,1E-7,1E-6,1E-5]}#Lasagne
-    print model.get_params()
     #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=8,refit=False,cv=StratifiedKFold(ytrain,5,shuffle=True),scoring=scoring_func,parameters=None,random_iter=-1)
     #makePredictions(model,Xtest,filename='/home/loschen/Desktop/datamining-kaggle/otto/submissions/submission24042015a.csv')
     plt.show()

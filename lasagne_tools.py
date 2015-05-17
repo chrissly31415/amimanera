@@ -43,7 +43,7 @@ class AdjustVariable(object):
 
         epoch = train_history[-1]['epoch']
         new_value = float32(self.ls[epoch - 1])
-        print 'NEW VALUE:',new_value
+        #print 'NEW VALUE:',new_value
         getattr(nn, self.name).set_value(new_value)
 
 def float32(k):
