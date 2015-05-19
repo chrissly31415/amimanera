@@ -30,7 +30,8 @@ def plotNN(net1):
     plt.ylim(1e-3, 1e-2)
     plt.yscale("log")
     plt.show()
- 
+
+
 class AdjustVariable(object):
     def __init__(self, name, start=0.03, stop=0.001):
         self.name = name

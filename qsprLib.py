@@ -286,7 +286,7 @@ def buildModel(clf,lX,ly,cv=None,scoring=None,n_jobs=8,trainFull=True,verbose=Fa
     else:
       return score
 
-def buildClassificationModel(clf_orig,lX,ly,class_names=None,trainFull=False,cv=None,cloneClassifier=True):
+def buildClassificationModel(clf_orig,lX,ly,class_names=None,trainFull=False,cv=None):
   """   
   Final model building part
   """ 
@@ -298,23 +298,18 @@ def buildClassificationModel(clf_orig,lX,ly,class_names=None,trainFull=False,cv=
   yproba = np.zeros((len(ly),len(set(ly))))
   mll = np.zeros((len(cv),1))
   for i,(train, test) in enumerate(cv):
-      if cloneClassifier:
-	clf = clone(clf_orig)
-      else:
-	clf = clf_orig
+      clf = clone(clf_orig)
       ytrain, ytest = ly[train], ly[test]
       clf.fit(lX[train,:], ytrain)
       ypred[test] = clf.predict(lX[test,:])
       yproba[test] = clf.predict_proba(lX[test,:])
       mll[i] = multiclass_log_loss(ly[test], yproba[test])
-      if cloneClassifier:
-	acc = accuracy_score(ly[test], ypred[test])
-      else:
-	acc = 0.0
+      acc = 0.0
+      #acc = accuracy_score(ly[test], ypred[test])
       print "train set: %2d samples: %5d/%5d mll: %4.3f accuracy: %4.3f"%(i,lX[train,:].shape[0],lX[test,:].shape[0],mll[i],acc)
   
-  if cloneClassifier:
-    print classification_report(ly, ypred, target_names=class_names)
+
+  #print classification_report(ly, ypred, target_names=class_names)
   mll_oob = multiclass_log_loss(ly, yproba)
   
   print "oob multiclass logloss: %6.3f" %(mll_oob)

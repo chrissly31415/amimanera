@@ -496,7 +496,8 @@ if __name__=="__main__":
     #model = BaggingClassifier(base_estimator=basemodel1,n_estimators=10,n_jobs=1,verbose=2,random_state=None,max_samples=0.93,max_features=0.92,bootstrap=False)
 
     #model = nnet9
-    model = KerasNN(dims=93,nb_classes=9)
+    #model = KerasNN(dims=93,nb_classes=9,nb_epoch=60,learning_rate=0.015,validation_split=0.15,batch_size=64,verbose=1)
+    model = KerasNN2(dims=93,nb_classes=9,nb_epoch=50,learning_rate=0.02,validation_split=0.15,batch_size=128,verbose=1)
     print ytrain.shape
 
     #with open('nnet1.pickle', 'rb') as f:  # !
@@ -510,9 +511,9 @@ if __name__=="__main__":
     #scoring_func = make_scorer(accuracy_score, greater_is_better=True, needs_proba=False)
     #analyzeLearningCurve(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,24,test_size=0.125),score_func=scoring_func)
     #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedKFold(ytrain,8,shuffle=True))
-    model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,n_jobs=1,trainFull=False,verbose=True)
+    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,n_jobs=1,trainFull=False,verbose=True)
     #model = buildModel(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.01),scoring=scoring_func,n_jobs=1,trainFull=False,verbose=True)
-    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.01),cloneClassifier=False)
+    model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedShuffleSplit(ytrain,4,test_size=0.001))
     
     #model.fit(Xtrain.values, ytrain)
     #with open('nnet1.pickle', 'wb') as f:
