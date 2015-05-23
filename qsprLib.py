@@ -1120,7 +1120,7 @@ def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, sc
     plt.legend(loc="best")
     return plt
     
-    
+   
 #some global vars
 funcdict={}
 funcdict['rmse']=root_mean_squared_error

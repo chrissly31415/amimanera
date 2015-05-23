@@ -32,10 +32,10 @@ def createModels():
     #ensemble.append(xmodel)
     
     #XGBOOST5 CV~0.451
-    (Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples='shuffle')
-    model = XgboostClassifier(n_estimators=600,learning_rate=0.05,max_depth=12,subsample=.9,colsample_bytree=0.8,min_child_weight = 4,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
-    xmodel = XModel("xgboost5_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
-    ensemble.append(xmodel)
+    #(Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples='shuffle')
+    #model = XgboostClassifier(n_estimators=600,learning_rate=0.05,max_depth=12,subsample=.9,colsample_bytree=0.8,min_child_weight = 4,n_jobs=4,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
+    #xmodel = XModel("xgboost5_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    #ensemble.append(xmodel)
     
     #XGBOOST3 CV~0.449
     #(Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples='shuffle')
@@ -739,10 +739,10 @@ def createModels():
     #ensemble.append(xmodel)
     
     #KerasNN2
-    (Xtrain,ytrain,Xtest,labels)= prepareDataset(nsamples='shuffle',standardize=True,log_transform=True,doSVD=93)
-    model = KerasNN2(dims=93,nb_classes=9,nb_epoch=50,learning_rate=0.02,validation_split=0.0,batch_size=128,verbose=1)
-    xmodel = XModel("kerasnn2_r1",classifier=model,Xtrain=Xtrain.values,Xtest=Xtest.values,ytrain=ytrain,class_names=sorted(list(set(labels))))
-    ensemble.append(xmodel)
+    #(Xtrain,ytrain,Xtest,labels)= prepareDataset(nsamples='shuffle',standardize=True,log_transform=True,doSVD=93)
+    #model = KerasNN2(dims=93,nb_classes=9,nb_epoch=50,learning_rate=0.02,validation_split=0.0,batch_size=128,verbose=1)
+    #xmodel = XModel("kerasnn2_r1",classifier=model,Xtrain=Xtrain.values,Xtest=Xtest.values,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    #ensemble.append(xmodel)
     
     #bagxgb6 hyper_opt 0.442 with 4 estimators
     #(Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples='shuffle',standardize=True,log_transform=True,addFeatures=False)
@@ -808,6 +808,13 @@ def createModels():
     #model = CalibratedClassifierCV(basemodel, method='isotonic', cv=5)
     #xmodel = XModel("xrf1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
     #ensemble.append(xmodel)
+    
+    #XRF2 ~ &
+    (Xtrain,ytrain,Xtest,labels) = prepareDataset(nsamples='shuffle',addFeatures=False)
+    basemodel = ExtraTreesClassifier(n_estimators=300,max_depth=None,min_samples_leaf=1,n_jobs=4,criterion='gini', max_features=80,oob_score=False)
+    model = CalibratedClassifierCV(basemodel, method='isotonic', cv=10)
+    xmodel = XModel("xrf2_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=sorted(list(set(labels))))
+    ensemble.append(xmodel)
     
     #XGBOOST2 CV~0.46
     #all_features=[u'feat_1', u'feat_2', u'feat_3', u'feat_4', u'feat_5', u'feat_6', u'feat_7', u'feat_8', u'feat_9', u'feat_10', u'feat_11', u'feat_12', u'feat_13', u'feat_14', u'feat_15', u'feat_16', u'feat_17', u'feat_18', u'feat_19', u'feat_20', u'feat_21', u'feat_22', u'feat_23', u'feat_24', u'feat_25', u'feat_26', u'feat_27', u'feat_28', u'feat_29', u'feat_30', u'feat_31', u'feat_32', u'feat_33', u'feat_34', u'feat_35', u'feat_36', u'feat_37', u'feat_38', u'feat_39', u'feat_40', u'feat_41', u'feat_42', u'feat_43', u'feat_44', u'feat_45', u'feat_46', u'feat_47', u'feat_48', u'feat_49', u'feat_50', u'feat_51', u'feat_52', u'feat_53', u'feat_54', u'feat_55', u'feat_56', u'feat_57', u'feat_58', u'feat_59', u'feat_60', u'feat_61', u'feat_62', u'feat_63', u'feat_64', u'feat_65', u'feat_66', u'feat_67', u'feat_68', u'feat_69', u'feat_70', u'feat_71', u'feat_72', u'feat_73', u'feat_74', u'feat_75', u'feat_76', u'feat_77', u'feat_78', u'feat_79', u'feat_80', u'feat_81', u'feat_82', u'feat_83', u'feat_84', u'feat_85', u'feat_86', u'feat_87', u'feat_88', u'feat_89', u'feat_90', u'feat_91', u'feat_92', u'feat_93']
@@ -1199,7 +1206,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_l
     #blender=ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False)
     #blender=RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
     blender = XgboostClassifier(n_estimators=300,learning_rate=0.055,max_depth=3,subsample=.5,n_jobs=8,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
-    blender = BaggingClassifier(base_estimator=blender,n_estimators=40,n_jobs=1,verbose=2,random_state=None,max_samples=0.96,max_features=0.94,bootstrap=False)
+    #blender = BaggingClassifier(base_estimator=blender,n_estimators=40,n_jobs=1,verbose=2,random_state=None,max_samples=0.96,max_features=0.94,bootstrap=False)
     #blender = XgboostClassifier(n_estimators=200,learning_rate=0.05,max_depth=3,subsample=.5,n_jobs=8,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
     if not skipCV:
 	#blender = CalibratedClassifierCV(baseblender, method='sigmoid', cv=3)
@@ -1351,9 +1358,9 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',normali
     #prediction flatten makes a n-dim row vector from a nx1 column vector...
     preds = multiclass_mult(Xtest,xopt,n_classes)
 
-    if calibration:
-	print "Try to calibrate..."
-	calibrator = IsotonicRegression(ymin=1E-15,ymax=1.0-1E-15,out_of_bounds='clip')
+    #if calibration:
+	#print "Try to calibrate..."
+	#calibrator = IsotonicRegression(ymin=1E-15,ymax=1.0-1E-15,out_of_bounds='clip')
 	
 
     if plotting:
@@ -1575,13 +1582,14 @@ if __name__=="__main__":
     models_greedy=['dnn10_r1', 'bagxgb5_r1', 'rf1_r1', 'dnn3_r1', 'dnn1_r1']#0.4158
     best_submission4_r1 = models_greedy + ['xgboost2_r1','kerasnn_r1','xrf1_r1','kerasnn2_r1']
     models=best_submission5_r1
-    best_models_greedy=['dnn10_r1', 'bagxgb5_r1', 'rf1_r1', 'dnn3_r1', 'dnn1_r1', 'xgboost2_r1', 'kerasnn2_r1', 'xrf1_r1', 'gbc1_r1', 'logreg1_r3', 'dnn11_r1', 'xgboost_ovo_r1', 'xgboost3_r1', 'dnn9_r1']
-    models=best_models_greedy+['dnn13_r1']
+    best_models_greedy=['dnn10_r1', 'bagxgb5_r1', 'rf1_r1', 'dnn3_r1', 'dnn1_r1', 'xgboost2_r1', 'kerasnn2_r1', 'xrf2_r1', 'gbc1_r1', 'logreg1_r3', 'dnn11_r1', 'xgboost_ovo_r1', 'xgboost3_r1', 'dnn9_r1']
+    best_models_greedy_no_ovo=['dnn10_r1', 'bagxgb5_r1', 'rf1_r1', 'dnn3_r1', 'dnn1_r1', 'xgboost2_r1', 'kerasnn2_r1', 'xrf2_r1', 'gbc1_r1', 'logreg1_r3', 'dnn11_r1', 'xgboost3_r1', 'dnn9_r1']
+    models=best_models_greedy_no_ovo+['dnn13_r1']
     #models=best_submission2+new_models
     #models=['bagxgb3_r1','dnn6_r1','xgboost_ovo_r1']
     #useCols=['A']
     useCols=None
-    trainEnsemble_multiclass(models,mode='classical',useCols=None,addMetaFeatures=False,use_proba=True,dropCorrelated=False,skipCV=True,subfile='/home/loschen/Desktop/datamining-kaggle/otto/submissions/submission18052015c.csv')
+    trainEnsemble_multiclass(models,mode='linear',useCols=None,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/otto/submissions/submission20052015a.csv')
     #selectModelsGreedy(models,startensemble=['dnn10_r1','bagxgb5_r1','rf1_r1','dnn3_r1','dnn1_r1','xgboost2_r1'],niter=10,mode='classical',greater_is_better=False)
     #trainEnsemble(model,mode='classical',useCols=useCols,addMetaFeatures=False,use_proba=True,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/higgs/submissions/sub1509b.csv')
     

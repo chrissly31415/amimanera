@@ -4,144 +4,111 @@ Created on Thu Dec 29 16:41:13 2011
 @author: Christoph Loschen
 """
 
-from numpy import *
+import numpy as np
 
-#print "Starting Downhill-Simplex Optimization"
+
 
 #test function
 def function(p):
-    y=pow(p[0]-2,2)+pow(p[1]-2,2)+pow(p[2],2)+pow(p[3]-5.5,2)+pow(p[4]-3,2)
-    y=y+5
-    #r_solute[0]=p[0]
-    #r_solute[1]=p[1]
-    #r_solute[2]=p[2]
-    #r_solute[3]=p[3]
-    #A=p[4] 
+    #y=pow(p[0]-2,2)+pow(p[1]-2,2)+pow(p[2],2)+pow(p[3]-5.5,2)+pow(p[4]-3,2)
+    y=pow(p[0]-2,2)+pow(p[1]-22,2)+pow(p[2],2)+pow(p[3]-5.5,2)
+    return y
+
+def function3(p):
+    y=pow(p[0]-2,2)+pow(p[1]-2,2)+pow(p[2],2)+pow(p[3]-5.5,2)+pow(p[4]-3,2)+pow(p[5]+6,4)+pow(p[6]+2.2,2)
     return y
 
 def function2(p):
     y = -np.sum(np.sin(p))
+    y = np.sin(p[0]) + np.cos(p[1])
     return y
 
-#simplex optimization in 5 Dimensions
-# p0: vector with 5 dimensions
-# fn: function which takes 5dim vector as argument 
-def simplex(p0, fn, fixA=True):
+# simplex minimisation in n Dimensions
+# p0: start vector 
+# fnc: function which takes vector as argument 
+
+def simplex(p0=None, fnc=None, maxiter=5000,delta=0.5,ftol=1e-5,lowerbound=None,upperbound=None,verbose=True):
+    if verbose: print "Starting Downhill-Simplex Optimization"
     #setup
-    ndim=5
-    delta=1
-    nmax=5000
-    ilow=0
-    ihigh=0
-    inhigh=0
-    ftol=1e-10
-      
+    ndim=p0.shape[0]   
+    ilow=0;ihigh=0;inhigh=0
     
     #unit vectors
-    e=np.identity(ndim)
-    
-    global A_fix
-    A_fix=0.0
-    if fixA==True:        
-        A_fix=p0[4]
-        e5=array([0.0, 0.0, 0.0, 0.0, 0.0])
-        
+    p=np.identity(ndim)*delta      
     #creating N other points, N+1 in total
-    p0=p0
-    p1=p0+delta*e[0]    
-    p2=p0+delta*e[1]
-    p3=p0+delta*e[2]
-    p4=p0+delta*e[3]
-    p5=p0+delta*e[4]
+    p = np.vstack((p0,p))
+    y = np.zeros((ndim+1))
     
-    p = vstack((p0,p1,p2,p3,p4,p5))
-    y0=fn(p0)
-    y1=fn(p1)
-    y2=fn(p2)
-    y3=fn(p3)
-    y4=fn(p4)
-    y5=fn(p5)
-    y = vstack((y0,y1,y2,y3,y4,y5))
-
-    print "Initial guess: ",
-    print p0
-    
+    for i,row in enumerate(p):
+      y[i] = fnc(row)
+  
     #start iteration
-    for k in range(nmax):
-        print "##iteration:%2d  r:%8.2f%8.2f%8.2f%8.2f y:%8.2f ##" %(k,p[ilow][0],p[ilow][1],p[ilow][2],p[ilow][3],y[ilow]),   
+    for k in range(maxiter):
+        if verbose: print "Iteration: %2d y=f(x): %8.4f " %(k,y[ilow]),   
         #determine highest and lowest point index
-        for i in range(size(y)):
-            if y.min()==y[i]:#dangerous
+        for i in range(np.size(y)):
+            if y.min() == y[i]:#dangerous
                 ilow=i
-            if y.max()==y[i]:
+            if y.max() == y[i]:
                 ihigh=i
             #2nd highest
-        for i in range(size(y)):    
+        for i in range(np.size(y)):    
             temp=y.copy()
             temp[ihigh]=y[ilow]
             if temp.max()==y[i]:
                 inhigh=i
         #double tolerance
-        if ftol>abs(y[ilow]-y[ihigh]):                   
-            print "ftol: %8.6e" %(ftol)
-            print "Simplex optimization CONVERGED!"
+        if ftol>abs(y[ilow]-y[ihigh]):  
+	    print "\nSimplex optimization CONVERGED after %d iterations. [ftol: %8.3e]" %(k,ftol)      
             break
         else:
-            print "tol: %8.6e" %(abs(y[ilow]-y[ihigh]))
-        psum=get_psum(p)
-        ytry=amoebamove(p,p0,y,ihigh,-1.0, ndim, psum,fn)
+            if verbose: print " - diff: %8.3e" %(abs(y[ilow]-y[ihigh])),
+        
+        ytry=amoebamove(p,p0,y,ihigh,-1.0, fnc,lowerbound,upperbound)
         if ytry<y[ilow]:
-            print "New minimum, trying EXTRAPOLATION"
-            ytry=amoebamove(p,p0,y,ihigh,2.0, ndim, psum, fn)
+            if verbose: print " -> EXTRAPOLATION"
+            ytry=amoebamove(p,p0,y,ihigh,2.0,  fnc,lowerbound,upperbound)
         elif ytry>y[inhigh]:
-            print "No minimum, trying CONTRACTION"
+            if verbose: print " -> CONTRACTION"
             ysave=ytry
-            ytry=amoebamove(p,p0,y,ihigh,0.5, ndim, psum, fn)
-    return p[ilow]     
+            ytry=amoebamove(p,p0,y,ihigh,0.5,  fnc,lowerbound,upperbound)
+        else:
+	    print ""
+    return p[ilow],ytry    
 
-def amoebamove(p,p0,y,ihigh,factor,ndim,psum,fn):
-    #print "Amoeba moves...."
-    ptry=zeros(size(p[0]))
-    ytry=0.0
+def amoebamove(p,p0,y,ihigh,factor,fnc,lowerbound,upperbound):
+    ndim = p0.shape[0]
+    psum=p.sum(axis=0)
+    
     factor1=(1.0-factor)/ndim
-
     factor2=factor1-factor
 
-    for j in range(size(ptry)):
+    ptry=np.zeros(np.size(p[0]))
+    for j in range(np.size(ptry)):
         ptry[j]=psum[j]*factor1-p[ihigh][j]*factor2
-        #Do not allow values smaller than zero -> use boundary here
-        if ptry[j]<0:
-            ptry[j]=0
-    ytry=fn(ptry)
+        #Do not allow values outside bound -> use boundary here
+        if lowerbound is not None:
+	    if ptry[j]<lowerbound[j]:
+		ptry[j]=lowerbound[j]
+	
+	if upperbound is not None:
+	    if ptry[j]>upperbound[j]:
+		ptry[j]=upperbound[j]
+	
+    ytry=fnc(ptry)
     if ytry<y[ihigh]:
-
         y[ihigh]=ytry
-        for j in range(size(ptry)):
+        for j in range(np.size(ptry)):
             psum[j]= psum[j]-p[ihigh][j]+ptry[j]
             p[ihigh][j]=ptry[j]
     return ytry   
 
-
-def get_psum(p):
-    psum=zeros(size(p[0]))
-    psum=p.sum(axis=0)
-    return psum
-    
-
-if __name__=="__main__":
-    
-    g = lambda x: np.power(x-2,2)    
-    
-    p0=zeros(5)
-    p_opt=simplex(p0,function2, False)
+   
+if __name__=="__main__":    
+    g = lambda x: np.power(x-2,2)+5*x
+    p0=np.zeros(7)
+    p_opt,y_opt=simplex(p0=p0,fnc=function3,lowerbound=p0-10,upperbound=p0+2,verbose=True)
     print p_opt
-    
-    
-    
-    
-    
-    
-    
-    
+    print y_opt
     
     

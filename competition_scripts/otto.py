@@ -16,7 +16,7 @@ from pandas.tools.plotting import scatter_matrix
 from xgboost_sklearn import *
 import xgboost as xgb
 
-from OneHotEncoder import *
+#from OneHotEncoder import *
 
 from lasagne_tools import *
 from keras_tools import *
@@ -409,14 +409,14 @@ if __name__=="__main__":
     #NNsetting
     #"""
     nsamples='shuffle'#61878
-    standardize=True
+    standardize=False
     polynomialFeatures=False#'load'
     featureHashing=False
-    OneHotEncoding=False
+    OneHotEncoding=True
     analyzeIt=False
     call_group_data=False
     log_transform=False
-    sqrt_transform=True
+    sqrt_transform=False
     addNoiseColumns=None
     addFeatures=False
     doSVD=None
@@ -455,9 +455,8 @@ if __name__=="__main__":
     #ytrain = ytrain.astype(np.float32)
     #df_info(Xtrain)
     density(Xtrain)
-    Xtrain = Xtrain.values
 
-    #model = LogisticRegression(C=1.0,penalty='l2')
+    model = LogisticRegression(C=1.0,penalty='l2')
     #model = LogisticRegression(C=1.0,class_weight=None,penalty='l2',solver='lbfgs', multi_class='ovr' )#0.671
     #model = LogisticRegression(C=1E-1,class_weight=None,penalty='l1',solver='liblinear', multi_class='ovr' )#0.671
     #model = LogisticRegression(C=1E-1,class_weight=None,penalty='l1' )
@@ -497,8 +496,8 @@ if __name__=="__main__":
 
     #model = nnet9
     #model = KerasNN(dims=93,nb_classes=9,nb_epoch=60,learning_rate=0.015,validation_split=0.15,batch_size=64,verbose=1)
-    model = KerasNN2(dims=93,nb_classes=9,nb_epoch=50,learning_rate=0.02,validation_split=0.15,batch_size=128,verbose=1)
-    print ytrain.shape
+    #model = KerasNN3(dims=93,nb_classes=9,nb_epoch=100,learning_rate=0.004,validation_split=0.0,batch_size=128,verbose=1)
+    #print ytrain.shape
 
     #with open('nnet1.pickle', 'rb') as f:  # !
     #        net_pretrain = pickle.load(f)  # !
@@ -511,9 +510,9 @@ if __name__=="__main__":
     #scoring_func = make_scorer(accuracy_score, greater_is_better=True, needs_proba=False)
     #analyzeLearningCurve(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,24,test_size=0.125),score_func=scoring_func)
     #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedKFold(ytrain,8,shuffle=True))
-    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,n_jobs=1,trainFull=False,verbose=True)
+    model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True),scoring=scoring_func,n_jobs=8,trainFull=False,verbose=True)
     #model = buildModel(model,Xtrain,ytrain,cv=StratifiedShuffleSplit(ytrain,2,test_size=0.01),scoring=scoring_func,n_jobs=1,trainFull=False,verbose=True)
-    model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedShuffleSplit(ytrain,4,test_size=0.001))
+    #model = buildClassificationModel(model,Xtrain,ytrain,list(set(labels)).sort(),trainFull=False,cv=StratifiedShuffleSplit(ytrain,4,test_size=0.001))
     
     #model.fit(Xtrain.values, ytrain)
     #with open('nnet1.pickle', 'wb') as f:

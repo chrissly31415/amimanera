@@ -15,7 +15,6 @@ from keras.layers.advanced_activations import PReLU
 from keras.utils import np_utils, generic_utils
 from sklearn.base import BaseEstimator
 
-
 '''
     This demonstrates how to reach a score of 0.4890 (local validation)
     on the Kaggle Otto challenge, with a deep net using Keras.
@@ -123,6 +122,51 @@ class KerasNN2(Sequential,BaseEstimator):
 	self.add(Activation('softmax'))
 
 	self.compile(loss='categorical_crossentropy', optimizer="adam")
+
+    def fit(self,X,y):
+	y = np_utils.to_categorical(y)
+	Sequential.fit(self,X, y, nb_epoch=self.nb_epoch, batch_size=self.batch_size, validation_split=self.validation_split)
+	
+
+    def predict_proba(self,Xtest):
+	#ypred = Sequential.predict_proba(self,Xtest,batch_size=128,verbose=1)
+	ypred = Sequential.predict_proba(self,Xtest,batch_size=self.batch_size,verbose=self.verbose)
+	print(ypred.shape)
+	return ypred
+
+class KerasNN3(Sequential,BaseEstimator):
+    
+    def __init__(self,dims=93,nb_classes=9,nb_epoch=50,learning_rate=0.004,validation_split=0.0,batch_size=128,verbose=1):
+	Sequential.__init__(self)
+	self.dims = dims
+	self.nb_classes = nb_classes
+	self.nb_epoch = nb_epoch
+	self.learning_rate = learning_rate
+	self.validation_split = validation_split
+	self.batch_size = batch_size
+	self.verbose = verbose
+	print('Initializing Keras Deep Net with %d features and %d classes'%(self.dims,self.nb_classes))
+	
+	self.add(Dropout(0.15))
+	self.add(Dense(dims, 512,activation='tanh'))
+	self.add(BatchNormalization((512,)))
+	self.add(Dropout(0.5))
+
+	self.add(Dense(512, 256))
+	self.add(PReLU((256,)))
+	self.add(BatchNormalization((256,)))
+	self.add(Dropout(0.3))
+
+	self.add(Dense(256, 128))
+	self.add(PReLU((128,)))
+	self.add(BatchNormalization((128,)))
+	self.add(Dropout(0.1))
+
+	self.add(Dense(128, nb_classes))
+	self.add(Activation('softmax'))
+
+	sgd = SGD(lr=self.learning_rate, decay=1e-7, momentum=0.99, nesterov=True)
+	self.compile(loss='categorical_crossentropy', optimizer=sgd)
 
     def fit(self,X,y):
 	y = np_utils.to_categorical(y)
