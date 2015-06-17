@@ -37,7 +37,7 @@ from sklearn.isotonic import IsotonicRegression
 
 from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier,LinearRegression,Ridge,BayesianRidge,ElasticNet,RidgeCV,LassoLarsCV,Lasso,LarsCV
 from sklearn.cross_decomposition import PLSRegression,PLSSVD
-from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor,BaggingRegressor,BaggingClassifier,RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor,BaggingRegressor,BaggingClassifier,RandomForestRegressor,RandomTreesEmbedding    
 from sklearn.neighbors import KNeighborsClassifier,KNeighborsRegressor
 from sklearn.svm import LinearSVC,SVC,SVR
 
@@ -49,6 +49,8 @@ from sklearn.multiclass import OneVsRestClassifier,OneVsOneClassifier
 from sklearn.base import clone
 
 from sklearn.calibration import CalibratedClassifierCV
+
+from xgboost_sklearn import *
 
     
 def removeCorrelations(X_all,threshhold):
@@ -261,8 +263,7 @@ def weightedGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=Fa
     print "Score: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
     return(clf_opt.best_estimator_)
     
-    
-    
+        
 def buildRegressionModel(lmodel,lXs,ly,sample_weights=None,scoring=None,cv=5):
     """   
     Final model building part
@@ -278,7 +279,7 @@ def buildRegressionModel(lmodel,lXs,ly,sample_weights=None,scoring=None,cv=5):
 
 def buildModel(clf,lX,ly,cv=None,scoring=None,n_jobs=8,trainFull=True,verbose=False):
     score = cross_validation.cross_val_score(clf,lX,ly,fit_params=None, scoring=scoring,cv=cv,n_jobs=n_jobs)
-    if verbose: print "cv-score: %6.3f +/- %6.3f" %(-1*score.mean(),score.std())
+    if verbose: print "cv-score: %6.3f +/- %6.3f" %(score.mean(),score.std())
     if trainFull:
       print "Train on all data..."
       clf.fit(lX,ly)
@@ -291,29 +292,33 @@ def buildClassificationModel(clf_orig,lX,ly,class_names=None,trainFull=False,cv=
   Final model building part
   """ 
   print "Training the model..."
-  print class_names
+  #print class_names
   if isinstance(lX,pd.DataFrame): lX  = lX.values
+  if isinstance(ly,pd.DataFrame): ly  = ly.values
 
   ypred = np.zeros((len(ly),))
-  yproba = np.zeros((len(ly),len(set(ly))))
-  mll = np.zeros((len(cv),1))
+  #yproba = np.zeros((len(ly),len(set(ly))))
+  kappa = np.zeros((len(cv),1))
+  acc = np.zeros((len(cv),1))
+  mae = np.zeros((len(cv),1))
   for i,(train, test) in enumerate(cv):
       clf = clone(clf_orig)
       ytrain, ytest = ly[train], ly[test]
       clf.fit(lX[train,:], ytrain)
       ypred[test] = clf.predict(lX[test,:])
-      yproba[test] = clf.predict_proba(lX[test,:])
-      mll[i] = multiclass_log_loss(ly[test], yproba[test])
-      acc = 0.0
+      kappa[i] = quadratic_weighted_kappa(ly[test], ypred[test])
+      acc[i] = accuracy_score(ly[test], ypred[test])
+      mae[i] = mean_absolute_error(ly[test], ypred[test])
       #acc = accuracy_score(ly[test], ypred[test])
-      print "train set: %2d samples: %5d/%5d mll: %4.3f accuracy: %4.3f"%(i,lX[train,:].shape[0],lX[test,:].shape[0],mll[i],acc)
+      print "train set: %2d samples: %5d/%5d kappa: %4.3f accuracy: %4.3f"%(i,lX[train,:].shape[0],lX[test,:].shape[0],kappa[i],acc[i])
   
 
-  #print classification_report(ly, ypred, target_names=class_names)
-  mll_oob = multiclass_log_loss(ly, yproba)
+  print classification_report(ly, ypred, target_names=class_names)
+
+  print("MAE         :%6.3f +/-%6.3f"%(mae.mean(),mae.std()))
+  print("Accuracy    :%6.3f +/-%6.3f"%(acc.mean(),acc.std()))
+  print("Kappa       :%6.3f +/-%6.3f"%(kappa.mean(),kappa.std()))
   
-  print "oob multiclass logloss: %6.3f" %(mll_oob)
-  print "avg multiclass logloss: %6.3f +/- %6.3f" %(mll.mean(),mll.std())
   #training on all data
   if trainFull:
     clf_orig.fit(lX, ly)
@@ -1029,8 +1034,8 @@ def makeGridSearch(lmodel,lX,ly,n_jobs=1,refit=True,cv=5,scoring='roc_auc',rando
     best_score=1.0E5
     print("%6s %6s %6s %r" % ("OOB", "MEAN", "SDEV", "PARAMS"))
     for params, mean_score, cvscores in search.grid_scores_:
-	oob_score = -1* mean_score
-	cvscores = -1 * cvscores
+	oob_score = mean_score
+	cvscores = cvscores
 	mean_score = cvscores.mean()
 	print("%6.3f %6.3f %6.3f %r" % (oob_score, mean_score, cvscores.std(), params))
 	#if mean_score < best_score:
@@ -1119,7 +1124,90 @@ def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, sc
 
     plt.legend(loc="best")
     return plt
-    
+
+
+# The following 3 functions have been taken from Ben Hamner's github repository
+# https://github.com/benhamner/Metrics
+def confusion_matrix(rater_a, rater_b, min_rating=None, max_rating=None):
+    """
+    Returns the confusion matrix between rater's ratings
+    """
+    assert(len(rater_a) == len(rater_b))
+    if min_rating is None:
+        min_rating = min(rater_a + rater_b)
+    if max_rating is None:
+        max_rating = max(rater_a + rater_b)
+    num_ratings = int(max_rating - min_rating + 1)
+    conf_mat = [[0 for i in range(num_ratings)]
+                for j in range(num_ratings)]
+    for a, b in zip(rater_a, rater_b):
+        conf_mat[a - min_rating][b - min_rating] += 1
+    return conf_mat
+
+
+def histogram(ratings, min_rating=None, max_rating=None):
+    """
+    Returns the counts of each type of rating that a rater made
+    """
+    if min_rating is None:
+        min_rating = min(ratings)
+    if max_rating is None:
+        max_rating = max(ratings)
+    num_ratings = int(max_rating - min_rating + 1)
+    hist_ratings = [0 for x in range(num_ratings)]
+    for r in ratings:
+        hist_ratings[r - min_rating] += 1
+    return hist_ratings
+
+def quadratic_weighted_kappa(y, y_pred):
+    """
+    Calculates the quadratic weighted kappa
+    axquadratic_weighted_kappa calculates the quadratic weighted kappa
+    value, which is a measure of inter-rater agreement between two raters
+    that provide discrete numeric ratings.  Potential values range from -1
+    (representing complete disagreement) to 1 (representing complete
+    agreement).  A kappa value of 0 is expected if all agreement is due to
+    chance.
+    quadratic_weighted_kappa(rater_a, rater_b), where rater_a and rater_b
+    each correspond to a list of integer ratings.  These lists must have the
+    same length.
+    The ratings should be integers, and it is assumed that they contain
+    the complete range of possible ratings.
+    quadratic_weighted_kappa(X, min_rating, max_rating), where min_rating
+    is the minimum possible rating, and max_rating is the maximum possible
+    rating
+    """
+    rater_a = y
+    rater_b = y_pred
+    min_rating=None
+    max_rating=None
+    rater_a = np.array(rater_a, dtype=int)
+    rater_b = np.array(rater_b, dtype=int)
+    assert(len(rater_a) == len(rater_b))
+    if min_rating is None:
+        min_rating = min(min(rater_a), min(rater_b))
+    if max_rating is None:
+        max_rating = max(max(rater_a), max(rater_b))
+    conf_mat = confusion_matrix(rater_a, rater_b,
+                                min_rating, max_rating)
+    num_ratings = len(conf_mat)
+    num_scored_items = float(len(rater_a))
+
+    hist_rater_a = histogram(rater_a, min_rating, max_rating)
+    hist_rater_b = histogram(rater_b, min_rating, max_rating)
+
+    numerator = 0.0
+    denominator = 0.0
+
+    for i in range(num_ratings):
+        for j in range(num_ratings):
+            expected_count = (hist_rater_a[i] * hist_rater_b[j]
+                              / num_scored_items)
+            d = pow(i - j, 2.0) / pow(num_ratings - 1, 2.0)
+            numerator += d * conf_mat[i][j] / num_scored_items
+            denominator += d * expected_count / num_scored_items
+
+    return (1.0 - numerator / denominator)    
    
 #some global vars
 funcdict={}
@@ -1129,3 +1217,4 @@ funcdict['mae']=mean_absolute_error
 funcdict['msq']=mean_squared_error
 funcdict['log_loss']=multiclass_log_loss
 funcdict['accuracy_score']=accuracy_score
+funcdict['quadratic_weighted_kappa']=quadratic_weighted_kappa

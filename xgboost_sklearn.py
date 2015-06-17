@@ -10,6 +10,7 @@ sys.path.append('/home/loschen/programs/xgboost/wrapper')
 import xgboost as xgb
 
 from sklearn.base import BaseEstimator
+from sklearn import preprocessing
 
 import qsprLib
 
@@ -25,7 +26,6 @@ class XgboostClassifier(BaseEstimator):
 	"""
 	Constructor
 	Parameters: https://github.com/dmlc/xgboost/blob/d3af4e138f7cfa5b60a426f1468908f928092198/doc/parameter.md
-	min_split_loss?
 	"""
 	self.learning_rate = learning_rate
 	self.max_depth = max_depth
@@ -48,6 +48,7 @@ class XgboostClassifier(BaseEstimator):
 	self.isRegressor=False
 	self.classes_=-1
 	self.xgboost_model=None
+	self.encoder= preprocessing.LabelEncoder()
 	#self.param['scale_pos_weight'] = 1.0 #scaling can be done also externally| for AMS metric
 
     def fit(self, lX, ly, sample_weight=None):
@@ -55,15 +56,13 @@ class XgboostClassifier(BaseEstimator):
 	if isinstance(lX,pd.DataFrame): lX = np.asarray(lX)
 	if isinstance(ly,pd.DataFrame): ly = np.asarray(ly)
 	
-	print "Fit:",lX.shape
-	
 	self.classes_ = np.unique(ly)
-	
-	
+	ly = self.encoder.fit_transform(ly)
 	
 	if sample_weight is not None:
 	    sample_weight = np.asarray(sample_weight)
 	
+	#early stopping!!
 	if self.eval_size>0.0:
 	    n_test = int(self.eval_size * lX.shape[0])
 	    idx_test = np.random.choice(xrange(lX.shape[0]),n_test,False)
@@ -80,7 +79,6 @@ class XgboostClassifier(BaseEstimator):
         #xgmat = xgb.DMatrix(X, label=y, missing=self.NA, weight=sample_weight)#NA ??
         dtrain = xgb.DMatrix(lX, label=ly, missing=self.NA)#NA=0 as regulariziation->gives rubbish
         
-        #plst = self.param.items()+[('eval_metric')]
         #set up parameters
 	param = {}	 
 	param['objective'] = self.objective #'binary:logitraw', 'binary:logistic', 'multi:softprob'
@@ -94,8 +92,7 @@ class XgboostClassifier(BaseEstimator):
         param['bst:max_depth'] = self.max_depth
         param['nthread'] = self.n_jobs
         param['silent'] = self.silent
-        param['num_class']=np.unique(ly).shape[0] 
-        
+        param['num_class']=np.unique(ly).shape[0]      
         param['alpha']=self.alpha_L1
         param['lambda']=self.lambda_L2
         
@@ -112,8 +109,10 @@ class XgboostClassifier(BaseEstimator):
 
     def predict(self, lX):
 	ly = self.predict_proba(lX)
-	idx = np.argmax(ly,axis=1)
-        return idx
+	if 'multi:softprob' in self.objective:
+	    ly = np.argmax(ly)
+
+        return self.encoder.inverse_transform(ly.astype(int))
         
     def predict_proba(self,lX):
 	#avoid problems with pandas dataframes and DMatrix
