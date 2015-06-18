@@ -378,7 +378,7 @@ if __name__=="__main__":
     
     Xtrain, ytrain, Xtest,idx  = prepareDataset(seed=seed,nsamples=nsamples,preprocess=preprocess,concat=concat,doTFID=doTFID,doSeparateTFID=doSeparateTFID,stop_words=stop_words,computeSim=computeSim,doSVD=doSVD,doSVDseparate=doSVDseparate,standardize=standardize,useAll=useAll,concatAll=concatAll,doKmeans=doKmeans)
      
-    #model = Pipeline([('reducer', TruncatedSVD(n_components=400)), ('scaler', StandardScaler()), ('model', model)])
+    model = Pipeline([('reducer', TruncatedSVD(n_components=400)), ('scaler', StandardScaler()), ('model', model)])
     #model = Pipeline([('scaler', StandardScaler()), ('model', SVC(C=32,gamma=0.001) )])
     #model = SVC(C=32,gamma=0.001)
     #model = Pipeline([('scaler', StandardScaler()), ('model', LinearSVC(C=0.01))])
@@ -399,7 +399,7 @@ if __name__=="__main__":
     #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None)#opt kaggle params
     #model = LogisticRegressionMod(penalty='l2', dual=False, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None)#opt kaggle params
     #model = RidgeClassifier(tol=1e-2, solver="lsqr",alpha=0.1)
-    model = KNeighborsClassifier(n_neighbors=5)
+    #model = KNeighborsClassifier(n_neighbors=5)
     #model = XgboostClassifier(n_estimators=200,learning_rate=0.3,max_depth=4,subsample=.5,n_jobs=1,objective='multi:softmax',eval_metric='mlogloss',booster='gbtree',silent=1)
     #model = MultinomialNB(alpha=0.001)
 
