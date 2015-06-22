@@ -40,10 +40,16 @@ def createModels():
     #ensemble.append(xmodel)
 
     #SVM2
-    stop_words = text.ENGLISH_STOP_WORDS
-    (Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doTFID=True,concat=True,doSVD=400,stop_words=stop_words,standardize=True)
-    model = SVC(C=10,gamma=0.0)
-    xmodel = XModel("svm2_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
+    #stop_words = text.ENGLISH_STOP_WORDS
+    #(Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doTFID=True,concat=True,doSVD=400,stop_words=stop_words,standardize=True)
+    #model = SVC(C=10,gamma='auto')
+    #xmodel = XModel("svm2_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
+    #ensemble.append(xmodel)
+    
+    #SMV3 funy benchmark
+    (Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doBenchMark=True)
+    model = Pipeline([('v',TfidfVectorizer(min_df=5, max_df=500, max_features=None, strip_accents='unicode', analyzer='word', token_pattern=r'\w{1,}', ngram_range=(1, 2), use_idf=True, smooth_idf=True, sublinear_tf=True, stop_words = 'english')), ('svd', TruncatedSVD(n_components=200, algorithm='randomized', n_iter=5, random_state=None, tol=0.0)), ('scl', StandardScaler(copy=True, with_mean=True, with_std=True)), ('svm', SVC(C=10.0, kernel='rbf', degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=False, tol=0.001, cache_size=200, class_weight=None, verbose=False, max_iter=-1, random_state=None))])  
+    xmodel = XModel("svm3_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
     ensemble.append(xmodel)
     
     
@@ -91,12 +97,12 @@ def finalizeModel(m,binarizeProbas=False,use_proba=True):
 	#save final model
 	allpred = pd.concat([m.preds, m.oob_preds])
 	#submission data is first, train data is last!
-	filename="/home/loschen/Desktop/datamining-kaggle/crowdflower/data/"+m.name+".csv"
+	filename="./data/"+m.name+".csv"
 	print "Saving oob + predictions as csv to:",filename
 	allpred.to_csv(filename,index=False)
 	
 	#XModel.saveModel(m,"/home/loschen/Desktop/datamining-kaggle/higgs/data/"+m.name+".pkl")
-	XModel.saveCoreData(m,"/home/loschen/Desktop/datamining-kaggle/crowdflower/data/"+m.name+".pkl")
+	XModel.saveCoreData(m,"./data/"+m.name+".pkl")
 	return(m)
     
 
@@ -227,7 +233,7 @@ def trainEnsemble_multiclass(ensemble,mode='linear',score_func='log_loss',useCol
     """
     Train the ensemble
     """
-    basedir="/home/loschen/Desktop/datamining-kaggle/crowdflower/data/"
+    basedir="./data/"
 
     for i,model in enumerate(ensemble):
 	
@@ -386,13 +392,16 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',greater
 	    print "We have NaN here!!"
 	    score=0.0
 	else:
-	    #ypred=np.dot(Xtrain,params)	
+	    print "params:",params	
 	    ypred = blend_mult(Xtrain,params,n_classes)
 	    #print ypred
+	    print ypred[:15]
 	    if not use_proba: ypred = np.round(ypred)
+	    print ypred[:15]
 	    #print ypred
 	    score=funcdict[score_func](y,ypred)
 	    print "score: %8.3f"%(score)
+	    #raw_input()
 	    #regularization
 	    if alpha is not None:
 	      penalty=alpha*np.sum(np.square(params))
@@ -455,6 +464,7 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',greater
 	if xopt[i]<removeZeroModels:
 	    zero_models.append(model)
     print "##sum coefficients: %4.4f"%(np.sum(xopt))
+    print "training -  max: %4.2f mean: %4.2f median: %4.2f min: %4.2f"%(np.amax(ypred),ypred.mean(),np.median(ypred),np.amin(ypred))
     
     if removeZeroModels>0.0:
 	print "Dropping ",len(zero_models)," columns:",zero_models
@@ -470,6 +480,7 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',greater
 	#calibrator = IsotonicRegression(ymin=1E-15,ymax=1.0-1E-15,out_of_bounds='clip')
 	
     if plotting:
+	print "predictions - max: %4.2f mean: %4.2f median: %4.2f min: %4.2f"%(np.amax(preds),preds.mean(),np.median(preds),np.amin(preds))
 	plt.hist(ypred,bins=50,alpha=0.3,label='oob')
 	plt.hist(preds,bins=50,alpha=0.3,label='pred')
 	plt.legend()
@@ -586,10 +597,10 @@ if __name__=="__main__":
     #ensemble=createOOBdata_parallel(ensemble,repeats=1,nfolds=5,n_jobs=5,use_proba=False,score_func='quadratic_weighted_kappa') #oob data averaging leads to significant variance reduction
     #ensemble=createOOBdata_parallel(ensemble,repeats=1,nfolds=8,n_jobs=8,score_func='accuracy_score',use_proba=False)#OneVSOne
     all_models=['knn1_r1','svm1_r1','svm2_r1']
-    models = ['svm2_r1','svm1_r1']
+    models = ['knn1_r1','svm2_r1','svm1_r1']
 
 
     useCols=None
-    trainEnsemble_multiclass(models,mode='mean',score_func='quadratic_weighted_kappa',useCols=None,addMetaFeatures=False,use_proba=False,dropCorrelated=False,subfile='/home/loschen/Desktop/datamining-kaggle/crowdflower/submissions/sub12062015a.csv')
+    trainEnsemble_multiclass(models,mode='linear',score_func='quadratic_weighted_kappa',useCols=None,addMetaFeatures=False,use_proba=False,dropCorrelated=False,subfile='./submissions/sub20062015a.csv')
     #selectModelsGreedy(models,startensemble=['dnn10_r1','bagxgb5_r1','rf1_r1','dnn3_r1','dnn1_r1','xgboost2_r1'],niter=10,mode='classical',greater_is_better=False)
    

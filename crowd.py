@@ -28,13 +28,8 @@ class MyTokenizer(object):
     """
     def __init__(self,stemmer=None,stop_words=None):
       print "Using special tokenizer, stemmer:",stemmer," stop_words:",stop_words
-      #self.wnl = LancasterStemmer()
-      #self.wnl = PorterStemmer()#best so far
       self.wnl = stemmer
       self.stop_words = stop_words
-      #self.doStem = doStem
-      #self.wnl = EnglishStemmer(ignore_stopwords=True)
-      #self.wnl = WordNetLemmatizer()
     def __call__(self, doc): 
       #words=[word_tokenize(t) for t in sent_tokenize(doc)]
       #words=[item for sublist in words for item in sublist]
@@ -61,6 +56,9 @@ def loadData(nsamples=-1):
     Xtrain = Xtrain.drop('id', axis=1)
     Xtest = Xtest.drop('id', axis=1)
     
+    Xtrain["product_description"] = Xtrain["product_description"].fillna("no_description")
+    Xtest["product_description"] = Xtest["product_description"].fillna("no_description")
+    
     # create labels. drop useless columns
     ytrain = Xtrain.median_relevance.values
     Xtrain = Xtrain.drop(['median_relevance', 'relevance_variance'], axis=1)
@@ -78,7 +76,7 @@ def loadData(nsamples=-1):
     return Xtest,Xtrain,ytrain,idx
 
 
-def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=False,doSeparateTFID=None,doSVDseparate=False,computeSim=False,stop_words=text.ENGLISH_STOP_WORDS,doTFID=False,concat=False,useAll=False,concatAll=False,doKmeans=False):
+def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=False,doBenchMark=False,computeFeatures=False,doSeparateTFID=None,doSVDseparate=False,computeSim=False,stop_words=text.ENGLISH_STOP_WORDS,doTFID=False,concat=False,useAll=False,concatAll=False,doKmeans=False):
     np.random.seed(seed)
     
     Xtest,Xtrain,ytrain,idx = loadData(nsamples=nsamples)
@@ -87,10 +85,18 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=
 
     if preprocess:
 	pass
-      
-    if doSeparateTFID is not None:
+    
+    if doBenchMark:
+	Xall = useBenchmarkMethod(Xall)
+    
+    Xfeat = None
+    if computeFeatures is not None:
+        Xfeat = querySimilarity(Xall,verbose=False)
+        print Xfeat.describe()
+    
+    if doSeparateTFID is False or doSeparateTFID is not None:
 	analyze=False
-	print "Vectorize separately...",
+	print "Vectorize columns separately...",
 
 	tokenizer = MyTokenizer(stemmer=PorterStemmer())
 	
@@ -104,9 +110,6 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=
 	
 	for i,col in enumerate(doSeparateTFID):
 	    print "Vectorizing: ",col
-	    
-	    Xtrain[col] = Xtrain[col].fillna("no description")
-	    Xtest_t[col] = Xtest_t[col].fillna("no description")
 	    
 	    print "Is null:",Xtrain[col].isnull().sum()
 	    print Xtrain[col].describe()
@@ -124,18 +127,6 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=
 		    Xs_all_new=reducer.fit_transform(Xs_all_new)
 		    Xs_all = pd.DataFrame(np.hstack((Xs_all,Xs_all_new)))
 		    print "Shape Xs_all after SVD:",Xs_all.shape
-		    
-		    #Xs_train_new=reducer.fit_transform(Xs_train_new)
-		    #Xs_test_new=reducer.transform(Xs_test_new)
-		    #Xs_train = pd.DataFrame(np.hstack((Xs_train,Xs_train_new)))
-		    #Xs_test =  pd.DataFrame(np.hstack((Xs_test,Xs_test_new)))
-		    #print "New shape Xs_train:",Xs_train.shape
-		    #print "New shape Xs_test:",Xs_test.shape
-		    
-		    
-		else:
-		    Xs_train = sparse.hstack((Xs_train,Xs_train_new),format="csr")
-		    Xs_test =  sparse.hstack((Xs_test,Xs_test_new),format="csr")
 		
 	    else:
 		#we fit first column on all data!!!
@@ -151,10 +142,6 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=
 		    #Xs_all=sparse.vstack((Xs_test,Xs_train))
 		    Xs_all=reducer.fit_transform(Xs_all)
 		    print "Shape Xs_all after SVD:",Xs_all.shape
-		    #Xs_train=reducer.fit_transform(Xs_train)
-		    #Xs_test=reducer.transform(Xs_test)		    
-		    #print "New shape Xs_train:",Xs_train.shape
-		    #print "New shape Xs_test:",Xs_test.shape
 	
 	    if analyze:
 		analyzer(vectorizer,Xs_train, ytrain)
@@ -163,8 +150,6 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=
 	if doSVDseparate:
 	    #Xall = pd.concat([Xs_test, Xs_train])
 	    Xall = Xs_all
-	else:
-	    Xall = sparse.vstack((Xs_test,Xs_train),format="csr")
 	
 	print type(Xall)
 	print " shape:",Xall.shape
@@ -238,7 +223,8 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=
     if doSVD is not None and doSVD is not False:
 	print "SVD...components:",doSVD
 	reducer=TruncatedSVD(n_components=doSVD, algorithm='randomized', n_iter=5, tol=0.0)
-	#tsvd = RandomizedPCA(n_components=doSVD, whiten=True)
+	#reducer = RandomizedPCA(n_components=doSVD, whiten=True)
+	
     if reducer is not None:
 	print reducer
 	
@@ -253,8 +239,6 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=
 	  Xall = np.vstack((Xtest_t,Xtrain))
 	
 	Xall = pd.DataFrame(Xall)
-	#print Xall.describe()
-	#df_info(Xall)
     
     if computeSim:
 	Xsim = computeSimilarityFeatures(vectorizer=None,nsamples=nsamples,stop_words=stop_words)
@@ -266,20 +250,30 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=
 	Xall = pd.concat([Xall,Xsim], axis=1)
 	print Xall.describe()
 	print Xall.columns[-5:]
+
+    if Xfeat is not None:
+	  if isinstance(computeFeatures,str) and 'only' in computeFeatures:
+	      Xall = Xfeat
+	  else:
+	      Xall = pd.concat([Xall,Xfeat], axis=1)
+
 	
-	
-    
     if standardize:
 	if not isinstance(Xall,pd.DataFrame):
 	    print "X is not a DataFrame, converting from,",type(Xall)
 	    Xall = pd.DataFrame(Xall.todense())
 	Xall = scaleData(lXs=Xall,lXs_test=None)
     
+    
+
+    
+    
     Xtrain = Xall[len(Xtest.index):]
     Xtest = Xall[:len(Xtest.index)]
     
-    print "#Xtrain:",Xtrain.shape
-    print "#Xtest:",Xtest.shape
+    if not isinstance(Xtrain,list):
+      print "#Xtrain:",Xtrain.shape
+      print "#Xtest:",Xtest.shape
     
     #print type(ytrain)
     print "#ytrain:",ytrain.shape
@@ -356,11 +350,11 @@ if __name__=="__main__":
     print "scipy:",sp.__version__
     
     seed = 123
-    nsamples=-1#'shuffle'
+    nsamples='shuffle'#'shuffle'
     preprocess=False
+    doBenchMark=False
+    computeFeatures=True
     doSeparateTFID=['product_title','query']#['query','product_title','product_description']#
-    concat=False#query+title
-    concatAll=False#query+title+desription
     doTFID=False
 
     doSVD=False
@@ -368,18 +362,22 @@ if __name__=="__main__":
     
     standardize=True
     useAll=False#supervised vs. unsupervised
+    concat=False#query+title
+    concatAll=False#query+title+desription
     computeSim=False
-    
+
     doKmeans=False
     
     garbage=["<.*?>", "http", "www","img","border","style","px","margin","left", "right","font","solid","This translation tool is for your convenience only.*?Note: The accuracy and accessibility of the resulting translation is not guaranteed"]
     garbage2=['http','www','img','border','0','1','2','3','4','5','6','7','8','9','a','the']
     stop_words = text.ENGLISH_STOP_WORDS.union(garbage).union(garbage2)
     
-    Xtrain, ytrain, Xtest,idx  = prepareDataset(seed=seed,nsamples=nsamples,preprocess=preprocess,concat=concat,doTFID=doTFID,doSeparateTFID=doSeparateTFID,stop_words=stop_words,computeSim=computeSim,doSVD=doSVD,doSVDseparate=doSVDseparate,standardize=standardize,useAll=useAll,concatAll=concatAll,doKmeans=doKmeans)
-     
+    Xtrain, ytrain, Xtest,idx  = prepareDataset(seed=seed,nsamples=nsamples,preprocess=preprocess,doBenchMark=doBenchMark,computeFeatures=computeFeatures,concat=concat,doTFID=doTFID,doSeparateTFID=doSeparateTFID,stop_words=stop_words,computeSim=computeSim,doSVD=doSVD,doSVDseparate=doSVDseparate,standardize=standardize,useAll=useAll,concatAll=concatAll,doKmeans=doKmeans)
+    
+    #model = Pipeline([('v',TfidfVectorizer(min_df=5, max_df=500, max_features=None, strip_accents='unicode', analyzer='word', token_pattern=r'\w{1,}', ngram_range=(1, 2), use_idf=True, smooth_idf=True, sublinear_tf=True, stop_words = 'english')), ('svd', TruncatedSVD(n_components=200, algorithm='randomized', n_iter=5, random_state=None, tol=0.0)), ('scl', StandardScaler(copy=True, with_mean=True, with_std=True)), ('svm', SVC(C=10.0, kernel='rbf', degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=False, tol=0.001, cache_size=200, class_weight=None, verbose=False, max_iter=-1, random_state=None))])
+    
     #model = Pipeline([('reducer', TruncatedSVD(n_components=400)), ('scaler', StandardScaler()), ('model', model)])
-    #model = Pipeline([('scaler', StandardScaler()), ('model', SVC(C=32,gamma=0.001) )])
+    #model = Pipeline([('scaler', StandardScaler()), ('model', SVC(C=10,gamma='auto') )])
     #model = SVC(C=32,gamma=0.001)
     #model = Pipeline([('scaler', StandardScaler()), ('model', LinearSVC(C=0.01))])
     #model = Pipeline([('reducer', MiniBatchKMeans(n_clusters=400,batch_size=400,n_init=3)), ('scaler', StandardScaler()), ('SVC', model)])
@@ -411,7 +409,7 @@ if __name__=="__main__":
     
     
     #cv=StratifiedShuffleSplit(ytrain,8,test_size=0.2)
-    cv=StratifiedShuffleSplit(ytrain,16,test_size=0.3)
+    cv=StratifiedShuffleSplit(ytrain,8,test_size=0.3)
     #cv =StratifiedKFold(ytrain,10,shuffle=True)
     #parameters = {'reducer__n_components': [200,300,400,500,600]}
     #parameters = {'reducer__n_clusters': [1000,1200,1500]}
@@ -421,7 +419,7 @@ if __name__=="__main__":
     #parameters = {'n_estimators':[200],'max_depth':[4,6],'learning_rate':[0.3,0.4,0.5],'subsample':[0.5]}
     #parameters = {'alpha':[0.001]}
     #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=8,refit=True,cv=cv,scoring=scoring_func,parameters=parameters,random_iter=None)
-    model = buildModel(model,Xtrain,ytrain,cv=cv,scoring=scoring_func,n_jobs=8,trainFull=True,verbose=True)
-    #model = buildClassificationModel(model,Xtrain.values,ytrain,class_names=['1','2','3','4'],trainFull=False,cv=cv)
-    makePredictions(model,Xtest,idx=idx,filename='submissions/sub09062015e.csv')
+    model = buildModel(model,Xtrain,ytrain,cv=cv,scoring=scoring_func,n_jobs=2,trainFull=False,verbose=True)
+    #model = buildClassificationModel(model,Xtrain,ytrain,class_names=['1','2','3','4'],trainFull=False,cv=cv)
+    #makePredictions(model,Xtest,idx=idx,filename='submissions/sub09062015e.csv')
     print("Model building done in %fs" % (time() - t0))
