@@ -421,8 +421,8 @@ def rfFeatureImportance(forest,Xold,Xold_test,n):
     """
     print "Feature importance..."
     if not hasattr(forest,'feature_importances_'): 
-      print "Missing attribute feature_importances_"
-      return
+      print "Missing attribute feature_importances_ ...leaving"
+      #return
     importances = forest.feature_importances_
     std = np.std([tree.feature_importances_ for tree in forest.estimators_],axis=0)#perhas we need it later
     

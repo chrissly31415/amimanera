@@ -8,13 +8,15 @@ from nltk.stem.porter import PorterStemmer
 from bs4 import BeautifulSoup
 import re
 import difflib
+from scipy.spatial.distance import cdist
+
 
 #TODO: right after tfidf, input 2 sparse matrics: def computeSimilarityFeatures(Xs_all,Xs_all_new)
 #and for dense def computeSimilarityFeatures(Xall,Xall_new,nsplit)
 #http://stackoverflow.com/questions/16597265/appending-to-an-empty-data-frame-in-pandas
 
 
-def computeSimilarityFeatures(vectorizer=None,nsamples=-1,stop_words=None):
+def computeSimilarityFeatures_old(vectorizer=None,nsamples=-1,stop_words=None):
     
     Xtest,Xtrain,ytrain,idx = loadData(nsamples=nsamples)
     #Xall = pd.concat([Xtest, Xtrain])
@@ -49,23 +51,70 @@ def computeSimilarityFeatures(vectorizer=None,nsamples=-1,stop_words=None):
     print similarity
 
     return pd.DataFrame(similarity,columns=['cosine_sim'])
-  
 
-
-def computeCosineSimilarity(Xs,Xs2):
+def computeCosineSimilarity_old(Xs1,Xs2):
     """
     Takes 2 sparse matrices and computes cosine similarity
     """
-    X_sim = np.diag(Xs1.dot(Xs2.T).todense())
+    tmp = Xs1.dot(Xs2.T)
+    tmp = tmp.todense()
+    X_sim = np.diag(tmp)
     norm1 = np.linalg.norm(Xs1.todense(),axis=1)
     norm2 = np.linalg.norm(Xs2.todense(),axis=1)
     X_sim = np.divide(X_sim,norm1)
     X_sim = np.nan_to_num(np.divide(X_sim,norm2))
     X_sim = X_sim.reshape((train_sim.shape[0],1))
     return pd.DataFrame(similarity,columns=['cosine_sim'])
+
+  
+
+def computeSimilarityFeatures(Xall,columns=['query','product_title'],verbose=False):
+    print "Compute scipy similarity..."
+    vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = None,token_pattern=r'\w{1,}')
+    Xs1 = vectorizer.fit_transform(Xall[columns[0]])
+    Xs2 = vectorizer.transform(Xall[columns[1]])
+    #print "Xs1",Xs1.shape
+    #print "Xs2",Xs2.shape
+    #print Xall['query'].iloc[:5]
+    #print Xall['product_title'].iloc[:5]
+    sim = computeScipySimilarity(Xs1,Xs2)
+    return sim
+
+
+
+def computeScipySimilarity(Xs1,Xs2):
+    Xs1 = Xs1.todense()
+    Xs2 = Xs2.todense()
+    Xall_new = np.zeros((Xs1.shape[0],6))
+    for i,(a,b) in enumerate(zip(Xs1,Xs2)):
+	dist = cdist(a,b,'cosine')
+	Xall_new[i,0] = dist	
+	dist = cdist(a,b,'euclidean')
+	Xall_new[i,1] = dist
+	dist = cdist(a,b,'hamming')
+	Xall_new[i,2] = dist
+	dist = cdist(a,b,'minkowski')
+	Xall_new[i,3] = dist
+	dist = cdist(a,b,'cityblock')
+	Xall_new[i,4] = dist
+	dist = cdist(a,b,'correlation')
+	Xall_new[i,5] = dist
+	
+    Xall_new = pd.DataFrame(Xall_new,columns=['cosine','euclidean','hammming','minkowski','cityblock','correlation'])
+    print "NA:",Xall_new.isnull().values.sum()
+    Xall_new = Xall_new.fillna(0.0)
+    print "NA:",Xall_new.isnull().values.sum()
+    return Xall_new
+	
+
+
+
     
 
-def querySimilarity(Xall,verbose=False):
+#other features: len(description)
+#total number of matches
+#query id via label_encoder
+def additionalFeatures(Xall,verbose=False):
     print "Computing additional features..."
     stemmer = PorterStemmer()
     Xall_new = np.zeros((Xall.shape[0],5))
@@ -79,7 +128,6 @@ def querySimilarity(Xall,verbose=False):
         title=re.sub("[^a-zA-Z0-9]"," ", title)
         title= (" ").join([stemmer.stem(z) for z in title.split(" ")])
         
-	
 	nquery = len(query.split())
 	ntitle = len(title.split())
 	
@@ -114,13 +162,16 @@ def querySimilarity(Xall,verbose=False):
 	  raw_input()
 	
     Xall_new = pd.DataFrame(Xall_new,columns=['query_length','title_length','length_ratio','difflibratio','simplematch']) 
-    return Xall_new
-	
+    return Xall_new	
     
 
+def genSimFeatures(Xall,verbose=True):
+    print "Compute gensim features..."
+    raw_input()
+    
 
   
-def useBenchmarkMethod2(X,verbose=False):  
+def useBenchmarkMethod_mod(X,verbose=False):  
      X = X.apply(lambda x:'q%s z%s' % (x['query'],x['product_title']),axis=1)
      return X
      
@@ -146,13 +197,15 @@ def useBenchmarkMethod(X,returnList=True,verbose=False):
 
     if returnList:
       X = s_data
+      X = pd.DataFrame(X,columns=['concate_all']) 
     else:
       X = np.asarray(s_data)
       X = X.reshape((X.shape[0],-1))
+      #X = pd.DataFrame(X,columns=['concate_all']) 
     
     print "Finished.."
-    print X[0]
-    print type(X[0])
+    print X
+    #print type(X[0])
     
     return X
     

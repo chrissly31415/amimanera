@@ -31,6 +31,7 @@ class XModel:
 	self.sparse=False
       self.sample_weight=sample_weight
       
+
       self.oob_preds=np.zeros((Xtrain.shape[0],1))
       self.preds=np.zeros((Xtest.shape[0],1))
       
@@ -47,6 +48,7 @@ class XModel:
       print " type         :" , type(self.Xtrain)
       print "Test data    :" , self.Xtest.shape,
       print " type         :" , type(self.Xtest)
+      
       if self.sample_weight is not None:
 	  print "sample_weight:" , self.sample_weight.shape,
 	  print " type        :" , type(self.sample_weight)

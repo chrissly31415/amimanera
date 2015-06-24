@@ -18,6 +18,8 @@ from nltk.stem.lancaster import LancasterStemmer
 from nltk.stem.porter import PorterStemmer
 from nltk.stem.snowball import EnglishStemmer
 
+import gensim
+
 from crowd_features import *
 
 class MyTokenizer(object):
@@ -76,7 +78,7 @@ def loadData(nsamples=-1):
     return Xtest,Xtrain,ytrain,idx
 
 
-def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=False,doBenchMark=False,computeFeatures=False,doSeparateTFID=None,doSVDseparate=False,computeSim=False,stop_words=text.ENGLISH_STOP_WORDS,doTFID=False,concat=False,useAll=False,concatAll=False,doKmeans=False):
+def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=None,standardize=False,doBenchMark=False,computeFeatures=None,computeGenSim=None,addNoiseColumns=None,doSeparateTFID=None,doSVDseparate=False,computeSim=False,stop_words=text.ENGLISH_STOP_WORDS,doTFID=False,concat=False,useAll=False,concatAll=False,doKmeans=False):
     np.random.seed(seed)
     
     Xtest,Xtrain,ytrain,idx = loadData(nsamples=nsamples)
@@ -87,12 +89,23 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=
 	pass
     
     if doBenchMark:
-	Xall = useBenchmarkMethod(Xall)
+	Xall = useBenchmarkMethod_mod(Xall)
     
     Xfeat = None
-    if computeFeatures is not None:
-        Xfeat = querySimilarity(Xall,verbose=False)
+    if computeFeatures is not None and computeFeatures is not False:
+        Xfeat = additionalFeatures(Xall,verbose=False)
         print Xfeat.describe()
+    
+    Xgensim = None
+    if computeGenSim is not None:
+	Xgensim = genSimFeatures(Xall,verbose=False)
+	print Xgensim.describe()
+
+    Xsim = None
+    if computeSim is not None:
+	Xsim = computeSimilarityFeatures(Xall)
+	print Xsim.describe()
+    
     
     if doSeparateTFID is False or doSeparateTFID is not None:
 	analyze=False
@@ -102,9 +115,12 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=
 	
 	#vectorizer = HashingVectorizer(stop_words=stop_words,ngram_range=(1,2),analyzer="char", non_negative=True, norm='l2', n_features=2**18)
 	#vectorizer = CountVectorizer(min_df=3,  max_features=None, lowercase=True,analyzer="word",ngram_range=(1,2),stop_words=stop_words,strip_accents='unicode')
-	vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 2), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}',norm='l2')
-	#vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}',norm='l2')
-	
+	#vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 2), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}',norm='l2')
+	if vectorizer is None:
+	  print "Using default vectorizer..."
+	  vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}',norm='l2')
+	else:
+	  print vectorizer
 	Xtrain = Xall[len(Xtest.index):]
 	Xtest_t = Xall[:len(Xtest.index)]
 	
@@ -116,10 +132,7 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=
 	    
 	    if i>0:
 		vectorizer.fit(Xall[col])#should reduce overfitting?
-		Xs_all_new = vectorizer.transform(Xall[col])
-		#vectorizer.fit(Xtrain[col])
-		#Xs_train_new = vectorizer.transform(Xtrain[col])
-		#Xs_test_new = vectorizer.transform(Xtest_t[col])		
+		Xs_all_new = vectorizer.transform(Xall[col])		
 		
 		if doSVDseparate:
 		    reducer=TruncatedSVD(n_components=doSVDseparate, algorithm='randomized', n_iter=5, tol=0.0)
@@ -132,9 +145,6 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=
 		#we fit first column on all data!!!
 		vectorizer.fit(Xall[col])#should reduce overfitting?
 		Xs_all = vectorizer.transform(Xall[col])
-		#vectorizer.fit(Xtrain[col])
-		#Xs_train = vectorizer.transform(Xtrain[col])
-		#Xs_test = vectorizer.transform(Xtest_t[col])	
 		print "Shape Xs_all after vectorization:",Xs_all.shape
 		
 		if doSVDseparate:
@@ -172,31 +182,14 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=
 
     if doTFID:
 	print "Fit TFIDF..."
-	
-	#stop_words = ['http','www','img','border','0','1','2','3','4','5','6','7','8','9','a','the']
-	#
-	#stop_words = text.ENGLISH_STOP_WORDS.union(stop_words)
 	stop_words = text.ENGLISH_STOP_WORDS
-	#tokenizer = MyTokenizer(stemmer=PorterStemmer(),stop_words = None)
-	#tokenizer = MyTokenizer(stemmer=EnglishStemmer(ignore_stopwords=True),stop_words = stop_words)
 	
-	#tokenizer = None
-	#stop_words = None
-	#print "stop_words:",stop_words
-	
-	#tfv = TfidfVectorizer(min_df=3,  max_features=None, 
-	#	strip_accents='unicode', analyzer='word',
-	#	ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,
-	#	stop_words = stop_words,tokenizer=tokenizer)
-	
-	vectorizer = TfidfVectorizer(min_df=3,  max_features=None, 
+	if vectorizer is None: 
+	  print "Default vectorizer:"
+	  vectorizer = TfidfVectorizer(min_df=3,  max_features=None, 
 		strip_accents='unicode', analyzer='word',
 		ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,
-		stop_words = stop_words,token_pattern=r'\w{1,}',norm='l2')#token_pattern=r"(?u)\b\w\w+\b"
-	 
-	#tfv = TfidfVectorizer(min_df=3,  max_features=None, 
-	#	strip_accents='unicode', analyzer='word',
-#		ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,tokenizer=tokenizer)
+		stop_words = stop_words,token_pattern=r'\w{1,}',norm='l2',tokenizer=None)
 	
 	print vectorizer
 	if useAll:
@@ -240,6 +233,7 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=
 	
 	Xall = pd.DataFrame(Xall)
     
+    """
     if computeSim:
 	Xsim = computeSimilarityFeatures(vectorizer=None,nsamples=nsamples,stop_words=stop_words)
       
@@ -250,23 +244,35 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=
 	Xall = pd.concat([Xall,Xsim], axis=1)
 	print Xall.describe()
 	print Xall.columns[-5:]
+    """
+
+    if addNoiseColumns is not None:
+	print "Adding %d random noise columns"%(addNoiseColumns)
+	Xrnd = pd.DataFrame(np.random.randn(Xall.shape[0],addNoiseColumns))
+	#print "Xrnd:",Xrnd.shape
+	#print Xrnd
+	for col in Xrnd.columns:
+	    Xrnd=Xrnd.rename(columns = {col:'rnd'+str(col+1)})
+	
+	Xall = pd.concat([Xall, Xrnd],axis=1)
+
+    if Xsim is not None:
+	  if isinstance(computeSim,str) and 'only' in computeSim:
+	      Xall = Xsim
+	  else:
+	      Xall = pd.concat([Xall,Xsim], axis=1)
 
     if Xfeat is not None:
 	  if isinstance(computeFeatures,str) and 'only' in computeFeatures:
 	      Xall = Xfeat
 	  else:
 	      Xall = pd.concat([Xall,Xfeat], axis=1)
-
 	
     if standardize:
 	if not isinstance(Xall,pd.DataFrame):
 	    print "X is not a DataFrame, converting from,",type(Xall)
 	    Xall = pd.DataFrame(Xall.todense())
 	Xall = scaleData(lXs=Xall,lXs_test=None)
-    
-    
-
-    
     
     Xtrain = Xall[len(Xtest.index):]
     Xtest = Xall[:len(Xtest.index)]
@@ -277,7 +283,6 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,doSVD=None,standardize=
     
     #print type(ytrain)
     print "#ytrain:",ytrain.shape
-    print ytrain
     
     return(Xtrain,ytrain,Xtest,idx)
 
@@ -341,6 +346,12 @@ if __name__=="__main__":
     #do they have the same ordeR?
     #either unsupervised manipulation to whole dataset to avoid overfitting or incldue manipulation into cv
     #https://www.kaggle.com/c/crowdflower-search-relevance/forums/t/14502/word2vec-doc2vec
+    #use similarity total count like in: https://www.kaggle.com/c/crowdflower-search-relevance/forums/t/14159/beating-the-benchmark-yet-again?page=2
+    #use NN: https://www.kaggle.com/c/crowdflower-search-relevance/forums/t/14159/beating-the-benchmark-yet-again?page=3
+    #cross-validation: https://www.kaggle.com/c/crowdflower-search-relevance/forums/t/14350/cross-validation-and-leaderboard-score
+    #for ensemble do like 4fold 5 repeats
+    #write wrapper for special regression that is binned into 4 categories...
+    #use bagging classifier
     
     # Set a seed for consistant results
     t0 = time()
@@ -350,39 +361,42 @@ if __name__=="__main__":
     print "scipy:",sp.__version__
     
     seed = 123
-    nsamples='shuffle'#'shuffle'
+    nsamples=-1#'shuffle'
     preprocess=False
     doBenchMark=False
     computeFeatures=True
+    computeGenSim=None
+    computeSim=True
+    addNoiseColumns=2
     doSeparateTFID=['product_title','query']#['query','product_title','product_description']#
+    doSVDseparate=10
     doTFID=False
-
     doSVD=False
-    doSVDseparate=200
-    
+   
     standardize=True
     useAll=False#supervised vs. unsupervised
     concat=False#query+title
-    concatAll=False#query+title+desription
-    computeSim=False
-
+    concatAll=False#query+title+desription    
     doKmeans=False
     
     garbage=["<.*?>", "http", "www","img","border","style","px","margin","left", "right","font","solid","This translation tool is for your convenience only.*?Note: The accuracy and accessibility of the resulting translation is not guaranteed"]
     garbage2=['http','www','img','border','0','1','2','3','4','5','6','7','8','9','a','the']
     stop_words = text.ENGLISH_STOP_WORDS.union(garbage).union(garbage2)
     
-    Xtrain, ytrain, Xtest,idx  = prepareDataset(seed=seed,nsamples=nsamples,preprocess=preprocess,doBenchMark=doBenchMark,computeFeatures=computeFeatures,concat=concat,doTFID=doTFID,doSeparateTFID=doSeparateTFID,stop_words=stop_words,computeSim=computeSim,doSVD=doSVD,doSVDseparate=doSVDseparate,standardize=standardize,useAll=useAll,concatAll=concatAll,doKmeans=doKmeans)
-    
+    Xtrain, ytrain, Xtest,idx  = prepareDataset(seed=seed,nsamples=nsamples,preprocess=preprocess,doBenchMark=doBenchMark,computeFeatures=computeFeatures,computeGenSim=computeGenSim,addNoiseColumns=addNoiseColumns,concat=concat,doTFID=doTFID,doSeparateTFID=doSeparateTFID,stop_words=stop_words,computeSim=computeSim,doSVD=doSVD,doSVDseparate=doSVDseparate,standardize=standardize,useAll=useAll,concatAll=concatAll,doKmeans=doKmeans)
     #model = Pipeline([('v',TfidfVectorizer(min_df=5, max_df=500, max_features=None, strip_accents='unicode', analyzer='word', token_pattern=r'\w{1,}', ngram_range=(1, 2), use_idf=True, smooth_idf=True, sublinear_tf=True, stop_words = 'english')), ('svd', TruncatedSVD(n_components=200, algorithm='randomized', n_iter=5, random_state=None, tol=0.0)), ('scl', StandardScaler(copy=True, with_mean=True, with_std=True)), ('svm', SVC(C=10.0, kernel='rbf', degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=False, tol=0.001, cache_size=200, class_weight=None, verbose=False, max_iter=-1, random_state=None))])
     
     #model = Pipeline([('reducer', TruncatedSVD(n_components=400)), ('scaler', StandardScaler()), ('model', model)])
     #model = Pipeline([('scaler', StandardScaler()), ('model', SVC(C=10,gamma='auto') )])
-    #model = SVC(C=32,gamma=0.001)
+    #model = SVC(C=10,gamma='auto')
     #model = Pipeline([('scaler', StandardScaler()), ('model', LinearSVC(C=0.01))])
     #model = Pipeline([('reducer', MiniBatchKMeans(n_clusters=400,batch_size=400,n_init=3)), ('scaler', StandardScaler()), ('SVC', model)])
     #model = Pipeline([('feature_selection', LinearSVC(penalty="l1", dual=False, tol=1e-3)),('classification', LinearSVC())])
-    #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features='auto')
+    
+    model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='entropy', max_features='auto')
+    model.fit(Xtrain,ytrain)
+    rfFeatureImportance(model,Xtrain,Xtest,1)
+    
     #model = OneVsRestClassifier(model,n_jobs=8)
     #model = OneVsOneClassifier(model,n_jobs=8)
     #model = SGDClassifier(alpha=.001, n_iter=200,penalty='l2',shuffle=True,loss='log')
@@ -397,11 +411,10 @@ if __name__=="__main__":
     #model = LogisticRegression(penalty='l2', dual=True, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None)#opt kaggle params
     #model = LogisticRegressionMod(penalty='l2', dual=False, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None)#opt kaggle params
     #model = RidgeClassifier(tol=1e-2, solver="lsqr",alpha=0.1)
-    model = KNeighborsClassifier(n_neighbors=5)
+    #model = KNeighborsClassifier(n_neighbors=5)
     #model = XgboostClassifier(n_estimators=200,learning_rate=0.3,max_depth=4,subsample=.5,n_jobs=1,objective='multi:softmax',eval_metric='mlogloss',booster='gbtree',silent=1)
     #model = MultinomialNB(alpha=0.001)
-
-    
+  
     # Kappa Scorer 
     scoring_func = make_scorer(quadratic_weighted_kappa, greater_is_better = True)
     
@@ -413,13 +426,15 @@ if __name__=="__main__":
     #cv =StratifiedKFold(ytrain,10,shuffle=True)
     #parameters = {'reducer__n_components': [200,300,400,500,600]}
     #parameters = {'reducer__n_clusters': [1000,1200,1500]}
-    #parameters = {'SVC__C': [2,8,16,32],'SVC__gamma':[0.001,0.003,0.0008]}
+    #parameters = {'SVC__C': [8,16,32],'SVC__gamma':[0.001,0.003,0.0008]}
+    #parameters = {'C': [8,16,32],'gamma':[0.001,0.003,0.0008,'auto']}
     #parameters = {'C': [0.1,0.01,0.025,0.05]}
     #parameters = {'alpha': [0.005,0.001,0.0025],'n_iter':[200],'penalty':['l2'],'loss':['log','perceptron']}
     #parameters = {'n_estimators':[200],'max_depth':[4,6],'learning_rate':[0.3,0.4,0.5],'subsample':[0.5]}
+    #parameters = {'n_estimators':[200,300],'max_features':[4,5],'criterion':['gini','entropy']}
     #parameters = {'alpha':[0.001]}
-    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=8,refit=True,cv=cv,scoring=scoring_func,parameters=parameters,random_iter=None)
+    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=2,refit=False,cv=cv,scoring=scoring_func,parameters=parameters,random_iter=None)
     model = buildModel(model,Xtrain,ytrain,cv=cv,scoring=scoring_func,n_jobs=2,trainFull=False,verbose=True)
     #model = buildClassificationModel(model,Xtrain,ytrain,class_names=['1','2','3','4'],trainFull=False,cv=cv)
-    #makePredictions(model,Xtest,idx=idx,filename='submissions/sub09062015e.csv')
+    #makePredictions(model,Xtest,idx=idx,filename='submissions/sub23062015b.csv')
     print("Model building done in %fs" % (time() - t0))

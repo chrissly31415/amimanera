@@ -39,18 +39,43 @@ def createModels():
     #xmodel = XModel("svm1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
     #ensemble.append(xmodel)
 
-    #SVM2
+    #SVM2 ~ abhishek benchmark
     #stop_words = text.ENGLISH_STOP_WORDS
     #(Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doTFID=True,concat=True,doSVD=400,stop_words=stop_words,standardize=True)
     #model = SVC(C=10,gamma='auto')
     #xmodel = XModel("svm2_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
     #ensemble.append(xmodel)
     
-    #SMV3 funy benchmark
-    (Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doBenchMark=True)
-    model = Pipeline([('v',TfidfVectorizer(min_df=5, max_df=500, max_features=None, strip_accents='unicode', analyzer='word', token_pattern=r'\w{1,}', ngram_range=(1, 2), use_idf=True, smooth_idf=True, sublinear_tf=True, stop_words = 'english')), ('svd', TruncatedSVD(n_components=200, algorithm='randomized', n_iter=5, random_state=None, tol=0.0)), ('scl', StandardScaler(copy=True, with_mean=True, with_std=True)), ('svm', SVC(C=10.0, kernel='rbf', degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=False, tol=0.001, cache_size=200, class_weight=None, verbose=False, max_iter=-1, random_state=None))])  
-    xmodel = XModel("svm3_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
-    ensemble.append(xmodel)
+    #SMV3 like other benchmark #possibly overfitted? should we include desription as well?
+    #(Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doBenchMark=True)
+    #model = Pipeline([('v',TfidfVectorizer(min_df=5, max_df=500, max_features=None, strip_accents='unicode', analyzer='word', token_pattern=r'\w{1,}', ngram_range=(1, 2), use_idf=True, smooth_idf=True, sublinear_tf=True, stop_words = 'english')), ('svd', TruncatedSVD(n_components=200, algorithm='randomized', n_iter=5, random_state=None, tol=0.0)), ('scl', StandardScaler(copy=True, with_mean=True, with_std=True)), ('svm', SVC(C=10.0, kernel='rbf', degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=False, tol=0.001, cache_size=200, class_weight=None, verbose=False, max_iter=-1, random_state=None))])  
+    #xmodel = XModel("svm3_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
+    #ensemble.append(xmodel)
+    
+    #SVM4 added features #0.657
+    #(Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doSeparateTFID=['product_title','query'],doSVDseparate=200,computeFeatures=True,standardize=True)
+    ####model = SVC(C=16,gamma=0.001)
+    #model = SVC(C=10,gamma='auto')
+    #xmodel = XModel("svm4_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
+    #ensemble.append(xmodel)
+    
+    #SVM5 added features like svm4 but optimzed svm parameters #0.653
+    #(Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doSeparateTFID=['product_title','query'],doSVDseparate=200,computeFeatures=True,standardize=True)
+    #model = SVC(C=16,gamma=0.001)
+    #xmodel = XModel("svm5_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
+    #ensemble.append(xmodel)
+    
+    #RF1 + added features 0.581
+    #garbage=["<.*?>", "http", "www","img","border","style","px","margin","left", "right","font","solid","This translation tool is for your convenience only.*?Note: The accuracy and accessibility of the resulting translation is not guaranteed"]
+    #garbage2=['http','www','img','border','0','1','2','3','4','5','6','7','8','9','a','the']
+    #stop_words = text.ENGLISH_STOP_WORDS.union(garbage).union(garbage2)
+    #vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}',norm='l2')
+    #(Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doSeparateTFID=['product_title','query'],doSVDseparate=200,computeFeatures=True,standardize=True,vectorizer=vectorizer,stop_words=stop_words)
+    #model =  RandomForestClassifier(n_estimators=200,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features='auto')
+    ##xmodel = XModel("rf1_r5",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None) #0.625
+    #xmodel = XModel("rf1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None) #0.581 
+    #ensemble.append(xmodel)
+    
     
     
     #some info
@@ -392,15 +417,15 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',greater
 	    print "We have NaN here!!"
 	    score=0.0
 	else:
-	    print "params:",params	
+	    #print "params:",params	
 	    ypred = blend_mult(Xtrain,params,n_classes)
 	    #print ypred
-	    print ypred[:15]
+	    #print ypred[:15]
 	    if not use_proba: ypred = np.round(ypred)
-	    print ypred[:15]
+	    #print ypred[:15]
 	    #print ypred
 	    score=funcdict[score_func](y,ypred)
-	    print "score: %8.3f"%(score)
+	    #print "score: %8.3f"%(score)
 	    #raw_input()
 	    #regularization
 	    if alpha is not None:
@@ -429,7 +454,7 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',greater
 
     #x0= np.random.random_sample((n_models,1))
     
-    xopt = fmin_cobyla(fopt, x0,constr,rhoend=1e-7,maxfun=5000)
+    xopt = fmin_cobyla(fopt, x0,constr,rhoend=1e-7,maxfun=1000)
     
     if takeMean:
 	print "Taking the mean..."
@@ -444,9 +469,11 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',greater
 	    print "We have NaN here!!"
     
     ypred=blend_mult(Xtrain,xopt,n_classes)
-    if not use_proba: ypred = np.round(ypred)
-    
     ymean= blend_mult(Xtrain,x0,n_classes)
+    
+    if not use_proba: 
+      ypred = np.round(ypred)
+      ymean = np.round(ymean)
     
     oob_score=funcdict[score_func](y,ypred)
     print "->score,opt: %4.4f" %(oob_score)
@@ -594,13 +621,11 @@ def blendSubmissions(fileList,coefList):
 
 if __name__=="__main__":
     #ensemble=createModels()
-    #ensemble=createOOBdata_parallel(ensemble,repeats=1,nfolds=5,n_jobs=5,use_proba=False,score_func='quadratic_weighted_kappa') #oob data averaging leads to significant variance reduction
-    #ensemble=createOOBdata_parallel(ensemble,repeats=1,nfolds=8,n_jobs=8,score_func='accuracy_score',use_proba=False)#OneVSOne
-    all_models=['knn1_r1','svm1_r1','svm2_r1']
-    models = ['knn1_r1','svm2_r1','svm1_r1']
-
+    #ensemble=createOOBdata_parallel(ensemble,repeats=1,nfolds=5,n_jobs=2,use_proba=False,score_func='quadratic_weighted_kappa') #oob data averaging leads to significant variance reduction
+    all_models=['knn1_r1','svm1_r1','svm2_r1','svm3_r1','svm4_r1','svm5_r1','rf1_r1']
+    models =['knn1_r1','svm1_r1','svm2_r1','svm3_r1','svm4_r1','svm5_r1','rf1_r1']
 
     useCols=None
-    trainEnsemble_multiclass(models,mode='linear',score_func='quadratic_weighted_kappa',useCols=None,addMetaFeatures=False,use_proba=False,dropCorrelated=False,subfile='./submissions/sub20062015a.csv')
+    trainEnsemble_multiclass(models,mode='linear',score_func='quadratic_weighted_kappa',useCols=None,addMetaFeatures=False,use_proba=False,dropCorrelated=False,subfile='./submissions/sub2462015b.csv')
     #selectModelsGreedy(models,startensemble=['dnn10_r1','bagxgb5_r1','rf1_r1','dnn3_r1','dnn1_r1','xgboost2_r1'],niter=10,mode='classical',greater_is_better=False)
    
