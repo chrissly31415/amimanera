@@ -10,6 +10,8 @@ import re
 import difflib
 from scipy.spatial.distance import cdist
 
+import gensim
+
 
 #TODO: right after tfidf, input 2 sparse matrics: def computeSimilarityFeatures(Xs_all,Xs_all_new)
 #and for dense def computeSimilarityFeatures(Xall,Xall_new,nsplit)
@@ -80,12 +82,10 @@ def computeSimilarityFeatures(Xall,columns=['query','product_title'],verbose=Fal
     sim = computeScipySimilarity(Xs1,Xs2)
     return sim
 
-
-
 def computeScipySimilarity(Xs1,Xs2):
     Xs1 = Xs1.todense()
     Xs2 = Xs2.todense()
-    Xall_new = np.zeros((Xs1.shape[0],6))
+    Xall_new = np.zeros((Xs1.shape[0],4))
     for i,(a,b) in enumerate(zip(Xs1,Xs2)):
 	dist = cdist(a,b,'cosine')
 	Xall_new[i,0] = dist	
@@ -93,34 +93,34 @@ def computeScipySimilarity(Xs1,Xs2):
 	Xall_new[i,1] = dist
 	dist = cdist(a,b,'hamming')
 	Xall_new[i,2] = dist
-	dist = cdist(a,b,'minkowski')
-	Xall_new[i,3] = dist
+	#dist = cdist(a,b,'minkowski')
+	#Xall_new[i,3] = dist
 	dist = cdist(a,b,'cityblock')
-	Xall_new[i,4] = dist
-	dist = cdist(a,b,'correlation')
-	Xall_new[i,5] = dist
+	Xall_new[i,3] = dist
+	#dist = cdist(a,b,'correlation')
+	#Xall_new[i,5] = dist
+	#dist = cdist(a,b,'jaccard')
+	#Xall_new[i,6] = dist
 	
-    Xall_new = pd.DataFrame(Xall_new,columns=['cosine','euclidean','hammming','minkowski','cityblock','correlation'])
+    Xall_new = pd.DataFrame(Xall_new,columns=['cosine','euclidean','hammming','cityblock'])
     print "NA:",Xall_new.isnull().values.sum()
     Xall_new = Xall_new.fillna(0.0)
     print "NA:",Xall_new.isnull().values.sum()
+    print Xall_new.corr(method='spearman')
     return Xall_new
-	
-
-
-
     
-
-#other features: len(description)
-#total number of matches
 #query id via label_encoder
+#max similarity with difflib
+#use kaggle distance??
+#closed distance 
 def additionalFeatures(Xall,verbose=False):
     print "Computing additional features..."
     stemmer = PorterStemmer()
-    Xall_new = np.zeros((Xall.shape[0],5))
+    Xall_new = np.zeros((Xall.shape[0],8))
     for i in range(Xall.shape[0]):
 	query = Xall["query"].iloc[i].lower()
 	title = Xall["product_title"].iloc[i].lower()
+	desc = Xall["product_description"].iloc[i].lower()
 	
 	query=re.sub("[^a-zA-Z0-9]"," ", query)
         query= (" ").join([stemmer.stem(z) for z in query.split(" ")])
@@ -128,25 +128,43 @@ def additionalFeatures(Xall,verbose=False):
         title=re.sub("[^a-zA-Z0-9]"," ", title)
         title= (" ").join([stemmer.stem(z) for z in title.split(" ")])
         
+        desc=re.sub("[^a-zA-Z0-9]"," ", desc)
+        desc= (" ").join([stemmer.stem(z) for z in desc.split(" ")])
+        
 	nquery = len(query.split())
 	ntitle = len(title.split())
+	ndesc = len(desc.split())
 	
 	Xall_new[i,0] = nquery
 	Xall_new[i,1] = ntitle
 	Xall_new[i,2] = nquery / float(ntitle)
+	Xall_new[i,3] = ndesc+1
+	Xall_new[i,4] = nquery / float(ndesc+1)
 	
 	s = difflib.SequenceMatcher(None,a=query,b=title).ratio()
 	
-	Xall_new[i,3] = s
+	Xall_new[i,5] = s
 
 	nmatches = 0
+	maxsim = 0
+	
 	for qword in query.split():
 	    if qword in title:
-		
 		nmatches+=1
+		maxsim = maxsim + 1.0
+	    else:
+	      bestvalue=0.0
+	      for tword in title.split():
+		s = difflib.SequenceMatcher(None,a=qword,b=tword).ratio()
+		if s>bestvalue:
+		    bestvalue=s
+	      maxsim = maxsim + bestvalue
+
+	maxsim = maxsim / float(nquery)	
 	nmatches = nmatches / float(nquery)
 		
-	Xall_new[i,4] = nmatches
+	Xall_new[i,6] = nmatches
+	Xall_new[i,7] = maxsim
 	
 	if i%5000==0:
 	  print "i:",i
@@ -161,12 +179,16 @@ def additionalFeatures(Xall,verbose=False):
 	  print "matches:",nmatches
 	  raw_input()
 	
-    Xall_new = pd.DataFrame(Xall_new,columns=['query_length','title_length','length_ratio','difflibratio','simplematch']) 
+    Xall_new = pd.DataFrame(Xall_new,columns=['query_length','title_length','query_title_ratio','desc_length','query_desc_ratio','difflibratio','bestmatch','averagematch']) 
+    Xall_new = Xall_new.drop(['averagematch'], axis=1)
+    print Xall_new.corr(method='spearman')
     return Xall_new	
     
 
 def genSimFeatures(Xall,verbose=True):
     print "Compute gensim features..."
+    #model = gensim.models.Word2Vec.load_word2vec_format('/home/chris/Downloads/GoogleNews-vectors-negative300.bin.gz', binary=True)
+    
     raw_input()
     
 

@@ -18,8 +18,6 @@ from nltk.stem.lancaster import LancasterStemmer
 from nltk.stem.porter import PorterStemmer
 from nltk.stem.snowball import EnglishStemmer
 
-import gensim
-
 from crowd_features import *
 
 class MyTokenizer(object):
@@ -341,7 +339,7 @@ if __name__=="__main__":
     #use vocabulary from description to transform query...
     #cv: https://www.kaggle.com/c/crowdflower-search-relevance/forums/t/14350/cross-validation-and-leaderboard-score
     #separate SVD for both cases...
-    #onehotencoding
+    #onehotencoding with countvectorizers
     #number of words found in title
     #do they have the same ordeR?
     #either unsupervised manipulation to whole dataset to avoid overfitting or incldue manipulation into cv
@@ -349,9 +347,14 @@ if __name__=="__main__":
     #use similarity total count like in: https://www.kaggle.com/c/crowdflower-search-relevance/forums/t/14159/beating-the-benchmark-yet-again?page=2
     #use NN: https://www.kaggle.com/c/crowdflower-search-relevance/forums/t/14159/beating-the-benchmark-yet-again?page=3
     #cross-validation: https://www.kaggle.com/c/crowdflower-search-relevance/forums/t/14350/cross-validation-and-leaderboard-score
-    #for ensemble do like 4fold 5 repeats
+    #for ensemble do like 3fold 5 repeats-> average predictions from each model trained
     #write wrapper for special regression that is binned into 4 categories...
     #use bagging classifier
+    #sample weights
+    #char ngrams
+    #clean data remove special characters ( - + ) "
+    #https://www.kaggle.com/triskelion/crowdflower-search-relevance/normalized-kaggle-distance
+    #LINEARsvm
     
     # Set a seed for consistant results
     t0 = time()
@@ -367,9 +370,9 @@ if __name__=="__main__":
     computeFeatures=True
     computeGenSim=None
     computeSim=True
-    addNoiseColumns=2
+    addNoiseColumns=None
     doSeparateTFID=['product_title','query']#['query','product_title','product_description']#
-    doSVDseparate=10
+    doSVDseparate=200
     doTFID=False
     doSVD=False
    
@@ -384,6 +387,9 @@ if __name__=="__main__":
     stop_words = text.ENGLISH_STOP_WORDS.union(garbage).union(garbage2)
     
     Xtrain, ytrain, Xtest,idx  = prepareDataset(seed=seed,nsamples=nsamples,preprocess=preprocess,doBenchMark=doBenchMark,computeFeatures=computeFeatures,computeGenSim=computeGenSim,addNoiseColumns=addNoiseColumns,concat=concat,doTFID=doTFID,doSeparateTFID=doSeparateTFID,stop_words=stop_words,computeSim=computeSim,doSVD=doSVD,doSVDseparate=doSVDseparate,standardize=standardize,useAll=useAll,concatAll=concatAll,doKmeans=doKmeans)
+    Xtrain.to_csv('./data/Xtrain.csv',index=False)
+    pd.DataFrame(ytrain,columns=['class']).to_csv('./data/ytrain.csv',index=False)
+    
     #model = Pipeline([('v',TfidfVectorizer(min_df=5, max_df=500, max_features=None, strip_accents='unicode', analyzer='word', token_pattern=r'\w{1,}', ngram_range=(1, 2), use_idf=True, smooth_idf=True, sublinear_tf=True, stop_words = 'english')), ('svd', TruncatedSVD(n_components=200, algorithm='randomized', n_iter=5, random_state=None, tol=0.0)), ('scl', StandardScaler(copy=True, with_mean=True, with_std=True)), ('svm', SVC(C=10.0, kernel='rbf', degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=False, tol=0.001, cache_size=200, class_weight=None, verbose=False, max_iter=-1, random_state=None))])
     
     #model = Pipeline([('reducer', TruncatedSVD(n_components=400)), ('scaler', StandardScaler()), ('model', model)])
@@ -393,9 +399,10 @@ if __name__=="__main__":
     #model = Pipeline([('reducer', MiniBatchKMeans(n_clusters=400,batch_size=400,n_init=3)), ('scaler', StandardScaler()), ('SVC', model)])
     #model = Pipeline([('feature_selection', LinearSVC(penalty="l1", dual=False, tol=1e-3)),('classification', LinearSVC())])
     
-    model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='entropy', max_features='auto')
-    model.fit(Xtrain,ytrain)
-    rfFeatureImportance(model,Xtrain,Xtest,1)
+    
+    #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features='auto')
+    #model.fit(Xtrain,ytrain)
+    #rfFeatureImportance(model,Xtrain,Xtest,1)
     
     #model = OneVsRestClassifier(model,n_jobs=8)
     #model = OneVsOneClassifier(model,n_jobs=8)
@@ -412,7 +419,7 @@ if __name__=="__main__":
     #model = LogisticRegressionMod(penalty='l2', dual=False, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None)#opt kaggle params
     #model = RidgeClassifier(tol=1e-2, solver="lsqr",alpha=0.1)
     #model = KNeighborsClassifier(n_neighbors=5)
-    #model = XgboostClassifier(n_estimators=200,learning_rate=0.3,max_depth=4,subsample=.5,n_jobs=1,objective='multi:softmax',eval_metric='mlogloss',booster='gbtree',silent=1)
+    model = XgboostClassifier(n_estimators=200,learning_rate=0.1,max_depth=4,subsample=.5,n_jobs=1,objective='multi:softmax',eval_metric='mlogloss',booster='gbtree',silent=1)
     #model = MultinomialNB(alpha=0.001)
   
     # Kappa Scorer 
@@ -422,7 +429,7 @@ if __name__=="__main__":
     
     
     #cv=StratifiedShuffleSplit(ytrain,8,test_size=0.2)
-    cv=StratifiedShuffleSplit(ytrain,8,test_size=0.3)
+    cv=StratifiedShuffleSplit(ytrain,16,test_size=0.3)
     #cv =StratifiedKFold(ytrain,10,shuffle=True)
     #parameters = {'reducer__n_components': [200,300,400,500,600]}
     #parameters = {'reducer__n_clusters': [1000,1200,1500]}
@@ -430,11 +437,11 @@ if __name__=="__main__":
     #parameters = {'C': [8,16,32],'gamma':[0.001,0.003,0.0008,'auto']}
     #parameters = {'C': [0.1,0.01,0.025,0.05]}
     #parameters = {'alpha': [0.005,0.001,0.0025],'n_iter':[200],'penalty':['l2'],'loss':['log','perceptron']}
-    #parameters = {'n_estimators':[200],'max_depth':[4,6],'learning_rate':[0.3,0.4,0.5],'subsample':[0.5]}
-    #parameters = {'n_estimators':[200,300],'max_features':[4,5],'criterion':['gini','entropy']}
+    #parameters = {'n_estimators':[200],'max_depth':[4],'learning_rate':[0.1,0.08],'subsample':[0.5,1.0]}
+    #parameters = {'n_estimators':[50,100,250,500],'max_features':[10,20,30,40,'auto'],'criterion':['gini','entropy'],'min_samples_leaf':[1,2,3]}
     #parameters = {'alpha':[0.001]}
-    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=2,refit=False,cv=cv,scoring=scoring_func,parameters=parameters,random_iter=None)
+    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=2,refit=True,cv=cv,scoring=scoring_func,parameters=parameters,random_iter=-1)
     model = buildModel(model,Xtrain,ytrain,cv=cv,scoring=scoring_func,n_jobs=2,trainFull=False,verbose=True)
     #model = buildClassificationModel(model,Xtrain,ytrain,class_names=['1','2','3','4'],trainFull=False,cv=cv)
-    #makePredictions(model,Xtest,idx=idx,filename='submissions/sub23062015b.csv')
+    #makePredictions(model,Xtest,idx=idx,filename='submissions/sub25062015a.csv')
     print("Model building done in %fs" % (time() - t0))
