@@ -25,59 +25,7 @@ import pickle
 #and for dense def computeSimilarityFeatures(Xall,Xall_new,nsplit)
 #http://stackoverflow.com/questions/16597265/appending-to-an-empty-data-frame-in-pandas
 
-
-def computeSimilarityFeatures_old(vectorizer=None,nsamples=-1,stop_words=None):
-    
-    Xtest,Xtrain,ytrain,idx = loadData(nsamples=nsamples)
-    #Xall = pd.concat([Xtest, Xtrain])
-    
-    if vectorizer is None: vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 2), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}',norm='l2')
-    #TODO: right after tfidf, input 2 sparse matrics: def computeSimilarityFeatures(Xs_all,Xs_all_new)
-    
-    Xs_train_new = vectorizer.fit_transform(Xtrain[col])
-    Xs_test_new = vectorizer.transform(Xtest[col])
-  
-    train_sim = np.diag(Xs_train.dot(Xs_train_new.T).todense())
-    test_sim = np.diag(Xs_test.dot(Xs_test_new.T).todense())
-    
-    norm1 = np.linalg.norm(Xs_train.todense(),axis=1)	
-    norm2 = np.linalg.norm(Xs_train_new.todense(),axis=1)
-    
-    train_sim = np.divide(train_sim,norm1)
-    train_sim = np.nan_to_num(np.divide(train_sim,norm2))
-    
-    norm1 = np.linalg.norm(Xs_test.todense(),axis=1)	
-    norm2 = np.linalg.norm(Xs_test_new.todense(),axis=1)
-    
-    test_sim = np.divide(test_sim,norm1)
-    test_sim = np.nan_to_num(np.divide(test_sim,norm2))
-    
-    train_sim = train_sim.reshape((train_sim.shape[0],1))
-    test_sim = test_sim.reshape((test_sim.shape[0],1))
-    
-    similarity = np.vstack((test_sim,train_sim))
-    
-    print similarity.shape
-    print similarity
-
-    return pd.DataFrame(similarity,columns=['cosine_sim'])
-
-def computeCosineSimilarity_old(Xs1,Xs2):
-    """
-    Takes 2 sparse matrices and computes cosine similarity
-    """
-    tmp = Xs1.dot(Xs2.T)
-    tmp = tmp.todense()
-    X_sim = np.diag(tmp)
-    norm1 = np.linalg.norm(Xs1.todense(),axis=1)
-    norm2 = np.linalg.norm(Xs2.todense(),axis=1)
-    X_sim = np.divide(X_sim,norm1)
-    X_sim = np.nan_to_num(np.divide(X_sim,norm2))
-    X_sim = X_sim.reshape((train_sim.shape[0],1))
-    return pd.DataFrame(similarity,columns=['cosine_sim'])
-
-  
-
+ 
 def computeSimilarityFeatures(Xall,columns=['query','product_title'],verbose=False):
     print "Compute scipy similarity..."
     vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = None,token_pattern=r'\w{1,}')
@@ -150,7 +98,6 @@ def makeQuerySynonyms(Xall):
 
 
 def information_entropy(text):
-
     log2=lambda x:math.log(x)/math.log(2)
     exr={}
     infoc=0
@@ -172,7 +119,8 @@ def information_entropy(text):
 #closed distance 
 #
 #text.similar('woman')
-def additionalFeatures(Xall,verbose=False,addSynonyma=True):
+def additionalFeatures(Xall,verbose=False,dropList=['bestmatch']):
+    #dropList=['bestmatch','S_title','S_query','checksynonyma']
     print "Computing additional features..."
     text = Text(word.lower() for word in brown.words())
     stemmer = PorterStemmer()
@@ -252,7 +200,6 @@ def additionalFeatures(Xall,verbose=False,addSynonyma=True):
 	Xall_new[i,11] = firstsim
 	Xall_new[i,12] = checksynonyma / float(nquery)
 	
-	
 	if i%5000==0:
 	  print "i:",i
 	
@@ -267,10 +214,7 @@ def additionalFeatures(Xall,verbose=False,addSynonyma=True):
 	  raw_input()
 	
     Xall_new = pd.DataFrame(Xall_new,columns=['query_length','title_length','query_title_ratio','desc_length','query_desc_ratio','difflibratio','bestmatch','averagematch','S_query','S_title','last_sim','first_sim','checksynonyma',]) 
-    Xall_new = Xall_new.drop(['bestmatch'], axis=1)
-    Xall_new = Xall_new.drop(['S_title'], axis=1)
-    Xall_new = Xall_new.drop(['S_query'], axis=1)
-    #Xall_new = Xall_new.drop(['checksynonyma'], axis=1)
+    Xall_new = Xall_new.drop(dropList, axis=1)
     print Xall_new.corr(method='spearman')
     return Xall_new	
     
@@ -286,9 +230,9 @@ def genSimFeatures(Xall,verbose=True):
     
 def createKaggleDist(Xall,verbose=True):
     print "Kaggle distance..."
-    dic = index_corpus()
-    with open("dic.pkl", "w") as f: pickle.dump(dic, f)
-    with open("dic.pkl", "r") as f: dic = pickle.load(f)
+    #dic = index_corpus()
+    #with open("dic2.pkl", "w") as f: pickle.dump(dic, f) #dic2 encoded without median relevance
+    with open("dic2.pkl", "r") as f: dic = pickle.load(f)
     #print "nkd:",nkd('apple','iphone',d)
     #print "nkd:",nkd('apple','peach',d)    
     stemmer = PorterStemmer()
@@ -296,24 +240,38 @@ def createKaggleDist(Xall,verbose=True):
     for i in range(Xall.shape[0]):
 	query = Xall["query"].iloc[i].lower()
 	title = Xall["product_title"].iloc[i].lower()
+	title=re.sub("[^a-zA-Z0-9]"," ", title)
+	nquery = len(query.split())
+	
+	#topics = ["notebook","computer","movies","clothes","media","shoes","kitchen","car","bike","toys","phone","food"]
+	topics = title.split()
 	#desc = Xall["product_description"].iloc[i].lower()
 	dist_total = 0.0
-	for qword in query.split():
-	      for tword in title.split():
-		print "qword:",qword
-		print "tword:",tword
-		dist = nkd(qword,tword,dic)
-		dist_total += dist
-		print "nkd:",dist
-		print "nkd_total",dist_total
-		raw_input()
-    
+	for qword in query.split():	      
+	      if not qword in topics:
+		bestvalue=2.0
+		for tword in topics:
+		    print "qword:",qword
+		    print "tword:",tword
+		    dist = nkd(qword,tword,dic)
+		    print "nkd:",dist
+		    if dist<bestvalue:
+		      bestvalue=dist
+		dist_total += bestvalue
+	      print "nkd-best:",dist_total
+	      print "nkd_total",dist_total
+	      
+	Xall_new[i,0] = dist_total / float(nquery)	
+       
+    Xall_new = pd.DataFrame(Xall_new,columns=['avg_nkd'])
+    print Xall_new.describe()
     #topics = ["Laptop","Children","Movies"]
-    topics = ["notebook","computer","movies","clothes","media","shoes","kitchen","car","bike","toys","phone","food"]
-    print topic_modeling(d,topics)
-    #print getSynonyms('bike')
+    
+    #print topic_modeling(dic,topics)
+    #raw_input()
     
     print "finished"
+    return Xall_new
     
   
 def useBenchmarkMethod_mod(X,verbose=False):  

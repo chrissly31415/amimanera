@@ -42,9 +42,13 @@ class MyTokenizer(object):
       
       if hasattr(self.wnl,'stem'):
 	  words=[self.wnl.stem(t) for t in words]
-      #else:
-      #	  words=[self.wnl.lemmatize(t) for t in words]
+
       return words
+
+class MyStemmer(PorterStemmer):
+    def stem(self,word):
+	return super(MyStemmer,self).stem(word)
+
 
 def loadData(nsamples=-1):
     # Load the training file
@@ -61,6 +65,15 @@ def loadData(nsamples=-1):
     
     # create labels. drop useless columns
     ytrain = Xtrain.median_relevance.values
+    sample_weight = Xtrain.relevance_variance
+    sample_weight.hist()
+    idx=sample_weight>1.0
+    #print "idx",idx
+    sample_weight[:] = 1.0
+    sample_weight[idx] = 0.25
+    #sample_weight.hist()
+    #sample_weight = sample_weight.apply()
+    plt.show()
     Xtrain = Xtrain.drop(['median_relevance', 'relevance_variance'], axis=1)
     
     if nsamples != -1:
@@ -72,20 +85,27 @@ def loadData(nsamples=-1):
       print "unique: %6.2f"%(float(np.unique(rows).shape[0])/float(rows.shape[0]))
       Xtrain = Xtrain.iloc[rows,:]
       ytrain = ytrain[rows]
+      sample_weight = sample_weight[rows]
+
     
-    return Xtest,Xtrain,ytrain,idx
+    return Xtest,Xtrain,ytrain,idx,sample_weight
 
 
 def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=None,standardize=False,doBenchMark=False,computeFeatures=None,computeGenSim=None,vectorizeFirstOnly=False,computeSynonyma=None,computeKaggleDistance=None,addNoiseColumns=None,doSeparateTFID=None,doSVDseparate=False,computeSim=False,stop_words=text.ENGLISH_STOP_WORDS,doTFID=False,concat=False,useAll=False,concatTitleDesc=False,doKmeans=False):
     np.random.seed(seed)
     
-    Xtest,Xtrain,ytrain,idx = loadData(nsamples=nsamples)
+    Xtest,Xtrain,ytrain,idx,sample_weight = loadData(nsamples=nsamples)
     Xall = pd.concat([Xtest, Xtrain])
     print "Original shape:",Xall.shape
 
     if preprocess:
-	pass
-      
+	ablist=[]
+	ablist.append((['ps','p.s.','play station','ps2','ps3','ps4'],'playstation'))
+	ablist.append((['ny','n.y.'],'new york'))
+	ablist.append((['tb','tera byte'],'gigabyte'))
+	ablist.append((['gb','giga byte'],'gigabyte'))
+	ablist.append((['mb','mega byte'],'megabyte'))
+    
     if computeSynonyma is not None:
 	print Xall['query'].head(10)
 	Xall = makeQuerySynonyms(Xall)
@@ -120,9 +140,6 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=N
     if computeSim is not None:
 	Xsim = computeSimilarityFeatures(Xall)
 	print Xsim.describe()
-    
-  
-    
     
     if doSeparateTFID is False or doSeparateTFID is not None:
 	analyze=False
@@ -308,7 +325,7 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=N
     #print type(ytrain)
     print "#ytrain:",ytrain.shape
     
-    return(Xtrain,ytrain,Xtest,idx)
+    return(Xtrain,ytrain,Xtest,idx,sample_weight)
 
 
 
@@ -384,6 +401,8 @@ if __name__=="__main__":
     #LINEARsvm
     #http://streamhacker.com/2014/12/29/word2vec-nltk/
     # tune min_samples_leaf for RF
+    # using regression for ensembling...
+    #OK we do not use test set for training....???
    
     t0 = time()
     
@@ -400,15 +419,15 @@ if __name__=="__main__":
     computeGenSim=None
     computeSim=True
     computeSynonyma=None##
-    computeKaggleDistance=True##
+    computeKaggleDistance=None#True##
     addNoiseColumns=None
     vectorizeFirstOnly=False#True seems a bit better...?
     doSeparateTFID=['product_title','query']#['query','product_title','product_description']#
     doSVDseparate=10
     doTFID=False
     doSVD=False
-   
-    standardize=True
+    
+    standardize=False
     useAll=False#supervised vs. unsupervised
     concat=False#query+title
       
@@ -418,9 +437,11 @@ if __name__=="__main__":
     garbage2=['http','www','img','border','0','1','2','3','4','5','6','7','8','9','a','the']
     stop_words = text.ENGLISH_STOP_WORDS.union(garbage).union(garbage2)
     
-    Xtrain, ytrain, Xtest,idx  = prepareDataset(seed=seed,nsamples=nsamples,preprocess=preprocess,doBenchMark=doBenchMark,computeFeatures=computeFeatures,computeGenSim=computeGenSim,computeSynonyma=computeSynonyma,computeKaggleDistance=computeKaggleDistance,addNoiseColumns=addNoiseColumns,concat=concat,doTFID=doTFID,doSeparateTFID=doSeparateTFID,vectorizeFirstOnly=vectorizeFirstOnly,stop_words=stop_words,computeSim=computeSim,doSVD=doSVD,doSVDseparate=doSVDseparate,standardize=standardize,useAll=useAll,concatTitleDesc=concatTitleDesc,doKmeans=doKmeans)
+    Xtrain, ytrain, Xtest,idx, sample_weight  = prepareDataset(seed=seed,nsamples=nsamples,preprocess=preprocess,doBenchMark=doBenchMark,computeFeatures=computeFeatures,computeGenSim=computeGenSim,computeSynonyma=computeSynonyma,computeKaggleDistance=computeKaggleDistance,addNoiseColumns=addNoiseColumns,concat=concat,doTFID=doTFID,doSeparateTFID=doSeparateTFID,vectorizeFirstOnly=vectorizeFirstOnly,stop_words=stop_words,computeSim=computeSim,doSVD=doSVD,doSVDseparate=doSVDseparate,standardize=standardize,useAll=useAll,concatTitleDesc=concatTitleDesc,doKmeans=doKmeans)
     Xtrain.to_csv('./data/Xtrain.csv',index=False)
     pd.DataFrame(ytrain,columns=['class']).to_csv('./data/ytrain.csv',index=False)
+    
+    #sample_weight=None
     
     #model = Pipeline([('v',TfidfVectorizer(min_df=5, max_df=500, max_features=None, strip_accents='unicode', analyzer='word', token_pattern=r'\w{1,}', ngram_range=(1, 2), use_idf=True, smooth_idf=True, sublinear_tf=True, stop_words = 'english')), ('svd', TruncatedSVD(n_components=200, algorithm='randomized', n_iter=5, random_state=None, tol=0.0)), ('scl', StandardScaler(copy=True, with_mean=True, with_std=True)), ('svm', SVC(C=10.0, kernel='rbf', degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=False, tol=0.001, cache_size=200, class_weight=None, verbose=False, max_iter=-1, random_state=None))])
     
@@ -432,8 +453,8 @@ if __name__=="__main__":
     #model = Pipeline([('feature_selection', LinearSVC(penalty="l1", dual=False, tol=1e-3)),('classification', LinearSVC())])
     
     
-    #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=2,criterion='gini', max_features=100)#0.627
-    model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=2,criterion='gini', max_features='auto')
+    #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features=100)#0.627
+    model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features='auto')
     #model =  ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features=100) #0.632
     #model.fit(Xtrain,ytrain)
     #rfFeatureImportance(model,Xtrain,Xtest,1)
@@ -472,10 +493,10 @@ if __name__=="__main__":
     #parameters = {'C': [0.1,0.01,0.025,0.05]}
     #parameters = {'alpha': [0.005,0.001,0.0025],'n_iter':[200],'penalty':['l2'],'loss':['log','perceptron']}
     #parameters = {'n_estimators':[200],'max_depth':[4],'learning_rate':[0.1,0.08],'subsample':[0.5,1.0]}
-    #parameters = {'n_estimators':[250,500],'max_features':[100],'criterion':['gini'],'min_samples_leaf':[1]}
+    parameters = {'n_estimators':[250],'max_features':[100],'criterion':['gini'],'min_samples_leaf':[5,10]}
     #parameters = {'alpha':[0.001]}
     #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=2,refit=True,cv=cv,scoring=scoring_func,parameters=parameters,random_iter=-1)
     #model = buildModel(model,Xtrain,ytrain,cv=cv,scoring=scoring_func,n_jobs=2,trainFull=False,verbose=True)
-    model = buildClassificationModel(model,Xtrain,ytrain,class_names=['1','2','3','4'],trainFull=False,cv=cv)
+    model = buildClassificationModel(model,Xtrain,ytrain,sample_weight=sample_weight,class_names=['1','2','3','4'],trainFull=False,cv=cv)
     #makePredictions(model,Xtest,idx=idx,filename='submissions/sub25062015a.csv')
     print("Model building done in %fs" % (time() - t0))

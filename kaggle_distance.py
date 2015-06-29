@@ -36,7 +36,8 @@ def index_corpus():
 	d = defaultdict(int)
 	#for e, row in enumerate( csv.DictReader(open("./data/train.csv",'r', newline='', encoding='utf8'))):
 	for e, row in enumerate( csv.DictReader(open("./data/train.csv",'r'))):
-		s = clean("medianrellabel%s %s %s"%(row["median_relevance"], row["product_description"],row["product_title"]))
+		#s = clean("medianrellabel%s %s %s"%(row["median_relevance"], row["product_description"],row["product_title"]))
+		s = clean("%s %s"%(row["product_description"],row["product_title"]))
 		d = index_document(s,d)
 	#for e, row in enumerate( csv.DictReader(open("./data/test.csv",'r', newline='', encoding='utf8'))):
 	for e, row in enumerate( csv.DictReader(open("./data/test.csv",'r'))):
