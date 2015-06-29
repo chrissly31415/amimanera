@@ -6,6 +6,12 @@ Ensemble helper tools
 Chrissly31415
 October,September 2014
 
+using stacking for ensemble building
+for stacking versus blending: see:
+
+http://mlwave.com/kaggle-ensembling-guide/
+
+
 """
 
 from FullModel import *
@@ -47,10 +53,19 @@ def createModels():
     #ensemble.append(xmodel)
     
     #SMV3 like other benchmark #possibly overfitted? should we include desription as well?
-    #(Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doBenchMark=True)
-    #model = Pipeline([('v',TfidfVectorizer(min_df=5, max_df=500, max_features=None, strip_accents='unicode', analyzer='word', token_pattern=r'\w{1,}', ngram_range=(1, 2), use_idf=True, smooth_idf=True, sublinear_tf=True, stop_words = 'english')), ('svd', TruncatedSVD(n_components=200, algorithm='randomized', n_iter=5, random_state=None, tol=0.0)), ('scl', StandardScaler(copy=True, with_mean=True, with_std=True)), ('svm', SVC(C=10.0, kernel='rbf', degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=False, tol=0.001, cache_size=200, class_weight=None, verbose=False, max_iter=-1, random_state=None))])  
-    #xmodel = XModel("svm3_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
-    #ensemble.append(xmodel)
+    garbage=["<.*?>", "http", "www","img","border","style","px","margin","left", "right","font","solid","This translation tool is for your convenience only.*?Note: The accuracy and accessibility of the resulting translation is not guaranteed"]
+    garbage2=['http','www','img','border','0','1','2','3','4','5','6','7','8','9','a','the']
+    stop_words = text.ENGLISH_STOP_WORDS.union(garbage).union(garbage2)
+    sw = []
+    for stw in stop_words:
+      sw.append("q"+stw)
+      sw.append("z"+stw)
+    stop_words = stop_words.union(sw)
+    
+    (Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doBenchMark=True)
+    model = Pipeline([('v',TfidfVectorizer(min_df=5, max_df=500, max_features=None, strip_accents='unicode', analyzer='word', token_pattern=r'\w{1,}', ngram_range=(1, 2), use_idf=True, smooth_idf=True, sublinear_tf=True, stop_words = stop_words)), ('svd', TruncatedSVD(n_components=200, algorithm='randomized', n_iter=5, random_state=None, tol=0.0)), ('scl', StandardScaler(copy=True, with_mean=True, with_std=True)), ('svm', SVC(C=10.0, kernel='rbf', degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=False, tol=0.001, cache_size=200, class_weight=None, verbose=False, max_iter=-1, random_state=None))])  
+    xmodel = XModel("svm3_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
+    ensemble.append(xmodel)
     
     #SVM4 added features #0.657
     #(Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doSeparateTFID=['product_title','query'],doSVDseparate=200,computeFeatures=True,standardize=True)
@@ -65,24 +80,29 @@ def createModels():
     #xmodel = XModel("svm5_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
     #ensemble.append(xmodel)
     
-    #RF1 + added features 0.619
+    #RF1 + added features 0.630 (SSS 16fold) 0.633 (SKF 5fold)
+    #(Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doSeparateTFID=['product_title','query'],doSVDseparate=200,computeFeatures=True,computeSim=True, standardize=False,vectorizer=None,stop_words=None)
+    #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features=100)
+    ##xmodel = XModel("rf1_r5",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None) #0.625
+    #xmodel = XModel("rf1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None) #0.581 
+    #ensemble.append(xmodel)
+    
+    #XRF1 + added features 0.627 (SSS 16fold)
     garbage=["<.*?>", "http", "www","img","border","style","px","margin","left", "right","font","solid","This translation tool is for your convenience only.*?Note: The accuracy and accessibility of the resulting translation is not guaranteed"]
     garbage2=['http','www','img','border','0','1','2','3','4','5','6','7','8','9','a','the']
     stop_words = text.ENGLISH_STOP_WORDS.union(garbage).union(garbage2)
-    (Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doSeparateTFID=['product_title','query'],doSVDseparate=200,computeFeatures=True,computeSim=True, standardize=True,vectorizer=None,stop_words=stop_words)
-    model =  RandomForestClassifier(n_estimators=100,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='entropy', max_features=20)
-    ##xmodel = XModel("rf1_r5",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None) #0.625
-    xmodel = XModel("rf1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None) #0.581 
+    (Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doSeparateTFID=['product_title','query'],doSVDseparate=200,computeFeatures=True,computeSim=True, standardize=False,vectorizer=None,stop_words=stop_words)
+    xmodel = ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features=100)
     ensemble.append(xmodel)
     
-    #XGB + added features 0.619
-    garbage=["<.*?>", "http", "www","img","border","style","px","margin","left", "right","font","solid","This translation tool is for your convenience only.*?Note: The accuracy and accessibility of the resulting translation is not guaranteed"]
-    garbage2=['http','www','img','border','0','1','2','3','4','5','6','7','8','9','a','the']
-    stop_words = text.ENGLISH_STOP_WORDS.union(garbage).union(garbage2)
-    (Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doSeparateTFID=['product_title','query'],doSVDseparate=200,computeFeatures=True,computeSim=True, standardize=True,vectorizer=None,stop_words=stop_words)
-    model = XgboostClassifier(n_estimators=200,learning_rate=0.1,max_depth=4,subsample=.5,n_jobs=1,objective='multi:softmax',eval_metric='mlogloss',booster='gbtree',silent=1)
-    xmodel = XModel("rf1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None) #0.581 
-    ensemble.append(xmodel)
+    #XGB + added features 0.0.624 (SSS 16fold) 0.632 (SKF 5fold)
+    #garbage=["<.*?>", "http", "www","img","border","style","px","margin","left", "right","font","solid","This translation tool is for your convenience only.*?Note: The accuracy and accessibility of the resulting translation is not guaranteed"]
+    #garbage2=['http','www','img','border','0','1','2','3','4','5','6','7','8','9','a','the']
+    #stop_words = text.ENGLISH_STOP_WORDS.union(garbage).union(garbage2)
+    #(Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doSeparateTFID=['product_title','query'],doSVDseparate=200,computeFeatures=True,computeSim=True, standardize=True,vectorizer=None,stop_words=stop_words)
+    #model = XgboostClassifier(n_estimators=200,learning_rate=0.1,max_depth=4,subsample=.5,n_jobs=1,objective='multi:softmax',eval_metric='mlogloss',booster='gbtree',silent=1)
+    #xmodel = XModel("xgb1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None) #0.581 
+    #ensemble.append(xmodel)
     
     
     
@@ -292,12 +312,16 @@ def trainEnsemble_multiclass(ensemble,mode='linear',score_func='log_loss',useCol
 
     print Xtrain.columns
     print Xtrain.shape
+    
+    print "spearman-correlation:\n",Xtrain.corr(method='spearman')
+    print "pearson-correlation :\n",Xtrain.corr(method='pearson')
+    raw_input()
     #print Xtrain.describe()
     print Xtest.shape
     #print Xtest.describe()
    
     if mode is 'classical':
-	results=classicalBlend(ensemble,Xtrain,Xtest,y,skipCV=skipCV,subfile=subfile)
+	results=classicalBlend(ensemble,Xtrain,Xtest,y,score_func=score_func,use_proba=use_proba,skipCV=skipCV,subfile=subfile)
     elif mode is 'mean':
 	results=linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func=score_func,takeMean=True,subfile=subfile)
     elif mode is 'voting':
@@ -323,30 +347,33 @@ def voting_multiclass(ensemble,Xtrain,Xtest,y,n_classes=9,subfile=""):
     print voter
     print voter.shape
 
-def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_loss',subfile="",cv=8,skipCV=False):
+def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_loss',subfile="",cv=5,skipCV=False):
     """
     Blending using sklearn classifier
     """
      
-    #blender=LogisticRegression(penalty='l2', tol=0.0001, C=100)
+    #blender=LogisticRegression(penalty='l2', tol=0.0001, C=1)
     #blender = Pipeline([('filter', SelectPercentile(f_regression, percentile=25)), ('model', LogisticRegression(penalty='l2', tol=0.0001, C=0.1))])
     #blender=SGDClassifier(alpha=0.1, n_iter=50,penalty='l2',loss='log',n_jobs=folds)
     #blender=AdaBoostClassifier(learning_rate=0.01,n_estimators=50)
     #blender=RandomForestClassifier(n_estimators=500,n_jobs=4, max_features='auto',oob_score=False,min_samples_leaf=10,max_depth=None)
     #blender = CalibratedClassifierCV(blender, method='isotonic', cv=3)
-    #blender=ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='entropy', max_features='auto',oob_score=False)
-    #blender=RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
-    blender = XgboostClassifier(n_estimators=300,learning_rate=0.055,max_depth=3,subsample=.5,n_jobs=8,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
+    blender=ExtraTreesClassifier(n_estimators=300,max_depth=None,min_samples_leaf=7,n_jobs=4,criterion='gini', max_features=3,oob_score=False)
+    #blender=RandomForestClassifier(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
+    #blender = XgboostClassifier(n_estimators=300,learning_rate=0.055,max_depth=3,subsample=.5,n_jobs=8,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
     #blender = BaggingClassifier(base_estimator=blender,n_estimators=40,n_jobs=1,verbose=2,random_state=None,max_samples=0.96,max_features=0.94,bootstrap=False)
     #blender = XgboostClassifier(n_estimators=200,learning_rate=0.05,max_depth=3,subsample=.5,n_jobs=8,objective='multi:softprob',eval_metric='mlogloss',booster='gbtree',silent=1)
     if not skipCV:
 	#blender = CalibratedClassifierCV(baseblender, method='sigmoid', cv=3)
-	cv = StratifiedKFold(ly, n_folds=8,shuffle=True)
-	#parameters = {'n_estimators':[200,250,300],'max_depth':[3],'learning_rate':[0.055,0.05,0.45],'subsample':[0.5]}#XGB
-	#blender=makeGridSearch(blender,oobpreds,ly,n_jobs=2,refit=True,cv=cv,scoring='log_loss',random_iter=-1,parameters=parameters)
+	#cv = StratifiedKFold(ly, n_folds=cv,shuffle=True)
+	cv=StratifiedShuffleSplit(ly,16,test_size=0.3)
+	#score_func = make_scorer(funcdict[score_func], greater_is_better = True)
+	#parameters = {'n_estimators':[200,300,500],'max_depth':[3],'learning_rate':[0.055,0.05,0.45],'subsample':[0.5]}#XGB
+	#parameters = {'n_estimators':[200,300],'max_features':[2,3],'min_samples_leaf':[5,7],'criterion':['gini','entropy']}#XGB
+	#blender=makeGridSearch(blender,oobpreds,ly,n_jobs=2,refit=True,cv=cv,scoring=score_func,random_iter=-1,parameters=parameters)
 	
 	blend_scores=np.zeros(len(cv))
-	n_classes = 9 #oobpreds.shape[1]/len(ensemble)
+	n_classes = 1 #oobpreds.shape[1]/len(ensemble)
 	blend_oob=np.zeros((oobpreds.shape[0],n_classes))
 	print blender
 	for i, (train, test) in enumerate(cv):
@@ -356,9 +383,8 @@ def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_l
 	    if use_proba:
 		blend_oob[test] = blender.predict_proba(Xtest)
 	    else:
-		print "Warning: Using predict, no proba!"
-
-		blend_oob[test] = blender.predict(Xtest)
+		#print "Warning: Using predict, no proba!"
+		blend_oob[test] = blender.predict(Xtest).reshape(blend_oob[test].shape)
 	    blend_scores[i]=funcdict[score_func](ly[test],blend_oob[test])
 	    print "Fold: %3d <%s>: %0.6f" % (i,score_func,blend_scores[i])
 	
@@ -384,7 +410,10 @@ def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_l
 	#make prediction for each classifiers   
 	preds=blender.fit(oobpreds,ly)
 	#blend results
-	preds=blender.predict_proba(testset)
+	if use_proba:
+	  preds=blender.predict_proba(testset)
+	else:
+	  preds=blender.predict(testset)
 	#print preds
 	makePredictions(blender,testset,filename=subfile)
 	
@@ -628,12 +657,12 @@ def blendSubmissions(fileList,coefList):
     
 
 if __name__=="__main__":
-    ensemble=createModels()
-    ensemble=createOOBdata_parallel(ensemble,repeats=1,nfolds=5,n_jobs=2,use_proba=False,score_func='quadratic_weighted_kappa') #oob data averaging leads to significant variance reduction
-    all_models=['knn1_r1','svm1_r1','svm2_r1','svm3_r1','svm4_r1','svm5_r1','rf1_r1']
+    #ensemble=createModels()
+    #ensemble=createOOBdata_parallel(ensemble,repeats=1,nfolds=5,n_jobs=2,use_proba=False,score_func='quadratic_weighted_kappa') #oob data averaging leads to significant variance reduction
+    all_models=['knn1_r1','svm1_r1','svm2_r1','svm3_r1','svm4_r1','svm5_r1','rf1_r1','xgb1_r1','xrf1_r1']
     models =['knn1_r1','svm1_r1','svm2_r1','svm3_r1','svm4_r1','svm5_r1','rf1_r1','xgb1_r1']
-
+    #models =['xgb1_r1']
     useCols=None
-    #trainEnsemble_multiclass(models,mode='linear',score_func='quadratic_weighted_kappa',useCols=None,addMetaFeatures=False,use_proba=False,dropCorrelated=False,subfile='./submissions/sub2462015b.csv')
+    trainEnsemble_multiclass(models,mode='classical',score_func='quadratic_weighted_kappa',useCols=None,addMetaFeatures=False,use_proba=False,dropCorrelated=False,subfile='./submissions/sub2862015c.csv')
     #selectModelsGreedy(models,startensemble=['dnn10_r1','bagxgb5_r1','rf1_r1','dnn3_r1','dnn1_r1','xgboost2_r1'],niter=10,mode='classical',greater_is_better=False)
    

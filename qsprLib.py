@@ -313,7 +313,7 @@ def buildClassificationModel(clf_orig,lX,ly,class_names=None,trainFull=False,cv=
       print "train set: %2d samples: %5d/%5d kappa: %4.3f accuracy: %4.3f"%(i,lX[train,:].shape[0],lX[test,:].shape[0],kappa[i],acc[i])
   
 
-  print classification_report(ly, ypred, target_names=class_names)
+  #print classification_report(ly, ypred, target_names=class_names)
 
   print("MAE         :%6.3f +/-%6.3f"%(mae.mean(),mae.std()))
   print("Accuracy    :%6.3f +/-%6.3f"%(acc.mean(),acc.std()))

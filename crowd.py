@@ -76,7 +76,7 @@ def loadData(nsamples=-1):
     return Xtest,Xtrain,ytrain,idx
 
 
-def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=None,standardize=False,doBenchMark=False,computeFeatures=None,computeGenSim=None,addNoiseColumns=None,doSeparateTFID=None,doSVDseparate=False,computeSim=False,stop_words=text.ENGLISH_STOP_WORDS,doTFID=False,concat=False,useAll=False,concatAll=False,doKmeans=False):
+def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=None,standardize=False,doBenchMark=False,computeFeatures=None,computeGenSim=None,vectorizeFirstOnly=False,computeSynonyma=None,computeKaggleDistance=None,addNoiseColumns=None,doSeparateTFID=None,doSVDseparate=False,computeSim=False,stop_words=text.ENGLISH_STOP_WORDS,doTFID=False,concat=False,useAll=False,concatTitleDesc=False,doKmeans=False):
     np.random.seed(seed)
     
     Xtest,Xtrain,ytrain,idx = loadData(nsamples=nsamples)
@@ -85,6 +85,17 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=N
 
     if preprocess:
 	pass
+      
+    if computeSynonyma is not None:
+	print Xall['query'].head(10)
+	Xall = makeQuerySynonyms(Xall)
+	print Xall['query'].head(10)
+    
+    if concatTitleDesc:
+	print "Concatenating title+description..."
+	Xall['product_title'] = Xall.apply(lambda x:'%s %s' % (x['product_title'],x['product_description']),axis=1)
+	Xall = Xall.drop(['product_description'], axis=1)
+	print Xall.head(10)
     
     if doBenchMark:
 	Xall = useBenchmarkMethod_mod(Xall)
@@ -93,16 +104,24 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=N
     if computeFeatures is not None and computeFeatures is not False:
         Xfeat = additionalFeatures(Xall,verbose=False)
         print Xfeat.describe()
+
+
+    Xkdist = None
+    if computeKaggleDistance is not None:
+	Xkdist = createKaggleDist(Xall,verbose=False)
     
     Xgensim = None
     if computeGenSim is not None:
 	Xgensim = genSimFeatures(Xall,verbose=False)
 	print Xgensim.describe()
 
+
     Xsim = None
     if computeSim is not None:
 	Xsim = computeSimilarityFeatures(Xall)
 	print Xsim.describe()
+    
+  
     
     
     if doSeparateTFID is False or doSeparateTFID is not None:
@@ -129,7 +148,11 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=N
 	    print Xtrain[col].describe()
 	    
 	    if i>0:
-		vectorizer.fit(Xall[col])#should reduce overfitting?
+		if not vectorizeFirstOnly:
+		    print "Vecorizing col:",col
+		    vectorizer.fit(Xall[col])#should reduce overfitting?
+		else:
+		    print "Only transform for col:",col
 		Xs_all_new = vectorizer.transform(Xall[col])		
 		
 		if doSVDseparate:
@@ -172,11 +195,7 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=N
 	Xall = Xall.drop(['product_title','product_description'], axis=1)
 	print Xall.head(10)
     
-    if concatAll:
-	print "Concatenating query+title+description..."
-	Xall['query'] = Xall.apply(lambda x:'%s %s %s' % (x['query'],x['product_title'],['product_description']),axis=1)
-	Xall = Xall.drop(['product_title','product_description'], axis=1)
-	print Xall.head(10)
+    
 
     if doTFID:
 	print "Fit TFIDF..."
@@ -265,7 +284,14 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=N
 	      Xall = Xfeat
 	  else:
 	      Xall = pd.concat([Xall,Xfeat], axis=1)
-	
+    
+    if Xkdist is not None:
+	Xall = pd.concat([Xall,Xkdist], axis=1)
+
+
+    if Xgensim is not None:
+	Xall = pd.concat([Xall,Xgensim], axis=1)
+
     if standardize:
 	if not isinstance(Xall,pd.DataFrame):
 	    print "X is not a DataFrame, converting from,",type(Xall)
@@ -354,9 +380,11 @@ if __name__=="__main__":
     #char ngrams
     #clean data remove special characters ( - + ) "
     #https://www.kaggle.com/triskelion/crowdflower-search-relevance/normalized-kaggle-distance
+    #LDA visualisation: https://www.kaggle.com/solution/crowdflower-search-relevance/lda-visualization
     #LINEARsvm
-    
-    # Set a seed for consistant results
+    #http://streamhacker.com/2014/12/29/word2vec-nltk/
+    # tune min_samples_leaf for RF
+   
     t0 = time()
     
     print "numpy:",np.__version__
@@ -366,27 +394,31 @@ if __name__=="__main__":
     seed = 123
     nsamples=-1#'shuffle'
     preprocess=False
+    concatTitleDesc=None#title+desription### quite bad...
     doBenchMark=False
     computeFeatures=True
     computeGenSim=None
     computeSim=True
+    computeSynonyma=None##
+    computeKaggleDistance=True##
     addNoiseColumns=None
+    vectorizeFirstOnly=False#True seems a bit better...?
     doSeparateTFID=['product_title','query']#['query','product_title','product_description']#
-    doSVDseparate=200
+    doSVDseparate=10
     doTFID=False
     doSVD=False
    
     standardize=True
     useAll=False#supervised vs. unsupervised
     concat=False#query+title
-    concatAll=False#query+title+desription    
+      
     doKmeans=False
     
     garbage=["<.*?>", "http", "www","img","border","style","px","margin","left", "right","font","solid","This translation tool is for your convenience only.*?Note: The accuracy and accessibility of the resulting translation is not guaranteed"]
     garbage2=['http','www','img','border','0','1','2','3','4','5','6','7','8','9','a','the']
     stop_words = text.ENGLISH_STOP_WORDS.union(garbage).union(garbage2)
     
-    Xtrain, ytrain, Xtest,idx  = prepareDataset(seed=seed,nsamples=nsamples,preprocess=preprocess,doBenchMark=doBenchMark,computeFeatures=computeFeatures,computeGenSim=computeGenSim,addNoiseColumns=addNoiseColumns,concat=concat,doTFID=doTFID,doSeparateTFID=doSeparateTFID,stop_words=stop_words,computeSim=computeSim,doSVD=doSVD,doSVDseparate=doSVDseparate,standardize=standardize,useAll=useAll,concatAll=concatAll,doKmeans=doKmeans)
+    Xtrain, ytrain, Xtest,idx  = prepareDataset(seed=seed,nsamples=nsamples,preprocess=preprocess,doBenchMark=doBenchMark,computeFeatures=computeFeatures,computeGenSim=computeGenSim,computeSynonyma=computeSynonyma,computeKaggleDistance=computeKaggleDistance,addNoiseColumns=addNoiseColumns,concat=concat,doTFID=doTFID,doSeparateTFID=doSeparateTFID,vectorizeFirstOnly=vectorizeFirstOnly,stop_words=stop_words,computeSim=computeSim,doSVD=doSVD,doSVDseparate=doSVDseparate,standardize=standardize,useAll=useAll,concatTitleDesc=concatTitleDesc,doKmeans=doKmeans)
     Xtrain.to_csv('./data/Xtrain.csv',index=False)
     pd.DataFrame(ytrain,columns=['class']).to_csv('./data/ytrain.csv',index=False)
     
@@ -400,7 +432,9 @@ if __name__=="__main__":
     #model = Pipeline([('feature_selection', LinearSVC(penalty="l1", dual=False, tol=1e-3)),('classification', LinearSVC())])
     
     
-    #model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features='auto')
+    #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=2,criterion='gini', max_features=100)#0.627
+    model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=2,criterion='gini', max_features='auto')
+    #model =  ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features=100) #0.632
     #model.fit(Xtrain,ytrain)
     #rfFeatureImportance(model,Xtrain,Xtest,1)
     
@@ -419,7 +453,7 @@ if __name__=="__main__":
     #model = LogisticRegressionMod(penalty='l2', dual=False, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None)#opt kaggle params
     #model = RidgeClassifier(tol=1e-2, solver="lsqr",alpha=0.1)
     #model = KNeighborsClassifier(n_neighbors=5)
-    model = XgboostClassifier(n_estimators=200,learning_rate=0.1,max_depth=4,subsample=.5,n_jobs=1,objective='multi:softmax',eval_metric='mlogloss',booster='gbtree',silent=1)
+    #model = XgboostClassifier(n_estimators=200,learning_rate=0.1,max_depth=4,subsample=.5,n_jobs=1,objective='multi:softmax',eval_metric='mlogloss',booster='gbtree',silent=1)
     #model = MultinomialNB(alpha=0.001)
   
     # Kappa Scorer 
@@ -430,7 +464,7 @@ if __name__=="__main__":
     
     #cv=StratifiedShuffleSplit(ytrain,8,test_size=0.2)
     cv=StratifiedShuffleSplit(ytrain,16,test_size=0.3)
-    #cv =StratifiedKFold(ytrain,10,shuffle=True)
+    #cv =StratifiedKFold(ytrain,5,shuffle=True)
     #parameters = {'reducer__n_components': [200,300,400,500,600]}
     #parameters = {'reducer__n_clusters': [1000,1200,1500]}
     #parameters = {'SVC__C': [8,16,32],'SVC__gamma':[0.001,0.003,0.0008]}
@@ -438,10 +472,10 @@ if __name__=="__main__":
     #parameters = {'C': [0.1,0.01,0.025,0.05]}
     #parameters = {'alpha': [0.005,0.001,0.0025],'n_iter':[200],'penalty':['l2'],'loss':['log','perceptron']}
     #parameters = {'n_estimators':[200],'max_depth':[4],'learning_rate':[0.1,0.08],'subsample':[0.5,1.0]}
-    #parameters = {'n_estimators':[50,100,250,500],'max_features':[10,20,30,40,'auto'],'criterion':['gini','entropy'],'min_samples_leaf':[1,2,3]}
+    #parameters = {'n_estimators':[250,500],'max_features':[100],'criterion':['gini'],'min_samples_leaf':[1]}
     #parameters = {'alpha':[0.001]}
     #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=2,refit=True,cv=cv,scoring=scoring_func,parameters=parameters,random_iter=-1)
-    model = buildModel(model,Xtrain,ytrain,cv=cv,scoring=scoring_func,n_jobs=2,trainFull=False,verbose=True)
-    #model = buildClassificationModel(model,Xtrain,ytrain,class_names=['1','2','3','4'],trainFull=False,cv=cv)
+    #model = buildModel(model,Xtrain,ytrain,cv=cv,scoring=scoring_func,n_jobs=2,trainFull=False,verbose=True)
+    model = buildClassificationModel(model,Xtrain,ytrain,class_names=['1','2','3','4'],trainFull=False,cv=cv)
     #makePredictions(model,Xtest,idx=idx,filename='submissions/sub25062015a.csv')
     print("Model building done in %fs" % (time() - t0))
