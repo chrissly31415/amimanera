@@ -116,6 +116,14 @@ def createModels():
     #xmodel = XModel("xrf2_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
     #ensemble.append(xmodel)
     
+    #XRF3 wie XRF1 but useOnlytrain  SVD 20 0.651 (SKF 5fold)
+    #stop_words = corpus.stopwords.words('english')
+    #computeKaggleTopics=["notebook","computer","movie","clothes","media","shoe","kitchen","car","bike","toy","phone","food","sport"]
+    #(Xtrain, ytrain, Xtest,idx,_)  = prepareDataset(seed=42,nsamples=-1,doSeparateTFID=['product_title','query'],doSVDseparate=20,computeFeatures=True,computeSim=True, computeKaggleDistance=True,computeKaggleTopics=computeKaggleTopics,useOnlyTrain=True,standardize=False,vectorizer=None,stop_words=stop_words)
+    #model = ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=3,n_jobs=1,criterion='gini', max_features='auto')
+    #xmodel = XModel("xrf3_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
+    #ensemble.append(xmodel)
+    
     #XGB + added features 0.0.624 (SSS 16fold) 0.632 (SKF 5fold)
     #garbage=["<.*?>", "http", "www","img","border","style","px","margin","left", "right","font","solid","This translation tool is for your convenience only.*?Note: The accuracy and accessibility of the resulting translation is not guaranteed"]
     #garbage2=['http','www','img','border','0','1','2','3','4','5','6','7','8','9','a','the']
@@ -125,7 +133,14 @@ def createModels():
     #xmodel = XModel("xgb1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None) #0.581 
     #ensemble.append(xmodel)
     
-    #SVM6 more features			0.663 (SKF 5fold) PL=0.646
+    #XGB + added features 0.639 (SSS fold) (SKF 5fold)
+    stop_words = corpus.stopwords.words('english')
+    (Xtrain, ytrain, Xtest,idx)  = prepareDataset(seed=42,nsamples=-1,doSeparateTFID=['product_title','query'],cleanse=True,doSVDseparate=15,computeFeatures=True,computeSim=False, standardize=True,vectorizer=None,stop_words=stop_words)
+    model = XgboostClassifier(n_estimators=500,learning_rate=0.1,max_depth=4,subsample=.5,n_jobs=1,objective='multi:softmax',eval_metric='mlogloss',booster='gbtree',silent=1)
+    xmodel = XModel("xgb2_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None) #0.581 
+    ensemble.append(xmodel)
+    
+    #SVM6 more features		0.663 (SKF 5fold) PL=0.646
     #garbage=["<.*?>", "http", "www","img","border","style","px","margin","left", "right","font","solid","This translation tool is for your convenience only.*?Note: The accuracy and accessibility of the resulting translation is not guaranteed"]
     #garbage2=['http','www','img','border','0','1','2','3','4','5','6','7','8','9','a','the']
     #stop_words = text.ENGLISH_STOP_WORDS.union(garbage).union(garbage2)
@@ -141,15 +156,21 @@ def createModels():
     #xmodel = XModel("lsvm1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
     #ensemble.append(xmodel)
     
-    #logreg1 + added features 
-    garbage=["<.*?>", "http", "www","img","border","style","px","margin","left", "right","font","solid","This translation tool is for your convenience only.*?Note: The accuracy and accessibility of the resulting translation is not guaranteed"]
-    garbage2=['http','www','img','border','0','1','2','3','4','5','6','7','8','9','a','the']
-    stop_words = text.ENGLISH_STOP_WORDS.union(garbage).union(garbage2)
-    (Xtrain, ytrain, Xtest,idx,_)  = prepareDataset(seed=42,nsamples=-1,doSeparateTFID=['product_title','query'],doSVDseparate=300,computeFeatures=True,computeSim=True, computeKaggleDistance=True, standardize=True,vectorizer=None,stop_words=stop_words)
-    model = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
-    xmodel = XModel("logreg1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
-    ensemble.append(xmodel)
+    #logreg1 + added features 0.616 (SKF 5fold) PL:0.586
+    #garbage=["<.*?>", "http", "www","img","border","style","px","margin","left", "right","font","solid","This translation tool is for your convenience only.*?Note: The accuracy and accessibility of the resulting translation is not guaranteed"]
+    #garbage2=['http','www','img','border','0','1','2','3','4','5','6','7','8','9','a','the']
+    #stop_words = text.ENGLISH_STOP_WORDS.union(garbage).union(garbage2)
+    #(Xtrain, ytrain, Xtest,idx,_)  = prepareDataset(seed=42,nsamples=-1,doSeparateTFID=['product_title','query'],doSVDseparate=300,computeFeatures=True,computeSim=True, computeKaggleDistance=True, standardize=True,vectorizer=None,stop_words=stop_words)
+    #model = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
+    #xmodel = XModel("logreg1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
+    #ensemble.append(xmodel)
     
+    #logreg2 + added features 0.593 (SSS 16fold) 0.599 (SKF 5fold) PL: 0.55495
+    #stop_words = corpus.stopwords.words('english')
+    #(Xtrain, ytrain, Xtest,idx,_)  = prepareDataset(seed=42,nsamples=-1,cleanse=True,doSeparateTFID=['product_title','query'],doSVDseparate=200,computeFeatures=True,computeSim=None, computeKaggleDistance=None, standardize=True,vectorizer=None,stop_words=stop_words)
+    #model = LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
+    #xmodel = XModel("logreg2_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,class_names=None)
+    #ensemble.append(xmodel)
     
     
     #some info
@@ -455,10 +476,10 @@ def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_l
 	#blender = CalibratedClassifierCV(baseblender, method='sigmoid', cv=3)
 	#cv = StratifiedKFold(ly, n_folds=cv,shuffle=True)
 	cv=StratifiedShuffleSplit(ly,16,test_size=0.3)
-	score_func = make_scorer(funcdict[score_func], greater_is_better = True)
-	parameters = {'n_estimators':[200,300,500],'max_depth':[3],'learning_rate':[0.055,0.05,0.45],'subsample':[0.5]}#XGB
+	#score_func = make_scorer(funcdict[score_func], greater_is_better = True)
+	#parameters = {'n_estimators':[200,300,500],'max_depth':[3],'learning_rate':[0.055,0.05,0.45],'subsample':[0.5]}#XGB
 	#parameters = {'n_estimators':[100,500],'max_features':[4],'min_samples_leaf':[1,5],'criterion':['entropy']}#XGB
-	blender=makeGridSearch(blender,oobpreds,ly,n_jobs=2,refit=True,cv=cv,scoring=score_func,random_iter=-1,parameters=parameters)
+	#blender=makeGridSearch(blender,oobpreds,ly,n_jobs=2,refit=True,cv=cv,scoring=score_func,random_iter=-1,parameters=parameters)
 	
 	blend_scores=np.zeros(len(cv))
 	n_classes = 1 #oobpreds.shape[1]/len(ensemble)
@@ -740,15 +761,16 @@ def blendSubmissions(fileList,coefList):
    
 
 if __name__=="__main__":
-    ensemble=createModels()
-    ensemble=createOOBdata_parallel(ensemble,repeats=1,nfolds=5,n_jobs=2,use_proba=False,score_func='quadratic_weighted_kappa') #oob data averaging leads to significant variance reduction
-    all_models=['knn1_r1','svm1_r1','svm2_r1','svm3_r1','svm4_r1','svm5_r1','rf1_r1','xgb1_r1','xrf1_r1','svm6_r1','logreg1_r1','lsvm1_r1']
-    models =['knn1_r1','svm1_r1','svm2_r1','svm3_r1','svm4_r1','svm5_r1','rf1_r1','xgb1_r1','xrf1_r1','svm6_r1','logreg1_r1','lsvm1_r1']
-    opt_models = ['svm6_r1', 'xrf1_r1', 'svm4_r1', 'xgb1_r1', 'svm3_r1', 'logreg1_r1', 'svm2_r1', 'rf1_r1', 'svm5_r1']
-    greedy_voting=['xrf2_r1']
+    #ensemble=createModels()
+    #ensemble=createOOBdata_parallel(ensemble,repeats=1,nfolds=5,n_jobs=2,use_proba=False,score_func='quadratic_weighted_kappa') #oob data averaging leads to significant variance reduction
+    all_models=['knn1_r1','svm1_r1','svm2_r1','svm3_r1','svm4_r1','svm5_r1','rf1_r1','xgb1_r1','xrf1_r1','xrf3_r1','svm6_r1','logreg1_r1','lsvm1_r1','logreg2_r1']
+    models =['knn1_r1','svm1_r1','svm2_r1','svm3_r1','svm4_r1','svm5_r1','rf1_r1','xgb1_r1','xrf1_r1','xrf3_r1','svm6_r1','logreg1_r1','lsvm1_r1','logreg2_r1']
+    #opt_models = ['svm6_r1', 'xrf1_r1', 'svm4_r1', 'xgb1_r1', 'svm3_r1', 'logreg1_r1', 'svm2_r1', 'rf1_r1', 'svm5_r1']
+    opt_models2 = ['svm6_r1', 'xrf1_r1', 'svm4_r1', 'xrf2_r1', 'logreg1_r1', 'knn1_r1', 'svm1_r1', 'xrf3_r1', 'svm3_r1']#greedy linear
+    #greedy_voting=['logreg2_r1']
     #models =['svm6_r1', 'xrf1_r1', 'svm4_r1']
-    models = greedy_voting
+    models = opt_models2
     useCols=None
-    trainEnsemble_multiclass(models,mode='voting',score_func='quadratic_weighted_kappa',useCols=None,addMetaFeatures=False,use_proba=False,dropCorrelated=False,subfile='./submissions/sub01072015b.csv')
-    #selectModelsGreedy(models,startensemble=['svm6_r1','xrf1_r1'],niter=10,mode='voting',greater_is_better=True)
+    trainEnsemble_multiclass(models,mode='classical',score_func='quadratic_weighted_kappa',useCols=None,addMetaFeatures=False,use_proba=False,dropCorrelated=False,subfile='./submissions/sub02072015c.csv')
+    #selectModelsGreedy(models,startensemble=['svm6_r1','xrf1_r1','svm4_r1','xrf2_r1'],niter=10,mode='linear',greater_is_better=True)
    

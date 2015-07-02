@@ -92,21 +92,21 @@ def loadData(nsamples=-1):
     return Xtest,Xtrain,ytrain,idx,sample_weight
 
 
-def prepareDataset(seed=123,nsamples=-1,preprocess=False,useOnlyTrain=True,vectorizer=None,doSVD=None,standardize=False,doBenchMark=False,computeFeatures=None,computeGenSim=None,vectorizeFirstOnly=False,computeSynonyma=None,computeKaggleDistance=None,computeKaggleTopics=None,addNoiseColumns=None,doSeparateTFID=None,doSVDseparate=False,computeSim=None,stop_words=corpus.stopwords.words('english'),doTFID=False,concat=False,useAll=False,concatTitleDesc=False,doKmeans=False):
+def prepareDataset(seed=123,nsamples=-1,cleanse=None,useOnlyTrain=True,vectorizer=None,doSVD=None,standardize=False,doBenchMark=False,computeFeatures=None,computeWord2Vec=None,computeGenSim=None,vectorizeFirstOnly=False,computeSynonyma=None,computeKaggleDistance=None,computeKaggleTopics=None,addNoiseColumns=None,doSeparateTFID=None,doSVDseparate=False,computeSim=None,stop_words=corpus.stopwords.words('english'),doTFID=False,concat=False,useAll=False,concatTitleDesc=False,doKmeans=False):
     np.random.seed(seed)
     
     Xtest,Xtrain,ytrain,idx,sample_weight = loadData(nsamples=nsamples)
     Xall = pd.concat([Xtest, Xtrain])
     print "Original shape:",Xall.shape
 
-    if preprocess:
-	ablist=[]
-	ablist.append((['ps','p.s.','play station','ps2','ps3','ps4'],'playstation'))
-	ablist.append((['ny','n.y.'],'new york'))
-	ablist.append((['tb','tera byte'],'gigabyte'))
-	ablist.append((['gb','giga byte'],'gigabyte'))
-	ablist.append((['t.v.','tv'],'television'))
-	ablist.append((['mb','mega byte'],'megabyte'))
+    if cleanse is not None:
+	if isinstance(cleanse,str):
+	  print "Loading cleansed data..."
+	  Xall = pd.read_csv('Xall_cleansed.csv')
+	else:
+	  Xall = cleanse_data(Xall)
+	  Xall.to_csv("Xall_cleansed.csv")
+	
     
     if computeSynonyma is not None:
 	print Xall['query'].head(10)
@@ -125,9 +125,18 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,useOnlyTrain=True,vecto
     print "computeFeatures:",computeFeatures
     Xfeat = None
     if computeFeatures is not None:
-        Xfeat = additionalFeatures(Xall,verbose=False)
+	if isinstance(computeFeatures,str):
+	  print "Loading features data..."
+	  Xfeat = pd.read_csv('Xfeat.csv')
+	else:
+	  Xfeat = additionalFeatures(Xall,verbose=False)
+	  Xfeat.to_csv("Xfeat.csv")
+        
         print Xfeat.describe()
 
+    Xw2vec = None
+    if computeWord2Vec:
+	Xw2vec = genWord2VecFeatures(Xall,verbose=False)
 
     Xkdist = None
     if computeKaggleDistance is not None:
@@ -157,6 +166,7 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,useOnlyTrain=True,vecto
 	  print "Using default vectorizer..."
 	  vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}',norm='l2')
 	else:
+	  print "Using vectorizer:"
 	  print vectorizer
 	Xtrain = Xall[len(Xtest.index):]
 	Xtest_t = Xall[:len(Xtest.index)]
@@ -423,6 +433,7 @@ if __name__=="__main__":
     #abbreviations...
     #onehotencoding with countvectorizers
     #real majority voting!!!!
+    #remove crappy ids : https://www.kaggle.com/c/crowdflower-search-relevance/forums/t/14981/odd-search-result-in-train-csv
    
     t0 = time()
     
@@ -432,27 +443,27 @@ if __name__=="__main__":
     
     seed = 123
     nsamples=-1#'shuffle'
-    preprocess=False
+    cleanse='load'
     useOnlyTrain=True
     concatTitleDesc=None#title+desription### quite bad...
     doBenchMark=False
-    computeFeatures=True
+    computeFeatures='load'#True
     computeGenSim=None
-    computeSim=True
+    computeSim=None
     computeSynonyma=None##
-    computeKaggleDistance=True#True##
-    computeKaggleTopics=["notebook","computer","movie","clothes","media","shoe","kitchen","car","bike","toy","phone","food","sport"]
+    computeKaggleDistance=None#True##
+    computeKaggleTopics=None#["notebook","computer","movie","clothes","media","shoe","kitchen","car","bike","toy","phone","food","sport"]
+    computeWord2Vec=False
     addNoiseColumns=None
     vectorizeFirstOnly=False#True seems a bit better...?
     doSeparateTFID=['product_title','query']#['query','product_title','product_description']#
-    doSVDseparate=200
+    doSVDseparate=15
     doTFID=False
     doSVD=False
     
-    standardize=True
+    standardize=False
     useAll=False#supervised vs. unsupervised
-    concat=False#query+title
-      
+    concat=False#query+title      
     doKmeans=False
     
     #garbage=["<.*?>", "http", "www","img","border","style","px","margin","left", "right","font","solid","This translation tool is for your convenience only.*?Note: The accuracy and accessibility of the resulting translation is not guaranteed"]
@@ -460,10 +471,14 @@ if __name__=="__main__":
     #stop_words = text.ENGLISH_STOP_WORDS.union(garbage).union(garbage2)
     stop_words = corpus.stopwords.words('english')
     
-    Xtrain, ytrain, Xtest,idx, sample_weight  = prepareDataset(seed=seed,nsamples=nsamples,preprocess=preprocess,useOnlyTrain=useOnlyTrain,doBenchMark=doBenchMark,computeFeatures=computeFeatures,computeGenSim=computeGenSim,computeSynonyma=computeSynonyma,computeKaggleDistance=computeKaggleDistance,computeKaggleTopics=computeKaggleTopics,addNoiseColumns=addNoiseColumns,concat=concat,doTFID=doTFID,doSeparateTFID=doSeparateTFID,vectorizeFirstOnly=vectorizeFirstOnly,stop_words=stop_words,computeSim=computeSim,doSVD=doSVD,doSVDseparate=doSVDseparate,standardize=standardize,useAll=useAll,concatTitleDesc=concatTitleDesc,doKmeans=doKmeans)
+    
+    #vectorizer = HashingVectorizer(stop_words=stop_words,ngram_range=(1,2),analyzer="char", non_negative=True, norm='l2', n_features=2**18)
+    vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}',norm='l2')#default
+    
+    Xtrain, ytrain, Xtest,idx, sample_weight  = prepareDataset(seed=seed,nsamples=nsamples,vectorizer=vectorizer,cleanse=cleanse,useOnlyTrain=useOnlyTrain,doBenchMark=doBenchMark,computeWord2Vec=computeWord2Vec,computeFeatures=computeFeatures,computeGenSim=computeGenSim,computeSynonyma=computeSynonyma,computeKaggleDistance=computeKaggleDistance,computeKaggleTopics=computeKaggleTopics,addNoiseColumns=addNoiseColumns,concat=concat,doTFID=doTFID,doSeparateTFID=doSeparateTFID,vectorizeFirstOnly=vectorizeFirstOnly,stop_words=stop_words,computeSim=computeSim,doSVD=doSVD,doSVDseparate=doSVDseparate,standardize=standardize,useAll=useAll,concatTitleDesc=concatTitleDesc,doKmeans=doKmeans)
     sample_weight=None
-    Xtrain.to_csv('./data/Xtrain.csv',index=False)
-    pd.DataFrame(ytrain,columns=['class']).to_csv('./data/ytrain.csv',index=False)
+    #Xtrain.to_csv('./data/Xtrain.csv',index=False)
+    #pd.DataFrame(ytrain,columns=['class']).to_csv('./data/ytrain.csv',index=False)
     #model = Pipeline([('v',TfidfVectorizer(min_df=5, max_df=500, max_features=None, strip_accents='unicode', analyzer='word', token_pattern=r'\w{1,}', ngram_range=(1, 2), use_idf=True, smooth_idf=True, sublinear_tf=True, stop_words = 'english')), ('svd', TruncatedSVD(n_components=200, algorithm='randomized', n_iter=5, random_state=None, tol=0.0)), ('scl', StandardScaler(copy=True, with_mean=True, with_std=True)), ('svm', SVC(C=10.0, kernel='rbf', degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=False, tol=0.001, cache_size=200, class_weight=None, verbose=False, max_iter=-1, random_state=None))])
     
     #model = Pipeline([('reducer', TruncatedSVD(n_components=400)), ('scaler', StandardScaler()), ('model', model)])
@@ -472,7 +487,7 @@ if __name__=="__main__":
     #model = Pipeline([('scaler', StandardScaler()), ('model', LinearSVC(C=0.01))])
     #model = Pipeline([('reducer', MiniBatchKMeans(n_clusters=400,batch_size=400,n_init=3)), ('scaler', StandardScaler()), ('SVC', model)])
     #model = Pipeline([('feature_selection', LinearSVC(penalty="l1", dual=False, tol=1e-3)),('classification', LinearSVC())])
-    model = LinearSVC(C=0.01)
+    #model = LinearSVC(C=0.01)
     
     
     #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features=100)#0.627
@@ -497,7 +512,9 @@ if __name__=="__main__":
     #model = LogisticRegressionMod(penalty='l2', dual=False, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1.0, class_weight=None)#opt kaggle params
     #model = RidgeClassifier(tol=1e-2, solver="lsqr",alpha=0.1)
     #model = KNeighborsClassifier(n_neighbors=5)
-    #model = XgboostClassifier(n_estimators=200,learning_rate=0.1,max_depth=4,subsample=.5,n_jobs=1,objective='multi:softmax',eval_metric='mlogloss',booster='gbtree',silent=1)
+    model = XgboostClassifier(n_estimators=120,learning_rate=0.001,max_depth=40,subsample=.5,n_jobs=1,objective='multi:softmax',eval_metric='merror',booster='gbtree',silent=1,eval_size=0.0)
+    print model
+    #model.fit(Xtrain,ytrain)
     #model = MultinomialNB(alpha=0.001)
   
     # Kappa Scorer 
@@ -507,19 +524,19 @@ if __name__=="__main__":
     
     
     #cv=StratifiedShuffleSplit(ytrain,8,test_size=0.2)
-    cv=StratifiedShuffleSplit(ytrain,16,test_size=0.3)
+    cv=StratifiedShuffleSplit(ytrain,8,test_size=0.3)
     #cv =StratifiedKFold(ytrain,5,shuffle=True)
     #parameters = {'reducer__n_components': [200,300,400,500,600]}
     #parameters = {'reducer__n_clusters': [1000,1200,1500]}
     #parameters = {'SVC__C': [8,16,32],'SVC__gamma':[0.001,0.003,0.0008]}
     #parameters = {'C': [8,16,32],'gamma':[0.001,0.003,0.0008,'auto']}
-    parameters = {'C': [0.5,0.1,0.05,0.01]}
+    #parameters = {'C': [0.5,0.1,0.05,0.01]}
     #parameters = {'alpha': [0.005,0.001,0.0025],'n_iter':[200],'penalty':['l2'],'loss':['log','perceptron']}
-    #parameters = {'n_estimators':[500],'max_depth':[6],'learning_rate':[0.1,0.2,0.3],'subsample':[0.5]}
+    #parameters = {'n_estimators':[250],'max_depth':[10],'learning_rate':[0.2,0.1,0.01],'subsample':[0.5]}
     #parameters = {'n_estimators':[250,500],'max_features':[100,150],'criterion':['gini'],'min_samples_leaf':[1,3]}
     #parameters = {'alpha':[0.001]}
-    model = makeGridSearch(model,Xtrain,ytrain,n_jobs=2,refit=True,cv=cv,scoring=scoring_func,parameters=parameters,random_iter=-1)
+    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=2,refit=True,cv=cv,scoring=scoring_func,parameters=parameters,random_iter=-1)
     #model = buildModel(model,Xtrain,ytrain,cv=cv,scoring=scoring_func,n_jobs=2,trainFull=True,verbose=True)
-    #model = buildClassificationModel(model,Xtrain,ytrain,sample_weight=sample_weight,class_names=['1','2','3','4'],trainFull=False,cv=cv)
+    model = buildClassificationModel(model,Xtrain,ytrain,sample_weight=sample_weight,class_names=['1','2','3','4'],trainFull=False,cv=cv)
     #makePredictions(model,Xtest,idx=idx,filename='submissions/sub30062015d.csv')
     print("Model building done in %fs" % (time() - t0))

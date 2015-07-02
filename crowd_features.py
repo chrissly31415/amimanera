@@ -224,13 +224,67 @@ def additionalFeatures(Xall,verbose=False,dropList=['bestmatch']):
     Xall_new = Xall_new.drop(dropList, axis=1)
     print Xall_new.corr(method='spearman')
     return Xall_new	
+
+def cleanse_data(Xall):
+    print "Cleansing the data..."
+    with open("query_map.pkl", "r") as f: query_map = pickle.load(f)#key query value corrected value
+  
+    ablist=[]
+    ablist.append((['ps','p.s.','play station','ps2','ps3','ps4'],'playstation'))
+    ablist.append((['ny','n.y.'],'new york'))
+    ablist.append((['tb','tera byte'],'gigabyte'))
+    ablist.append((['gb','giga byte'],'gigabyte'))
+    ablist.append((['t.v.','tv'],'television'))
+    ablist.append((['mb','mega byte'],'megabyte'))
+    ablist.append((['d.r.','dr'],'doctor'))
+    ablist.append((['phillips'],'philips'))
+    
+    for i in range(Xall.shape[0]):
+	query = Xall["query"].iloc[i].lower()
+	
+	#correct typos
+	if query in query_map.keys():
+	    query = query_map[query]
+	
+	#correct abbreviations query
+	new_query =[]
+	for qword in query.split():
+	  for ab,full in ablist:
+	    if qword in ab:
+	      qword = full
+	  new_query.append(qword)
+	
+	new_query = (" ").join(new_query)
+	Xall["query"].iloc[i] = new_query
+	
+	title = Xall["product_title"].iloc[i].lower()
+	
+	#correct abbreviations title
+	new_title=[]
+	for qword in title.split():
+	  for ab,full in ablist:
+	    if qword in ab:
+	      qword = full
+	  new_title.append(qword)
+	new_title = (" ").join(new_title)
+	Xall["product_title"].iloc[i] = new_title
+    
+    
+	if i%5000==0:
+	      print "i:",i
+    
+    print "Finished"
+    return Xall
+    
     
 #make top 5 most similar in query and check again...
-def genSimFeatures(Xall,verbose=True):
+def genWord2VecFeatures(Xall,verbose=True):
     print "Compute gensim features..."
-    b = gensim.models.Word2Vec(brown.sents())
+    #print Xall['query'].tolist()
+    print brown.sents()
+    #b = gensim.models.Word2Vec(brown.sents())
     #model = gensim.models.Word2Vec.load_word2vec_format('/home/chris/Downloads/GoogleNews-vectors-negative300.bin.gz', binary=True)
-    print b.most_similar('money', topn=5)
+    #print b.most_similar('money', topn=5)
     #print b.most_similar('playstation', topn=5)
     
     raw_input()
