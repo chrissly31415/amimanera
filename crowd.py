@@ -17,6 +17,7 @@ from nltk.stem import WordNetLemmatizer
 from nltk.stem.lancaster import LancasterStemmer
 from nltk.stem.porter import PorterStemmer
 from nltk.stem.snowball import EnglishStemmer
+from nltk import corpus
 
 from crowd_features import *
 
@@ -66,14 +67,14 @@ def loadData(nsamples=-1):
     # create labels. drop useless columns
     ytrain = Xtrain.median_relevance.values
     sample_weight = Xtrain.relevance_variance
-    sample_weight.hist()
-    idx=sample_weight>1.0
+    #sample_weight.hist()
+    #idx=sample_weight>1.0
     #print "idx",idx
-    sample_weight[:] = 1.0
-    sample_weight[idx] = 0.25
+    #sample_weight[:] = 1.0
+    #sample_weight[idx] = 0.25
     #sample_weight.hist()
     #sample_weight = sample_weight.apply()
-    plt.show()
+    #plt.show()
     Xtrain = Xtrain.drop(['median_relevance', 'relevance_variance'], axis=1)
     
     if nsamples != -1:
@@ -91,7 +92,7 @@ def loadData(nsamples=-1):
     return Xtest,Xtrain,ytrain,idx,sample_weight
 
 
-def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=None,standardize=False,doBenchMark=False,computeFeatures=None,computeGenSim=None,vectorizeFirstOnly=False,computeSynonyma=None,computeKaggleDistance=None,addNoiseColumns=None,doSeparateTFID=None,doSVDseparate=False,computeSim=False,stop_words=text.ENGLISH_STOP_WORDS,doTFID=False,concat=False,useAll=False,concatTitleDesc=False,doKmeans=False):
+def prepareDataset(seed=123,nsamples=-1,preprocess=False,useOnlyTrain=True,vectorizer=None,doSVD=None,standardize=False,doBenchMark=False,computeFeatures=None,computeGenSim=None,vectorizeFirstOnly=False,computeSynonyma=None,computeKaggleDistance=None,computeKaggleTopics=None,addNoiseColumns=None,doSeparateTFID=None,doSVDseparate=False,computeSim=None,stop_words=corpus.stopwords.words('english'),doTFID=False,concat=False,useAll=False,concatTitleDesc=False,doKmeans=False):
     np.random.seed(seed)
     
     Xtest,Xtrain,ytrain,idx,sample_weight = loadData(nsamples=nsamples)
@@ -104,6 +105,7 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=N
 	ablist.append((['ny','n.y.'],'new york'))
 	ablist.append((['tb','tera byte'],'gigabyte'))
 	ablist.append((['gb','giga byte'],'gigabyte'))
+	ablist.append((['t.v.','tv'],'television'))
 	ablist.append((['mb','mega byte'],'megabyte'))
     
     if computeSynonyma is not None:
@@ -120,15 +122,16 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=N
     if doBenchMark:
 	Xall = useBenchmarkMethod_mod(Xall)
     
+    print "computeFeatures:",computeFeatures
     Xfeat = None
-    if computeFeatures is not None and computeFeatures is not False:
+    if computeFeatures is not None:
         Xfeat = additionalFeatures(Xall,verbose=False)
         print Xfeat.describe()
 
 
     Xkdist = None
     if computeKaggleDistance is not None:
-	Xkdist = createKaggleDist(Xall,verbose=False)
+	Xkdist = createKaggleDist(Xall,general_topics=computeKaggleTopics,verbose=False)
     
     Xgensim = None
     if computeGenSim is not None:
@@ -138,7 +141,7 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=N
 
     Xsim = None
     if computeSim is not None:
-	Xsim = computeSimilarityFeatures(Xall)
+	Xsim = computeSimilarityFeatures(Xall,columns=['query','product_title'],verbose=False,useOnlyTrain=useOnlyTrain,startidx=len(Xtest.index))
 	print Xsim.describe()
     
     if doSeparateTFID is False or doSeparateTFID is not None:
@@ -167,7 +170,11 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=N
 	    if i>0:
 		if not vectorizeFirstOnly:
 		    print "Vecorizing col:",col
-		    vectorizer.fit(Xall[col])#should reduce overfitting?
+		    if useOnlyTrain:
+			print "Using only training data for TFIDF."
+			vectorizer.fit(Xtrain[col])
+		    else:
+			vectorizer.fit(Xall[col])#should reduce overfitting-> padded with fake data!!
 		else:
 		    print "Only transform for col:",col
 		Xs_all_new = vectorizer.transform(Xall[col])		
@@ -181,7 +188,11 @@ def prepareDataset(seed=123,nsamples=-1,preprocess=False,vectorizer=None,doSVD=N
 		
 	    else:
 		#we fit first column on all data!!!
-		vectorizer.fit(Xall[col])#should reduce overfitting?
+		if useOnlyTrain:
+		  print "Using only training data for TFIDF."
+		  vectorizer.fit(Xtrain[col])
+		else:
+		  vectorizer.fit(Xall[col])#should reduce overfitting?
 		Xs_all = vectorizer.transform(Xall[col])
 		print "Shape Xs_all after vectorization:",Xs_all.shape
 		
@@ -375,15 +386,15 @@ if __name__=="__main__":
     #introduce penalty in classification loss func due to class distance ...? jaccard distance
     #http://stackoverflow.com/questions/17388213/python-string-similarity-with-probability
     #http://avrilomics.blogspot.de/2014/01/calculating-similarity-measure-for-two.html
-    #use sample weights...remove high variance queries
+    #use sample weights...remove high variance queries ->NO
     #use t-sne instead of SVD
     #from nltk.corpus import wordnet as wn
-    #compute maximum cosine similarity
-    #use vocabulary from description to transform query...
+    #compute maximum cosine similarity _>OK
+    #use vocabulary from description to transform query...->OK
     #cv: https://www.kaggle.com/c/crowdflower-search-relevance/forums/t/14350/cross-validation-and-leaderboard-score
-    #separate SVD for both cases...
-    #onehotencoding with countvectorizers
-    #number of words found in title
+    #separate SVD for both cases...->OK
+    
+    #number of words found in title->OK
     #do they have the same ordeR?
     #either unsupervised manipulation to whole dataset to avoid overfitting or incldue manipulation into cv
     #https://www.kaggle.com/c/crowdflower-search-relevance/forums/t/14502/word2vec-doc2vec
@@ -392,9 +403,9 @@ if __name__=="__main__":
     #cross-validation: https://www.kaggle.com/c/crowdflower-search-relevance/forums/t/14350/cross-validation-and-leaderboard-score
     #for ensemble do like 3fold 5 repeats-> average predictions from each model trained
     #write wrapper for special regression that is binned into 4 categories...
-    #use bagging classifier
+    
     #sample weights
-    #char ngrams
+    
     #clean data remove special characters ( - + ) "
     #https://www.kaggle.com/triskelion/crowdflower-search-relevance/normalized-kaggle-distance
     #LDA visualisation: https://www.kaggle.com/solution/crowdflower-search-relevance/lda-visualization
@@ -403,6 +414,15 @@ if __name__=="__main__":
     # tune min_samples_leaf for RF
     # using regression for ensembling...
     #OK we do not use test set for training....???
+    #test map with xgboost
+    #remove models trained with test data
+    #STOPWORDS = nltk.corpus.stopwords.words('english')
+    #char ngrams
+    #use bagging classifier
+    #write wrapper for special regression that is binned into 4 categories...
+    #abbreviations...
+    #onehotencoding with countvectorizers
+    #real majority voting!!!!
    
     t0 = time()
     
@@ -413,36 +433,37 @@ if __name__=="__main__":
     seed = 123
     nsamples=-1#'shuffle'
     preprocess=False
+    useOnlyTrain=True
     concatTitleDesc=None#title+desription### quite bad...
     doBenchMark=False
     computeFeatures=True
     computeGenSim=None
     computeSim=True
     computeSynonyma=None##
-    computeKaggleDistance=None#True##
+    computeKaggleDistance=True#True##
+    computeKaggleTopics=["notebook","computer","movie","clothes","media","shoe","kitchen","car","bike","toy","phone","food","sport"]
     addNoiseColumns=None
     vectorizeFirstOnly=False#True seems a bit better...?
     doSeparateTFID=['product_title','query']#['query','product_title','product_description']#
-    doSVDseparate=10
+    doSVDseparate=200
     doTFID=False
     doSVD=False
     
-    standardize=False
+    standardize=True
     useAll=False#supervised vs. unsupervised
     concat=False#query+title
       
     doKmeans=False
     
-    garbage=["<.*?>", "http", "www","img","border","style","px","margin","left", "right","font","solid","This translation tool is for your convenience only.*?Note: The accuracy and accessibility of the resulting translation is not guaranteed"]
-    garbage2=['http','www','img','border','0','1','2','3','4','5','6','7','8','9','a','the']
-    stop_words = text.ENGLISH_STOP_WORDS.union(garbage).union(garbage2)
+    #garbage=["<.*?>", "http", "www","img","border","style","px","margin","left", "right","font","solid","This translation tool is for your convenience only.*?Note: The accuracy and accessibility of the resulting translation is not guaranteed"]
+    #garbage2=['http','www','img','border','0','1','2','3','4','5','6','7','8','9','a','the']
+    #stop_words = text.ENGLISH_STOP_WORDS.union(garbage).union(garbage2)
+    stop_words = corpus.stopwords.words('english')
     
-    Xtrain, ytrain, Xtest,idx, sample_weight  = prepareDataset(seed=seed,nsamples=nsamples,preprocess=preprocess,doBenchMark=doBenchMark,computeFeatures=computeFeatures,computeGenSim=computeGenSim,computeSynonyma=computeSynonyma,computeKaggleDistance=computeKaggleDistance,addNoiseColumns=addNoiseColumns,concat=concat,doTFID=doTFID,doSeparateTFID=doSeparateTFID,vectorizeFirstOnly=vectorizeFirstOnly,stop_words=stop_words,computeSim=computeSim,doSVD=doSVD,doSVDseparate=doSVDseparate,standardize=standardize,useAll=useAll,concatTitleDesc=concatTitleDesc,doKmeans=doKmeans)
+    Xtrain, ytrain, Xtest,idx, sample_weight  = prepareDataset(seed=seed,nsamples=nsamples,preprocess=preprocess,useOnlyTrain=useOnlyTrain,doBenchMark=doBenchMark,computeFeatures=computeFeatures,computeGenSim=computeGenSim,computeSynonyma=computeSynonyma,computeKaggleDistance=computeKaggleDistance,computeKaggleTopics=computeKaggleTopics,addNoiseColumns=addNoiseColumns,concat=concat,doTFID=doTFID,doSeparateTFID=doSeparateTFID,vectorizeFirstOnly=vectorizeFirstOnly,stop_words=stop_words,computeSim=computeSim,doSVD=doSVD,doSVDseparate=doSVDseparate,standardize=standardize,useAll=useAll,concatTitleDesc=concatTitleDesc,doKmeans=doKmeans)
+    sample_weight=None
     Xtrain.to_csv('./data/Xtrain.csv',index=False)
     pd.DataFrame(ytrain,columns=['class']).to_csv('./data/ytrain.csv',index=False)
-    
-    #sample_weight=None
-    
     #model = Pipeline([('v',TfidfVectorizer(min_df=5, max_df=500, max_features=None, strip_accents='unicode', analyzer='word', token_pattern=r'\w{1,}', ngram_range=(1, 2), use_idf=True, smooth_idf=True, sublinear_tf=True, stop_words = 'english')), ('svd', TruncatedSVD(n_components=200, algorithm='randomized', n_iter=5, random_state=None, tol=0.0)), ('scl', StandardScaler(copy=True, with_mean=True, with_std=True)), ('svm', SVC(C=10.0, kernel='rbf', degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=False, tol=0.001, cache_size=200, class_weight=None, verbose=False, max_iter=-1, random_state=None))])
     
     #model = Pipeline([('reducer', TruncatedSVD(n_components=400)), ('scaler', StandardScaler()), ('model', model)])
@@ -451,11 +472,13 @@ if __name__=="__main__":
     #model = Pipeline([('scaler', StandardScaler()), ('model', LinearSVC(C=0.01))])
     #model = Pipeline([('reducer', MiniBatchKMeans(n_clusters=400,batch_size=400,n_init=3)), ('scaler', StandardScaler()), ('SVC', model)])
     #model = Pipeline([('feature_selection', LinearSVC(penalty="l1", dual=False, tol=1e-3)),('classification', LinearSVC())])
+    model = LinearSVC(C=0.01)
     
     
     #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features=100)#0.627
-    model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features='auto')
-    #model =  ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1,criterion='gini', max_features=100) #0.632
+    #model =  RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=2,criterion='gini', max_features='auto')
+    #model =  ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=3,n_jobs=2,criterion='gini', max_features=150) #0.649
+    #model = XgboostClassifier(n_estimators=500,learning_rate=0.2,max_depth=6,subsample=.5,n_jobs=1,objective='multi:softmax',eval_metric='error',booster='gbtree',silent=1)
     #model.fit(Xtrain,ytrain)
     #rfFeatureImportance(model,Xtrain,Xtest,1)
     
@@ -490,13 +513,13 @@ if __name__=="__main__":
     #parameters = {'reducer__n_clusters': [1000,1200,1500]}
     #parameters = {'SVC__C': [8,16,32],'SVC__gamma':[0.001,0.003,0.0008]}
     #parameters = {'C': [8,16,32],'gamma':[0.001,0.003,0.0008,'auto']}
-    #parameters = {'C': [0.1,0.01,0.025,0.05]}
+    parameters = {'C': [0.5,0.1,0.05,0.01]}
     #parameters = {'alpha': [0.005,0.001,0.0025],'n_iter':[200],'penalty':['l2'],'loss':['log','perceptron']}
-    #parameters = {'n_estimators':[200],'max_depth':[4],'learning_rate':[0.1,0.08],'subsample':[0.5,1.0]}
-    parameters = {'n_estimators':[250],'max_features':[100],'criterion':['gini'],'min_samples_leaf':[5,10]}
+    #parameters = {'n_estimators':[500],'max_depth':[6],'learning_rate':[0.1,0.2,0.3],'subsample':[0.5]}
+    #parameters = {'n_estimators':[250,500],'max_features':[100,150],'criterion':['gini'],'min_samples_leaf':[1,3]}
     #parameters = {'alpha':[0.001]}
-    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=2,refit=True,cv=cv,scoring=scoring_func,parameters=parameters,random_iter=-1)
-    #model = buildModel(model,Xtrain,ytrain,cv=cv,scoring=scoring_func,n_jobs=2,trainFull=False,verbose=True)
-    model = buildClassificationModel(model,Xtrain,ytrain,sample_weight=sample_weight,class_names=['1','2','3','4'],trainFull=False,cv=cv)
-    #makePredictions(model,Xtest,idx=idx,filename='submissions/sub25062015a.csv')
+    model = makeGridSearch(model,Xtrain,ytrain,n_jobs=2,refit=True,cv=cv,scoring=scoring_func,parameters=parameters,random_iter=-1)
+    #model = buildModel(model,Xtrain,ytrain,cv=cv,scoring=scoring_func,n_jobs=2,trainFull=True,verbose=True)
+    #model = buildClassificationModel(model,Xtrain,ytrain,sample_weight=sample_weight,class_names=['1','2','3','4'],trainFull=False,cv=cv)
+    #makePredictions(model,Xtest,idx=idx,filename='submissions/sub30062015d.csv')
     print("Model building done in %fs" % (time() - t0))

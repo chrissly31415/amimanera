@@ -26,10 +26,17 @@ import pickle
 #http://stackoverflow.com/questions/16597265/appending-to-an-empty-data-frame-in-pandas
 
  
-def computeSimilarityFeatures(Xall,columns=['query','product_title'],verbose=False):
+def computeSimilarityFeatures(Xall,columns=['query','product_title'],verbose=False,useOnlyTrain=False,startidx=0):
     print "Compute scipy similarity..."
     vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = None,token_pattern=r'\w{1,}')
-    Xs1 = vectorizer.fit_transform(Xall[columns[0]])
+    if useOnlyTrain:
+      print "Using train only for TFIDF..."
+      Xtrain = Xall[startidx:]
+      Xs1 = vectorizer.fit(Xtrain[columns[0]])
+    else:
+      Xs1 = vectorizer.fit(Xall[columns[0]])
+    
+    Xs1 = vectorizer.transform(Xall[columns[0]])
     Xs2 = vectorizer.transform(Xall[columns[1]])
     #print "Xs1",Xs1.shape
     #print "Xs2",Xs2.shape
@@ -228,45 +235,62 @@ def genSimFeatures(Xall,verbose=True):
     
     raw_input()
     
-def createKaggleDist(Xall,verbose=True):
+def createKaggleDist(Xall,general_topics=["notebook","computer","movie","clothes","media","shoe","kitchen","car","bike","toy","phone","food","sport"], verbose=True):
     print "Kaggle distance..."
     #dic = index_corpus()
     #with open("dic2.pkl", "w") as f: pickle.dump(dic, f) #dic2 encoded without median relevance
-    with open("dic2.pkl", "r") as f: dic = pickle.load(f)
+    #with open("dic3.pkl", "w") as f: pickle.dump(dic, f) #only train dic2 encoded without median relevance
+    with open("dic3.pkl", "r") as f: dic = pickle.load(f)
     #print "nkd:",nkd('apple','iphone',d)
     #print "nkd:",nkd('apple','peach',d)    
+    # = ["notebook","computer","movie","clothes","media","shoe","kitchen","car","bike","toy","phone","food","sport"]
     stemmer = PorterStemmer()
-    Xall_new = np.zeros((Xall.shape[0],1))
+    
+    if general_topics is None:
+      n = 1
+    else:
+      n = len(general_topics)+1
+    
+    Xall_new = np.zeros((Xall.shape[0],n))
     for i in range(Xall.shape[0]):
 	query = Xall["query"].iloc[i].lower()
 	title = Xall["product_title"].iloc[i].lower()
 	title=re.sub("[^a-zA-Z0-9]"," ", title)
 	nquery = len(query.split())
-	
-	#topics = ["notebook","computer","movies","clothes","media","shoes","kitchen","car","bike","toys","phone","food"]
+		
 	topics = title.split()
-	#desc = Xall["product_description"].iloc[i].lower()
+
+	#print "query:",query
+	#print "title:",title
 	dist_total = 0.0
 	for qword in query.split():	      
+	      #print "qword:",qword
 	      if not qword in topics:
 		bestvalue=2.0
 		for tword in topics:
-		    print "qword:",qword
-		    print "tword:",tword
+		    #print "qword:",qword
+		    #print "tword:",tword
 		    dist = nkd(qword,tword,dic)
-		    print "nkd:",dist
+		    #print "nkd:",dist
 		    if dist<bestvalue:
 		      bestvalue=dist
 		dist_total += bestvalue
-	      print "nkd-best:",dist_total
-	      print "nkd_total",dist_total
+	      #print "nkd-best:",dist_total
+	      #print "nkd_total",dist_total
+	      if general_topics is not None:
+		for j,topic in enumerate(general_topics):
+		  dist = nkd(qword,topic,dic)
+		  Xall_new[i,1+j] = Xall_new[i,1+j] + dist/float(nquery)
+		  #print "qword:%s topic:%s nkd:%4.2f nkd-avg: %4.2f"%(qword,topic,dist,Xall_new[i,1+j])
+		#raw_input()
 	      
 	Xall_new[i,0] = dist_total / float(nquery)	
        
-    Xall_new = pd.DataFrame(Xall_new,columns=['avg_nkd'])
+    if general_topics is None:
+      Xall_new = pd.DataFrame(Xall_new,columns=['avg_nkd'])
+    else:
+      Xall_new = pd.DataFrame(Xall_new,columns=['avg_nkd']+general_topics)
     print Xall_new.describe()
-    #topics = ["Laptop","Children","Movies"]
-    
     #print topic_modeling(dic,topics)
     #raw_input()
     
@@ -274,7 +298,8 @@ def createKaggleDist(Xall,verbose=True):
     return Xall_new
     
   
-def useBenchmarkMethod_mod(X,verbose=False):  
+def useBenchmarkMethod_mod(X,verbose=False):
+     print "Using btb..."
      X = X.apply(lambda x:'q%s z%s' % (x['query'],x['product_title']),axis=1)
      return X
      
