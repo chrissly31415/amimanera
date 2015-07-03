@@ -4,43 +4,392 @@
 """
 
 from qsprLib import *
+from nltk.stem.porter import PorterStemmer
+from bs4 import BeautifulSoup
+import re
+import difflib
+from scipy.spatial.distance import cdist
+
+import itertools
+import math
+
+import gensim
+from nltk.corpus import wordnet as wn
+from nltk.corpus import brown
+from nltk import Text
+
+from kaggle_distance import *
+import pickle
 
 #TODO: right after tfidf, input 2 sparse matrics: def computeSimilarityFeatures(Xs_all,Xs_all_new)
 #and for dense def computeSimilarityFeatures(Xall,Xall_new,nsplit)
 #http://stackoverflow.com/questions/16597265/appending-to-an-empty-data-frame-in-pandas
 
-def computeSimilarityFeatures(vectorizer=None,nsamples=-1,stop_words=None):
+ 
+def computeSimilarityFeatures(Xall,columns=['query','product_title'],verbose=False,useOnlyTrain=False,startidx=0):
+    print "Compute scipy similarity..."
+    vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = None,token_pattern=r'\w{1,}')
+    if useOnlyTrain:
+      print "Using train only for TFIDF..."
+      Xtrain = Xall[startidx:]
+      Xs1 = vectorizer.fit(Xtrain[columns[0]])
+    else:
+      Xs1 = vectorizer.fit(Xall[columns[0]])
     
-    Xtest,Xtrain,ytrain,idx = loadData(nsamples=nsamples)
-    Xall = pd.concat([Xtest, Xtrain])
-    
-    if vectorizer is None: vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 2), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}',norm='l2')
-    #TODO: right after tfidf, input 2 sparse matrics: def computeSimilarityFeatures(Xs_all,Xs_all_new)
-    
-    Xs_all_new = vectorizer.transform(Xall[col])
-  
-    train_sim = np.diag(Xs_train.dot(Xs_train_new.T).todense())
-    test_sim = np.diag(Xs_test.dot(Xs_test_new.T).todense())
-    
-    norm1 = np.linalg.norm(Xs_train.todense(),axis=1)	
-    norm2 = np.linalg.norm(Xs_train_new.todense(),axis=1)
-    
-    train_sim = np.divide(train_sim,norm1)
-    train_sim = np.nan_to_num(np.divide(train_sim,norm2))
-    
-    norm1 = np.linalg.norm(Xs_test.todense(),axis=1)	
-    norm2 = np.linalg.norm(Xs_test_new.todense(),axis=1)
-    
-    test_sim = np.divide(test_sim,norm1)
-    test_sim = np.nan_to_num(np.divide(test_sim,norm2))
-    
-    train_sim = train_sim.reshape((train_sim.shape[0],1))
-    test_sim = test_sim.reshape((test_sim.shape[0],1))
-    
-    similarity = np.vstack((test_sim,train_sim))
-    
-    print similarity.shape
-    print similarity
+    Xs1 = vectorizer.transform(Xall[columns[0]])
+    Xs2 = vectorizer.transform(Xall[columns[1]])
+    #print "Xs1",Xs1.shape
+    #print "Xs2",Xs2.shape
+    #print Xall['query'].iloc[:5]
+    #print Xall['product_title'].iloc[:5]
+    sim = computeScipySimilarity(Xs1,Xs2)
+    return sim
 
+def computeScipySimilarity(Xs1,Xs2):
+    Xs1 = Xs1.todense()
+    Xs2 = Xs2.todense()
+    Xall_new = np.zeros((Xs1.shape[0],4))
+    for i,(a,b) in enumerate(zip(Xs1,Xs2)):
+	dist = cdist(a,b,'cosine')
+	Xall_new[i,0] = dist	
+	dist = cdist(a,b,'euclidean')
+	Xall_new[i,1] = dist
+	dist = cdist(a,b,'hamming')
+	Xall_new[i,2] = dist
+	#dist = cdist(a,b,'minkowski')
+	#Xall_new[i,3] = dist
+	dist = cdist(a,b,'cityblock')
+	Xall_new[i,3] = dist
+	#dist = cdist(a,b,'correlation')
+	#Xall_new[i,5] = dist
+	#dist = cdist(a,b,'jaccard')
+	#Xall_new[i,6] = dist
+	
+    Xall_new = pd.DataFrame(Xall_new,columns=['cosine','euclidean','hammming','cityblock'])
+    print "NA:",Xall_new.isnull().values.sum()
+    Xall_new = Xall_new.fillna(0.0)
+    print "NA:",Xall_new.isnull().values.sum()
+    print Xall_new.corr(method='spearman')
+    return Xall_new
+
+
+def getSynonyms(word,stemmer):
+    #synonyms=[word]
+    try:
+      synonyms = [l.lemma_names() for l in wn.synsets(word)]
+    except:
+      pass 
+    synonyms.append([word])
+    synonyms = list(itertools.chain(*synonyms))
+    synonyms = [stemmer.stem(l.lower()) for l in synonyms]
+    synonyms = set(synonyms)
+    return(synonyms)
+
+def makeQuerySynonyms(Xall):
+    print "Creating synonyma for query..."
+    stemmer = PorterStemmer()
+    for i in range(Xall.shape[0]):
+	query = Xall["query"].iloc[i].lower()
+	qsynonyms = []
+	for word in query.split():
+	    #print "word:",word
+	    qsynonyms.extend(getSynonyms(word,stemmer))
+	    
+	qsynonyms = (" ").join(z.replace("_"," ") for z in qsynonyms)
+	#print qsynonyms
+	Xall["query"].iloc[i]=qsynonyms
+	#raw_input()
+	if i%5000==0:
+	  print "i:",i
+    return Xall
+
+
+def information_entropy(text):
+    log2=lambda x:math.log(x)/math.log(2)
+    exr={}
+    infoc=0
+    for each in text:
+        try:
+            exr[each]+=1
+        except:
+            exr[each]=1
+    textlen=len(text)
+    for k,v in exr.items():
+        freq  =  1.0*v/textlen
+        infoc+=freq*log2(freq)
+    infoc*=-1
+    return infoc
+
+#query id via label_encoder
+#max similarity with difflib
+#use kaggle distance??
+#closed distance 
+#
+#text.similar('woman')
+def additionalFeatures(Xall,verbose=False,dropList=['bestmatch']):
+    #dropList=['bestmatch','S_title','S_query','checksynonyma']
+    print "Computing additional features..."
+    text = Text(word.lower() for word in brown.words())
+    stemmer = PorterStemmer()
+    Xall_new = np.zeros((Xall.shape[0],13))
+    for i in range(Xall.shape[0]):
+	query = Xall["query"].iloc[i].lower()
+	title = Xall["product_title"].iloc[i].lower()
+	desc = Xall["product_description"].iloc[i].lower()
+	
+	#here we should get similars...
+	similar_words = [getSynonyms(q,stemmer) for q in query.split()]
+	similar_words = set(itertools.chain(*similar_words))
+	
+	query=re.sub("[^a-zA-Z0-9]"," ", query)
+	query= (" ").join([stemmer.stem(z) for z in query.split()])
+        
+        title=re.sub("[^a-zA-Z0-9]"," ", title)
+        title= (" ").join([stemmer.stem(z) for z in title.split()])
+        
+        desc=re.sub("[^a-zA-Z0-9]"," ", desc)
+        desc= (" ").join([stemmer.stem(z) for z in desc.split()])
+        
+        nquery = len(query.split())
+	ntitle = len(title.split())
+	ndesc = len(desc.split())
+	
+	Xall_new[i,0] = nquery
+	Xall_new[i,1] = ntitle
+	Xall_new[i,2] = nquery / float(ntitle)
+	Xall_new[i,3] = ndesc+1
+	Xall_new[i,4] = nquery / float(ndesc+1)
+	
+	s = difflib.SequenceMatcher(None,a=query,b=title).ratio()
+	
+	Xall_new[i,5] = s
+
+	nmatches = 0
+	avgsim = 0.0
+	lastsim = 0.0
+	firstsim = 0.0
+	checksynonyma = 0.0
+	
+	for qword in query.split():
+	    if qword in title:
+		nmatches+=1
+		avgsim = avgsim + 1.0
+		if qword == query.split()[-1]:
+		  lastsim+=1
+		if qword == query.split()[0]:
+		  firstsim+=1
+		
+	    else:
+	      bestvalue=0.0
+	      for tword in title.split():
+		s = difflib.SequenceMatcher(None,a=qword,b=tword).ratio()
+		if s>bestvalue:
+		    bestvalue=s
+	      avgsim = avgsim + bestvalue
+	      if qword == query.split()[-1]:
+		  lastsim = lastsim + bestvalue
+	      if qword == query.split()[0]:
+		  firstsim = firstsim + bestvalue
+	
+	    #check similar
+	    #print "qword:",qword
+	    
+	    #if similar_words is not None:
+	      for simword in similar_words:
+		  if simword in title:
+		      checksynonyma+=1		  
+		
+	Xall_new[i,6] = nmatches / float(nquery)	
+	Xall_new[i,7] = avgsim / float(nquery)	
+	Xall_new[i,8] = information_entropy(query)
+	Xall_new[i,9] = information_entropy(title)
+	Xall_new[i,10] = lastsim
+	Xall_new[i,11] = firstsim
+	Xall_new[i,12] = checksynonyma / float(nquery)
+	
+	if i%5000==0:
+	  print "i:",i
+	
+	if verbose:
+	  print query
+	  print nquery
+	  print title
+	  print ntitle
+	  print "ratio:",Xall_new[i,2]
+	  print "difflib ratio:",s
+	  print "matches:",nmatches
+	  raw_input()
+	
+    Xall_new = pd.DataFrame(Xall_new,columns=['query_length','title_length','query_title_ratio','desc_length','query_desc_ratio','difflibratio','bestmatch','averagematch','S_query','S_title','last_sim','first_sim','checksynonyma',]) 
+    Xall_new = Xall_new.drop(dropList, axis=1)
+    print Xall_new.corr(method='spearman')
+    return Xall_new	
+
+def cleanse_data(Xall):
+    print "Cleansing the data..."
+    with open("query_map.pkl", "r") as f: query_map = pickle.load(f)#key query value corrected value
   
-    return d.DataFrame(similarity,columns=['cosine_sim'])
+    ablist=[]
+    ablist.append((['ps','p.s.','play station','ps2','ps3','ps4'],'playstation'))
+    ablist.append((['ny','n.y.'],'new york'))
+    ablist.append((['tb','tera byte'],'gigabyte'))
+    ablist.append((['gb','giga byte'],'gigabyte'))
+    ablist.append((['t.v.','tv'],'television'))
+    ablist.append((['mb','mega byte'],'megabyte'))
+    ablist.append((['d.r.','dr'],'doctor'))
+    ablist.append((['phillips'],'philips'))
+    
+    for i in range(Xall.shape[0]):
+	query = Xall["query"].iloc[i].lower()
+	
+	#correct typos
+	if query in query_map.keys():
+	    query = query_map[query]
+	
+	#correct abbreviations query
+	new_query =[]
+	for qword in query.split():
+	  for ab,full in ablist:
+	    if qword in ab:
+	      qword = full
+	  new_query.append(qword)
+	
+	new_query = (" ").join(new_query)
+	Xall["query"].iloc[i] = new_query
+	
+	title = Xall["product_title"].iloc[i].lower()
+	
+	#correct abbreviations title
+	new_title=[]
+	for qword in title.split():
+	  for ab,full in ablist:
+	    if qword in ab:
+	      qword = full
+	  new_title.append(qword)
+	new_title = (" ").join(new_title)
+	Xall["product_title"].iloc[i] = new_title
+    
+    
+	if i%5000==0:
+	      print "i:",i
+    
+    print "Finished"
+    return Xall
+    
+    
+#make top 5 most similar in query and check again...
+def genWord2VecFeatures(Xall,verbose=True):
+    print "Compute gensim features..."
+    #print Xall['query'].tolist()
+    print brown.sents()
+    #b = gensim.models.Word2Vec(brown.sents())
+    #model = gensim.models.Word2Vec.load_word2vec_format('/home/chris/Downloads/GoogleNews-vectors-negative300.bin.gz', binary=True)
+    #print b.most_similar('money', topn=5)
+    #print b.most_similar('playstation', topn=5)
+    
+    raw_input()
+    
+def createKaggleDist(Xall,general_topics=["notebook","computer","movie","clothes","media","shoe","kitchen","car","bike","toy","phone","food","sport"], verbose=True):
+    print "Kaggle distance..."
+    #dic = index_corpus()
+    #with open("dic2.pkl", "w") as f: pickle.dump(dic, f) #dic2 encoded without median relevance
+    #with open("dic3.pkl", "w") as f: pickle.dump(dic, f) #only train dic2 encoded without median relevance
+    with open("dic3.pkl", "r") as f: dic = pickle.load(f)
+    #print "nkd:",nkd('apple','iphone',d)
+    #print "nkd:",nkd('apple','peach',d)    
+    # = ["notebook","computer","movie","clothes","media","shoe","kitchen","car","bike","toy","phone","food","sport"]
+    stemmer = PorterStemmer()
+    
+    if general_topics is None:
+      n = 1
+    else:
+      n = len(general_topics)+1
+    
+    Xall_new = np.zeros((Xall.shape[0],n))
+    for i in range(Xall.shape[0]):
+	query = Xall["query"].iloc[i].lower()
+	title = Xall["product_title"].iloc[i].lower()
+	title=re.sub("[^a-zA-Z0-9]"," ", title)
+	nquery = len(query.split())
+		
+	topics = title.split()
+
+	#print "query:",query
+	#print "title:",title
+	dist_total = 0.0
+	for qword in query.split():	      
+	      #print "qword:",qword
+	      if not qword in topics:
+		bestvalue=2.0
+		for tword in topics:
+		    #print "qword:",qword
+		    #print "tword:",tword
+		    dist = nkd(qword,tword,dic)
+		    #print "nkd:",dist
+		    if dist<bestvalue:
+		      bestvalue=dist
+		dist_total += bestvalue
+	      #print "nkd-best:",dist_total
+	      #print "nkd_total",dist_total
+	      if general_topics is not None:
+		for j,topic in enumerate(general_topics):
+		  dist = nkd(qword,topic,dic)
+		  Xall_new[i,1+j] = Xall_new[i,1+j] + dist/float(nquery)
+		  #print "qword:%s topic:%s nkd:%4.2f nkd-avg: %4.2f"%(qword,topic,dist,Xall_new[i,1+j])
+		#raw_input()
+	      
+	Xall_new[i,0] = dist_total / float(nquery)	
+       
+    if general_topics is None:
+      Xall_new = pd.DataFrame(Xall_new,columns=['avg_nkd'])
+    else:
+      Xall_new = pd.DataFrame(Xall_new,columns=['avg_nkd']+general_topics)
+    print Xall_new.describe()
+    #print topic_modeling(dic,topics)
+    #raw_input()
+    
+    print "finished"
+    return Xall_new
+    
+  
+def useBenchmarkMethod_mod(X,verbose=False):
+     print "Using btb..."
+     X = X.apply(lambda x:'q%s z%s' % (x['query'],x['product_title']),axis=1)
+     return X
+     
+def useBenchmarkMethod(X,returnList=True,verbose=False):
+    print "Create benchmark features..."
+    X = X.fillna("")
+    stemmer = PorterStemmer()
+    s_data=[]
+    for i in range(X.shape[0]):	
+        s=(" ").join(["q"+ z for z in BeautifulSoup(X["query"].iloc[i]).get_text(" ").split(" ")]) + " " + (" ").join(["z"+ z for z in BeautifulSoup(X["product_title"].iloc[i]).get_text(" ").split(" ")]) + " " + BeautifulSoup(X["product_description"].iloc[i]).get_text(" ")      
+        s=re.sub("[^a-zA-Z0-9]"," ", s)
+        s= (" ").join([stemmer.stem(z) for z in s.split(" ")])
+        s_data.append(s)
+        #s_labels.append(str(X["median_relevance"][i]))
+        if verbose:
+	  print "i:",i
+	  print "query:",X["query"].iloc[i]
+	  print "bs:",BeautifulSoup(X["query"].iloc[i]).get_text(" ")
+	  print "title:",X["product_title"].iloc[i]
+	  print "bs:",BeautifulSoup(X["product_title"].iloc[i]).get_text(" ")
+	  print s
+	  raw_input()
+
+    if returnList:
+      X = s_data
+      X = pd.DataFrame(X,columns=['concate_all']) 
+    else:
+      X = np.asarray(s_data)
+      X = X.reshape((X.shape[0],-1))
+      #X = pd.DataFrame(X,columns=['concate_all']) 
+    
+    print "Finished.."
+    print X
+    #print type(X[0])
+    
+    return X
+    
+    
+    

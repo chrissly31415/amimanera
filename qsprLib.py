@@ -287,14 +287,15 @@ def buildModel(clf,lX,ly,cv=None,scoring=None,n_jobs=8,trainFull=True,verbose=Fa
     else:
       return score
 
-def buildClassificationModel(clf_orig,lX,ly,class_names=None,trainFull=False,cv=None):
+def buildClassificationModel(clf_orig,lX,ly,sample_weight=None,class_names=None,trainFull=False,cv=None):
   """   
   Final model building part
   """ 
   print "Training the model..."
   #print class_names
   if isinstance(lX,pd.DataFrame): lX  = lX.values
-  if isinstance(ly,pd.DataFrame): ly  = ly.values
+  if isinstance(ly,pd.DataFrame) or isinstance(ly,pd.Series): ly  = ly.values
+  if isinstance(sample_weight,pd.Series): sample_weight  = sample_weight.values
 
   ypred = np.zeros((len(ly),))
   #yproba = np.zeros((len(ly),len(set(ly))))
@@ -304,16 +305,21 @@ def buildClassificationModel(clf_orig,lX,ly,class_names=None,trainFull=False,cv=
   for i,(train, test) in enumerate(cv):
       clf = clone(clf_orig)
       ytrain, ytest = ly[train], ly[test]
-      clf.fit(lX[train,:], ytrain)
+      sw="nosw"
+      if sample_weight is not None:
+	  sw="sw"
+	  clf.fit(lX[train,:], ytrain,sample_weight=sample_weight[train])
+      else:
+	  clf.fit(lX[train,:], ytrain)
       ypred[test] = clf.predict(lX[test,:])
       kappa[i] = quadratic_weighted_kappa(ly[test], ypred[test])
       acc[i] = accuracy_score(ly[test], ypred[test])
       mae[i] = mean_absolute_error(ly[test], ypred[test])
       #acc = accuracy_score(ly[test], ypred[test])
-      print "train set: %2d samples: %5d/%5d kappa: %4.3f accuracy: %4.3f"%(i,lX[train,:].shape[0],lX[test,:].shape[0],kappa[i],acc[i])
+      print "train set: %2d samples: %5d/%5d kappa: %4.3f accuracy: %4.3f %s"%(i,lX[train,:].shape[0],lX[test,:].shape[0],kappa[i],acc[i],sw)
   
 
-  print classification_report(ly, ypred, target_names=class_names)
+  #print classification_report(ly, ypred, target_names=class_names)
 
   print("MAE         :%6.3f +/-%6.3f"%(mae.mean(),mae.std()))
   print("Accuracy    :%6.3f +/-%6.3f"%(acc.mean(),acc.std()))
@@ -321,7 +327,7 @@ def buildClassificationModel(clf_orig,lX,ly,class_names=None,trainFull=False,cv=
   
   #training on all data
   if trainFull:
-    clf_orig.fit(lX, ly)
+    clf_orig.fit(lX, ly,sample_weight=sample_weight)
   return(clf_orig)
 
 
@@ -421,8 +427,8 @@ def rfFeatureImportance(forest,Xold,Xold_test,n):
     """
     print "Feature importance..."
     if not hasattr(forest,'feature_importances_'): 
-      print "Missing attribute feature_importances_"
-      return
+      print "Missing attribute feature_importances_ ...leaving"
+      #return
     importances = forest.feature_importances_
     std = np.std([tree.feature_importances_ for tree in forest.estimators_],axis=0)#perhas we need it later
     
