@@ -52,6 +52,9 @@ from sklearn.calibration import CalibratedClassifierCV
 
 from xgboost_sklearn import *
 
+
+#####IDEA: Feature inserter
+#https://www.kaggle.com/cannonjunior/crowdflower-search-relevance/geo-benchmarks
     
 def removeCorrelations(X_all,threshhold):
     """
@@ -312,6 +315,7 @@ def buildClassificationModel(clf_orig,lX,ly,sample_weight=None,class_names=None,
       else:
 	  clf.fit(lX[train,:], ytrain)
       ypred[test] = clf.predict(lX[test,:])
+      print ypred[test]
       kappa[i] = quadratic_weighted_kappa(ly[test], ypred[test])
       acc[i] = accuracy_score(ly[test], ypred[test])
       mae[i] = mean_absolute_error(ly[test], ypred[test])
@@ -1189,6 +1193,7 @@ def quadratic_weighted_kappa(y, y_pred):
     max_rating=None
     rater_a = np.array(rater_a, dtype=int)
     rater_b = np.array(rater_b, dtype=int)
+   
     assert(len(rater_a) == len(rater_b))
     if min_rating is None:
         min_rating = min(min(rater_a), min(rater_b))

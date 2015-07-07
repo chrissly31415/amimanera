@@ -587,4 +587,40 @@ max_epochs=100,
         ],
 )
  
- 
+#https://www.kaggle.com/c/otto-group-product-classification-challenge/forums/t/13851/lasagne-with-2-hidden-layers
+nnet_crowd = NeuralNet(layers=[('input', layers.InputLayer),#0.454
+('dropout0', layers.DropoutLayer),
+('hidden1', layers.DenseLayer),
+('dropout1', layers.DropoutLayer),
+('hidden2', layers.DenseLayer),
+('dropout2', layers.DropoutLayer), 
+('output', layers.DenseLayer)],
+
+input_shape=(None, 575),
+dropout0_p=0.25,
+hidden1_num_units=250,
+
+dropout1_p=0.5,
+hidden2_num_units=250,
+
+dropout2_p=0.5,
+
+output_num_units=4,
+output_nonlinearity=nonlinearities.softmax,
+
+#batch_iterator_train=ShuffleBatchIterator(batch_size = 32),
+
+#update=nesterov_momentum,
+update=adagrad,
+update_learning_rate=theano.shared(float32(0.02)),
+#update_momentum=0.9, only used with nesterov_
+eval_size=0.0,
+verbose=1,
+max_epochs=50,
+
+ on_epoch_finished=[
+        AdjustVariable('update_learning_rate', start=0.02, stop=0.01),
+        #EarlyStopping(patience=20),
+        ],
+)
+

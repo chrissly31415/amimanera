@@ -40,9 +40,9 @@ def index_corpus():
 		s = clean("%s %s"%(row["product_description"],row["product_title"]))
 		d = index_document(s,d)
 	#for e, row in enumerate( csv.DictReader(open("./data/test.csv",'r', newline='', encoding='utf8'))):
-	#for e, row in enumerate( csv.DictReader(open("./data/test.csv",'r'))):
-	#	s = clean("%s %s"%(row["product_description"],row["product_title"]))
-	#	d = index_document(s,d)
+	for e, row in enumerate( csv.DictReader(open("./data/test.csv",'r'))):
+		s = clean("%s %s"%(row["product_description"],row["product_title"]))
+		d = index_document(s,d)
 	return d	
 	
 def nkd(token1, token2, d):

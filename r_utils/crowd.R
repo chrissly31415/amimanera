@@ -1,26 +1,34 @@
 #!/usr/bin/Rscript
+
 ###GENERAL SETTINGS###
-# Exploring the Crowdflower Data
-library(readr)
+set.seed(1234)
 
-train <- read_csv("../data/train.csv")
-test  <- read_csv("../data/test.csv")
+library(randomForest)
 
-cat(names(train),"\n\n")
-
-cat(unique(train$query)[1:10],"\n\n")
-
-cat(length(setdiff(unique(train$query), unique(test$query))),"\n\n")
-cat(unique(train$product_title)[1:10],"\n\n")
-
-cat("The number of product titles that are only in the train set or only in the test set\n")
-cat(length(setdiff(unique(train$product_title), unique(test$product_title))),"\n")
-
-cat("The number of product titles that are in both the train and test sets\n")
-cat(length(intersect(unique(train$product_title), unique(test$product_title))),"\n")
+if (.Platform$OS.type=='unix') {
+  setwd(".")
+  source("./qspr.R")
+} else {
+  setwd("D:/COSMOquick/mp_model")
+  source("D:/data_mining/qspr.R")
+}
 
 
-# We'll use the library ggvis for data visualization
-library(ggvis)
-# And the library tm to help with text processing
-library(tm)
+Xtrain <- read.csv(file="../data/Xtrain.csv")
+ytrain <- read.csv(file="../data/ytrain.csv")
+
+ytrain<-as.factor(ytrain$class)
+oinfo(ytrain)
+
+print(summary(Xtrain))
+print(summary(ytrain))
+oinfo(ytrain)
+
+#Xtrain<-boruta_select(Xtrain,ytrain)
+
+rf1 <- randomForest(Xtrain,ytrain,ntree=500,importance = T)
+imp<-importance(rf1, type=1)
+print(imp)
+varImpPlot(rf1,n.var=50,type=1,main="")
+print(rf1)
+

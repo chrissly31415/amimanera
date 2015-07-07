@@ -45,27 +45,27 @@ def autocorrect_query(query,train=None,test=None,cutoff=0.8,warning_on=True):
 	for r in test_data:
 		s = "%s %s %s"%(s,BeautifulSoup(r[2]).get_text(" ",strip=True),BeautifulSoup(r[3]).get_text(" ",strip=True))
 	s = re.findall(r'[\'\"\w]+',s.lower())
-	print s
+	#print s
 	s_bigram = [' '.join(i) for i in bigrams(s)]
-	print s_bigram
-	raw_input()
+	#print s_bigram
+	#raw_input()
 	s.extend(s_bigram)
 	corrected_query = []	
 	for q in query.lower().split():
-		print "q:",q
+		#print "q:",q
 		if len(q)<=2:
 			corrected_query.append(q)
 			continue
 		corrected_word = difflib.get_close_matches(q, s,n=1,cutoff=cutoff)
-		print "correction:",corrected_word
+		#print "correction:",corrected_word
 		if len(corrected_word) >0:
 			corrected_query.append(corrected_word[0])
 		else :
 			if warning_on:
 				print ("WARNING: cannot find matched word for '%s' -> used the original word"%(q))
 			corrected_query.append(q)
-		print "corrected_query:",corrected_query
-		raw_input()
+		#print "corrected_query:",corrected_query
+		#raw_input()
 	return ' '.join(corrected_query)
 
 

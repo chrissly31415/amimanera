@@ -8,7 +8,7 @@ require(doSNOW)
 
 if (.Platform$OS.type=='unix') {
     cat("We are on linux.\n")
-    rootdir<-"/home/chris/calc/amimanera/r_utils"
+    rootdir<-"/home/loschen/calc/amimanera/r_utils"
     source(paste(rootdir,"/boruta_select.R",sep=""))
     source(paste(rootdir,"/xvalidation.R",sep=""))
     source(paste(rootdir,"/gaFeatureSelection.R",sep=""))

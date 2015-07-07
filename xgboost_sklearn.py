@@ -14,6 +14,8 @@ from sklearn import preprocessing
 
 import qsprLib
 
+
+
 class XgboostClassifier(BaseEstimator):
     """
     xgboost<-->sklearn interface
@@ -82,7 +84,11 @@ class XgboostClassifier(BaseEstimator):
         #set up parameters
 	param = {}	 
 	param['objective'] = self.objective #'binary:logitraw', 'binary:logistic', 'multi:softprob'
-	param['eval_metric'] = self.eval_metric #'auc','mlogloss'	
+	param['eval_metric'] = self.eval_metric #'auc','mlogloss'
+	feval = None
+	if 'quadratic_weighted_kappa' in self.eval_metric:
+	  feval = evalerror
+	  param['eval_metric'] = 'error'
 	param['booster']=self.booster #gblinear
 	param['subsample']=self.subsample
 	param['min_child_weight']=self.min_child_weight
@@ -101,11 +107,11 @@ class XgboostClassifier(BaseEstimator):
 	#watchlist = [ (dtrain,'train') ]
 	if self.eval_size>0.0:
 	    watchlist  = [(dtrain,'train'),(deval,'eval')]
-	    self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators, evals=watchlist, early_stopping_rounds=None)
+	    self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators, evals=watchlist, early_stopping_rounds=None,obj=None, feval=evalerror)
 	else:
 	    watchlist  = [(dtrain,'train')]
 	    #self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators,evals=watchlist)
-	    self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators)
+	    self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators,feval=evalerror)
 
     def predict(self, lX):
 	ly = self.predict_proba(lX)
@@ -131,7 +137,39 @@ class XgboostRegressor(XgboostClassifier):
 	super(XgboostClassifier, self).__init__()
 	self.isRegressor=True
 
-    
+
+
+## softmax
+def softmax(score):
+    print score
+    print type(score)
+    score = np.asarray(score, dtype=float)
+    print score.shape
+    score = np.exp(score-np.max(score))
+    score /= np.sum(score, axis=1)[:,np.newaxis]
+    return score
+  
+# evalerror is your customized evaluation function to 
+# 1) decode the class probability 
+# 2) compute quadratic weighted kappa
+def evalerror(preds, dtrain):
+    ## label are in [0,1,2,3] as required by XGBoost for multi-classification
+    labels = dtrain.get_label() + 1
+    pred_labels = preds + 1
+    kappa = qsprLib.quadratic_weighted_kappa(labels, pred_labels)
+    return 'kappa', kappa
+
+#user define objective function, given prediction, return gradient and second order gradient
+# this is loglikelihood loss
+def logregobj(preds, dtrain):
+    labels = dtrain.get_label()
+    preds = 1.0 / (1.0 + np.exp(-preds))
+    grad = preds - labels
+    hess = preds * (1.0-preds)
+    return grad, hess
+
+ 
+  
         
 if __name__=="__main__":
     """
