@@ -29,41 +29,41 @@ from sklearn import preprocessing
 def createModels():
     ensemble=[]
    
-    #RF1 0.25
-    Xtest,Xtrain,ytrain,idx,ta = prepareDataset(seed=123,nsamples='shuffle',log1p=True,useRdata=False,createFeatures=True,standardize=True,oneHotenc=['material_id'])
-    model = RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1, max_features=20)
-    xmodel = XModel("rf1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,cv_labels=ta)
-    ensemble.append(xmodel)
+    #RF1 0.248
+    #Xtest,Xtrain,ytrain,idx,ta = prepareDataset(seed=123,nsamples='shuffle',log1p=True,useRdata=False,createFeatures=True,standardize=True,oneHotenc=['material_id'])
+    #model = RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1, max_features=20)
+    #xmodel = XModel("rf1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,cv_labels=ta)
+    #ensemble.append(xmodel)
     
     #XRF1 
-    Xtest,Xtrain,ytrain,idx,ta = prepareDataset(seed=123,nsamples='shuffle',log1p=True,useRdata=False,createFeatures=True,standardize=True,oneHotenc=['material_id'])
-    model = ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1, max_features=20)
-    xmodel = XModel("xrf1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,cv_labels=ta)
-    ensemble.append(xmodel)
+    #Xtest,Xtrain,ytrain,idx,ta = prepareDataset(seed=123,nsamples='shuffle',log1p=True,useRdata=False,createFeatures=True,standardize=True,oneHotenc=['material_id'])
+    #model = ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1, max_features=20)
+    #xmodel = XModel("xrf1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,cv_labels=ta)
+    #ensemble.append(xmodel)
     
     #XGB 
     Xtest,Xtrain,ytrain,idx,ta = prepareDataset(seed=123,nsamples='shuffle',log1p=True,useRdata=False,createFeatures=True,standardize=True,oneHotenc=['material_id'])
-    model = XgboostRegressor(n_estimators=400,learning_rate=0.05,max_depth=15,subsample=.5,colsample_bytree=0.8,n_jobs=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
+    model = XgboostRegressor(n_estimators=400,learning_rate=0.05,max_depth=15,subsample=.5,colsample_bytree=0.8,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
     xmodel = XModel("xgb1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,cv_labels=ta)
     ensemble.append(xmodel)
     
     #RF2 basically the benchmark LPLO=0.268 LB=0.278
-    Xtest,Xtrain,ytrain,idx,ta = prepareDataset(seed=123,nsamples='shuffle',log1p=True,useRdata=True,createFeatures=False,standardize=False)
-    model = RandomForestRegressor(n_estimators=20,max_depth=None,min_samples_leaf=1,n_jobs=1, max_features='auto')
-    xmodel = XModel("rf2_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,cv_labels=ta)
-    ensemble.append(xmodel)
+    #Xtest,Xtrain,ytrain,idx,ta = prepareDataset(seed=123,nsamples='shuffle',log1p=True,useRdata=True,createFeatures=False,standardize=False)
+    #model = RandomForestRegressor(n_estimators=20,max_depth=None,min_samples_leaf=1,n_jobs=1, max_features='auto')
+    #xmodel = XModel("rf2_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,cv_labels=ta)
+    #ensemble.append(xmodel)
     
     #LR1
-    Xtest,Xtrain,ytrain,idx,ta = prepareDataset(seed=123,nsamples='shuffle',log1p=True,useRdata=False,createFeatures=True,standardize=True,oneHotenc=['material_id'])
-    model = LassoLarsCV()
-    xmodel = XModel("lr1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,cv_labels=ta)
-    ensemble.append(xmodel)
+    #Xtest,Xtrain,ytrain,idx,ta = prepareDataset(seed=123,nsamples='shuffle',log1p=True,useRdata=False,createFeatures=True,standardize=True,oneHotenc=['material_id'])
+    #model = LassoLarsCV()
+    #xmodel = XModel("lr1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,cv_labels=ta)
+    #ensemble.append(xmodel)
     
     #KNN1 
-    Xtest,Xtrain,ytrain,idx,ta = prepareDataset(seed=123,nsamples='shuffle',log1p=True,useRdata=False,createFeatures=True,standardize=True)
-    model = KNeighborsRegressor(n_neighbors=5)
-    xmodel = XModel("knn1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,cv_labels=ta)
-    ensemble.append(xmodel)
+    #Xtest,Xtrain,ytrain,idx,ta = prepareDataset(seed=123,nsamples='shuffle',log1p=True,useRdata=False,createFeatures=True,standardize=True)
+    #model = KNeighborsRegressor(n_neighbors=5)
+    #xmodel = XModel("knn1_r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,cv_labels=ta)
+    #ensemble.append(xmodel)
     
     
     
@@ -497,7 +497,7 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',greater
 	    ypred = blend_mult(Xtrain,params,n_classes)
 	    #print ypred
 	    #print ypred[:15]
-	    if not use_proba: ypred = np.round(ypred).astype(int)
+	    #if not use_proba: ypred = np.round(ypred).astype(int)
 	    #print ypred[:15]
 	    #print y[:15]
 	    #print ypred
@@ -552,9 +552,9 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',greater
     
     
     #print ymean[:10]
-    if not use_proba:
-      ymean = np.round(ymean+1E-2).astype(int)
-      ypred = np.round(ypred+1E-6).astype(int)
+    #if not use_proba:
+    #  ymean = np.round(ymean+1E-2).astype(int)
+    #  ypred = np.round(ypred+1E-6).astype(int)
       
     print "ypred:",ypred.sum()
     print "ypred:",ypred
@@ -587,7 +587,7 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',greater
     
     #prediction flatten makes a n-dim row vector from a nx1 column vector...
     preds = blend_mult(Xtest,xopt,n_classes).flatten()
-    if not use_proba: preds = np.round(preds).astype(int)
+    #if not use_proba: preds = np.round(preds).astype(int)
 
     if subfile is not None:
 	print "predictions - max: %4.2f mean: %4.2f median: %4.2f min: %4.2f"%(np.amax(preds),preds.mean(),np.median(preds),np.amin(preds))
@@ -702,12 +702,12 @@ def blendSubmissions(fileList,coefList):
    
 
 if __name__=="__main__":
-    ensemble=createModels()
-    ensemble=createOOBdata(ensemble,repeats=1,n_folds=8,n_jobs=4,use_proba=False,score_func='rmse',bagmode=True) #oob data averaging leads to significant variance reduction
+    #ensemble=createModels()
+    #ensemble=createOOBdata(ensemble,repeats=1,n_folds=8,n_jobs=1,use_proba=False,score_func='rmse',bagmode=True) #oob data averaging leads to significant variance reduction
     models=['rf1_r1','rf2_r1','xrf1_r1','knn1_r1','lr1_r1','xgb1_r1']
     #models = ['svm7_br3','xrf4_br3','nnet1_br3']
     #models = opt_models2
     useCols=None
-    #trainEnsemble(models,mode='classic',score_func='rmse',useCols=None,addMetaFeatures=False,use_proba=False,dropCorrelated=False,subfile='./submissions/sub18072015a.csv')
+    trainEnsemble(models,mode='linear',score_func='rmse',useCols=None,addMetaFeatures=False,use_proba=False,dropCorrelated=False,subfile='./submissions/sub18072015a.csv')
     #selectModelsGreedy(models,startensemble=['nnet2_br1'],niter=10,mode='mean',greater_is_better=True)
    

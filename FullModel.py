@@ -73,6 +73,7 @@ class XModel:
    @staticmethod
    def saveModel(xmodel,filename):
       if not hasattr(xmodel,'xgboost_model'):
+      #if not isinstance(xmodel,XgboostRegressor):
 	  pickle_out = open(filename.replace('.csv',''), 'wb')
 	  pickle.dump(xmodel, pickle_out)
 	  pickle_out.close()
@@ -82,6 +83,7 @@ class XModel:
    @staticmethod
    def saveCoreData(xmodel,filename):
       if not hasattr(xmodel,'xgboost_model'):
+      #if not isinstance(xmodel,XgboostRegressor):
 	  #reset not needed stuff
 	  xmodel.classifier=None
 	  xmodel.Xtrain=None
@@ -101,36 +103,5 @@ class XModel:
       return xmodel
 
       
-      
-"""
-Just a test for subclassing
-"""
-class LogisticRegressionMod(LogisticRegression):
-      #subclassing init must repeat all keyword arguments...
-      #def __init__(self):
-	#pass	
-      def fit(self, X, y,sample_weight=None):
-	  N = X.shape[0]
-	  #print "N:",N	 
-	  if sample_weight is None:
-	      sample_weight=np.ones(N) 
-	  #print "max weight:",np.max(sample_weight)
-	  #print "min weight:",np.min(sample_weight)
-	  #print "avg weight:",np.mean(sample_weight)
-	  #print sample_weight
-	  if isinstance(X,sp.sparse.csr.csr_matrix):
-	      mat1 = sp.sparse.dia_matrix(([sample_weight], [0]), shape=(N, N))
-	  else:
-	      mat1 = np.diagflat([1.0/sample_weight])
-	  #* operator does not define a matrix multiplication with arrays
-	  Xmod = np.copy(X)
-	  Xmod = np.dot(mat1, Xmod)
-	  
-	  pd.DataFrame(Xmod).to_csv("Xmod.csv")
-	  pd.DataFrame(X).to_csv("X.csv")
-	  lmodel=super(LogisticRegression, self).fit(Xmod,y)
-	  #print lmodel.coef_
-	  pred=lmodel.predict_proba(Xmod)[:,1]
-	  print "AUC:",roc_auc_score(y,pred)	  
-	  return lmodel
+
 
