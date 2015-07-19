@@ -17,13 +17,14 @@ class XModel:
    """
    modelcount = 0
 
-   def __init__(self, name,classifier,Xtrain,Xtest,ytrain=None,sample_weight=None,cutoff=None,class_names=None):
+   def __init__(self, name,classifier,Xtrain,Xtest,ytrain=None,sample_weight=None,cutoff=None,class_names=None,cv_labels=None):
       self.name = name
       self.classifier = classifier
       self.Xtrain=Xtrain
       self.Xtest=Xtest
       self.ytrain=ytrain
       self.class_names=class_names
+      self.cv_labels=cv_labels # for special cv like leave pout
        
       if isinstance(Xtrain,sp.sparse.csr.csr_matrix) or isinstance(Xtrain,sp.sparse.csc.csc_matrix):
 	self.sparse=True
@@ -31,7 +32,6 @@ class XModel:
 	self.sparse=False
       self.sample_weight=sample_weight
       
-
       self.oob_preds=np.zeros((Xtrain.shape[0],1))
       self.preds=np.zeros((Xtest.shape[0],1))
       

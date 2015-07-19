@@ -23,7 +23,7 @@ from sklearn.feature_extraction.text import CountVectorizer,HashingVectorizer,Tf
 from sklearn.feature_extraction import FeatureHasher
 #from sklearn import metrics
 from sklearn import cross_validation,grid_search
-from sklearn.cross_validation import StratifiedKFold,KFold,StratifiedShuffleSplit,ShuffleSplit,train_test_split
+from sklearn.cross_validation import StratifiedKFold,KFold,StratifiedShuffleSplit,ShuffleSplit,train_test_split,LeavePLabelOut
 from sklearn.metrics import roc_auc_score,classification_report,make_scorer,f1_score,precision_score,mean_squared_error,accuracy_score,log_loss
 #from sklearn.utils.extmath import density
 from sklearn.feature_extraction import DictVectorizer
@@ -230,7 +230,7 @@ def ensemblePredictions(classifiers,blender,lXs,ly,lXs_test,lidx,lidx_train,oob_
     pred_df.to_csv(filename)
     
 
-def weightedGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,scale_wt='auto',n_jobs=1,local_scorer='roc_auc'):
+def weightedGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,n_folds=5,useProba=False,scale_wt='auto',n_jobs=1,local_scorer='roc_auc'):
     """
     Uses sample weights and individual scoring function, used in Higgs challenge, needs modification cross_Validation.py
     """
@@ -256,30 +256,17 @@ def weightedGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=Fa
     #parameters['model__n_neighbors']=[40,60]}#knn
     #parameters['model__alpha']=[1.0,0.8,0.5,0.1]#opt nb
     #parameters = {'n_neighbors':[10,30,40,50],'algorithm':['ball_tree'],'weights':['distance']}#knn
-    clf_opt=grid_search.GridSearchCV(lmodel, parameters,n_jobs=n_jobs,verbose=1,scoring=local_scorer,cv=nfolds,fit_params=fit_params,refit=True)   
+    clf_opt=grid_search.GridSearchCV(lmodel, parameters,n_jobs=n_jobs,verbose=1,scoring=local_scorer,cv=n_folds,fit_params=fit_params,refit=True)   
     clf_opt.fit(lX,ly)
     #dir(clf_opt)
     for params, mean_score, scores in clf_opt.grid_scores_:       
         print("%0.3f (+/- %0.3f) for %r" % (mean_score, scores.std(), params))
     
-    scores = cross_validation.cross_val_score(lmodel, lX, ly, fit_params=fit_params,scoring=local_scorer,cv=nfolds)
+    scores = cross_validation.cross_val_score(lmodel, lX, ly, fit_params=fit_params,scoring=local_scorer,cv=n_folds)
     print "Score: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
     return(clf_opt.best_estimator_)
     
         
-def buildRegressionModel(lmodel,lXs,ly,sample_weights=None,scoring=None,cv=5):
-    """   
-    Final model building part
-    """ 
-    print "Xvalidation..."
-    scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=cv, scoring=scoring,n_jobs=1)
-    #scores = (-1*scores)**0.5
-    print "SCORE: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
-    print "Building model with all instances..."
-    lmodel.fit(lXs,ly)
-    return(lmodel)
-
-
 def buildModel(clf,lX,ly,cv=None,scoring=None,n_jobs=8,trainFull=True,verbose=False):
     score = cross_validation.cross_val_score(clf,lX,ly,fit_params=None, scoring=scoring,cv=cv,n_jobs=n_jobs)
     if verbose: print "cv-score: %6.3f +/- %6.3f" %(score.mean(),score.std())
@@ -290,24 +277,24 @@ def buildModel(clf,lX,ly,cv=None,scoring=None,n_jobs=8,trainFull=True,verbose=Fa
     else:
       return score
 
-def buildClassificationModel(clf_orig,lX,ly,sample_weight=None,class_names=None,trainFull=False,cv=None):
+def buildXvalModel(clf_orig,lX,ly,sample_weight=None,class_names=None,refit=False,cv=None):
   """   
   Final model building part
   """ 
   print "Training the model..."
-  #print class_names
+
   if isinstance(lX,pd.DataFrame): lX  = lX.values
   if isinstance(ly,pd.DataFrame) or isinstance(ly,pd.Series): ly  = ly.values
   if isinstance(sample_weight,pd.Series): sample_weight  = sample_weight.values
 
   ypred = np.zeros((len(ly),))
   #yproba = np.zeros((len(ly),len(set(ly))))
-  kappa = np.zeros((len(cv),1))
-  acc = np.zeros((len(cv),1))
+  rmsle = np.zeros((len(cv),1))
   mae = np.zeros((len(cv),1))
   for i,(train, test) in enumerate(cv):
       clf = clone(clf_orig)
       ytrain, ytest = ly[train], ly[test]
+      
       sw="nosw"
       if sample_weight is not None:
 	  sw="sw"
@@ -315,22 +302,20 @@ def buildClassificationModel(clf_orig,lX,ly,sample_weight=None,class_names=None,
       else:
 	  clf.fit(lX[train,:], ytrain)
       ypred[test] = clf.predict(lX[test,:])
-      print ypred[test]
-      kappa[i] = quadratic_weighted_kappa(ly[test], ypred[test])
-      acc[i] = accuracy_score(ly[test], ypred[test])
+      #acc[i] = accuracy_score(ly[test], ypred[test])
       mae[i] = mean_absolute_error(ly[test], ypred[test])
+      rmsle[i] = -1*root_mean_squared_error(ly[test], ypred[test])
       #acc = accuracy_score(ly[test], ypred[test])
-      print "train set: %2d samples: %5d/%5d kappa: %4.3f accuracy: %4.3f %s"%(i,lX[train,:].shape[0],lX[test,:].shape[0],kappa[i],acc[i],sw)
-  
+      print "train set: %2d samples: %5d/%5d rmsle: %4.3f  %s"%(i,lX[train,:].shape[0],lX[test,:].shape[0],rmsle[i],sw)
 
   #print classification_report(ly, ypred, target_names=class_names)
 
-  print("MAE         :%6.3f +/-%6.3f"%(mae.mean(),mae.std()))
-  print("Accuracy    :%6.3f +/-%6.3f"%(acc.mean(),acc.std()))
-  print("Kappa       :%6.3f +/-%6.3f"%(kappa.mean(),kappa.std()))
+  print("MAE       :%6.3f +/-%6.3f"%(mae.mean(),mae.std()))
+  print("RMSLE     :%6.3f +/-%6.3f"%(rmsle.mean(),rmsle.std()))
+ 
   
   #training on all data
-  if trainFull:
+  if refit:
     clf_orig.fit(lX, ly,sample_weight=sample_weight)
   return(clf_orig)
 
@@ -357,7 +342,7 @@ def density(m):
       return "Density      : %12.3f"%(m.nnz/float(entries))
 
 
-def buildWeightedModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,nfolds=8,useProba=True,scale_wt=None,n_jobs=1,verbose=False,local_scorer='roc_auc'):
+def buildWeightedModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,n_folds=8,useProba=True,scale_wt=None,n_jobs=1,verbose=False,local_scorer='roc_auc'):
     """   
     Build model using sample weights, can use weights for scoring function
     """ 
@@ -367,7 +352,7 @@ def buildWeightedModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,nfolds=8,usePro
     fit_params['fitWithWeights']=fitWithWeights
     
     print "Xvalidation..."
-    scores = cross_validation.cross_val_score(lmodel,lXs,ly,fit_params=fit_params, scoring=local_scorer,cv=nfolds,n_jobs=n_jobs)
+    scores = cross_validation.cross_val_score(lmodel,lXs,ly,fit_params=fit_params, scoring=local_scorer,cv=n_folds,n_jobs=n_jobs)
     print "<SCORE>= %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
     print "Building model with all instances..."
     
@@ -741,9 +726,25 @@ def pcAnalysis(X,Xtest,y=None,w=None,ncomp=2,transform=False,classification=Fals
 	plt.legend()
 	plt.show()
 
+
+def root_mean_squared_log_error(x,y):
+	x = np.clip(x,a_min=0.0,a_max=1E15)
+	y = np.clip(y,a_min=0.0,a_max=1E15)
+	if ((y+1.0)<0.0).sum()>0 or ((x+1.0)<0.0).sum():
+	    print "WARNING!"
+	    print "x",((x+1.0)<0.0).sum()
+	    print "y",((y+1.0)<0.0).sum()
+	    idx = (y+1.0)<0.0
+	    print y[idx]
+	    
+	x = np.log(x+1.0)
+	y = np.log(y+1.0)
+	
+	return root_mean_squared_error(x,y)
 	
 def root_mean_squared_error(x,y):
-	return mean_squared_error(x,y)**0.5
+	mse = mean_squared_error(x,y)
+	return -1*(mse)**0.5
 	
 def mean_absolute_error(x,y):
 	x = x.flatten()
@@ -1219,10 +1220,20 @@ def quadratic_weighted_kappa(y, y_pred):
             denominator += d * expected_count / num_scored_items
 
     return (1.0 - numerator / denominator)    
+
+
+def LeavePLabelOutWrapper(str_labels,n_folds=8,p=1,verbose=True):
+    lenc = preprocessing.LabelEncoder()
+    labels = lenc.fit_transform(str_labels)%n_folds
+    cv= LeavePLabelOut(labels,p=1)
+    if verbose: print "Labels: %r length %d"%(np.unique(labels).shape,len(cv))
+    return cv
+
    
 #some global vars
 funcdict={}
 funcdict['rmse']=root_mean_squared_error
+funcdict['rmsle']=root_mean_squared_log_error
 funcdict['auc']=roc_auc_score
 funcdict['mae']=mean_absolute_error
 funcdict['msq']=mean_squared_error

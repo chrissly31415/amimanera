@@ -67,6 +67,16 @@ class L2Regularization(Objective):
         else:
             return loss
 
+class RMSE(Objective):
+  
+    def __init__(self, input_layer, loss_function=None, aggregation='mean',**args):
+	Objective.__init__(self, input_layer, loss_function, aggregation)
+    
+    def get_loss(self, input=None, target=None, deterministic=False, **kwargs):
+        loss = super(RMSE, self).get_loss(input=input,target=target, deterministic=deterministic, **kwargs)
+        loss = loss**0.5
+        return loss 
+
 def shuffle(*arrays):
     p = np.random.permutation(len(arrays[0]))
     return [array[p] for array in arrays]
@@ -587,8 +597,8 @@ max_epochs=100,
         ],
 )
  
-#https://www.kaggle.com/c/otto-group-product-classification-challenge/forums/t/13851/lasagne-with-2-hidden-layers
-nnet_crowd = NeuralNet(layers=[('input', layers.InputLayer),#0.454
+
+nnet_cater = NeuralNet(layers=[('input', layers.InputLayer),
 ('dropout0', layers.DropoutLayer),
 ('hidden1', layers.DenseLayer),
 ('dropout1', layers.DropoutLayer),
@@ -596,30 +606,31 @@ nnet_crowd = NeuralNet(layers=[('input', layers.InputLayer),#0.454
 ('dropout2', layers.DropoutLayer), 
 ('output', layers.DenseLayer)],
 
-input_shape=(None, 575),
-dropout0_p=0.25,
-hidden1_num_units=250,
+input_shape=(None, 44),
+dropout0_p=0.0,
 
+hidden1_num_units=512,
 dropout1_p=0.5,
-hidden2_num_units=250,
 
+hidden2_num_units=512,
 dropout2_p=0.5,
 
-output_num_units=4,
-output_nonlinearity=nonlinearities.softmax,
-
-#batch_iterator_train=ShuffleBatchIterator(batch_size = 32),
+output_num_units=1,
+output_nonlinearity=None,
+regression=True,
+objective=RMSE,
+#batch_iterator_train=ShuffleBatchIterator(batch_size = 128),
 
 #update=nesterov_momentum,
 update=adagrad,
-update_learning_rate=theano.shared(float32(0.02)),
-#update_momentum=0.9, only used with nesterov_
-eval_size=0.0,
+update_learning_rate=theano.shared(float32(0.2)),
+#update_momentum=0.9, #only used with nesterov_
+eval_size=0.2,
 verbose=1,
-max_epochs=50,
+max_epochs=150,
 
  on_epoch_finished=[
-        AdjustVariable('update_learning_rate', start=0.02, stop=0.01),
+        #AdjustVariable('update_learning_rate', start=0.01, stop=0.1),
         #EarlyStopping(patience=20),
         ],
 )
