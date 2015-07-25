@@ -23,6 +23,7 @@ from sklearn.feature_extraction.text import CountVectorizer,HashingVectorizer,Tf
 from sklearn.feature_extraction import FeatureHasher
 #from sklearn import metrics
 from sklearn import cross_validation,grid_search
+from sklearn.utils import shuffle
 from sklearn.cross_validation import StratifiedKFold,KFold,StratifiedShuffleSplit,ShuffleSplit,train_test_split,LeavePLabelOut
 from sklearn.metrics import roc_auc_score,classification_report,make_scorer,f1_score,precision_score,mean_squared_error,accuracy_score,log_loss
 #from sklearn.utils.extmath import density
@@ -268,8 +269,14 @@ def weightedGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,n_folds=5,useProba=F
     
         
 def buildModel(clf,lX,ly,cv=None,scoring=None,n_jobs=8,trainFull=True,verbose=False):
-    score = cross_validation.cross_val_score(clf,lX,ly,fit_params=None, scoring=scoring,cv=cv,n_jobs=n_jobs)
-    if verbose: print "cv-score: %6.3f +/- %6.3f" %(score.mean(),score.std())
+    
+    if isinstance(lX,pd.DataFrame): lX  = lX.values
+    if isinstance(ly,pd.DataFrame) or isinstance(ly,pd.Series): ly  = ly.values
+    
+    score= cross_validation.cross_val_score(clf,lX,ly,fit_params=None, scoring=scoring,cv=cv,n_jobs=n_jobs)
+    if verbose: 
+	print "cv-score: %6.3f +/- %6.3f" %(score.mean(),score.std())
+	print "all scores: %r" %(score)
     if trainFull:
       print "Train on all data..."
       clf.fit(lX,ly)
@@ -306,12 +313,12 @@ def buildXvalModel(clf_orig,lX,ly,sample_weight=None,class_names=None,refit=Fals
       mae[i] = mean_absolute_error(ly[test], ypred[test])
       rmsle[i] = -1*root_mean_squared_error(ly[test], ypred[test])
       #acc = accuracy_score(ly[test], ypred[test])
-      print "train set: %2d samples: %5d/%5d rmsle: %4.3f  %s"%(i,lX[train,:].shape[0],lX[test,:].shape[0],rmsle[i],sw)
+      print "train set: %2d samples: %5d/%5d rmse: %4.3f  %s"%(i,lX[train,:].shape[0],lX[test,:].shape[0],rmsle[i],sw)
 
   #print classification_report(ly, ypred, target_names=class_names)
 
   print("MAE       :%6.3f +/-%6.3f"%(mae.mean(),mae.std()))
-  print("RMSLE     :%6.3f +/-%6.3f"%(rmsle.mean(),rmsle.std()))
+  print("RMSE     :%6.3f +/-%6.3f"%(rmsle.mean(),rmsle.std()))
  
   
   #training on all data
@@ -320,7 +327,7 @@ def buildXvalModel(clf_orig,lX,ly,sample_weight=None,class_names=None,refit=Fals
   return(clf_orig)
 
 
-def shuffle(df, n=1, axis=0):     
+def shuffleDF(df, n=1, axis=0):     
         df = df.copy()
         for _ in range(n):
 	    df.apply(np.random.shuffle, axis=axis)
@@ -374,6 +381,23 @@ def buildWeightedModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,n_folds=8,usePr
     return(lmodel)
     
 
+def compareList(uniq_train,uniq_test,verbose=True):
+    """
+    Comparing to lists
+    """
+    #uniq_train = Xtrain[col].unique()
+    if verbose: print "Train - unique: %d %r:"%(uniq_train.shape[0],uniq_train)
+    #uniq_test = Xtest[col].unique()
+    if verbose: print "Test - unique: %d %r:"%(uniq_test.shape[0],uniq_test)
+    isect = np.intersect1d(uniq_train,uniq_test)
+    if verbose: print "Test - intersect: %d %r:"%(isect.shape[0],isect)
+    only_train = np.in1d(uniq_train,isect,assume_unique=True,invert=True)
+    if verbose: print "In Train only : %d %r:"%(uniq_train[only_train].shape[0],uniq_train[only_train])
+    only_test = np.in1d(uniq_test,isect,assume_unique=True,invert=True)
+    if verbose: print "In Test only : %d %r:"%(uniq_test[only_test].shape[0],uniq_test[only_test])
+    return np.hstack((uniq_train[only_train],uniq_test[only_test]))
+    
+
 def group_sparse(Xold,Xold_test, degree=2,append=True):
     """ 
     multiply columns of sparse data
@@ -409,10 +433,64 @@ def group_sparse(Xold,Xold_test, degree=2,append=True):
 	Xreduced=sparse.hstack((Xold,Xreduced),format="csr")
     print "New test data:",Xreduced.shape   
     return(Xreduced,Xreduced_test)
+
+def xgbFeatureImportance(clf,X,y):
+    """
+    Selects n best features, strange importances...
+    """
+    print "XGB Feature importance..."
+    clf.fit(X,y)
+    
+    fmap = clf.get_fscore()
+    importances = np.zeros(X.shape[1])
+    
+
+    for i,(k,v) in enumerate(fmap.iteritems()):
+	idx = int(float(k.replace("f","")))
+	print "k",k
+	print "feature",idx
+	print "importance",v
+	print "name:",X.columns[idx]
+	#print indices[i]
+	importances[idx]=v
+	#print X.columns[indices[i]]
+    indices = np.argsort(importances)[::-1]
+    #indices = indices.astype(int)
+    
+    for i,f in enumerate(indices):
+	print("%3d. feature %16s %3d - %6.4f" % (i, X.columns[f], f, importances[f]))
+    
+    
+    print fmap
+    fscore = [ (v,k) for k,v in fmap.iteritems() ]
+    print "fscore",fscore.sort(reverse=True)
+    
+    #plt.bar(left=np.arange(len(indices)),height=importances[indices] , width=0.35, color='r')
+    #plt.show()
+
+def featureImportance(clf,X,y):
+    """
+    New function for gradient boosting
+    """
+    print "New feature importance..."
+    clf.fit(X,y)
+    
+    # Plot feature importance
+    feature_importance = clf.feature_importances_
+    # make importances relative to max importance
+    feature_importance = 100.0 * (feature_importance / feature_importance.max())
+    sorted_idx = np.argsort(feature_importance)
+    pos = np.arange(sorted_idx.shape[0]) + .5
+    plt.subplot(1, 2, 2)
+    plt.barh(pos, feature_importance[sorted_idx], align='center')
+    plt.yticks(pos, X.columns[sorted_idx])
+    plt.xlabel('Relative Importance')
+    plt.title('Variable Importance')
+    plt.show()
     
 def rfFeatureImportance(forest,Xold,Xold_test,n):
     """ 
-    Selects n best features from a model which has the attribute feature_importances_
+    Selects n best features from a model which has the attribute feature_importances_ is it buggy?
     """
     print "Feature importance..."
     if not hasattr(forest,'feature_importances_'): 
@@ -744,7 +822,7 @@ def root_mean_squared_log_error(x,y):
 	
 def root_mean_squared_error(x,y):
 	mse = mean_squared_error(x,y)
-	return -1*(mse)**0.5
+	return mse**0.5
 	
 def mean_absolute_error(x,y):
 	x = x.flatten()
@@ -1228,6 +1306,30 @@ def LeavePLabelOutWrapper(str_labels,n_folds=8,p=1,verbose=True):
     cv= LeavePLabelOut(labels,p=1)
     if verbose: print "Labels: %r length %d"%(np.unique(labels).shape,len(cv))
     return cv
+
+class KLabelFolds():
+  def __init__(self, labels, n_folds=3, repeats=5):
+    
+    self.n_folds = n_folds
+    self.repeats = repeats
+
+    lenc = preprocessing.LabelEncoder()
+    self.labels = lenc.fit_transform(labels)
+
+  def __len__(self): return self.n_folds*self.repeats
+
+  def __iter__(self):
+    
+    unique_labels = np.unique(self.labels)
+    for i in range(self.repeats):
+      cv = cross_validation.KFold(len(unique_labels), self.n_folds)
+      unique_labels = shuffle(unique_labels)
+      for train, test in cv:
+	test_labels = unique_labels[test]
+	test_mask = np.in1d(self.labels,test_labels)
+	train_mask = np.logical_not(test_mask)
+	yield (np.where(train_mask)[0], np.where(test_mask)[0])
+
 
    
 #some global vars

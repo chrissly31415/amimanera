@@ -180,6 +180,61 @@ class KerasNN3(Sequential,BaseEstimator):
 	return ypred
 
 
+class KerasNNReg(Sequential,BaseEstimator):
+    
+    def __init__(self,dims=81,nb_classes=1,nb_epoch=50,learning_rate=0.05,validation_split=0.0,batch_size=128,verbose=1):
+	Sequential.__init__(self)
+	self.dims = dims
+	self.nb_classes = nb_classes
+	self.nb_epoch = nb_epoch
+	self.learning_rate = learning_rate
+	self.validation_split = validation_split
+	self.batch_size = batch_size
+	self.verbose = verbose
+	print('Initializing Keras Deep Net for regression with %d features and %d classes'%(self.dims,self.nb_classes))
+	
+	# Keras model
+	#self.add(Dropout(0.5))
+	self.add(Dense(dims, 512))
+	self.add(Activation('tanh'))
+	self.add(Dropout(0.2))
+	self.add(Dense(512, 512))
+	self.add(Activation('tanh'))
+	self.add(Dropout(0.2))
+	self.add(Dense(512, 1))
+
+	#sgd = SGD(lr=self.learning_rate, decay=1e-7, momentum=0.99, nesterov=True)
+	#self.compile(loss='categorical_crossentropy', optimizer=sgd)
+	self.compile(loss='mse', optimizer='rmsprop')
+
+    def fit(self,X,y):
+	Sequential.fit(self,X, y, nb_epoch=self.nb_epoch, batch_size=self.batch_size, validation_split=self.validation_split)
+	
+
+    def predict_proba(self,Xtest):
+	#ypred = Sequential.predict_proba(self,Xtest,batch_size=128,verbose=1)
+	ypred = Sequential.predict_proba(self,Xtest,batch_size=self.batch_size,verbose=self.verbose)
+	print(ypred.shape)
+	return ypred
+      
+    def get_params(self, deep=True):
+        """
+        Get parameters for this estimator.
+
+        Parameters
+        ----------
+        deep: boolean, optional
+            If True, will return the parameters for this estimator and
+            contained subobjects that are estimators.
+
+        Returns
+        -------
+        params : dict
+            Dictionary of parameter names mapped to their values.
+        """
+        #return {'model': self, 'optimizer': self.optimizer, 'loss': self.loss}
+        #print "Calling get_params..."
+	return {}
     #problem keras general predict function...
     #def predict(self,Xtest):
     #	print("this is predict")
@@ -187,5 +242,16 @@ class KerasNN3(Sequential,BaseEstimator):
     #	ypred = Sequential.predict_classes(self,Xtest)
     #	return ypred
     
-
+def make_regression_nn():
+    # Keras model
+    model = Sequential()
+    model.add(Dense(train.shape[1], 256))
+    model.add(Activation('relu'))
+    model.add(Dropout(0.2))
+    model.add(Dense(256, 256))
+    model.add(Activation('relu'))
+    model.add(Dropout(0.2))
+    model.add(Dense(256, 1))
+    model.compile(loss='mse', optimizer='rmsprop')
+    return model
 

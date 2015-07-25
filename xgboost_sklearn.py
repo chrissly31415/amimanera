@@ -24,7 +24,7 @@ class XgboostClassifier(BaseEstimator):
     sklearn: http://scikit-learn.org/stable/index.html
     based on the kaggle forum thread: https://www.kaggle.com/c/higgs-boson/forums/t/8184/public-starting-guide-to-get-above-3-60-ams-score/44691#post44691
     """
-    def __init__(self,n_estimators=120,learning_rate=0.1,max_depth=6,subsample=1.0,min_child_weight=1,colsample_bytree=1.0,gamma=0,objective='binary:logistic',eval_metric='auc',booster='gbtree',n_jobs=1,cutoff=0.50,NA=-999.0,alpha_L1=0.0001,lambda_L2=1,silent=1,eval_size=0.0):
+    def __init__(self,n_estimators=120,learning_rate=0.1,max_depth=6,subsample=1.0,min_child_weight=1,colsample_bytree=1.0,gamma=0,objective='binary:logistic',eval_metric='rmse',booster='gbtree',n_jobs=1,cutoff=0.50,NA=-999.0,alpha_L1=0.0001,lambda_L2=1,silent=1,eval_size=0.0):
 	"""
 	Constructor
 	Parameters: https://github.com/dmlc/xgboost/blob/d3af4e138f7cfa5b60a426f1468908f928092198/doc/parameter.md
@@ -131,9 +131,9 @@ class XgboostClassifier(BaseEstimator):
         ly = self.xgboost_model.predict(xgmat_test)
         return ly
     
-    #def set_params(random_state=None):
-    #    print "Agugu"
-        
+    def get_fscore(self):
+	return self.xgboost_model.get_fscore()
+	
     
  
 class XgboostRegressor(XgboostClassifier):    
@@ -166,8 +166,8 @@ def evalerror_old(preds, dtrain):
 def evalerror(preds, dtrain):
     ## label are in [0,1,2,3] as required by XGBoost for multi-classification
     labels = dtrain.get_label()
-    score = qsprLib.root_mean_squared_log_error(preds,labels)
-    return 'rmsle', -1*score
+    score = qsprLib.root_mean_squared_error(preds,labels)
+    return 'rmse(mod)', score
 
 #user define objective function, given prediction, return gradient and second order gradient
 # this is loglikelihood loss

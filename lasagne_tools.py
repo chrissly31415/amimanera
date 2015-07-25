@@ -606,31 +606,35 @@ nnet_cater = NeuralNet(layers=[('input', layers.InputLayer),
 ('dropout2', layers.DropoutLayer), 
 ('output', layers.DenseLayer)],
 
-input_shape=(None, 44),
+input_shape=(None, 81),
 dropout0_p=0.0,
 
 hidden1_num_units=512,
-dropout1_p=0.5,
+hidden1_nonlinearity=nonlinearities.sigmoid,
+#hidden1_nonlinearity=nonlinearities.tanh,
+dropout1_p=0.2,
 
 hidden2_num_units=512,
-dropout2_p=0.5,
+hidden2_nonlinearity=nonlinearities.sigmoid,
+#hidden2_nonlinearity=nonlinearities.tanh,
+dropout2_p=0.2,
 
 output_num_units=1,
-output_nonlinearity=None,
+#output_nonlinearity=nonlinearities.linear,
 regression=True,
 objective=RMSE,
-#batch_iterator_train=ShuffleBatchIterator(batch_size = 128),
+batch_iterator_train=ShuffleBatchIterator(batch_size = 32),
 
 #update=nesterov_momentum,
-update=adagrad,
-update_learning_rate=theano.shared(float32(0.2)),
+update=rmsprop,
+update_learning_rate=theano.shared(float32(0.01)),
 #update_momentum=0.9, #only used with nesterov_
-eval_size=0.2,
+eval_size=0.0,
 verbose=1,
 max_epochs=150,
 
  on_epoch_finished=[
-        #AdjustVariable('update_learning_rate', start=0.01, stop=0.1),
+        #AdjustVariable('update_learning_rate', start=0.01, stop=0.001),
         #EarlyStopping(patience=20),
         ],
 )
