@@ -1,4 +1,5 @@
 #!/usr/bin/Rscript
+
 #creates stratified folds
 stratified_folds<-function(dat,k=5) {
 	require(plyr)
@@ -64,4 +65,21 @@ return_idx<-function(df,n,test) {
 	}
 	return(tmp)
 }
+
+#returns list of train indices
+leave_group_out_cv<-function(data,cv_labels) {
+  cat("LGOCV...\n")
+  data<-cbind(data,cv_labels=cv_labels)
+  subs <- unique(data$cv_labels)
+  train_idx_list <- vector(mode = "list", length = length(subs))
+  for(i in seq_along(subs)) train_idx_list[[i]] <- which(data$cv_labels != subs[i])
+  names(train_idx_list) <- paste0(subs,"")
+  oinfo(train_idx_list)
+  return(train_idx_list)
+}
+
+return_lgocv_idx<-function(train_idx_list,n) {
+  return (train_idx_list[[n]])
+}
+
 

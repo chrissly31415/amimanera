@@ -118,6 +118,7 @@ prepareData_standard<-function(ldata,removeZeroCols=T,drugLike=F,outlierRemoval=
     }    
   } 
   #cat("Data after preparation:\n")
+  return(list(ldata,smiles))
   return(list(data=ldata,smiles=smiles))
 }
 
@@ -419,6 +420,7 @@ linRegTrain<-function(lX,ly,lid=NULL,plot=T) {
 	pred<-data.frame(predicted=fit$fitted.values,exp=ly,se,er)
     }
     pred<-pred[with(pred, order(-se)), ]
+    write.table(pred,file="prediction.csv",sep=",",row.names=FALSE)
     write.table(pred,file="prediction.csv",sep=";",row.names=FALSE)
     print(colnames(lX))
   }  
@@ -683,6 +685,8 @@ computeAUC<-function(predicted,truth,titlename=NULL,verbose=F) {
       text(0.7,0.1,sprintf("AUC: %6.2f",auc))
     }
   }
+  auc<-performance(pred,"auc")
+  auc<-unlist(slot(auc, "y.values"))
   
   
   #str(auc)
@@ -865,12 +869,16 @@ xval_oob<-function(Xl,yl,iterations=500,nrfolds=5,intdepth=2,sh=0.01,minobsinnod
 trainRF<-function(lX,ly,iter=500,mtry=if (!is.null(ly) && !is.factor(ly)) max(floor(ncol(lX)/3), 1) else floor(sqrt(ncol(lX))),node.size=5, verbose=T,fimportance=F) {
   require(randomForest)
   cat("Training random forest...") 
+  require(randomForest)
+  mydata.rf <- randomForest(lX,ly,ntree=iter,mtry=m.try,importance = fimportance,nodesize =node.size)
   mydata.rf <- randomForest(lX,ly,ntree=iter,mtry=mtry,importance = fimportance,nodesize =node.size)
+  
   print(mydata.rf)
   print(summary(mydata.rf))
   if (fimportance) {
     imp<-importance(mydata.rf,type=1)
     varImpPlot(mydata.rf,type=1,main="")
+    #write.table(data.frame(imp),file="importance.csv",sep=",")
     write.table(data.frame(imp),file="importance.csv",sep=",")
     #png(file="importance.png",width=1600,height=1200,res=300)
     #par(mar=c(4,1,2,2))
@@ -889,6 +897,7 @@ trainRF<-function(lX,ly,iter=500,mtry=if (!is.null(ly) && !is.factor(ly)) max(fl
       results<-data.frame(predicted=mydata.rf$predicted,exp=mydata.rf$y)
       plot(results,col="blue",pch=1, xlab = "predicted", ylab = "exp")
       abline(0,1, col = "black")
+      t<-paste("RF wtih ",nrow(lX)," data points and ",ncol(lX), " variables.")
       t<-paste("RF with ",nrow(lX)," data points and ",ncol(lX), " variables.")
       title(main = t) 
       #residues: pred-y 
@@ -896,6 +905,7 @@ trainRF<-function(lX,ly,iter=500,mtry=if (!is.null(ly) && !is.factor(ly)) max(fl
       plot(results,col="blue",pch=1, xlab = "exp", ylab = "residues")
       title(main = "RF residuals (y-pred)")
       se<-(mydata.rf$predicted-mydata.rf$y)^2
+      ldata<-data.frame(predicted=mydata.rf$predicted,exp=mydata.rf$y,se)
       #if (!is.null(rownames)) {
       #  ldata<-data.frame(name=rownames,predicted=mydata.rf$predicted,exp=mydata.rf$y,se)
       #}
@@ -925,6 +935,7 @@ trainRF<-function(lX,ly,iter=500,mtry=if (!is.null(ly) && !is.factor(ly)) max(fl
       #pc_correct(ldata$predicted,ldata$truth)
     }
   }   
+  #write.table(ldata,file="prediction_rf.csv",sep=",",row.names=FALSE)
   #write.table(ldata,file="prediction_rf.csv",sep=";",row.names=FALSE)
   return(mydata.rf)
 }
