@@ -23,7 +23,8 @@ from sklearn.feature_extraction.text import CountVectorizer,HashingVectorizer,Tf
 from sklearn.feature_extraction import FeatureHasher
 #from sklearn import metrics
 from sklearn import cross_validation,grid_search
-from sklearn.cross_validation import StratifiedKFold,KFold,StratifiedShuffleSplit,ShuffleSplit,train_test_split
+from sklearn.utils import shuffle
+from sklearn.cross_validation import StratifiedKFold,KFold,StratifiedShuffleSplit,ShuffleSplit,train_test_split,LeavePLabelOut
 from sklearn.metrics import roc_auc_score,classification_report,make_scorer,f1_score,precision_score,mean_squared_error,accuracy_score,log_loss
 #from sklearn.utils.extmath import density
 from sklearn.feature_extraction import DictVectorizer
@@ -37,16 +38,24 @@ from sklearn.isotonic import IsotonicRegression
 
 from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier,LinearRegression,Ridge,BayesianRidge,ElasticNet,RidgeCV,LassoLarsCV,Lasso,LarsCV
 from sklearn.cross_decomposition import PLSRegression,PLSSVD
-from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor,BaggingRegressor,BaggingClassifier,RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor,BaggingRegressor,BaggingClassifier,RandomForestRegressor,RandomTreesEmbedding    
 from sklearn.neighbors import KNeighborsClassifier,KNeighborsRegressor
 from sklearn.svm import LinearSVC,SVC,SVR
+
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.cluster import KMeans,MiniBatchKMeans
 from sklearn.learning_curve import learning_curve
-from sklearn.multiclass import OneVsRestClassifier
+from sklearn.multiclass import OneVsRestClassifier,OneVsOneClassifier
 
-from nolearn.lasagne import NeuralNet
+from sklearn.base import clone
 
+from sklearn.calibration import CalibratedClassifierCV
+
+from xgboost_sklearn import *
+
+
+#####IDEA: Feature inserter
+#https://www.kaggle.com/cannonjunior/crowdflower-search-relevance/geo-benchmarks
     
 def removeCorrelations(X_all,threshhold):
     """
@@ -81,6 +90,16 @@ def makePredictions(lmodel,lXs_test,lidx,filename):
     pred_df = pd.DataFrame(preds, index=lidx, columns=['label'])
     pred_df.to_csv(filename)
     
+
+def make_calibration(lmodel,Xtrain,ytrain):
+    """
+    Make Platt/isotonic calibration with sklearn
+    """
+    calli_clf = CalibratedClassifierCV(lmodel, method='isotonic', cv=3)
+    calli_clf.fit(Xtrain,ytrain)
+    print calli_clf.calibrated_classifiers_
+    
+
     
 def analyzeModel(lmodel,feature_names):
     """
@@ -212,7 +231,7 @@ def ensemblePredictions(classifiers,blender,lXs,ly,lXs_test,lidx,lidx_train,oob_
     pred_df.to_csv(filename)
     
 
-def weightedGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,scale_wt='auto',n_jobs=1,local_scorer='roc_auc'):
+def weightedGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,n_folds=5,useProba=False,scale_wt='auto',n_jobs=1,local_scorer='roc_auc'):
     """
     Uses sample weights and individual scoring function, used in Higgs challenge, needs modification cross_Validation.py
     """
@@ -238,75 +257,81 @@ def weightedGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=Fa
     #parameters['model__n_neighbors']=[40,60]}#knn
     #parameters['model__alpha']=[1.0,0.8,0.5,0.1]#opt nb
     #parameters = {'n_neighbors':[10,30,40,50],'algorithm':['ball_tree'],'weights':['distance']}#knn
-    clf_opt=grid_search.GridSearchCV(lmodel, parameters,n_jobs=n_jobs,verbose=1,scoring=local_scorer,cv=nfolds,fit_params=fit_params,refit=True)   
+    clf_opt=grid_search.GridSearchCV(lmodel, parameters,n_jobs=n_jobs,verbose=1,scoring=local_scorer,cv=n_folds,fit_params=fit_params,refit=True)   
     clf_opt.fit(lX,ly)
     #dir(clf_opt)
     for params, mean_score, scores in clf_opt.grid_scores_:       
         print("%0.3f (+/- %0.3f) for %r" % (mean_score, scores.std(), params))
     
-    scores = cross_validation.cross_val_score(lmodel, lX, ly, fit_params=fit_params,scoring=local_scorer,cv=nfolds)
+    scores = cross_validation.cross_val_score(lmodel, lX, ly, fit_params=fit_params,scoring=local_scorer,cv=n_folds)
     print "Score: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
     return(clf_opt.best_estimator_)
     
+        
+def buildModel(clf,lX,ly,cv=None,scoring=None,n_jobs=8,trainFull=True,verbose=False):
     
+    if isinstance(lX,pd.DataFrame): lX  = lX.values
+    if isinstance(ly,pd.DataFrame) or isinstance(ly,pd.Series): ly  = ly.values
     
-def buildRegressionModel(lmodel,lXs,ly,sample_weights=None,scoring=None,cv=5):
-    """   
-    Final model building part
-    """ 
-    print "Xvalidation..."
-    scores = cross_validation.cross_val_score(lmodel, lXs, ly, cv=cv, scoring=scoring,n_jobs=1)
-    #scores = (-1*scores)**0.5
-    print "SCORE: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
-    print "Building model with all instances..."
-    lmodel.fit(lXs,ly)
-    return(lmodel)
-
-
-def buildModel(clf,lX,ly,cv=None,scoring=None,n_jobs=8,trainFull=True):
-    score = cross_validation.cross_val_score(clf,lX,ly,fit_params=None, scoring=scoring,cv=cv,n_jobs=n_jobs)
-    print "cv-score: %6.3f +/- %6.3f" %(-1*score.mean(),score.std())
+    score= cross_validation.cross_val_score(clf,lX,ly,fit_params=None, scoring=scoring,cv=cv,n_jobs=n_jobs)
+    if verbose: 
+	print "cv-score: %6.3f +/- %6.3f" %(score.mean(),score.std())
+	print "all scores: %r" %(score)
     if trainFull:
       print "Train on all data..."
       clf.fit(lX,ly)
-    return(clf)
+      return(clf)
+    else:
+      return score
 
-def buildClassificationModel(clf,lX,ly,class_names=None,trainFull=False,cv=None):
+def buildXvalModel(clf_orig,lX,ly,sample_weight=None,class_names=None,refit=False,cv=None):
   """   
   Final model building part
   """ 
   print "Training the model..."
-  print class_names
-  if isinstance(lX,pd.DataFrame): lX  = lX.values
 
-  #cv = StratifiedShuffleSplit(ly, n_iter=n_folds, test_size=0.125)
-  #cv =StratifiedKFold(ly,n_folds)
-   
+  if isinstance(lX,pd.DataFrame): lX  = lX.values
+  if isinstance(ly,pd.DataFrame) or isinstance(ly,pd.Series): ly  = ly.values
+  if isinstance(sample_weight,pd.Series): sample_weight  = sample_weight.values
+
   ypred = np.zeros((len(ly),))
-  yproba = np.zeros((len(ly),len(set(ly))))
-  mll = np.zeros((len(cv),1))
-  for i,(train, test) in enumerate(cv):  
-      if isinstance(clf,NeuralNet):
-	  print "Initialize layers..."
-	  clf.initialize()
-	  clf.initialize_layers()
+  #yproba = np.zeros((len(ly),len(set(ly))))
+  rmsle = np.zeros((len(cv),1))
+  mae = np.zeros((len(cv),1))
+  for i,(train, test) in enumerate(cv):
+      clf = clone(clf_orig)
       ytrain, ytest = ly[train], ly[test]
-      clf.fit(lX[train,:], ytrain)
-      ypred[test] = clf.predict(lX[test,:])
-      yproba[test] = clf.predict_proba(lX[test,:])
-      mll[i] = multiclass_log_loss(ly[test], yproba[test])
-      acc = accuracy_score(ly[test], ypred[test])
-      print "train set: %2d samples: %5d/%5d mll: %4.3f accuracy: %4.3f"%(i,lX[train,:].shape[0],lX[test,:].shape[0],mll[i],acc)
       
-  print classification_report(ly, ypred, target_names=class_names)
-  mll_oob = multiclass_log_loss(ly, yproba)
+      sw="nosw"
+      if sample_weight is not None:
+	  sw="sw"
+	  clf.fit(lX[train,:], ytrain,sample_weight=sample_weight[train])
+      else:
+	  clf.fit(lX[train,:], ytrain)
+      ypred[test] = clf.predict(lX[test,:])
+      #acc[i] = accuracy_score(ly[test], ypred[test])
+      mae[i] = mean_absolute_error(ly[test], ypred[test])
+      rmsle[i] = -1*root_mean_squared_error(ly[test], ypred[test])
+      #acc = accuracy_score(ly[test], ypred[test])
+      print "train set: %2d samples: %5d/%5d rmse: %4.3f  %s"%(i,lX[train,:].shape[0],lX[test,:].shape[0],rmsle[i],sw)
+
+  #print classification_report(ly, ypred, target_names=class_names)
+
+  print("MAE       :%6.3f +/-%6.3f"%(mae.mean(),mae.std()))
+  print("RMSE     :%6.3f +/-%6.3f"%(rmsle.mean(),rmsle.std()))
+ 
   
-  print "oob multiclass logloss: %6.3f" %(mll_oob)
-  print "avg multiclass logloss: %6.3f +/- %6.3f" %(mll.mean(),mll.std())
   #training on all data
-  if trainFull:
-    clf.fit(lX, ly)
-  return(clf)
+  if refit:
+    clf_orig.fit(lX, ly,sample_weight=sample_weight)
+  return(clf_orig)
+
+
+def shuffleDF(df, n=1, axis=0):     
+        df = df.copy()
+        for _ in range(n):
+	    df.apply(np.random.shuffle, axis=axis)
+            return df
 
     
 def density(m):
@@ -321,10 +346,10 @@ def density(m):
       print "Ratio         : %12.2f"%(float(nz)/float(te))
     else:
       entries=m.shape[0]*m.shape[1]
-      return m.nnz/float(entries)
+      return "Density      : %12.3f"%(m.nnz/float(entries))
 
 
-def buildWeightedModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,nfolds=8,useProba=True,scale_wt=None,n_jobs=1,verbose=False,local_scorer='roc_auc'):
+def buildWeightedModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,n_folds=8,useProba=True,scale_wt=None,n_jobs=1,verbose=False,local_scorer='roc_auc'):
     """   
     Build model using sample weights, can use weights for scoring function
     """ 
@@ -334,7 +359,7 @@ def buildWeightedModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,nfolds=8,usePro
     fit_params['fitWithWeights']=fitWithWeights
     
     print "Xvalidation..."
-    scores = cross_validation.cross_val_score(lmodel,lXs,ly,fit_params=fit_params, scoring=local_scorer,cv=nfolds,n_jobs=n_jobs)
+    scores = cross_validation.cross_val_score(lmodel,lXs,ly,fit_params=fit_params, scoring=local_scorer,cv=n_folds,n_jobs=n_jobs)
     print "<SCORE>= %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
     print "Building model with all instances..."
     
@@ -354,6 +379,23 @@ def buildWeightedModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,nfolds=8,usePro
         plt.draw()
     
     return(lmodel)
+    
+
+def compareList(uniq_train,uniq_test,verbose=True):
+    """
+    Comparing to lists
+    """
+    #uniq_train = Xtrain[col].unique()
+    if verbose: print "Train - unique: %d %r:"%(uniq_train.shape[0],uniq_train)
+    #uniq_test = Xtest[col].unique()
+    if verbose: print "Test - unique: %d %r:"%(uniq_test.shape[0],uniq_test)
+    isect = np.intersect1d(uniq_train,uniq_test)
+    if verbose: print "Test - intersect: %d %r:"%(isect.shape[0],isect)
+    only_train = np.in1d(uniq_train,isect,assume_unique=True,invert=True)
+    if verbose: print "In Train only : %d %r:"%(uniq_train[only_train].shape[0],uniq_train[only_train])
+    only_test = np.in1d(uniq_test,isect,assume_unique=True,invert=True)
+    if verbose: print "In Test only : %d %r:"%(uniq_test[only_test].shape[0],uniq_test[only_test])
+    return np.hstack((uniq_train[only_train],uniq_test[only_test]))
     
 
 def group_sparse(Xold,Xold_test, degree=2,append=True):
@@ -391,15 +433,69 @@ def group_sparse(Xold,Xold_test, degree=2,append=True):
 	Xreduced=sparse.hstack((Xold,Xreduced),format="csr")
     print "New test data:",Xreduced.shape   
     return(Xreduced,Xreduced_test)
+
+def xgbFeatureImportance(clf,X,y):
+    """
+    Selects n best features, strange importances...
+    """
+    print "XGB Feature importance..."
+    clf.fit(X,y)
+    
+    fmap = clf.get_fscore()
+    importances = np.zeros(X.shape[1])
+    
+
+    for i,(k,v) in enumerate(fmap.iteritems()):
+	idx = int(float(k.replace("f","")))
+	print "k",k
+	print "feature",idx
+	print "importance",v
+	print "name:",X.columns[idx]
+	#print indices[i]
+	importances[idx]=v
+	#print X.columns[indices[i]]
+    indices = np.argsort(importances)[::-1]
+    #indices = indices.astype(int)
+    
+    for i,f in enumerate(indices):
+	print("%3d. feature %16s %3d - %6.4f" % (i, X.columns[f], f, importances[f]))
+    
+    
+    print fmap
+    fscore = [ (v,k) for k,v in fmap.iteritems() ]
+    print "fscore",fscore.sort(reverse=True)
+    
+    #plt.bar(left=np.arange(len(indices)),height=importances[indices] , width=0.35, color='r')
+    #plt.show()
+
+def featureImportance(clf,X,y):
+    """
+    New function for gradient boosting
+    """
+    print "New feature importance..."
+    clf.fit(X,y)
+    
+    # Plot feature importance
+    feature_importance = clf.feature_importances_
+    # make importances relative to max importance
+    feature_importance = 100.0 * (feature_importance / feature_importance.max())
+    sorted_idx = np.argsort(feature_importance)
+    pos = np.arange(sorted_idx.shape[0]) + .5
+    plt.subplot(1, 2, 2)
+    plt.barh(pos, feature_importance[sorted_idx], align='center')
+    plt.yticks(pos, X.columns[sorted_idx])
+    plt.xlabel('Relative Importance')
+    plt.title('Variable Importance')
+    plt.show()
     
 def rfFeatureImportance(forest,Xold,Xold_test,n):
     """ 
-    Selects n best features from a model which has the attribute feature_importances_
+    Selects n best features from a model which has the attribute feature_importances_ is it buggy?
     """
     print "Feature importance..."
     if not hasattr(forest,'feature_importances_'): 
-      print "Missing attribute feature_importances_"
-      return
+      print "Missing attribute feature_importances_ ...leaving"
+      #return
     importances = forest.feature_importances_
     std = np.std([tree.feature_importances_ for tree in forest.estimators_],axis=0)#perhas we need it later
     
@@ -457,34 +553,130 @@ def linearFeatureSelection(lmodel,Xold,Xold_test,n):
 	Xreduced = Xtmp[Xold_test.shape[0]:]
 	return(Xreduced,Xreduced_test)
 
-def greedyFeatureSelection(lmodel,lX,ly,itermax=10,itermin=5,targets=None ,start_features=None,verbose=False, cv=5, n_jobs=4,scoring_func='mean_squared_error'):
+
+# The step callback function, this function
+# will be called every step (generation) of the GA evolution
+def evolve_callback(ga_engine):
+   generation = ga_engine.getCurrentGeneration()
+   if generation % 1 == 0:
+      pop = ga_engine.getPopulation()
+      column_names = pop.oneSelfGenome.getParam("Xtrain").columns
+      binary_list = [True if value==1 else False for value in ga_engine.bestIndividual()]
+      print "Best individual:",column_names[binary_list]
+      print "Best individual:",ga_engine.bestIndividual()
+   return False
+
+
+def eval_func(genome):
+  """
+  Evaluation function for GA
+  """
+  model = genome.getParam("model")
+  Xtrain = genome.getParam("Xtrain")
+  ytrain = genome.getParam("ytrain")
+  cv = genome.getParam("cv")
+  scoring_func = genome.getParam("scoring_func")
+  n_jobs = genome.getParam("n_jobs")
+
+  #print genome
+  binary_list = [True if value==1 else False for value in genome]
+  Xact = Xtrain.iloc[:,binary_list]
+  #print "New shape:",Xact.shape
+  #print "Columns:",Xact.columns
+  t0 = time()
+  score = buildModel(model,Xact,ytrain,cv=cv,scoring=scoring_func,n_jobs=n_jobs,trainFull=False)
+  run_time = time() - t0
+  
+  #print "cv-score: %6.3f +/- %6.3f genome: %s" %(-1*score.mean(),score.std(),[value for value in genome])
+  print "cv-score: %6.3f +/- %6.3f cv-runs: %4d time: %4.2f" %(-1*score.mean(),score.std(),len(score),run_time)
+  return -1/score.mean()
+
+
+def genetic_feature_selection(model,Xtrain,ytrain,Xtest,pool_features=None,start_features=None,scoring_func='mean_squared_error',cv=None,n_iter=3,n_pop=20,n_jobs=1):
+    """
+    Genetic feature selection
+    """
+    from pyevolve import G1DBinaryString
+    from pyevolve import Initializators, Mutators
+    from pyevolve import GSimpleGA
+    from pyevolve import Selectors
+    from pyevolve import Statistics
+    from pyevolve import DBAdapters
+    from pyevolve.GenomeBase import GenomeBase
+    
+    print cv
+    print model
+    
+    if pool_features==None:
+	pool_features = Xtrain.columns
+    
+    genome = G1DBinaryString.G1DBinaryString(Xtrain.shape[1])
+
+    genome.evaluator.set(eval_func)
+    #genome.mutator.set(Mutators.G1DBinaryStringMutatorFlip)
+    
+    #start_features='11111111111111111111111111101111101111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111101111111111111111111111111111110111111111111111111111111111111111101111111111111111110111111111111111111011111111111111111011110111111111111111101111011111111111111011111111111111111111111111011111111111100111111111111101111111101111111111111011111111111111111111111111111111111111111011111111111101111111111111111111111111111111111111111111111111101111111111101111111111101111111111111111011111111111111111111111111111111111111111111111111111011111111111111111111111111110111111110111111111111111111111111111111111111111111111111111111111111111011111111111111111111111101111111111011110111111111011110111001111101101101001100111011110010000101000110011111111010000001110110100111101000000001111111110010010000111100100010100011011001001011100101111010000001110001001011110011101101100001111101110010001000010100111001010011011110101100100011111101001111001000010000100100111111111100111110000101001000000101001100111011110010000100101001110010101100010100101101101001000110100111001000010111101111000110001110110101101111010110010101010011010100110100111110001110101011100010011100100000011000100101010111110001010001010010111000000110101011000100110000000100110000000010101101111001001100111011011110110101111111011011100111110010110100101110'
+    #if isinstance(start_features,str):
+	#binary_list = [True if value=='1' else False for value in start_features]
+	#start_features = list(Xtrain.columns[binary_list])
+    
+    genome.setParams(model=model,Xtrain=Xtrain,ytrain=ytrain,start_features=start_features,pool_features=pool_features,scoring_func=scoring_func,cv=cv,n_jobs=n_jobs)
+    genome.initializator.set(Initializators.G1DBinaryStringInitializator)
+    # Genetic Algorithm Instance
+    ga = GSimpleGA.GSimpleGA(genome)
+    ga.stepCallback.set(evolve_callback)
+    #GSimpleGA.GSimpleGA.setMultiProcessing(ga)
+    ga.selector.set(Selectors.GTournamentSelector)
+    ga.setGenerations(n_iter)
+    ga.setPopulationSize(n_pop)
+    # Do the evolution, with stats dump
+    # frequency of 10 generations
+    ga.evolve(freq_stats=1)
+    
+    # Best individual
+    #print ga.bestIndividual()
+    binary_list = [True if value==1 else False for value in ga.bestIndividual()]
+    print "Best features:"
+    print Xtrain.columns[binary_list]
+    print "Selected %d out of %d features"%(sum(binary_list),Xtrain.shape[1])
+    buildModel(model,Xtrain.iloc[:,binary_list],ytrain,cv=cv,scoring=scoring_func,n_jobs=n_jobs,trainFull=False,verbose=True)
+    
+
+
+def greedyFeatureSelection(lmodel,lX,ly,itermax=10,itermin=5,pool_features=None ,start_features=None,verbose=False, cv=5, n_jobs=4,scoring_func='mean_squared_error'):
 	features=[]
 	
-	if targets is None:
-	    targets = lX.columns
+	if pool_features is None:
+	    pool_features = lX.columns
 	
 	if start_features is not None:
 	    features=start_features
 	else:
-	    features=[col for col in lX.columns if not col in targets]
+	    features=[col for col in lX.columns if not col in pool_features]
 	
 	scores = []
 	score_opt=1E10
 	for i in xrange(itermax):
-	    print "Round %4d"%(i),
+	    print "Round %4d"%(i)
 	    score_best=1E9
-	    for k in xrange(len(targets)):
-		act_feature = targets[k]
+	    for a,k in enumerate(xrange(len(pool_features))):
+		act_feature = pool_features[k]
 		if act_feature in set(features):continue
 		
 		features.append(act_feature)
 		
+		t0 = time()
 		score = cross_validation.cross_val_score(lmodel,lX.loc[:,features],ly,fit_params=None, scoring=scoring_func,cv=cv,n_jobs=n_jobs)
+		run_time = time() - t0
+		
 		if 'mean_squared_error' in str(scoring_func):
 		  score = -1*(score)**0.5
+		else:
+		  score = -1*score
+		
 		
 		if verbose:
-		    print "TARGET: %-12s - <score>= %0.3f (+/- %0.4f) score,iteration best= %0.4f score,overall best: %0.4f" % (act_feature, score.mean(), score.std(),score_best,score_opt)
+		    print "(%4d/%4d) TARGET: %-12s - <score>= %0.4f (+/- %0.5f) score,iteration best= %0.4f score,overall best: %0.4f features: %5d time: %6.2f" % (a+1,len(pool_features),act_feature, score.mean(), score.std(),score_best,score_opt,lX.loc[:,features].shape[1],run_time)
 		
 		if score.mean()<score_best:
 		  score_best=score.mean()
@@ -557,7 +749,6 @@ def removeLowVariance(X_all,threshhold=1E-5):
 	    X_all = pd.DataFrame(X_all.toarray())
 	
 	idx = np.asarray(X_all.std()<=threshhold)
-	print idx
 	if len(X_all.columns[idx])>0:
 		print "Dropped %4d zero variance columns (threshold=%6.3f): %r"%(np.sum(idx),threshhold,X_all.columns[idx])
 		X_all.drop(X_all.columns[idx], axis=1,inplace=True)
@@ -613,9 +804,25 @@ def pcAnalysis(X,Xtest,y=None,w=None,ncomp=2,transform=False,classification=Fals
 	plt.legend()
 	plt.show()
 
+
+def root_mean_squared_log_error(x,y):
+	x = np.clip(x,a_min=0.0,a_max=1E15)
+	y = np.clip(y,a_min=0.0,a_max=1E15)
+	if ((y+1.0)<0.0).sum()>0 or ((x+1.0)<0.0).sum():
+	    print "WARNING!"
+	    print "x",((x+1.0)<0.0).sum()
+	    print "y",((y+1.0)<0.0).sum()
+	    idx = (y+1.0)<0.0
+	    print y[idx]
+	    
+	x = np.log(x+1.0)
+	y = np.log(y+1.0)
+	
+	return root_mean_squared_error(x,y)
 	
 def root_mean_squared_error(x,y):
-	return mean_squared_error(x,y)**0.5
+	mse = mean_squared_error(x,y)
+	return mse**0.5
 	
 def mean_absolute_error(x,y):
 	x = x.flatten()
@@ -821,7 +1028,24 @@ def scaleData(lXs,lXs_test=None,cols=None,normalize=False,epsilon=0.0):
 	return (lXs,lXs_test)
     else:
 	return lX_all
- 
+
+
+def data_binning(X,binning):
+    """
+    Bin dat in n=binning bins
+    """
+    for col in X.columns:
+	    #print Xall[col]
+	    tmp = pd.cut(X[col].values, binning,labels=False)
+	    X[col] = np.asarray(tmp)
+	    #print Xall[col]
+	    #raw_input()
+	    #groups = Xall.groupby(tmp)
+	    #print groups
+	    #print groups.describe()
+	    
+    return X
+
 def binarizeProbs(a,cutoff):   
     """
     turn probabilities to 1 and 0
@@ -829,7 +1053,7 @@ def binarizeProbs(a,cutoff):
     if a>cutoff: return 1.0
     else: return 0.0
     
-def make_polynomials2(Xtrain,Xtest=None,degree=2,cutoff=100):
+def make_polynomials(Xtrain,Xtest=None,degree=2,cutoff=100):
     """
     Generate polynomial features
     """
@@ -847,50 +1071,70 @@ def make_polynomials2(Xtrain,Xtest=None,degree=2,cutoff=100):
       if n_nonnull>cutoff:
 	new_data.append(Xnew)
 	colnames.append(name)
+      else:
+	print "Dropped:",name
       
     new_data = pd.DataFrame(np.array(new_data).T,columns=colnames)
     
     return new_data
 
 
+# Utility function to report best scores
+def report(grid_scores, n_top=3):
+    top_scores = sorted(grid_scores, key=itemgetter(1), reverse=True)[:n_top]
+    for i, score in enumerate(top_scores):
+        print("Model with rank: {0}".format(i + 1))
+        print("Mean validation score: {0:.3f} (std: {1:.3f})".format(
+              score.mean_validation_score,
+              np.std(score.cv_validation_scores)))
+        print("Parameters: {0}".format(score.parameters))
+        print("")
 
-def makeGridSearch(lmodel,lX,ly,n_jobs=1,refit=True,cv=5,scoring='roc_auc'):
+def makeGridSearch(lmodel,lX,ly,n_jobs=1,refit=True,cv=5,scoring='roc_auc',random_iter=-1,parameters={}):
     print "Start GridSearch..."
-    #parameters = {'filter__param': [30,50],'model__C':[1]}
-    #parameters = {'pca__n_components':[30],'model__C':[1]}
-    #parameters = {'model__C':[1,0.1,0.01,0.001]}#Linear SVC+LOGREG
-    #parameters = {'C':[1]}#Linear SVC+LOGREG
-    parameters = {'C':[1E-1,1E-3,1E-5],'penalty':['L1','L2']}#Linear SVC+LOGREG
-    #parameters = {'n_estimators':[50],'alpha_L1':[1E-1],'lambda_L2':[1E-1]}#XGBOOST GBLINEAR
-    #parameters = {'alpha':[1,1E-2,1E-4,1E-6],'n_iter':[100,400,800],'penalty':['l2']}#SGD
-    #parameters = {'alpha':[1,1E-2,1E-4],'n_iter':[250],'penalty':['l2']}#SGD
-    #parameters = {'learn_rates':[0.3,0.2],'learn_rate_decays':[1.0,0.9],'epochs':[40]}#DBN
-    #parameters = {'hidden1_num_units': [300],'dropout1_p':[0.1,0.2,0.3],'hidden2_num_units': [300],'dropout2_p':[0.25],'hidden3_num_units': [300],'dropout3_p':[0.5],'update_learning_rate':[0.001,0.002,0.0025],'max_epochs':[1000]}#Lasagne
-    #parameters = {'hidden1_num_units': [200],'dropout1_p':[0.0,0.1,0.25],'hidden2_num_units': [200],'dropout2_p':[0.0,0.1,0.25],'hidden3_num_units': [200],'dropout3_p':[0.5],'max_epochs':[1000]}#Lasagne
-    #parameters = {'hidden1_num_units': [500,1000],'update_learning_rate':[0.0001,0.0005],'max_epochs':[500],'dropout1_p':[0.0,.2]}#Lasagne
-    #parameters = {'hidden1_num_units': [500,500],'update_learning_rate':[0.0001,0.0005],'max_epochs':[500],'dropout1_p':[0.0,.2]}#Lasagne
-    #parameters = {'hidden1_num_units': [1000],'update_learning_rate':[0.0002],'max_epochs':[1000],'dropout1_p':[0.2]}#Lasagne
-    #parameters = {'n_estimators':[500], 'max_features':[20],'max_depth':[None],'max_leaf_nodes':[None],'min_samples_leaf':[1,5],'min_samples_split':[2,10],'criterion':['gini']}#xrf+xrf
-    #parameters = {'class_weight': [{0: 1.,1: 1., 2: 1.,3: 1.,4: 1.,5: 1.,6: 1.,7: 1.,8: 1.,9: 1.}]}
-    #parameters = {'n_estimators':[400,500,600],'max_depth':[10],'learning_rate':[0.03],'subsample':[0.5]}#XGB
-    #parameters = {'n_estimators':[20],'max_depth':[10],'learning_rate':[0.05],'subsample':[0.5]}#XGB
-    #parameters = {}
+    if parameters is None:
+      #parameters = {'C':[10],'gamma':np.logspace(-5.0,-1.0,num=5)}
+      parameters = {'C':[5,10,20],'gamma':[0.004]}
+      #parameters = {'filter__param': [30,50],'model__C':[1]}
+      #parameters = {'pca__n_components':[30],'model__C':[1]}
+      #parameters = {'model__C':[1,0.1,0.01,0.001]}#Linear SVC+LOGREG
+      #parameters = {'C':[10]}#Linear SVC+LOGREG
+      #parameters = {'C':[1.0],'penalty':['l2']}#Linear SVC+LOGREG
+      #parameters = {'n_estimators':[50],'alpha_L1':[1E-1],'lambda_L2':[1E-1]}#XGBOOST GBLINEAR
+      #parameters = {'alpha':[1E-6,1E-8],'n_iter':[100],'penalty':['l2']}#SGD
+      #parameters = {'alpha':[1,1E-2,1E-4],'n_iter':[250],'penalty':['l2']}#SGD
+      #parameters = {'hidden1_num_units': [600],'dropout1_p':[0.0,0.1,0.2,0.3,0.4,0.5],'maxout1_ds':[2,3,4],'hidden2_num_units': [600],'dropout2_p':[0.0],'maxout2_ds':[2,3,4],'hidden3_num_units': [600],'dropout3_p':[0.0],'maxout3_ds':[2,3,4],'max_epochs':[50,100,150],'update_learning_rate':[0.001,0.002,0.004]}#Lasagne
+      #parameters = {'hidden1_num_units': [300],'dropout1_p':[0.25,0.5],'hidden2_num_units': [300],'dropout2_p':[0.5,0.25],'update_learning_rate':[0.01,0.008],'objective_alpha':[1E-10]}#Lasagne
+      #parameters = {'hidden1_num_units': [500],'dropout1_p':[0.5],'hidden2_num_units': [500],'dropout2_p':[0.5,0.0],'hidden3_num_units': [500],'dropout3_p':[0.5,0.0],'max_epochs':[150,100],'objective_alpha':[1E-3,1E-6,1E-9],'update_learning_rate':[0.004,0.003,0.002]}#Lasagne
+      #parameters = {'hidden1_num_units': [500,1000],'update_learning_rate':[0.0001,0.0005],'max_epochs':[500],'dropout1_p':[0.0,.2]}#Lasagne
+      #parameters = {'hidden1_num_units': [500,500],'update_learning_rate':[0.0001,0.0005],'max_epochs':[500],'dropout1_p':[0.0,.2]}#Lasagne
+      #parameters = {'hidden1_num_units': [200,300],'max_epochs':[1000],'dropout1_p':[0.1,0.2,0.3]}#Lasagne
+      #parameters = {'n_estimators':[600], 'max_features':[16,20,24],'max_depth':[None],'max_leaf_nodes':[None],'min_samples_leaf':[1],'min_samples_split':[2,10],'criterion':['gini']}#xrf+xrf
+      #parameters = {'class_weight': [{0: 1.,1: 1., 2: 1.,3: 1.,4: 1.,5: 1.,6: 1.,7: 1.,8: 1.,9: 1.},{0: 2.,1: 1., 2: 2.,3: 1.,4: 1.,5: 1.,6: 1.,7: 1.,8: 1.,9: 1.}]}
+      #parameters = {'n_estimators':[300,400],'max_depth':[8,9,10],'learning_rate':[0.015,0.02,0.025,0.03],'subsample':[0.5,1.0]}#XGB+GBC
+      #parameters = {'n_estimators':[400],'max_depth':[10],'learning_rate':[0.1,0.05,0.01],'subsample':[0.5]}#XGB+GBC
+      
+    if random_iter<0:
+	search  = grid_search.GridSearchCV(lmodel, parameters,n_jobs=n_jobs,verbose=2,scoring=scoring,cv=cv,refit=refit)
+    else:
+	search  = grid_search.RandomizedSearchCV(lmodel, param_distributions=parameters,n_jobs=n_jobs,verbose=2, scoring=scoring,cv=cv,refit=refit,n_iter=random_iter)
     
-    clf  = grid_search.GridSearchCV(lmodel, parameters,n_jobs=n_jobs,verbose=2,scoring=scoring,cv=cv,refit=refit)
-    clf.fit(lX,ly)
+    search.fit(lX,ly)
     best_score=1.0E5
     print("%6s %6s %6s %r" % ("OOB", "MEAN", "SDEV", "PARAMS"))
-    for params, mean_score, cvscores in clf.grid_scores_:
-	oob_score = -1* mean_score
-	cvscores = -1 * cvscores
+    for params, mean_score, cvscores in search.grid_scores_:
+	oob_score = mean_score
+	cvscores = cvscores
 	mean_score = cvscores.mean()
 	print("%6.3f %6.3f %6.3f %r" % (oob_score, mean_score, cvscores.std(), params))
 	#if mean_score < best_score:
 	#    best_score = mean_score
 	#    scores[i,:] = cvscores
-	
+    
+    #report(search.grid_scores_)
+
     if refit:
-      return clf.best_estimator_
+      return search.best_estimator_
     else:
       return None
 
@@ -969,12 +1213,132 @@ def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, sc
 
     plt.legend(loc="best")
     return plt
+
+
+# The following 3 functions have been taken from Ben Hamner's github repository
+# https://github.com/benhamner/Metrics
+def confusion_matrix(rater_a, rater_b, min_rating=None, max_rating=None):
+    """
+    Returns the confusion matrix between rater's ratings
+    """
+    assert(len(rater_a) == len(rater_b))
+    if min_rating is None:
+        min_rating = min(rater_a + rater_b)
+    if max_rating is None:
+        max_rating = max(rater_a + rater_b)
+    num_ratings = int(max_rating - min_rating + 1)
+    conf_mat = [[0 for i in range(num_ratings)]
+                for j in range(num_ratings)]
+    for a, b in zip(rater_a, rater_b):
+        conf_mat[a - min_rating][b - min_rating] += 1
+    return conf_mat
+
+
+def histogram(ratings, min_rating=None, max_rating=None):
+    """
+    Returns the counts of each type of rating that a rater made
+    """
+    if min_rating is None:
+        min_rating = min(ratings)
+    if max_rating is None:
+        max_rating = max(ratings)
+    num_ratings = int(max_rating - min_rating + 1)
+    hist_ratings = [0 for x in range(num_ratings)]
+    for r in ratings:
+        hist_ratings[r - min_rating] += 1
+    return hist_ratings
+
+def quadratic_weighted_kappa(y, y_pred):
+    """
+    Calculates the quadratic weighted kappa
+    axquadratic_weighted_kappa calculates the quadratic weighted kappa
+    value, which is a measure of inter-rater agreement between two raters
+    that provide discrete numeric ratings.  Potential values range from -1
+    (representing complete disagreement) to 1 (representing complete
+    agreement).  A kappa value of 0 is expected if all agreement is due to
+    chance.
+    quadratic_weighted_kappa(rater_a, rater_b), where rater_a and rater_b
+    each correspond to a list of integer ratings.  These lists must have the
+    same length.
+    The ratings should be integers, and it is assumed that they contain
+    the complete range of possible ratings.
+    quadratic_weighted_kappa(X, min_rating, max_rating), where min_rating
+    is the minimum possible rating, and max_rating is the maximum possible
+    rating
+    """
+    rater_a = y
+    rater_b = y_pred
+    min_rating=None
+    max_rating=None
+    rater_a = np.array(rater_a, dtype=int)
+    rater_b = np.array(rater_b, dtype=int)
+   
+    assert(len(rater_a) == len(rater_b))
+    if min_rating is None:
+        min_rating = min(min(rater_a), min(rater_b))
+    if max_rating is None:
+        max_rating = max(max(rater_a), max(rater_b))
+    conf_mat = confusion_matrix(rater_a, rater_b,
+                                min_rating, max_rating)
+    num_ratings = len(conf_mat)
+    num_scored_items = float(len(rater_a))
+
+    hist_rater_a = histogram(rater_a, min_rating, max_rating)
+    hist_rater_b = histogram(rater_b, min_rating, max_rating)
+
+    numerator = 0.0
+    denominator = 0.0
+
+    for i in range(num_ratings):
+        for j in range(num_ratings):
+            expected_count = (hist_rater_a[i] * hist_rater_b[j]
+                              / num_scored_items)
+            d = pow(i - j, 2.0) / pow(num_ratings - 1, 2.0)
+            numerator += d * conf_mat[i][j] / num_scored_items
+            denominator += d * expected_count / num_scored_items
+
+    return (1.0 - numerator / denominator)    
+
+
+def LeavePLabelOutWrapper(str_labels,n_folds=8,p=1,verbose=True):
+    lenc = preprocessing.LabelEncoder()
+    labels = lenc.fit_transform(str_labels)%n_folds
+    cv= LeavePLabelOut(labels,p=1)
+    if verbose: print "Labels: %r length %d"%(np.unique(labels).shape,len(cv))
+    return cv
+
+class KLabelFolds():
+  def __init__(self, labels, n_folds=3, repeats=5):
     
+    self.n_folds = n_folds
+    self.repeats = repeats
+
+    lenc = preprocessing.LabelEncoder()
+    self.labels = lenc.fit_transform(labels)
+
+  def __len__(self): return self.n_folds*self.repeats
+
+  def __iter__(self):
     
+    unique_labels = np.unique(self.labels)
+    for i in range(self.repeats):
+      cv = cross_validation.KFold(len(unique_labels), self.n_folds)
+      unique_labels = shuffle(unique_labels)
+      for train, test in cv:
+	test_labels = unique_labels[test]
+	test_mask = np.in1d(self.labels,test_labels)
+	train_mask = np.logical_not(test_mask)
+	yield (np.where(train_mask)[0], np.where(test_mask)[0])
+
+
+   
 #some global vars
 funcdict={}
 funcdict['rmse']=root_mean_squared_error
+funcdict['rmsle']=root_mean_squared_log_error
 funcdict['auc']=roc_auc_score
 funcdict['mae']=mean_absolute_error
 funcdict['msq']=mean_squared_error
 funcdict['log_loss']=multiclass_log_loss
+funcdict['accuracy_score']=accuracy_score
+funcdict['quadratic_weighted_kappa']=quadratic_weighted_kappa

@@ -23,7 +23,7 @@ from math import exp, log, sqrt
 # TL; DR, the main training process starts on line: 250,
 # you may want to start reading the code from there
 
-#see also https://www.kaggle.com/c/avazu-ctr-prediction/forums/t/10927/beat-the-benchmark-with-less-than-1mb-of-memory
+
 ##############################################################################
 # parameters #################################################################
 ##############################################################################
