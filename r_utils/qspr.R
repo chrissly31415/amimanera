@@ -43,7 +43,7 @@ loadData<-function(filename,separator=";") {
   
 }
 
-prepareData_standard<-function(ldata,removeZeroCols=T,drugLike=T,outlierRemoval=T,useInterval=F,lowT=0,highT=1000,removeCols=TRUE) {
+prepareData_standard<-function(ldata,removeZeroCols=T,drugLike=F,outlierRemoval=F,useInterval=F,lowT=0,highT=1000,removeCols=TRUE) {
   #REMOVE ROWS
   cat(">>Number of samples:",nrow(ldata),"\n")
   if (useInterval) {
@@ -117,7 +117,7 @@ prepareData_standard<-function(ldata,removeZeroCols=T,drugLike=T,outlierRemoval=
     }    
   } 
   #cat("Data after preparation:\n")
-  return(list(ldata,smiles))
+  return(list(data=ldata,smiles=smiles))
 }
 
 prepareData_ons<-function(ldata,lowT,highT,testSet) {
@@ -418,7 +418,7 @@ linRegTrain<-function(lX,ly,lid=NULL,plot=T) {
 	pred<-data.frame(predicted=fit$fitted.values,exp=ly,se,er)
     }
     pred<-pred[with(pred, order(-se)), ]
-    write.table(pred,file="prediction.csv",sep=",",row.names=FALSE)
+    write.table(pred,file="prediction.csv",sep=";",row.names=FALSE)
     print(colnames(lX))
   }  
   return(fit)
@@ -651,15 +651,24 @@ computeAUC<-function(predicted,truth,titlename=NULL,verbose=F) {
   #print(summary(truth))
   pred<-prediction(predicted, truth)
   perf <- performance(pred,"tpr","fpr")
-  if (verbose) {
-    plot(perf,col="blue",lty=3, lwd=3,xlim=c(0,1))
-    abline(0.0,1.0, col = "black",lwd=3,xlim=c(0,1))
-    if (!is.null(titlename)) {
-      title(titlename)
-    }
-  }
+
   auc<-performance(pred,"auc")
   auc<-unlist(slot(auc, "y.values"))
+  if (verbose) {
+    if (auc<0.7)  {
+      color<-"red"
+    } else {
+      color<-"blue"
+    }
+    plot(perf,col=color,lty=1, lwd=3,xlim=c(0,1),xlab="FPR",ylab="TPR")
+    abline(0.0,1.0, col = "black",lwd=3,xlim=c(0,1))
+    if (!is.null(titlename)) {
+      title(titlename,cex.main=1.0) # scale title
+      text(0.7,0.1,sprintf("AUC: %6.2f",auc))
+    }
+  }
+  
+  
   #str(auc)
   #if (verbose) cat("AUC:",auc,"\n")
   return(auc)
@@ -837,15 +846,15 @@ xval_oob<-function(Xl,yl,iterations=500,nrfolds=5,intdepth=2,sh=0.01,minobsinnod
 
 
 
-trainRF<-function(lX,ly,iter=500,m.try=if (!is.null(ly) && !is.factor(ly)) max(floor(ncol(lX)/3), 1) else floor(sqrt(ncol(lX))),node.size=5, verbose=T,fimportance=F) {
-  cat("Training random forest...")
+trainRF<-function(lX,ly,iter=500,mtry=if (!is.null(ly) && !is.factor(ly)) max(floor(ncol(lX)/3), 1) else floor(sqrt(ncol(lX))),node.size=5, verbose=T,fimportance=F) {
   require(randomForest)
-  mydata.rf <- randomForest(lX,ly,ntree=iter,mtry=m.try,importance = fimportance,nodesize =node.size)
+  cat("Training random forest...") 
+  mydata.rf <- randomForest(lX,ly,ntree=iter,mtry=mtry,importance = fimportance,nodesize =node.size)
   
   if (fimportance) {
     imp<-importance(mydata.rf,type=1)
     varImpPlot(mydata.rf,type=1,main="")
-    #write.table(data.frame(imp),file="importance.csv",sep=",")
+    write.table(data.frame(imp),file="importance.csv",sep=",")
     #png(file="importance.png",width=1600,height=1200,res=300)
     #par(mar=c(4,1,2,2))
     #dev.off()
@@ -870,7 +879,10 @@ trainRF<-function(lX,ly,iter=500,m.try=if (!is.null(ly) && !is.factor(ly)) max(f
       plot(results,col="blue",pch=1, xlab = "exp", ylab = "residues")
       title(main = "RF residuals (y-pred)")
       se<-(mydata.rf$predicted-mydata.rf$y)^2
-      ldata<-data.frame(predicted=mydata.rf$predicted,exp=mydata.rf$y,se)
+      #if (!is.null(rownames)) {
+      #  ldata<-data.frame(name=rownames,predicted=mydata.rf$predicted,exp=mydata.rf$y,se)
+      #}
+      
     }      
   } else {
     cat(" classification\n")
@@ -887,7 +899,7 @@ trainRF<-function(lX,ly,iter=500,m.try=if (!is.null(ly) && !is.factor(ly)) max(f
       #pc_correct(ldata$predicted,ldata$truth)
     }
   }   
-  #write.table(ldata,file="prediction_rf.csv",sep=",",row.names=FALSE)
+  #write.table(ldata,file="prediction_rf.csv",sep=";",row.names=FALSE)
   return(mydata.rf)
 }
 
@@ -1138,7 +1150,21 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",parameters=list(iter=
       }  
     ############################################# 
     # MARS                                      #
-    #############################################  
+    #############################################
+    } else if (modname=="xgboost") {
+      if (lossfn=="rmse") {
+      param <- list(objective = "reg:linear",
+                    eval_metric = "rmse",
+                    max.depth=parameters$depth,
+                    eta=parameters$shseq,
+                    silent=1, 
+                    subsample=parameters$subsample,
+                    nthread = parameters$nthread)
+      X = as.matrix(Xtrain)
+      n.tree <- parameters$iter
+      model = xgboost(param=param, data =X, label= ytrain,nrounds=n.tree,missing = NA)
+      }
+      
     } else if (modname=="mars") {
       cat("TRAIN MARS: ") 
       if (lossfn=="rmse") {
@@ -1185,6 +1211,10 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",parameters=list(iter=
       cat("TEST GBM with steps: ",gbm_steps,"\n")
       pred<-predict(fits[[gbm_steps]],Xtest,n.trees=parameters$iter,type="response")
       print(summary(data.frame(pred)))
+    } else if (modname=="xgboost") {
+      if (lossfn=="rmse") {
+        pred<-predict(model,as.matrix(Xtest),outputmargin=T,predleaf=F, missing = NA)#XGBOOST
+      }
     } else if (modname=="mars") {
       cat("TEST MARS: ")
       pred<-predict(fit, Xtest,type="response")
