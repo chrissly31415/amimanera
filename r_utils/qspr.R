@@ -1007,7 +1007,7 @@ compareViaPrinComp<-function(lX1,lX2,ly=NULL,threshold=0.5) {
   #plot(x1[, 1], x1[, 2], pch = 2,col=rgb(1,0,0,1/4),xlim=c(-10,20),ylim=c(-20,30))
   plot(x1[, 1], x1[, 2], pch = 2,col=rgb(1,0,0,1/4))
   points(x2[, 1], x2[, 2], pch = 1,col=rgb(0,0,1,1/4))
-  legend(30, 25, c("dataset 1","dataset 2"), cex=1,pch=c(2,1),col=c("red","blue"))
+  legend(5, -20, c("Xtrain","Xtest"), cex=1,pch=c(2,1),col=c("red","blue"))
   #biplot
 }
 

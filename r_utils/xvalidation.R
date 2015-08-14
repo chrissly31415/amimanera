@@ -42,7 +42,7 @@ random_folds<-function(dat,k=5) {
 }
 
 
-#returns the samples
+#returns the samples, df: xval dataframe
 return_fold<-function(df,n,test,retSparse=F) {
 	if(test==FALSE){
 	tmp<-df[df$folds!=n,]
