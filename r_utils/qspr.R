@@ -781,85 +781,131 @@ gbm_grid<-function(lX,ly,lossfn="auc",treemethod="gbm",repeatcv=3,parameters=lis
   
 }
 
-xval_oob<-function(Xl,yl,iterations=500,nrfolds=5,intdepth=2,sh=0.01,minobsinnode=10,repeatcv=2,lossfn="rmse",method="gbm",mtry=5,oobfile='oob_res.csv') {
-  #parallel cv loop
-  #outer loop
-  lossdat<-foreach(j = 1:repeatcv,.combine="cbind") %do% {
-    train<-createFoldIndices(Xl,k=nrfolds)
+#parallel crossvalidation that delivers also out-of-bag predictions 
+xval_oob<-function(Xl,yl,Xtest=NULL,iterations=500,nrfolds=5,intdepth=2,sh=0.01,minobsinnode=10,repeatcv=2,lossfn="rmse",method="gbm",mtry=5,oobfile='oob_res.csv',folds_from_file=NULL) {
+  cat("xval-oob....\n")
+  saveFoldsToFile(Xl,k=nrfolds,n=repeatcv,filename="folds.csv")
+  #outer serial loop, column bind!!!
+  results_all<-foreach(j = 1:repeatcv,.combine="cbind") %do% {      
+    if (!is.null(folds_from_file)) {
+      cat("Reading folds from file, pos:",j,"\n")
+      train<-createFoldsFromFile("folds.csv",pos=j)
+    }  else {
+      train<-createFoldIndices(Xl,k=nrfolds)
+    }    
     cl<-makeCluster(nrfolds, type = "SOCK")
     registerDoSNOW(cl) 
-    #inner parallel loop
-    res<-foreach(i = 1:nrfolds,.packages=c('gbm','randomForest'),.combine="rbind",.export=c("compRMSE","computeAUC","oinfo","linRegTrain","variableSelection")) %dopar% {
-        cat("###FOLD: ",i," Iterations: ",iterations," ") 
-        idx <- which(train == i)
-        Xtrain<-Xl[-idx,]
-        ytrain<-yl[-idx]
-        Xtest<-Xl[idx,]
-        ytest<-yl[idx]
-        if (lossfn=="auc") {
-          if (method=="gbm") {
-            gbm1<-gbm.fit(Xtrain ,ytrain,distribution="bernoulli",n.trees=iterations,interaction.depth=intdepth,shrinkage=sh,n.minobsinnode = minobsinnode,verbose=F)
-            results<-predict.gbm(gbm1,Xtest,n.trees=iterations,type="response")
-          } else if (method=='randomForest' || method=='rf') {
-            #RF
-            rf1 <- randomForest(Xtrain,ytrain,ntree=iterations,mtry=mtry,nodesize=minobsinnode,importance = F)
-            results<-predict(rf1,Xtest,type="vote")[,2]
-          } else if (method=='linear') {
-      	    #linear regression
-      	    #Xtrain<-variableSelection(Xtrain,ytrain,"forward",iterations)
-      	    fit<-linRegTrain(Xtrain,ytrain,NULL,F)
-      	    results<-predict(fit,Xtest)
-          }
-          score<-computeAUC(results,ytest,F)
-        } else {
-          if (method=="gbm") {
-            gbm1<-gbm.fit(Xtrain ,ytrain,distribution="gaussian",n.trees=iterations,interaction.depth=intdepth,shrinkage=sh,n.minobsinnode = minsnode,verbose=F)
-            results<-predict.gbm(gbm1,Xtest,n.trees=iterations,type="response")
-            } else if (method=='randomForest'|| method=='rf') {
-              #RF
-              rf1 <- randomForest(Xtrain,ytrain,ntree=iterations,mtry=mtry,importance = F)
-              results<-predict(rf1,Xtest)             
-            } else if (method=='linear') {
-      	      #linear regression
-      	      Xtrain<-variableSelection(Xtrain,ytrain,"forward",iterations)
-      	      fit<-linRegTrain(Xtrain,ytrain,NULL,F)
-      	      results<-predict(fit,Xtest)
-            }
-          score<-compRMSE(results,ytest)
-          }        
-        cat(" LOSS:",score,"\n") 
-        #returning dataframe with predictions and truth
-        final<-data.frame(idx,results,ytest)
-        return(final)
-      }#end parallel inner loop
-      res<-res[order(res$idx),]
+    #inner parallel loop, automatically rbind results to res
+    res_all<-foreach(i = 1:nrfolds,.packages=c('gbm','randomForest'),.combine="rbind",.export=c("compRMSE","computeAUC","oinfo","linRegTrain","variableSelection")) %dopar% {
+      cat("###FOLD: ",i," Iterations: ",iterations," ") 
+      idx <- which(train == i)
+      Xtrain<-Xl[-idx,]
+      ytrain<-yl[-idx]
+      Xvalid<-Xl[idx,]
+      ytest<-yl[idx]
+      test_data<-NULL
       if (lossfn=="auc") {
-        auc_cv<-computeAUC(res$results,res$ytest)
-        cat("AUC, CV:",auc_cv,"\n")
+        if (method=="gbm") {
+          #GBM
+          gbm1<-gbm.fit(Xtrain ,ytrain,distribution="bernoulli",n.trees=iterations,interaction.depth=intdepth,shrinkage=sh,n.minobsinnode = minobsinnode,verbose=F)
+          oob_pred<-predict.gbm(gbm1,Xvalid,n.trees=iterations,type="response")
+          if (!is.null(Xtest)) {
+            test_pred<-predict.gbm(gbm1,Xtest,n.trees=iterations,type="response")
+          }
+        } else if (method=='randomForest' || method=='rf') {
+          #RF
+          rf1 <- randomForest(Xtrain,ytrain,ntree=iterations,mtry=mtry,nodesize=minobsinnode,importance = F)
+          oob_pred<-predict(rf1,Xvalid,type="vote")[,2]
+          if (!is.null(Xtest)) {
+            test_pred<-predict(rf1,Xtest,type="vote")[,2]
+          }
+        } else if (method=='linear') {
+          #linear regression
+          #Xtrain<-variableSelection(Xtrain,ytrain,"forward",iterations)
+          fit<-linRegTrain(Xtrain,ytrain,NULL,F)
+          oob_pred<-predict(fit,Xvalid)
+          if (!is.null(Xtest)) {
+            test_pred<-predict(fit,Xvalid)
+          }
+        }
+        score<-computeAUC(oob_pred,ytest,F)
+      #REGRESSION
       } else {
-        auc_cv<-compRMSE(res$results,res$ytest)
-        cat("RMSE, CV:",auc_cv,"\n")
-      }  
-      stopCluster(cl)
-      return(res$results)
+        if (method=="gbm") {
+          #GBM
+          gbm1<-gbm.fit(Xtrain ,ytrain,distribution="gaussian",n.trees=iterations,interaction.depth=intdepth,shrinkage=sh,n.minobsinnode = minsnode,verbose=F)
+          oob_pred<-predict.gbm(gbm1,Xvalid,n.trees=iterations,type="response")
+          if (!is.null(Xtest)) {
+            test_pred<-predict.gbm(gbm1,Xtest,n.trees=iterations,type="response")
+          }
+        } else if (method=='randomForest'|| method=='rf') {
+          #RF
+          rf1 <- randomForest(Xtrain,ytrain,ntree=iterations,mtry=mtry,importance = F)
+          oob_pred<-predict(rf1,Xvalid)
+          if (!is.null(Xtest)) {
+            test_pred<-predict(rf1,Xtest)
+          }
+        } else if (method=='linear') {
+          #linear regression
+          Xtrain<-variableSelection(Xtrain,ytrain,"forward",iterations)
+          fit<-linRegTrain(Xtrain,ytrain,NULL,F)
+          oob_pred<-predict(fit,Xvalid)
+          if (!is.null(Xtest)) {
+            test_pred<-predict(fit,Xtest)
+          }
+        }
+        score<-compRMSE(oob_pred,ytest)
+      }        
+      cat(" LOSS:",score,"\n") 
+      #returning dataframe with predictions and truth
+      oob_data<-data.frame(idx,pred=oob_pred,ytest=ytest,testidx=-1)     
+      if (!is.null(Xtest)) {
+        test_data<-data.frame(idx=-1,pred=test_pred,ytest=-1,testidx=seq(1,length(test_pred)))
+      }      
+      #automatic rbin for each iteration!!
+      oob_data<-rbind(oob_data,test_data)
+      return(oob_data)
+    }#end parallel inner loop
+    #average test set prediction via fold index
+    pred_df<-res_all[which(res_all$idx<0),]
+    pred_df<-aggregate(pred_df$pred, by=list(pred_df$testidx),FUN=mean)[,2]
+    
+    res<-res_all[which(res_all$idx>0),]
+    #restore original order 
+    res<-res[order(res$idx),]   
+    if (lossfn=="auc") {
+      auc_cv<-computeAUC(res$pred,res$ytest)
+      cat("AUC, CV:",auc_cv,"\n")
+    } else {
+      auc_cv<-compRMSE(res$pred,res$ytest)
+      cat("RMSE, CV:",auc_cv,"\n")
+    }
+    #res$pred<-rbind(res$pred,pred_df)   
+    oinfo(res$pred)
+    oinfo(pred_df)
+    tmp<-c(res$pred,pred_df)
+    oinfo(tmp)
+    stopCluster(cl) 
+    return(tmp)
   }#end outer loop
-  print(summary(lossdat))
-  oob_mean<-apply(lossdat, 1, function(x) mean(x))
-  #oob_std<-apply(lossdat, 1, function(x) sd(x))
-  #print(summary(oob_std))
-  #write.table(data.frame(oob_std),file="gbm_sd.csv",sep=",",row.names=FALSE)
+
+  mean_all<-apply(results_all, 1, function(x) mean(x))
+  results_oob<-results_all[1:nrow(Xl),]
+  mean_oob<-mean_all[1:nrow(Xl)]
+  
   if (lossfn=="auc") {
-    score_iter<-apply(lossdat, 2, function(x) computeAUC(x,yl,F))
+    score_iter<-apply(results_oob, 2, function(x) computeAUC(x,yl,F))
     cat("AUC of iterations:",score_iter,"\n")
-    cat("<AUC,oob>:",computeAUC(oob_mean,yl,F),"\n") 
+    cat("<AUC,oob>:",computeAUC(mean_oob,yl,F),"\n") 
   } else {
-    score_iter<-apply(lossdat, 2, function(x) compRMSE(x,yl))
+    score_iter<-apply(results_oob, 2, function(x) compRMSE(x,yl))
     cat("RMSE of iterations:",score_iter,"\n")
-    cat("<RMSE,oob>:",compRMSE(oob_mean,yl)," RMSE,mean:",mean(score_iter)," sdev:",sd(score_iter),"\n") 
+    cat("<RMSE,oob>:",compRMSE(mean_oob,yl)," RMSE,mean:",mean(score_iter)," sdev:",sd(score_iter),"\n") 
   }
-  res<-data.frame(prediction=oob_mean,experiment=yl)
+  #write oob and testset prediction to file
+  res<-data.frame(prediction=mean_all)
   if (!is.null(oobfile)) {
-      write.table(res,file=oobfile,sep=",",row.names=FALSE)
+    write.table(res,file=oobfile,sep=",",row.names=FALSE)
   }
   return(res)
 }
