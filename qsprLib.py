@@ -36,11 +36,11 @@ from sklearn.naive_bayes import BernoulliNB,MultinomialNB,GaussianNB
 from sklearn.cluster import k_means
 from sklearn.isotonic import IsotonicRegression
 
-from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier,LinearRegression,Ridge,BayesianRidge,ElasticNet,RidgeCV,LassoLarsCV,Lasso,LarsCV
+from sklearn.linear_model import LogisticRegression,RandomizedLogisticRegression,SGDClassifier,Perceptron,SGDRegressor,RidgeClassifier,LinearRegression,Ridge,BayesianRidge,ElasticNet,RidgeCV,LassoLarsCV,Lasso,LassoCV,LassoLars,LarsCV,ElasticNetCV
 from sklearn.cross_decomposition import PLSRegression,PLSSVD
 from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier,ExtraTreesClassifier,AdaBoostClassifier,ExtraTreesRegressor,GradientBoostingRegressor,BaggingRegressor,BaggingClassifier,RandomForestRegressor,RandomTreesEmbedding    
 from sklearn.neighbors import KNeighborsClassifier,KNeighborsRegressor
-from sklearn.svm import LinearSVC,SVC,SVR
+from sklearn.svm import LinearSVC,SVC,SVR,LinearSVR
 
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.cluster import KMeans,MiniBatchKMeans
@@ -52,18 +52,57 @@ from sklearn.base import clone
 from sklearn.calibration import CalibratedClassifierCV
 
 from xgboost_sklearn import *
-
+import seaborn as sns
 
 #####IDEA: Feature inserter
 #https://www.kaggle.com/cannonjunior/crowdflower-search-relevance/geo-benchmarks
+
+def showCorrelations(X,steps=3):
+    n = X.shape[1]
+    idx_a = 0
+    idx_b = n/steps
     
-def removeCorrelations(X_all,threshhold):
+    for i in xrange(steps):
+      print "a:%4d b: %4d"%(idx_a,idx_b)
+      d = X.iloc[:,idx_a:idx_b]
+      corr = d.corr()
+      print corr
+      # Generate a mask for the upper triangle
+      mask = np.zeros_like(corr, dtype=np.bool)
+      mask[np.triu_indices_from(mask)] = True
+
+      # Set up the matplotlib figure
+      f, ax = plt.subplots(figsize=(11, 9))
+
+      # Generate a custom diverging colormap
+      cmap = sns.diverging_palette(220, 10, as_cmap=True)
+
+      # Draw the heatmap with the mask and correct aspect ratio
+      #sns.heatmap(corr, mask=mask, cmap=cmap, vmax=.3,
+  #		square=True, xticklabels=2, yticklabels=2,
+  #		linewidths=.5, cbar_kws={"shrink": .5}, ax=ax)
+      
+      sns.heatmap(corr, cmap=cmap, ax=ax)
+      
+      sns.set()
+      #sns.pairplot(d)
+      d.hist(bins=50)
+      plt.show()
+      idx_a = idx_b
+      idx_b = idx_b + n/steps
+
+    
+def removeCorrelations(X_all,X_test=None,threshhold=0.99):
     """
     Remove correlations, we could improve it by only removing the variable frmo two showing the highest correlations with others
     """
     print "Removing correlated columns with threshhold:",threshhold
+    if X_test is not None:
+	X_test.columns = X_all.columns
+	X_all = pd.concat([X_test,X_all ],axis=0,ignore_index=True)
+
     c = X_all.corr().abs()
-    #print c
+
     corcols={}
     for col in range(len(c.columns)):
 	for row in range(len(c.index)):
@@ -71,13 +110,26 @@ def removeCorrelations(X_all,threshhold):
 		continue
 	    if row<=col:
 		continue
-	    if c.iloc[row,col]<1 and c.iloc[row,col]>threshhold:
-		corcols[c.index[row]]=c.columns[col]+" :"+str("%4.3f"%(c.iloc[row,col]))
+	    if c.iloc[row,col]<1.0 and c.iloc[row,col]>threshhold:
+		av1 = c.iloc[row,:].mean()#row mean
+		av2 = c.iloc[:,col].mean()#col mean
+		if av1<av2:
+		    key = c.columns[col]
+		else:
+		    key = c.index[row]	  
+		corcols[key]=c.index[row]+" <> "+c.columns[col]+" :"+str("%4.3f mean: (%4.3f/%4.3f)"%(c.iloc[row,col],av1,av2))
+
 
     for el in corcols.keys():
-	print "Dropped: %32s due to Col1: %32s"%(el,corcols[el])
+	print "Dropped: %-32s due to: %32r"%(el,corcols[el])
     X_all=X_all.drop(corcols,axis=1)
-    return(X_all)
+       
+    if X_test is not None:
+	X_train = X_all[len(X_test.index):]
+	X_test = X_all[:len(X_test.index)]
+	return (X_train,X_test)
+    else:
+	return X_all
     
     
 def makePredictions(lmodel,lXs_test,lidx,filename):
@@ -123,114 +175,8 @@ def sigmoid(z):
     g = 1.0/(1.0+np.exp(-z));
     return(g)
 	         
-def ensembleBuilding(lXs,ly):
-    """
-    train ensemble
-    """
-    print "Ensemble training..."
-    folds=8
-    parameters=np.logspace(-15, -10, num=200, base=2.0)
-    #iterpos=[10,20,30,40,50]
-    #regula=[0.001,0.1,1.0,10.0,100.0]
-    parameters=nprnd.choice([0.1,10,1.0],10)
-    loss=['l2','l2']
-    #parameters=nprnd.choice(parameters, 20)
-    classifiers = {}
-    for p in parameters:
-        l1ratio=nprnd.ranf()
-        perc=85.0+nprnd.ranf()*15.0
-        #iterations=choice(iterpos)
-        l1l2=choice(loss)
-	dic = {'LOG_C'+str(p)+'_perc'+str(perc)+'_loss'+str(l1l2): Pipeline([('filter', SelectPercentile(chi2, percentile=perc)), ('model', LogisticRegression(penalty=l1l2, tol=0.0001, C=p))])}
-	#dic ={'SDG_alpha'+str(p)+'_L1'+str(l1ratio): SGDClassifier(alpha=p, n_iter=choice(iterpos),penalty='elasticnet',l1_ratio=l1ratio,shuffle=True,random_state=np.random.randint(0,100),loss='log')}
-	#dic ={'PIP_SDG_iter'+str(p)+'_perc'+str(perc): Pipeline([('filter', SelectPercentile(chi2, percentile=perc)), ('model', SGDClassifier(alpha=0.00014, n_iter=p,shuffle=True,random_state=p,loss='log',penalty='elasticnet',l1_ratio=l1ratio))])}
-	#dic ={'PIP_SDG_alpha'+str(p)+'_perc'+str(perc)+'_iter'+str(iterations): Pipeline([('filter', SelectPercentile(chi2, percentile=perc)),('model', SGDClassifier(alpha=p, n_iter=iterations,penalty='elasticnet',l1_ratio=l1ratio,shuffle=True,random_state=np.random.randint(0,100),loss='log'))])}
-	classifiers.update(dic)
-    #dic ={'NB': BernoulliNB(alpha=1.0)}
-    #classifiers.update(dic)
-    dic ={'LG1': LogisticRegression(penalty='l2', tol=0.0001, C=1.0)}
-    classifiers.update(dic)
-    dic ={'SDG1': SGDClassifier(alpha=0.0001, n_iter=50,shuffle=True,loss='log',penalty='l2')}
-    classifiers.update(dic)
-    dic ={'SDG2': SGDClassifier(alpha=0.00014, n_iter=50,shuffle=True,loss='log',penalty='elasticnet',l1_ratio=0.99)}
-    classifiers.update(dic)
-    #dic ={'LG2': LogisticRegression(penalty='l1', tol=0.0001, C=1.0,random_state=42)}
-    #classifiers.update(dic)
-    dic = {'NB2': Pipeline([('filter', SelectPercentile(f_classif, percentile=25)), ('model', BernoulliNB(alpha=0.1))])}
-    classifiers.update(dic)    
-    #dic ={'KNN': Pipeline([('filter', SelectPercentile(f_classif, percentile=25)), ('model', KNeighborsClassifier(n_neighbors=150))])}
-    #classifiers.update(dic)  
     
-    oobpreds=np.zeros((lXs.shape[0],len(classifiers)))
-    for j,(key, lmodel) in enumerate(classifiers.iteritems()):
-        #print lmodel.get_params()
-        #cv = StratifiedKFold(ly, n_folds=folds, indices=True)
-        cv = KFold(lXs.shape[0], n_folds=folds, indices=True,random_state=j,shuffle=True)
-	scores=np.zeros(folds)	
-	for i, (train, test) in enumerate(cv):
-	    Xtrain = lXs[train]
-	    Xtest = lXs[test]
-	    lmodel.fit(Xtrain, ly[train])
-	    oobpreds[test,j] = lmodel.predict_proba(Xtest)[:,1]
-	    scores[i]=roc_auc_score(ly[test],oobpreds[test,j])
-	    #print "AUC: %0.2f " % (scores[i])
-	    #save oobpredictions
-	print "Iteration:",j," model:",key,
-	print " <AUC>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
-	oobscore=roc_auc_score(ly,oobpreds[:,j])
-	print " AUC oob: %0.3f" %(oobscore)
-	
-    scores=[roc_auc_score(ly,oobpreds[:,j]) for j in xrange(len(classifiers))]
-    #simple averaging of blending
-    oob_avg=np.mean(oobpreds,axis=1)
-    print " AUC oob, simple mean: %0.3f" %(roc_auc_score(ly,oob_avg))
-    
-    #do another crossvalidation for weights and train blender...?
-    #blender=LogisticRegression(penalty='l2', tol=0.0001, C=1.0)
-    blender=AdaBoostClassifier(learning_rate=0.1,n_estimators=150,algorithm="SAMME.R")
-    #blender=ExtraTreesRegressor(n_estimators=200,max_depth=None,n_jobs=1, max_features='auto',oob_score=False,random_state=42)
-    #blender=ExtraTreesClassifier(n_estimators=200,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features='auto',oob_score=False,random_state=42)
-    cv = KFold(lXs.shape[0], n_folds=folds, indices=True,random_state=42)
-    blend_scores=np.zeros(folds)
-    blend_oob=np.zeros((lXs.shape[0]))
-    for i, (train, test) in enumerate(cv):
-	Xtrain = oobpreds[train]
-	Xtest = oobpreds[test]
-	blender.fit(Xtrain, ly[train])
-	if hasattr(blender,'predict_proba'):
-	    blend_oob[test] = blender.predict_proba(Xtest)[:,1]
-	else:
-	    blend_oob[test] = blender.predict(Xtest)
-	blend_scores[i]=roc_auc_score(ly[test],blend_oob[test])
-    print " <AUC>: %0.3f (+/- %0.3f)" % (blend_scores.mean(), blend_scores.std()),
-    print " AUC oob after blending: %0.3f" %(roc_auc_score(ly,blend_oob))
-    if hasattr(blender,'coef_'):
-      print "Coefficients:",blender.coef_
-    
-    plt.plot(range(len(classifiers)),scores,'ro')
-    return(classifiers,blender,oob_avg)
-    
-def ensemblePredictions(classifiers,blender,lXs,ly,lXs_test,lidx,lidx_train,oob_avg,filename):
-    """   
-    Makes prediction
-    """ 
-    print "Make final ensemble prediction..."
-    #make prediction for each classifiers
-    preds=np.zeros((lXs_test.shape[0],len(classifiers)))
-    for j,(key, lmodel) in enumerate(classifiers.iteritems()):
-        lmodel.fit(lXs,ly)
-	preds[:,j]=lmodel.predict_proba(lXs_test)[:,1]
-    #blend results
-    finalpred=blender.predict_proba(preds)[:,1]   
-    print "Saving predictions to: ",filename
-    print "Final test dataframe:",lXs_test.shape
-    oob_avg = pd.DataFrame(oob_avg,index=lidx_train,columns=['label'])
-    pred_df = pd.DataFrame(finalpred, index=lidx, columns=['label'])
-    pred_df = pd.concat([pred_df, oob_avg])
-    pred_df.index.name='urlid'
-    pred_df.to_csv(filename)
-    
-
+   
 def weightedGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,n_folds=5,useProba=False,scale_wt='auto',n_jobs=1,local_scorer='roc_auc'):
     """
     Uses sample weights and individual scoring function, used in Higgs challenge, needs modification cross_Validation.py
@@ -284,18 +230,24 @@ def buildModel(clf,lX,ly,cv=None,scoring=None,n_jobs=8,trainFull=True,verbose=Fa
     else:
       return score
 
-def buildXvalModel(clf_orig,lX,ly,sample_weight=None,class_names=None,refit=False,cv=None):
+def runningMean(x, N):
+    return np.convolve(x, np.ones((N,))/N, mode='valid')
+
+
+def buildXvalModel(clf_orig,lX_df,ly,sample_weight=None,class_names=None,refit=False,cv=None):
   """   
   Final model building part
   """ 
   print "Training the model..."
 
-  if isinstance(lX,pd.DataFrame): lX  = lX.values
+  if isinstance(lX_df,pd.DataFrame): 
+    lX  = lX_df.values
+  else:
+    lX  = lX_df
   if isinstance(ly,pd.DataFrame) or isinstance(ly,pd.Series): ly  = ly.values
   if isinstance(sample_weight,pd.Series): sample_weight  = sample_weight.values
 
   ypred = np.zeros((len(ly),))
-  #yproba = np.zeros((len(ly),len(set(ly))))
   rmsle = np.zeros((len(cv),1))
   mae = np.zeros((len(cv),1))
   for i,(train, test) in enumerate(cv):
@@ -305,16 +257,21 @@ def buildXvalModel(clf_orig,lX,ly,sample_weight=None,class_names=None,refit=Fals
       sw="nosw"
       if sample_weight is not None:
 	  sw="sw"
+	  print sample_weight
 	  clf.fit(lX[train,:], ytrain,sample_weight=sample_weight[train])
       else:
 	  clf.fit(lX[train,:], ytrain)
       ypred[test] = clf.predict(lX[test,:])
       #acc[i] = accuracy_score(ly[test], ypred[test])
       mae[i] = mean_absolute_error(ly[test], ypred[test])
-      rmsle[i] = -1*root_mean_squared_error(ly[test], ypred[test])
+      rmsle[i] = root_mean_squared_error(ly[test], ypred[test])
       #acc = accuracy_score(ly[test], ypred[test])
-      print "train set: %2d samples: %5d/%5d rmse: %4.3f  %s"%(i,lX[train,:].shape[0],lX[test,:].shape[0],rmsle[i],sw)
-
+      #showMisclass(ly[test],ypred[test],lX[test,:],index=class_names[test])
+      
+      print "train set: %2d samples: %5d/%5d rmse: %4.3f  mean: %4.3f %s "%(i,lX[train,:].shape[0],lX[test,:].shape[0],rmsle[i], rmsle[:i+1].mean(),sw)
+  
+  #if isinstance(lX_df,pd.DataFrame): 
+  #  showMisclass(ly,ypred,lX_df,index=class_names)
   #print classification_report(ly, ypred, target_names=class_names)
 
   print("MAE       :%6.3f +/-%6.3f"%(mae.mean(),mae.std()))
@@ -346,7 +303,7 @@ def density(m):
       print "Ratio         : %12.2f"%(float(nz)/float(te))
     else:
       entries=m.shape[0]*m.shape[1]
-      return "Density      : %12.3f"%(m.nnz/float(entries))
+      print "Density      : %12.3f"%(m.nnz/float(entries))
 
 
 def buildWeightedModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,n_folds=8,useProba=True,scale_wt=None,n_jobs=1,verbose=False,local_scorer='roc_auc'):
@@ -642,7 +599,6 @@ def genetic_feature_selection(model,Xtrain,ytrain,Xtest,pool_features=None,start
     buildModel(model,Xtrain.iloc[:,binary_list],ytrain,cv=cv,scoring=scoring_func,n_jobs=n_jobs,trainFull=False,verbose=True)
     
 
-
 def greedyFeatureSelection(lmodel,lX,ly,itermax=10,itermin=5,pool_features=None ,start_features=None,verbose=False, cv=5, n_jobs=4,scoring_func='mean_squared_error'):
 	features=[]
 	
@@ -716,6 +672,7 @@ def iterativeFeatureSelection(lmodel,Xold,Xold_test,ly,iterations=5,nrfeats=1,sc
 	    #Xold.to_csv("../stumbled_upon/data/Xlarge_"+str(i)+".csv")
 	    #Xold_test.to_csv("../stumbled_upon/data/XXlarge_test_"+str(i)+".csv")
 	return(Xold,Xold_test)
+
 	
 def removeInstances(lXs,ly,preds,t,returnSD=True):
 	"""
@@ -739,23 +696,34 @@ def removeInstances(lXs,ly,preds,t,returnSD=True):
 	ly_reduced=ly[np.asarray(boolindex)]
 	return (lXs_reduced,ly_reduced)
 
-def removeLowVariance(X_all,threshhold=1E-5):
+
+
+def removeLowVar(X_all,threshhold=1E-5):
 	"""
 	remove useless data
 	"""
+	print X_all.std()
 	
 	if isinstance(X_all,sparse.csc_matrix):
 	    print "Making matrix dense again..."
 	    X_all = pd.DataFrame(X_all.toarray())
-	
+	    
 	idx = np.asarray(X_all.std()<=threshhold)
+	#for col in X_all.columns[idx]:
+	    #print "Column:",col
+	    #print X_all[[col]].describe()
+	    #raw_input()
+	    
 	if len(X_all.columns[idx])>0:
-		print "Dropped %4d zero variance columns (threshold=%6.3f): %r"%(np.sum(idx),threshhold,X_all.columns[idx])
+		print "Dropped %4d zero variance columns (threshold=%6.3f): %r"%(np.sum(idx),threshhold,list(X_all.columns[idx]).sort())
 		X_all.drop(X_all.columns[idx], axis=1,inplace=True)
 	else:
 		print "Variance filter dropped nothing (threshhold = %6.3f)."%(threshhold)
 	
 	return(X_all)
+
+
+
 	
 
 def pcAnalysis(X,Xtest,y=None,w=None,ncomp=2,transform=False,classification=False):
@@ -950,14 +918,17 @@ def filterClassNoise(lmodel,lXs,lXs_test,ly):
 	return(lXs_reduced,lXs_test,ly_reduced)
 
 	
-def showMisclass(lmodel,lXs,ly,t=0.0,bubblesizes=None):
+def showMisclass(ly,preds,lXs,index=None,model=None,t=1.0,bubblesizes=None):
     """
     Show bubble plot of strongest misclassifications...
     """
-    folds=4
-    repeats=1
+    preds = preds.flatten()
+    
     print "Show strongly misclassified classes..."
-    preds=getOOBCVPredictions(lmodel,lXs,ly,folds,repeats,returnSD=False)
+    if model is not None:
+      folds=4
+      repeats=1
+      preds=getOOBCVPredictions(lmodel,lXs,ly,folds,repeats,returnSD=False)
 
     abs_err=pd.DataFrame({'abs_err' : pd.Series(np.abs(ly-preds))})
     residue=pd.DataFrame({'residue' : pd.Series((ly-preds))})
@@ -965,28 +936,40 @@ def showMisclass(lmodel,lXs,ly,t=0.0,bubblesizes=None):
     preds=pd.DataFrame({'preds' : pd.Series(preds)})
     
     lXs_plot=pd.concat([ly,preds,residue,abs_err], axis=1)
-    lXs_plot.index=lXs.index
-    lXs_plot=pd.concat([lXs_plot,lXs], axis=1)
-    lXs_plot.sort(columns='abs_err',inplace=True)
+    if index is None:
+	lXs_plot.index=lXs.index
+    else:
+	lXs_plot.index=index
+    #lXs_plot=pd.concat([lXs_plot,lXs], axis=1)
+    lXs_plot.sort(columns='abs_err',inplace=True,ascending=False)
+    lXs_plot.sort_index(inplace=True)
     
     boolindex=lXs_plot['abs_err']>t
     
     lXs_plot=lXs_plot[boolindex]
-    print "Number of instances left:",lXs_plot.shape[0]
+    print "Number of instances left: %6d with threshold %f"%(lXs_plot.shape[0],t)
     col1='preds'
     col2='residue'
     #bubblesizes=lXs_plot['y']*50
     bubblesizes=30
     
-    #sct = plt.scatter(lXs_plot[col1], lXs_plot[col2],c=lXs_plot['abs_err'],s=bubblesizes, linewidths=2, edgecolor='black')
-    sct = plt.scatter(lXs_plot[col1], lXs_plot[col2],s=bubblesizes, linewidths=2, edgecolor='black')
+    sct = plt.scatter(lXs_plot[col1], lXs_plot[col2],c=lXs_plot['abs_err'],s=bubblesizes, linewidths=2, edgecolor='black')
+    #sct = plt.scatter(lXs_plot[col1], lXs_plot[col2],s=bubblesizes, linewidths=2, edgecolor='black')
     sct.set_alpha(0.75)
     
-    print "%4s %6s %6s %8s"%("index",'y','preds','residue')
-    for row_index, row in lXs_plot.iterrows():
+    print "%4s %10s %6s %6s %8s"%("nr","index",'y','preds','residue')
+    for i,(row_index, row) in enumerate(lXs_plot.iterrows()):
 	plt.text(row[col1], row[col2],row_index,size=10,horizontalalignment='center')
-	print "%4d %6.3f %6.3f %8.3f"%(row_index,row['y'],row['preds'],row['residue'])
-    print "%4s %6s %6s %8s"%("index",'y','preds','residue')
+	print "%4d %10s %6.3f %6.3f %8.3f"%(i,row_index,row['y'],row['preds'],row['residue'])
+	if i>100: break
+    print "%4s %10s %6s %6s %8s"%("nr","index",'y','preds','residue')
+    label='TA-00608'#
+    label='TA-05000'
+    idx = index == label
+    print idx
+    print type(lXs)
+    print lXs[idx]
+    print lXs[idx].describe()
     
     plt.xlabel(col1)
     plt.ylabel(col2)
@@ -1328,7 +1311,11 @@ class KLabelFolds():
 	test_labels = unique_labels[test]
 	test_mask = np.in1d(self.labels,test_labels)
 	train_mask = np.logical_not(test_mask)
-	yield (np.where(train_mask)[0], np.where(test_mask)[0])
+	tr = np.where(train_mask)[0]
+	#print tr
+	#tr = shuffle(tr)
+	#print tr
+	yield (tr, np.where(test_mask)[0])
 
 
    
@@ -1342,3 +1329,6 @@ funcdict['msq']=mean_squared_error
 funcdict['log_loss']=multiclass_log_loss
 funcdict['accuracy_score']=accuracy_score
 funcdict['quadratic_weighted_kappa']=quadratic_weighted_kappa
+
+
+

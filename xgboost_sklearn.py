@@ -24,7 +24,7 @@ class XgboostClassifier(BaseEstimator):
     sklearn: http://scikit-learn.org/stable/index.html
     based on the kaggle forum thread: https://www.kaggle.com/c/higgs-boson/forums/t/8184/public-starting-guide-to-get-above-3-60-ams-score/44691#post44691
     """
-    def __init__(self,n_estimators=120,learning_rate=0.1,max_depth=6,subsample=1.0,min_child_weight=1,colsample_bytree=1.0,gamma=0,objective='binary:logistic',eval_metric='rmse',booster='gbtree',n_jobs=1,cutoff=0.50,NA=-999.0,alpha_L1=0.0001,lambda_L2=1,silent=1,eval_size=0.0):
+    def __init__(self,n_estimators=120,learning_rate=0.3,max_depth=6,subsample=1.0,min_child_weight=1,colsample_bytree=1.0,gamma=0,objective='binary:logistic',eval_metric='rmse',booster='gbtree',n_jobs=1,cutoff=0.50,NA=-999.0,alpha_L1=0,lambda_L2=0,silent=1,eval_size=0.0):
 	"""
 	Constructor
 	Parameters: https://github.com/dmlc/xgboost/blob/d3af4e138f7cfa5b60a426f1468908f928092198/doc/parameter.md
@@ -58,13 +58,14 @@ class XgboostClassifier(BaseEstimator):
 	if isinstance(lX,pd.DataFrame): lX = np.asarray(lX)
 	if isinstance(ly,pd.DataFrame): ly = np.asarray(ly)
 	
+	
 	if not self.isRegressor: 
 	    self.classes_ = np.unique(ly)
 	    self.encoder = preprocessing.LabelEncoder()
 	    ly = self.encoder.fit_transform(ly)
 	
-	if sample_weight is not None:
-	    sample_weight = np.asarray(sample_weight)
+	#if sample_weight is not None:
+	#    
 	
 	#early stopping!!
 	if self.eval_size>0.0:
@@ -81,7 +82,11 @@ class XgboostClassifier(BaseEstimator):
 	
 	ly = ly.reshape((ly.shape[0],-1))
         #xgmat = xgb.DMatrix(X, label=y, missing=self.NA, weight=sample_weight)#NA ??
-        dtrain = xgb.DMatrix(lX, label=ly, missing=self.NA)#NA=0 as regulariziation->gives rubbish
+        if sample_weight is not None:
+	  if isinstance(ly,pd.DataFrame): sample_weight = sample_weight.values 
+	  dtrain = xgb.DMatrix(lX, label=ly, missing=self.NA,weight=sample_weight)
+        else:
+	  dtrain = xgb.DMatrix(lX, label=ly, missing=self.NA)#NA=0 as regulariziation->gives rubbish
         
         #set up parameters
 	param = {}	 
@@ -137,7 +142,7 @@ class XgboostClassifier(BaseEstimator):
     
  
 class XgboostRegressor(XgboostClassifier):    
-    def __init__(self,n_estimators=120,learning_rate=0.1,max_depth=6,subsample=1.0,min_child_weight=1,colsample_bytree=1.0,gamma=0,objective='binary:logistic',eval_metric='auc',booster='gbtree',n_jobs=1,cutoff=0.50,NA=-999.0,alpha_L1=0.0001,lambda_L2=1,silent=1,eval_size=0.0):
+    def __init__(self,n_estimators=120,learning_rate=0.3,max_depth=6,subsample=1.0,min_child_weight=1,colsample_bytree=1.0,gamma=0,objective='binary:logistic',eval_metric='auc',booster='gbtree',n_jobs=1,cutoff=0.50,NA=-999.0,alpha_L1=0,lambda_L2=0,silent=1,eval_size=0.0):
 	super(XgboostRegressor, self).__init__(n_estimators=n_estimators,learning_rate=learning_rate,max_depth=max_depth,subsample=subsample,min_child_weight=min_child_weight,colsample_bytree=colsample_bytree,gamma=gamma,objective=objective,eval_metric=eval_metric,booster=booster,n_jobs=n_jobs,cutoff=cutoff,NA=NA,alpha_L1=alpha_L1,lambda_L2=lambda_L2,silent=silent,eval_size=eval_size)
 	self.isRegressor=True
 
