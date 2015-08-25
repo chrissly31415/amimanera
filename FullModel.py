@@ -84,6 +84,12 @@ class XModel:
 	  pickle.dump(xmodel, pickle_out)
 	  pickle_out.close()
 	  
+   @staticmethod
+   def saveDataSet(xmodel,restoreOrder=True):
+      #Xtrain_ta = pd.concat([pd.DataFrame(self.cv_labels,columns=['tube_assembly_id'],index=self.Xtrain.index),self.Xtrain],axis=1)
+      self.Xtrain.to_csv("Xtrain_"+self.name+".csv",index=False)
+      #Xtest_ta = pd.concat([pd.DataFrame(_,columns=['tube_assembly_id'],index=Xtest.index),Xtest],axis=1)
+      self.Xtest.to_csv("Xtest_"+self.name+".csv",index=False)
   
    #static function for saving only the important parameters
    @staticmethod

@@ -14,9 +14,16 @@ import os
 
 from scipy.optimize import curve_fit
 from scipy.sparse import csr_matrix
+from scipy.spatial.distance import euclidean,seuclidean
 
 def f_hyperbel(x,a,b):
     return -1.0*a/x+b
+
+def f_lin(x,a,b):
+    return a*x+b
+
+def f_quad(x,a,b,c):
+    return a*x+b*x**2+c
 
 
 def loadData(nsamples=-1,verbose=False,useRdata=False,useFrequencies=False,concat=True,balance=False,bagofwords=None,bagofwords_v2_0=None,endform=True,comptypes=0,logtransform=None,NA_filler=0,skipLabelEncoding=None,useTubExtended=False,encodeKeepNumber=False):
@@ -31,7 +38,8 @@ def loadData(nsamples=-1,verbose=False,useRdata=False,useFrequencies=False,conca
 	if useTubExtended:
 	    print "Extended data!"
 	    tube_data = pd.read_csv('./data/tube_extended.csv')
-	    raw_input()
+	    #tube_data = pd.read_csv('./data/tube.csv')
+	    #verbose=True
 	else:
 	    tube_data = pd.read_csv('./data/tube.csv')
 	bill_of_materials_data = pd.read_csv('./data/bill_of_materials.csv')
@@ -421,7 +429,7 @@ def loadData(nsamples=-1,verbose=False,useRdata=False,useFrequencies=False,conca
     return Xtest,Xtrain,y,idx,ta_train,ta_test
     
   
-def prepareDataset(seed=123,nsamples=-1,addNoiseColumns=None,log1p=True,useRdata=False,createFeatures=False,verbose=False,standardize=None,oneHotenc=None,concat=False,bagofwords=None,bagofwords_v2_0=None,balance=False,removeComp=False,removeSpec=False,createVolumeFeats=False,useFrequencies=False,dropFeatures=None,keepFeatures=None,createSparse=False,removeRare=None,logtransform=None,createVerticalFeatures=False,createSupplierFeatures=None,owenEncoding=None,computeDiscount=False,comptypes=0,NA_filler=0,removeLowVariance=False,skipLabelEncoding=None,createInflationData=False,yBinning=0,outputSmearing=False,rootTransformation=False,useSampleWeights=False,materialCost=False,shapeFeatures=False,timeFeatures=False,biningData=None,createMaterialFeatures=None,useTubExtended=False,encodeKeepNumber=False):
+def prepareDataset(seed=123,nsamples=-1,addNoiseColumns=None,log1p=True,useRdata=False,createFeatures=False,verbose=False,standardize=None,oneHotenc=None,concat=False,bagofwords=None,bagofwords_v2_0=None,balance=False,removeComp=False,removeSpec=False,createVolumeFeats=False,useFrequencies=False,dropFeatures=None,keepFeatures=None,createSparse=False,removeRare=None,logtransform=None,createVerticalFeatures=False,createSupplierFeatures=None,owenEncoding=None,computeDiscount=False,comptypes=0,NA_filler=0,removeLowVariance=False,skipLabelEncoding=None,createInflationData=False,yBinning=0,outputSmearing=False,rootTransformation=False,useSampleWeights=False,materialCost=False,shapeFeatures=False,timeFeatures=False,biningData=None,createMaterialFeatures=None,useTubExtended=False,encodeKeepNumber=False,invertQuantity=False,computeFixVarCost=False,removeRare_freq=None,createVerticalFeaturesV2=None):
     np.random.seed(seed)
     Xtest,Xtrain,y,idx,ta_train,ta_test = loadData(nsamples=nsamples,useRdata=useRdata,concat=concat,bagofwords=bagofwords,bagofwords_v2_0=bagofwords_v2_0,balance=balance,useFrequencies=useFrequencies,logtransform=logtransform,comptypes=comptypes,NA_filler=NA_filler,skipLabelEncoding=skipLabelEncoding,useTubExtended=useTubExtended,encodeKeepNumber=encodeKeepNumber)
     Xall = pd.concat([Xtest, Xtrain],ignore_index=True)
@@ -445,9 +453,12 @@ def prepareDataset(seed=123,nsamples=-1,addNoiseColumns=None,log1p=True,useRdata
 	#plt.hist(sample_weight,bins=50)
 	#plt.show()
     
+    if invertQuantity:
+	Xall['quantity_inv'] = 1.0/Xall['quantity']
+	
+    
     if createFeatures:
 	print Xall.columns
-	raw_input()
 	spec_cols = [col for col in Xall.columns if col.startswith('spec')]
 	if len(spec_cols)>0:
 	    Xspec = Xall[spec_cols]
@@ -460,7 +471,7 @@ def prepareDataset(seed=123,nsamples=-1,addNoiseColumns=None,log1p=True,useRdata
 	if len(qual_cols)>0:
 	    Xqual = Xall[qual_cols]
 	    Xall['nparts'] = (Xqual != 0).astype(int).sum(axis=1) 
-	raw_input()
+	#raw_input()
 	
 	#print Xall[['nspecs','ncomponents','nparts']].describe()
 
@@ -484,7 +495,7 @@ def prepareDataset(seed=123,nsamples=-1,addNoiseColumns=None,log1p=True,useRdata
 	  #print Xall[col].head(50)
 	  #print Xall[col].unique()
 	  print Xall[col].describe()
-	  raw_input()
+
 
     if shapeFeatures:
 	print "Shape features..."
@@ -549,11 +560,111 @@ def prepareDataset(seed=123,nsamples=-1,addNoiseColumns=None,log1p=True,useRdata
 	#plt.scatter(cost_per_period.index,cost_per_period)
 	#plt.show()
 
+    if computeFixVarCost:
+	print "Fix & Var cost model"
+	#Xall['quantity'] = 1.0/Xall['quantity']
+	Xtrain = Xall[len(Xtest.index):]
+	_tmp = pd.DataFrame(np.log1p(y),columns=['cost'],index=Xtrain.index)
+	Xtrain_ta_y = pd.concat([Xtrain,pd.DataFrame(ta_train,columns=['ta'],index=Xtrain.index),_tmp],axis=1)
+	Xtrain_ta_y['fixcost']=0.0
+	Xtrain_ta_y['varcost']=0.0
+	Xtrain_ta_y['special']=0.0
+	ta_uniques = np.unique(ta_train)
+	for i,ta in enumerate(ta_uniques):
+	    idx = Xtrain_ta_y.ta == ta
+	    _df = Xtrain_ta_y.loc[idx]
+	    #_minq = _df['quantity'].min()
+	    #print _df.describe()
+	    if _df.shape[0]>1:
+	      param,err = curve_fit(f_hyperbel,Xtrain_ta_y.loc[idx,'quantity'],Xtrain_ta_y.loc[idx,'cost'])
+	      
+	      print _df.head()
+	      print "ta:", ta
+	      print "param[0]",param[0]
+	      print "param[1]",param[1]
+	      print "err",err
+	      
+	      plt.scatter(_df['quantity'],_df['cost'],c='r',s=15)
+	      plt.scatter(_df['quantity'],f_hyperbel(_df['quantity'],param[0],param[1]),c='b')
+	      plt.xlabel('quantity')
+	      plt.ylabel('cost')
+	      plt.show()
+	      
+	      if param[0]<105 and param[0]>95:
+		print "not fittable...+100"
+		#print err
+		Xtrain_ta_y.loc[idx,'varcost'] = -2.0
+		Xtrain_ta_y.loc[idx,'fixcost'] = 1.7
+		Xtrain_ta_y.loc[idx,'special'] = 1
+	      elif param[0]>-105 and param[0]<-95:
+		print "not fittable...-100"
+		#print err
+		Xtrain_ta_y.loc[idx,'varcost'] = -2.0
+		Xtrain_ta_y.loc[idx,'fixcost'] = 1.7
+		Xtrain_ta_y.loc[idx,'special'] = 1
+	      elif np.all(np.isfinite(err)):
+				
+		Xtrain_ta_y.loc[idx,'varcost'] = param[0]
+		Xtrain_ta_y.loc[idx,'fixcost'] = param[1]
+		Xtrain_ta_y.loc[idx,'special'] = 0
+	      else:
+		print "inf..."
+		Xtrain_ta_y.loc[idx,'varcost'] = -2.0
+		Xtrain_ta_y.loc[idx,'fixcost'] = 1.7
+		Xtrain_ta_y.loc[idx,'special'] = 1
+	    else:
+	      Xtrain_ta_y.loc[idx,'varcost'] = -2.0
+	      Xtrain_ta_y.loc[idx,'fixcost'] = 1.7
+	      Xtrain_ta_y.loc[idx,'special'] = 1
+	    if i%1000==0:
+	      print "Iteration i %d/%d:"%(i,len(ta_uniques))
+
+	print "varcost",Xtrain_ta_y['varcost'].describe()
+	print "fixcost",Xtrain_ta_y['fixcost'].describe()
+	print "special",Xtrain_ta_y['special'].describe()
 	
+	y_tmpa = Xtrain_ta_y['varcost'].values
+	y_tmpb = Xtrain_ta_y['fixcost'].values
+	y_tmpc = Xtrain_ta_y['special'].values
+	
+	Xtrain_ta_y.drop(['varcost','fixcost','ta','cost','special'],axis=1,inplace=True)
+	tmp_model = RandomForestRegressor(n_estimators=200,n_jobs=4)
+	
+	print dir(tmp_model)
+	#a_train = tmp_model.predict(Xtrain_ta_y)# tmp_model.oob_prediction_
+	a_train =  getOOBCVPredictions(tmp_model,Xtrain_ta_y,y_tmpa,cv=KLabelFolds(pd.Series(ta_train), n_folds=8, repeats =1),returnSD=False,score_func='rmse')
+	tmp_model.fit(Xtrain_ta_y,y_tmpa)
+	
+	plt.scatter(a_train,y_tmpa)
+	plt.xlabel('predicted')
+	plt.ylabel('orig')
+	#plt.xlim(-10,10)
+	#plt.ylim(-10,10)
+	plt.show()
+	a_test = tmp_model.predict(Xall[:len(Xtest.index)].values)
+		
+	b_train =  getOOBCVPredictions(tmp_model,Xtrain_ta_y,y_tmpb,cv=KLabelFolds(pd.Series(ta_train), n_folds=8, repeats =1),returnSD=False,score_func='rmse')
+	tmp_model.fit(Xtrain_ta_y,y_tmpb)
+	#b_train = tmp_model.predict(Xall[len(Xtest.index):].values)# tmp_model.oob_prediction_
+	
+	plt.scatter(b_train,y_tmpb)
+	plt.xlabel('predicted')
+	plt.ylabel('orig')
+	plt.show()
+	
+	b_test = tmp_model.predict(Xall[:len(Xtest.index)].values)
+	
+	print a_test.shape
+	print a_train.shape
+	Xall['varcost'] = np.hstack((a_test,a_train))
+	Xall['fixcost'] = np.hstack((b_test,b_train))
+	#Xall['quantity'] = 1.0/Xall['quantity']
 
     if computeDiscount:
 	    #plot versus supplier or material id
-	    fitting=False
+	    Xtrain = Xall[len(Xtest.index):]
+	    fitting=True
+	    testing=False
 	    print "Compute log discount..."
 	    if not isinstance(computeDiscount,str):
 		_tmp = pd.DataFrame(np.log1p(y),columns=['cost'],index=Xtrain.index)
@@ -564,52 +675,66 @@ def prepareDataset(seed=123,nsamples=-1,addNoiseColumns=None,log1p=True,useRdata
 		Xtrain_ta_y['discount_fitb']=0.0
 		ta_uniques = np.unique(ta_train)
 		#pretty inefficient...
-		for i,ta in enumerate(ta_uniques):
-		  idx = Xtrain_ta_y.ta == ta
-		  _df = Xtrain_ta_y.loc[idx]
-		  #print _df
-		  _minq = _df['quantity'].min() # could be larger than 1
-		  #print "minq:",_minq
-		  ref_cost = _df.loc[_df['quantity']==_minq,['cost']].values
-		  #ref_cost = ref_cost *_minq
-		  #print "refcost",ref_cost
-		  ref_cost = float(ref_cost.max())# could be more than one value
-		  #_df['discount'] = (_df['cost'] - ref_cost) # discount per particle
-		  #print _df.loc[:,['quantity','cost','discount']]
-		  Xtrain_ta_y.loc[idx,'discount'] = -1*(Xtrain_ta_y.loc[idx,'cost'] - ref_cost)
-		  
-		  #fitting hyperbel to discount
-		  if _df.shape[0]>1 and fitting:
-		    param,err = curve_fit(f_hyperbel,Xtrain_ta_y.loc[idx,'quantity'],Xtrain_ta_y.loc[idx,'discount'])
-		    #plt.scatter(Xtrain_ta_y.loc[idx,'quantity'],Xtrain_ta_y.loc[idx,'discount'],c='r')
-		    #plt.scatter(Xtrain_ta_y.loc[idx,'quantity'],f_hyperbel(Xtrain_ta_y.loc[idx,'quantity'],param[0],param[1]),c='b')
-		    #plt.xlabel('quantity')
-		    #plt.ylabel('discount')
-		    #plt.show()
-		    Xtrain_ta_y.loc[idx,'discount_fita'] = param[0]
-		    Xtrain_ta_y.loc[idx,'discount_fitb'] = param[1]
-		  else:
+		if not testing:
+		  for i,ta in enumerate(ta_uniques):
+		    idx = Xtrain_ta_y.ta == ta
+		    _df = Xtrain_ta_y.loc[idx]
+		    #print _df
+		    _minq = _df['quantity'].min() # could be larger than 1
+		    #print "minq:",_minq
+		    ref_cost = _df.loc[_df['quantity']==_minq,['cost']].values
+		    #print "refcost",ref_cost
+		    ref_cost = float(ref_cost.max())# could be more than one value
+		    Xtrain_ta_y.loc[idx,'discount'] = -1*(Xtrain_ta_y.loc[idx,'cost'] - ref_cost)		  
+		    #fitting hyperbel to discount
+		    if _df.shape[0]>1 and fitting:
+		      param,err = curve_fit(f_hyperbel,Xtrain_ta_y.loc[idx,'quantity'],Xtrain_ta_y.loc[idx,'discount'])
+		      #plt.scatter(Xtrain_ta_y.loc[idx,'quantity'],Xtrain_ta_y.loc[idx,'discount'],c='r')
+		      #plt.scatter(Xtrain_ta_y.loc[idx,'quantity'],f_hyperbel(Xtrain_ta_y.loc[idx,'quantity'],param[0],param[1]),c='b')
+		      #plt.xlabel('quantity')
+		      #plt.ylabel('discount')
+		      #plt.show()
+		      Xtrain_ta_y.loc[idx,'discount_fita'] = param[0]
+		      Xtrain_ta_y.loc[idx,'discount_fitb'] = param[1]
+		    else:
+		      Xtrain_ta_y.loc[idx,'discount_fita'] = 0
+		      Xtrain_ta_y.loc[idx,'discount_fitb'] = 0
+				      
+		    if i%500==0:
+			print "Iteration i %d/%d:"%(i,len(ta_uniques))
+		else:
 		    pass
 		    
-		  if i%500==0:
-		      print "Iteration i %d/%d:"%(i,len(ta_uniques))
+		#fitting the discount
 		
-		#print Xtrain_ta_y['discount']
-		#print "Substituting cost by discount..."
-		#Xtrain_ta_y['discount']  = Xtrain_ta_y['discount'].map(np.log1p)
-		y_tmp = Xtrain_ta_y['discount'].values
+		print "param a:",Xtrain_ta_y['discount_fita'].describe()
+		print "param b:",Xtrain_ta_y['discount_fitb'].describe()
+		y_tmpa = Xtrain_ta_y['discount_fita'].values
+		y_tmpb = Xtrain_ta_y['discount_fitb'].values
+		Xtrain_ta_y.drop(['discount','discount_fita','discount_fitb','ta','cost'],axis=1,inplace=True)
 		
-		#learn discount
-		tmp_model = LinearRegression()
-		tmp_model.fit()
+		#learn discount!!!
+		#tmp_model = LinearRegression()
+		tmp_model = RandomForestRegressor()
+		a_train =  getOOBCVPredictions(tmp_model,Xtrain_ta_y,y_tmpa,cv=KLabelFolds(pd.Series(ta_train), n_folds=8, repeats =1),returnSD=False,score_func='rmse')
+		#a_train = tmp_model.predict(Xall[len(Xtest.index):].values)# tmp_model.oob_prediction_
+		tmp_model.fit(Xtrain_ta_y,y_tmpa)
+		a_test = tmp_model.predict(Xall[:len(Xtest.index)].values)
 		
-		#print Xtrain_ta_y.loc[Xtrain_ta_y.discount<0,['quantity','cost','discount']]
+		b_train =  getOOBCVPredictions(tmp_model,Xtrain_ta_y,y_tmpb,cv=KLabelFolds(pd.Series(ta_train), n_folds=8, repeats =1),returnSD=False,score_func='rmse')
+		tmp_model.fit(Xtrain_ta_y,y_tmpb)
+		#b_train = tmp_model.predict(Xall[len(Xtest.index):].values)# tmp_model.oob_prediction_
+		b_test = tmp_model.predict(Xall[:len(Xtest.index)].values)
+		
+		print a_test.shape
+		print a_train.shape
+		Xall['discount_fita'] = np.hstack((a_test,a_train))
+		Xall['discount_fitb'] = np.hstack((b_test,b_train))
+
 		#plt.scatter(Xtrain_ta_y['quantity'],Xtrain_ta_y['discount'])
 		#plt.xlabel('quantity')
 		#plt.ylabel('discount')
 		#plt.show()
-		
-		
 		pd.DataFrame(y,columns=['discount']).to_csv('./data/discount.csv',index=False)
 		#pd.DataFrame(ta_train,columns=['tube_assembly_id']).to_csv('./data/ta.csv',index=False)
 	    else:
@@ -734,6 +859,54 @@ def prepareDataset(seed=123,nsamples=-1,addNoiseColumns=None,log1p=True,useRdata
 	    #print Xall[bool_idx]
 	    #raw_input()
     
+    if createVerticalFeaturesV2:
+	print "Creating vertical features V2.0..."
+	ta = np.concatenate((ta_test,ta_train))
+	ta_unique = np.unique(ta)
+	Xall_ta = pd.concat([Xall,pd.DataFrame(ta,columns=['ta'],index=Xall.index)],axis=1)
+	Xall['max_annual_usage'] = 0
+	Xall['median_annual_usage'] = 0
+	Xall['min_annual_usage'] = 0
+	Xall['min_quantity']=0
+	Xall['min_min_order_quantity'] = 0
+	Xall['max_min_order_quantity'] = 0
+
+	for i,uv in enumerate(ta_unique):
+	    bool_idx = ta == uv
+	    #print Xall_ta.loc[bool_idx,:]
+	    Xall.loc[bool_idx,['max_annual_usage']] = Xall.loc[bool_idx,['annual_usage']].max(axis=0).values
+	    Xall.loc[bool_idx,['min_annual_usage']] = Xall.loc[bool_idx,['annual_usage']].min(axis=0).values
+	    Xall.loc[bool_idx,['min_quantity']] = Xall.loc[bool_idx,['quantity']].min(axis=0).values
+	    #Xall.loc[bool_idx,['median_annual_usage']] = Xall.loc[bool_idx,['annual_usage']].median(axis=0).values
+	    Xall.loc[bool_idx,['min_min_order_quantity']] = Xall.loc[bool_idx,['min_order_quantity']].max(axis=0).values
+	    Xall.loc[bool_idx,['max_min_order_quantity']] = Xall.loc[bool_idx,['min_order_quantity']].min(axis=0).values
+
+	    #distance
+	    #_df = Xall.loc[bool_idx]
+	    #_minq = _df['quantity'].min() # could be larger than 1
+	    #print "minq:",_minq
+	    #ref_idx = _df['quantity']==_minq
+	    #print "ref_idx",ref_idx
+	    #for i in range(_df.shape[1]-1):
+	      #print "i:",i
+	      ##print "df:",_df.iloc[i]
+	      #a = _df.iloc[i].values
+	      ##print a
+	      #b = _df.loc[ref_idx].values.flatten()
+	      ##print b
+	      #dist = euclidean(a,b)
+	      #print dist
+	   
+	    
+	    #print Xall.loc[bool_idx,['max_annual_usage','min_annual_usage']]
+	    if i%500==0:
+		print "iteration %d/%d"%(i,len(ta_unique))
+	Xall['diff_annual_usage'] = Xall['annual_usage'] - Xall['min_annual_usage']
+	Xall['diff_order_quantity'] = Xall['min_order_quantity'] - Xall['min_min_order_quantity']
+	    
+	
+	
+    
     if createSupplierFeatures is not None:
 	print "Creating supplier features..."
 	print createSupplierFeatures
@@ -834,9 +1007,25 @@ def prepareDataset(seed=123,nsamples=-1,addNoiseColumns=None,log1p=True,useRdata
 	  print ser.value_counts()
 	  counts = ser.value_counts().keys()
 	  print "%s has %d different values after" % (col, len(counts))   
-	#raw_input()
     
-    
+    if removeRare_freq is not None:
+	print "Remove rare features based on frequency..."
+	for col in oneHotenc:
+	  ser = Xall[col]
+	  counts = ser.value_counts().keys()
+	  idx = ser.value_counts()>removeRare_freq	  	  
+	  threshold = idx.astype(int).sum()
+	  print "%s has %d different values before, min freq: %d - threshold %d" % (col, len(counts),removeRare_freq,threshold)
+	  if len(counts) > threshold:
+	      ser[~ser.isin(counts[:threshold])] = 9999
+	  if len(counts) <= 1:
+	      print("Dropping Column %s with %d values" % (col, len(counts)))
+	      Xall = Xall.drop(col, axis=1)
+	  else:
+	      Xall[col] = ser.astype('category')
+	  print ser.value_counts()
+	  counts = ser.value_counts().keys()
+	  print "%s has %d different values after" % (col, len(counts))   
     
     
     if oneHotenc is not None:
@@ -1155,12 +1344,13 @@ if __name__=="__main__":
     #discount as first level feature
     #make nets deeper
     #reduce number of models without overfitting!
-    #
     #use pydev ide
     #use material cost + discount
     #REMOVE variables!!!!!!!!1
     #encode and keep last unit
-  
+    #removeRare needs min_freq clone
+    #model with weights according to bracket_pricing
+    #grouping of materialid & supplier
     
     t0 = time()
     
@@ -1184,7 +1374,7 @@ if __name__=="__main__":
     nsamples='shuffle'
     addNoiseColumns=None
     useRdata=False
-    useSampleWeights=True
+    useSampleWeights=False
     useTubExtended=False
     
     #output transformations
@@ -1193,35 +1383,42 @@ if __name__=="__main__":
     outputSmearing=False
     yBinning=-1
     computeDiscount=False#'load'#True#'load'#True
+    computeFixVarCost=False
     
     #other transformation
-    NA_filler=-999.0
+    NA_filler=0
     comptypes=-1  #comptypes=1-5->0.241 comptypes=6#0.240   comptype=7->0.239 comptype=8->0.241
     logtransform=None#log_cols   
     balance=base_cols+comp_cols+spec_cols
+    invertQuantity=False
     
     #feature creation
-    createFeatures=False
+    createFeatures=True
     createVolumeFeats=False
     createVerticalFeatures=False#Some overfit??
-    createSupplierFeatures=['supplier','quantity','annual_usage','diameter']
-    createMaterialFeatures=['material_id','quantity','annual_usage','diameter']
+    createVerticalFeaturesV2=True
+    createSupplierFeatures=None#['supplier','quantity','annual_usage','diameter']
+    createMaterialFeatures=None#['material_id','quantity','annual_usage','diameter']
+    materialCost=False#True->Overfit!!
+    shapeFeatures=True
+    timeFeatures=True
+    createInflationData=False#True->>not allowed
+    
     verbose=False
     
     bagofwords=None#['component_id_doc','spec_doc']
     bagofwords_v2_0=None
     
     #other
-    encodeKeepNumber=True
+    encodeKeepNumber=False
     skipLabelEncoding=None#['year']#['supplier']
-    removeRare=None#10#15#None#categoricals#['material_id','supplier']
-    oneHotenc=None#['supplier']#categoricals_nospec#['supplier']#categoricals_nospec#['supplier','material_id']
+    removeRare=None#10#None#15#None#categoricals#['material_id','supplier']
+    removeRare_freq=200
+    oneHotenc=['supplier','material_id']#None#['supplier']#categoricals_nospec#['supplier']#categoricals_nospec#['supplier','material_id']
     owenEncoding=None#['quantity']#categoricals_nospec#['material_id']#None#['supplier','materials_id']
     biningData=None#30
-    materialCost=False#True->Overfit!!
-    shapeFeatures=True
-    timeFeatures=True
-    createInflationData=False#True
+    
+    
     useFrequencies=False
     concat=False
     
@@ -1232,11 +1429,46 @@ if __name__=="__main__":
     removeComp=False
     createSparse=False
     
+    round1 = [u'quantity', u'diameter', u'annual_usage', u'bend_radius',
+       u'min_order_quantity', u'quantity_1', u'length', u'wall',
+       u'component_id_1', u'annual_usage_mean_supp', u'total_months',
+       u'cost_per_period', u'diameter_mean_supp', u'nparts',
+       u'diameter_sum_supp', u'component_id_2', u'annual_usage_sum_supp',
+       u'num_bends', u'component_id_3', u'year', u'quantity_mean_supp',
+       u'month', u'deltacost', u'quantity_2', u'diameter_mean_mat', u'end_a',
+       u'quantity_sum_supp', u'bracket_pricing', u'end_x',
+       u'quantity_size_supp', u'forming_enda', u'quantity_3', u'nspecs',
+       u'forming_endx', u'supplier_3', u'annual_usage_sum_mat',
+       u'annual_usage_mean_mat', u'diameter_sum_mat', u'quantity_mean_mat',
+       u'end_x_2x', u'quantity_sum_mat', u'quantity_size_mat', u'supplier_7',
+       u'supplier_2', u'supplier_9', u'end_a_2x', u'num_boss', u'end_a_1x',
+       u'supplier_4', u'supplier_8', u'other', u'material_id_5', u'end_x_1x',
+       u'isStraight', u'material_id_2', u'material_id_3', u'supplier_5',
+       u'supplier_0', u'component_id_4', u'material_id_7', u'supplier_10',
+       u'quantity_4', u'material_id_10', u'supplier_6', u'num_bracket',
+       u'material_id_0', u'material_id_1', u'material_id_9', u'material_id_6',
+       u'supplier_1']
+    round2 = [u'quantity', u'diameter', u'annual_usage', u'bend_radius',
+       u'min_order_quantity', u'quantity_1', u'length', u'wall',
+       u'component_id_1', u'annual_usage_mean_supp', u'total_months',
+       u'diameter_mean_supp', u'nparts', u'cost_per_period', u'component_id_2',
+       u'diameter_sum_supp', u'annual_usage_sum_supp', u'component_id_3',
+       u'quantity_2', u'num_bends', u'quantity_mean_supp', u'year', u'month',
+       u'deltacost', u'forming_enda', u'quantity_sum_supp', u'bracket_pricing',
+       u'end_a', u'end_x', u'diameter_mean_mat', u'quantity_size_supp',
+       u'nspecs', u'forming_endx', u'quantity_3', u'supplier_3',
+       u'annual_usage_sum_mat', u'quantity_mean_mat', u'diameter_sum_mat',
+       u'annual_usage_mean_mat', u'quantity_sum_mat', u'end_x_2x',
+       u'quantity_size_mat', u'supplier_2', u'end_a_2x', u'supplier_7',
+       u'num_boss', u'supplier_4', u'end_a_1x', u'other', u'supplier_8',
+       u'supplier_9', u'material_id_5', u'end_x_1x', u'material_id_2',
+       u'isStraight', u'supplier_5', u'material_id_3', u'supplier_0',
+       u'supplier_10', u'component_id_4']
     dropFeatures=None#['oe_quantity']#None#['supplier_2','supplier_45','supplier_40','supplier_33','supplier_23','supplier_21','supplier_8','supplier_7','supplier_3','supplier_1','quantity_8','supplier_11','supplier_0','supplier_27','supplier_28','supplier_34','supplier_6','component_id_8','material_id_1','supplier_44','component_id_7','quantity_7']#R feature importance
-    keepFeatures=None#["quantity","length","annual_usage","num_bends","supplier_18","supplier_24","min_order_quantity","month","component_id_1","diameter","year","supplier_32","supplier_31","nspecs","component_id_2","bend_radius","quantity_2","quantity_1","supplier_35","material_id_10","supplier_26","component_id_3","wall","end_a","end_x","bracket_pricing","end_a_2x","quantity_3","supplier_10","supplier_9","material_id_5","material_id_13","material_id_2","num_boss","component_id_4","supplier_14","other","material_id_4","end_x_2x","end_x_1x","material_id_12","material_id_0","material_id_14","end_a_1x","quantity_4","supplier_15","material_id_3","num_bracket","supplier_39","supplier_16","material_id_15","supplier_43","supplier_30","material_id_16","supplier_20","material_id_8","supplier_22","supplier_29","supplier_5","component_id_6","quantity_5","quantity_6","supplier_12","supplier_42","supplier_25","material_id_6","component_id_5","supplier_37","supplier_19","material_id_17"]#rf_select
+    keepFeatures=None#round2#["quantity","length","annual_usage","num_bends","supplier_18","supplier_24","min_order_quantity","month","component_id_1","diameter","year","supplier_32","supplier_31","nspecs","component_id_2","bend_radius","quantity_2","quantity_1","supplier_35","material_id_10","supplier_26","component_id_3","wall","end_a","end_x","bracket_pricing","end_a_2x","quantity_3","supplier_10","supplier_9","material_id_5","material_id_13","material_id_2","num_boss","component_id_4","supplier_14","other","material_id_4","end_x_2x","end_x_1x","material_id_12","material_id_0","material_id_14","end_a_1x","quantity_4","supplier_15","material_id_3","num_bracket","supplier_39","supplier_16","material_id_15","supplier_43","supplier_30","material_id_16","supplier_20","material_id_8","supplier_22","supplier_29","supplier_5","component_id_6","quantity_5","quantity_6","supplier_12","supplier_42","supplier_25","material_id_6","component_id_5","supplier_37","supplier_19","material_id_17"]#rf_select
     #load=''
     
-    Xtest,Xtrain,ytrain,idx,ta_train,sample_weight = prepareDataset(seed=seed,nsamples=nsamples,addNoiseColumns=addNoiseColumns,log1p=log1p,useRdata=useRdata,createFeatures=createFeatures,verbose=verbose,standardize=standardize,oneHotenc=oneHotenc,concat=concat,bagofwords=bagofwords,balance=balance,removeComp=removeComp,removeSpec=removeSpec,createVolumeFeats=createVolumeFeats,useFrequencies=useFrequencies,dropFeatures=dropFeatures,keepFeatures=keepFeatures,bagofwords_v2_0=bagofwords_v2_0,createSparse=createSparse,removeRare=removeRare,logtransform=logtransform,computeDiscount=computeDiscount,createVerticalFeatures=createVerticalFeatures,createSupplierFeatures=createSupplierFeatures,owenEncoding=owenEncoding,comptypes=comptypes,NA_filler=NA_filler,removeLowVariance=removeLowVariance,skipLabelEncoding=skipLabelEncoding,createInflationData=createInflationData,yBinning=yBinning,outputSmearing=outputSmearing,rootTransformation=rootTransformation,useSampleWeights=useSampleWeights,materialCost=materialCost,shapeFeatures=shapeFeatures,timeFeatures=timeFeatures,biningData=biningData,createMaterialFeatures=createMaterialFeatures,useTubExtended=useTubExtended,encodeKeepNumber=encodeKeepNumber)
+    Xtest,Xtrain,ytrain,idx,ta_train,sample_weight = prepareDataset(seed=seed,nsamples=nsamples,addNoiseColumns=addNoiseColumns,log1p=log1p,useRdata=useRdata,createFeatures=createFeatures,verbose=verbose,standardize=standardize,oneHotenc=oneHotenc,concat=concat,bagofwords=bagofwords,balance=balance,removeComp=removeComp,removeSpec=removeSpec,createVolumeFeats=createVolumeFeats,useFrequencies=useFrequencies,dropFeatures=dropFeatures,keepFeatures=keepFeatures,bagofwords_v2_0=bagofwords_v2_0,createSparse=createSparse,removeRare=removeRare,logtransform=logtransform,computeDiscount=computeDiscount,createVerticalFeatures=createVerticalFeatures,createSupplierFeatures=createSupplierFeatures,owenEncoding=owenEncoding,comptypes=comptypes,NA_filler=NA_filler,removeLowVariance=removeLowVariance,skipLabelEncoding=skipLabelEncoding,createInflationData=createInflationData,yBinning=yBinning,outputSmearing=outputSmearing,rootTransformation=rootTransformation,useSampleWeights=useSampleWeights,materialCost=materialCost,shapeFeatures=shapeFeatures,timeFeatures=timeFeatures,biningData=biningData,createMaterialFeatures=createMaterialFeatures,useTubExtended=useTubExtended,encodeKeepNumber=encodeKeepNumber,invertQuantity=invertQuantity,computeFixVarCost=computeFixVarCost,removeRare_freq=removeRare_freq,createVerticalFeaturesV2=createVerticalFeaturesV2)
     if isinstance(Xtrain,pd.DataFrame):
 	Xtrain.to_csv('./data/Xtrain.csv',index=False)
 	Xtest.to_csv('./data/Xtest.csv',index=False)
@@ -1251,13 +1483,13 @@ if __name__=="__main__":
     #removeCorrelations(Xtrain,Xtest)
     ##MODELS##
     #model = KNeighborsRegressor(n_neighbors=5)
-    #model = XgboostRegressor(booster='gbtree',n_estimators=200,n_jobs=2,subsample=.85,colsample_bytree=0.75,min_child_weight=6,objective='reg:linear',eval_metric='rmse',silent=1)#0.63
     #model = SVR()
-    #model = LassoLarsCV()
+    model = LassoLarsCV()
     #model = SGDRegressor()
     #model = LinearRegression()True
     #model = SVR(C=100.0, gamma=0.0, verbose = 0)
     #model = PLSRegression(n_components=50)  
+    #model = XgboostRegressor(booster='gblinear',n_estimators=100,alpha_L1=1.0,lambda_L2=1.0,n_jobs=2,objective='reg:linear',eval_metric='rmse',silent=1)#0.63
     #model = XgboostRegressor(n_estimators=2000,learning_rate=0.05,max_depth=7,subsample=.8,colsample_bytree=0.8,min_child_weight=5,n_jobs=2,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
     #model = XgboostRegressor(max_depth=7,subsample=.85,colsample_bytree=0.75,min_child_weight=6,gamma=2,n_jobs=2,objective='reg:linear',eval_metric='rmse',booster='gblinear',silent=1,eval_size=0.0)#some R model
     #model = XgboostRegressor(n_estimators=1200,learning_rate=0.025,max_depth=15,subsample=.5,n_jobs=2,colsample_bytree=1.0,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
@@ -1267,15 +1499,16 @@ if __name__=="__main__":
     #model = ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=2, max_features=3*Xtrain.shape[1]/3)
     #model = XgboostClassifier(NA=0,n_estimators=400,learning_rate=0.1,max_depth=15,subsample=.5,colsample_bytree=0.8,min_child_weight=5,n_jobs=4,objective='multi:softmax',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
     #model = XgboostRegressor(NA=0,n_estimators=400,learning_rate=0.05,max_depth=15,subsample=.5,colsample_bytree=0.8,min_child_weight=1,n_jobs=2,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)   
-    #model = XgboostRegressor(n_estimators=400,learning_rate=0.0632,max_depth=13,subsample=.58,colsample_bytree=0.82,min_child_weight=5,n_jobs=2,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    model = XgboostRegressor(n_estimators=4000,learning_rate=0.0269,max_depth=7,subsample=0.9587,colsample_bytree=0.5772,min_child_weight=6,gamma=2.1712, n_jobs=2,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
+    model = XgboostRegressor(n_estimators=400,learning_rate=0.0632,max_depth=13,subsample=.58,colsample_bytree=0.82,min_child_weight=5,n_jobs=2,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
+    #model = XgboostRegressor(n_estimators=4000,learning_rate=0.02,max_depth=7,subsample=.95,colsample_bytree=.6,min_child_weight=5,n_jobs=2,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
     #model = BaggingRegressor(base_estimator=model,n_estimators=10,n_jobs=1,verbose=2,random_state=None,max_samples=0.96,max_features=.96,bootstrap=False)
     #model = XgboostRegressor(n_estimators=4000,learning_rate=0.02,max_depth=8,subsample=.7,colsample_bytree=0.7,min_child_weight=5,n_jobs=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    #model = RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=8, max_features=20)
+    #model = RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=2, max_features=Xtrain.shape[1]/3,oob_score=True)
     #model = RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=2, max_features=Xtrain.shape[1]/2)
     #model = ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=2, max_features=3*Xtrain.shape[1]/3)
     #model = GradientBoostingRegressor(loss='ls',n_estimators=100, learning_rate=0.05, max_depth=10,subsample=.5,verbose=0)
     #model = KerasNNReg(dims=Xtrain.shape[1],nb_classes=1,nb_epoch=50,learning_rate=0.015,validation_split=0.0,batch_size=128,verbose=1)
+    #xgbFeatureImportance(model,Xtrain,Xtest)
     
     #model = nnet_cater3
 
@@ -1289,7 +1522,7 @@ if __name__=="__main__":
     #XVALIDATION#
     #cv = KFold(ytrain.shape[0],5,shuffle=True)
     #cv = LeavePLabelOutWrapper(ta_train,n_folds=3,p=1)
-    cv = KLabelFolds(pd.Series(ta_train), n_folds=8, repeats =2)
+    cv = KLabelFolds(pd.Series(ta_train), n_folds=8, repeats =1)
     #XVAL END
     
     if isinstance(model,NeuralNet) or isinstance(model,KerasNNReg):
@@ -1300,7 +1533,7 @@ if __name__=="__main__":
     #xgbFeatureImportance(model,Xtrain,ytrain)
     #model.fit(Xtrain,ytrain)
     #parameters = {'n_estimators':[400],'max_depth':[7],'learning_rate':[0.1,0.05,0.01],'subsample':[0.5],'colsample_bytree':[.8],'min_child_weight':[1]}
-    parameters = {'n_estimators':[2000,3000],'max_depth':[7,8,9],'learning_rate':[0.02,0.03,0.04],'subsample':[0.95,0.6],'colsample_bytree':[0.6,0.9],'min_child_weight':[3,6]}
+    parameters = {'n_estimators':[2000],'max_depth':[8],'learning_rate':[0.01,0.02,0.03],'subsample':[0.75],'colsample_bytree':[0.75],'min_child_weight':[5]}
     #parameters = {'n_estimators':[8000],'max_depth':[8],'learning_rate':[0.008,0.01,0.02],'subsample':[0.7],'colsample_bytree':[0.7],'min_child_weight':[5]}
     #parameters = {'dropout0_p':[0.0],'hidden1_num_units': [256],'dropout1_p':[0.0,0.1,0.15],'hidden2_num_units': [256],'dropout2_p':[0.0,0.1,0.15],'max_epochs':[100,125,150]}
     #parameters = {'dropout0_p':[0.0],'hidden1_num_units': [256],'dropout1_p':[0.0,0.1,0.2],'hidden2_num_units': [256],'dropout2_p':[0.0,0.1,0.2],'hidden3_num_units': [256],'dropout3_p':[0.0,0.1,0.2],'max_epochs':[50,75,100]}
@@ -1308,8 +1541,12 @@ if __name__=="__main__":
     #parameters = {'n_neighbors':[4,5,6,7]}
     #parameters = {'C': [5000,1000,500]}
     #parameters = {'n_estimators':[15,20,25],'max_features':[0.95],'max_samples':[1.0]}
-    model = makeGridSearch(model,Xtrain,ytrain,n_jobs=4,refit=False,cv=cv,scoring=scoring_func,parameters=parameters,random_iter=40)
+    #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=4,refit=True,cv=cv,scoring=scoring_func,parameters=parameters,random_iter=-1)
+    
     #model = buildXvalModel(model,Xtrain,ytrain,sample_weight=sample_weight,refit=True,cv=cv,class_names=ta_train)
-    #model = buildModel(model,Xtrain,ytrain,cv=cv,scoring=scoring_func,n_jobs=4,trainFull=True,verbose=True)
+    model = buildModel(model,Xtrain,ytrain,cv=cv,scoring=scoring_func,n_jobs=4,trainFull=True,verbose=True)
+    #terativeFeatureSelection(model,Xtrain,Xtest,ytrain,iterations=30,nrfeats=2,scoring=scoring_func,cv=cv,n_jobs=4)
+    #print Xtest.describe()
+    #print Xtest.shape
     makePredictions(model=model,Xtest=Xtest,idx=idx,filename='submissions/sub16082015xxx.csv',log1p=log1p)
     print("Model building done in %fs" % (time() - t0))

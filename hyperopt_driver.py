@@ -32,7 +32,7 @@ space_nn  = (
 	hp.uniform( 'dropout2_p', 0.0, 0.3 ),
 	hp.uniform( 'dropout3_p', 0.0, 0.3 ),
 	hp.quniform( 'max_epochs', 50,100,10),
-	hp.loguniform( 'learning_rate', np.log( 0.008 ), np.log( 0.0005 )),
+	hp.loguniform( 'learning_rate', np.log( 1E-4 ), np.log( 1E-3 )),
 	hp.loguniform( 'L2_alpha', np.log( 1E-5 ), np.log( 1E-2 )),
 	#hp.uniform( 'leakiness', 0.1, 0.3 ),
 	hp.uniform( 'max_features', 0.9, 1.0 ),
@@ -216,7 +216,7 @@ X = scaler.fit_transform(X.values)
 #interact_analysis(X)
 #X = X.values
 #y = y.reshape((y.shape[0],1))
-best = fmin(fn=func_nn,space=space_nn,algo=tpe.suggest,max_evals=30,rseed=1234)
+best = fmin(fn=func_nn,space=space_nn,algo=tpe.suggest,max_evals=60,rseed=1234)
 
 
 

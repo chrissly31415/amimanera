@@ -391,43 +391,11 @@ def group_sparse(Xold,Xold_test, degree=2,append=True):
     print "New test data:",Xreduced.shape   
     return(Xreduced,Xreduced_test)
 
-def xgbFeatureImportance(clf,X,y):
-    """
-    Selects n best features, strange importances...
-    """
-    print "XGB Feature importance..."
-    clf.fit(X,y)
-    
-    fmap = clf.get_fscore()
-    importances = np.zeros(X.shape[1])
-    
 
-    for i,(k,v) in enumerate(fmap.iteritems()):
-	idx = int(float(k.replace("f","")))
-	print "k",k
-	print "feature",idx
-	print "importance",v
-	print "name:",X.columns[idx]
-	#print indices[i]
-	importances[idx]=v
-	#print X.columns[indices[i]]
-    indices = np.argsort(importances)[::-1]
-    #indices = indices.astype(int)
-    
-    for i,f in enumerate(indices):
-	print("%3d. feature %16s %3d - %6.4f" % (i, X.columns[f], f, importances[f]))
-    
-    
-    print fmap
-    fscore = [ (v,k) for k,v in fmap.iteritems() ]
-    print "fscore",fscore.sort(reverse=True)
-    
-    #plt.bar(left=np.arange(len(indices)),height=importances[indices] , width=0.35, color='r')
-    #plt.show()
 
 def featureImportance(clf,X,y):
     """
-    New function for gradient boosting
+    New function for GradientBoostingClassifier
     """
     print "New feature importance..."
     clf.fit(X,y)
@@ -461,8 +429,9 @@ def rfFeatureImportance(forest,Xold,Xold_test,n):
     # Print the feature ranking
     print("Feature ranking:")
 
+    print("%3s %-30s %3s %10s %6s" % ("nr","feature","id","importance","std"))
     for i,f in enumerate(indices):
-	print("%3d. feature %16s %3d - %6.4f +/- %6.4f" % (i, Xold.columns[f], f, importances[f] , std[f]))
+	print("%3d %-30s %3d %10.4f %6.4f" % (i+1, Xold.columns[f], f, importances[f] , std[f]))
 	
     # Plot the feature importances of the forest  
     plt.bar(left=np.arange(len(indices)),height=importances[indices] , width=0.35, color='r',yerr=std[indices])
@@ -484,6 +453,40 @@ def rfFeatureImportance(forest,Xold,Xold_test,n):
     print "Xreduced_test:",Xreduced_test.shape
     print "Xreduced_train:",Xreduced.shape
     return(Xreduced,Xreduced_test)
+
+def xgbFeatureImportance(clf,X,y):
+    """
+    Selects n best features, strange importances...
+    """
+    print "XGB Feature importance..."
+    clf.fit(X,y)
+    
+    fmap = clf.get_fscore()
+    importances = np.zeros(X.shape[1])
+    
+
+    for i,(k,v) in enumerate(fmap.iteritems()):
+	idx = int(float(k.replace("f","")))
+	print "k",k
+	print "feature",idx
+	print "importance",v
+	print "name:",X.columns[idx]
+	#print indices[i]
+	importances[idx]=v
+	#print X.columns[indices[i]]
+    indices = np.argsort(importances)[::-1]
+    #indices = indices.astype(int)
+    
+    for i,f in enumerate(indices):
+	print("%3d. feature %16s %3d - %6.4f" % (i, X.columns[f], f, importances[f]))
+    
+    
+    print fmap
+    fscore = [ (v,k) for k,v in fmap.iteritems() ]
+    print "fscore",fscore.sort(reverse=True)
+    
+    #plt.bar(left=np.arange(len(indices)),height=importances[indices] , width=0.35, color='r')
+    #plt.show()
     
 def linearFeatureSelection(lmodel,Xold,Xold_test,n):
     """
@@ -666,8 +669,8 @@ def iterativeFeatureSelection(lmodel,Xold,Xold_test,ly,iterations=5,nrfeats=1,sc
 	"""
 	for i in xrange(iterations):
 	    print ">>>Iteration: ",i,"<<<"
-	    #lmodel = buildModel(lmodel,Xold,ly,cv=cv,scoring=scoring,n_jobs=n_jobs,trainFull=True)
-	    lmodel.fit(Xold,ly)
+	    lmodel = buildModel(lmodel,Xold,ly,cv=cv,scoring=scoring,n_jobs=n_jobs,trainFull=True,verbose=True)
+	    #lmodel.fit(Xold,ly)
 	    (Xold,Xold_test)=rfFeatureImportance(lmodel,Xold,Xold_test,nrfeats)
 	    #Xold.to_csv("../stumbled_upon/data/Xlarge_"+str(i)+".csv")
 	    #Xold_test.to_csv("../stumbled_upon/data/XXlarge_test_"+str(i)+".csv")
@@ -801,7 +804,7 @@ def mean_absolute_error(x,y):
 def multiclass_log_loss(y_true, y_pred, eps=1e-15):
     return log_loss(y_true,y_pred, eps=eps, normalize=True)
 
-def getOOBCVPredictions(lmodel,lXs,ly,folds=8,repeats=1,returnSD=True,score_func='rmse'):
+def getOOBCVPredictions(lmodel,lXs,ly,repeats=1,cv=5,returnSD=True,score_func='rmse'):
 	"""
 	Get cv oob predictions for classifiers
 	"""
@@ -810,16 +813,13 @@ def getOOBCVPredictions(lmodel,lXs,ly,folds=8,repeats=1,returnSD=True,score_func
 	    funcdict['scorer_funct']=root_mean_squared_error
 	else:
 	    funcdict['scorer_funct']=roc_auc_score
-	
-	
+		
 	print "Computing oob predictions..."
-	if isinstance(lmodel,RandomForestClassifier) or isinstance(lmodel,SGDClassifier):
-		lmodel.set_params(n_jobs=4)
 	oobpreds=np.zeros((lXs.shape[0],repeats))
 	for j in xrange(repeats):
 	    #print lmodel.get_params()
-	    cv = KFold(lXs.shape[0], n_folds=folds,random_state=j,shuffle=True)
-	    scores=np.zeros(folds)	
+	    #cv = KFold(lXs.shape[0], n_folds=folds,random_state=j,shuffle=True)
+	    scores=np.zeros(len(cv))	
 	    for i, (train, test) in enumerate(cv):
 		Xtrain = lXs.iloc[train]
 		Xtest = lXs.iloc[test]

@@ -854,7 +854,7 @@ nnet_ensembler3 = NeuralNet(layers=[('input', layers.InputLayer),
 	('dropout2', layers.DropoutLayer),
 	('output', layers.DenseLayer)],
 
-	input_shape=(None, 16),
+	input_shape=(None, 20),
 	dropout0_p=0.0,
 
 	hidden1_num_units=128,
