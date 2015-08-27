@@ -24,19 +24,19 @@ space_xgb = (
 )
 
 space_nn  = ( 
-	hp.quniform( 'hidden1_num_units', 450,650,50),
-	hp.quniform( 'hidden2_num_units', 450,650,50 ),
-	hp.quniform( 'hidden3_num_units', 450,650,50 ),
-	#hp.uniform( 'dropout0_p', 0.0, 0.1),
-	hp.uniform( 'dropout1_p', 0.0, 0.3 ),
-	hp.uniform( 'dropout2_p', 0.0, 0.3 ),
-	hp.uniform( 'dropout3_p', 0.0, 0.3 ),
-	hp.quniform( 'max_epochs', 50,100,10),
-	hp.loguniform( 'learning_rate', np.log( 1E-4 ), np.log( 1E-3 )),
-	hp.loguniform( 'L2_alpha', np.log( 1E-5 ), np.log( 1E-2 )),
+	hp.quniform( 'hidden1_num_units', 400,600,50),
+	hp.quniform( 'hidden2_num_units', 400,600,50 ),
+	hp.quniform( 'hidden3_num_units', 250,600,50 ),
+	#hp.uniform( 'dropout0_p', 0.0, 0.0),
+	hp.uniform( 'dropout1_p', 0.0, 0.25 ),
+	hp.uniform( 'dropout2_p', 0.0, 0.25 ),
+	hp.uniform( 'dropout3_p', 0.0, 0.25 ),
+	hp.quniform( 'max_epochs', 50,150,25),
+	hp.loguniform( 'learning_rate', np.log( 1E-4 ), np.log( 1E-2 )),
+	hp.loguniform( 'L2_alpha', np.log( 1E-6 ), np.log( 1E-2 )),
 	#hp.uniform( 'leakiness', 0.1, 0.3 ),
-	hp.uniform( 'max_features', 0.9, 1.0 ),
-	hp.uniform( 'max_samples', 0.9, 1.0 )
+	#hp.uniform( 'max_features', 0.9, 1.0 ),
+	#hp.uniform( 'max_samples', 0.9, 1.0 )
 	
 )
 
@@ -54,8 +54,8 @@ def func_nn(params):
       #dropout0_p,dropout1_p,dropout2_p,dropout3_p,max_epochs,learning_rate,L2_alpha = params
       #hidden1_num_units,hidden2_num_units,hidden3_num_units,dropout0_p,max_epochs,learning_rate,L2_alpha,max_features = params
       #hidden1_num_units,hidden2_num_units,dropout0_p,dropout1_p,dropout2_p,max_epochs,learning_rate,max_features = params
-      hidden1_num_units,hidden2_num_units,hidden3_num_units,dropout1_p,dropout2_p,dropout3_p,max_epochs,learning_rate,L2_alpha,max_features,max_samples = params
-      
+      #hidden1_num_units,hidden2_num_units,hidden3_num_units,dropout1_p,dropout2_p,dropout3_p,max_epochs,learning_rate,L2_alpha,max_features,max_samples = params
+      hidden1_num_units,hidden2_num_units,hidden3_num_units,dropout1_p,dropout2_p,dropout3_p,max_epochs,learning_rate,L2_alpha = params
       dropout0_p=0.0
       #dropout2_p=0.25
       #dropout3_p=0.25
@@ -63,7 +63,7 @@ def func_nn(params):
       print "hidden1_num_units:    %6d"% (hidden1_num_units)
       print "hidden2_num_units:    %6d"% (hidden2_num_units)
       print "hidden3_num_units:    %6d"% (hidden3_num_units)
-      print "dropout0_p:          %6.2f"%(dropout0_p)
+      #print "dropout0_p:          %6.2f"%(dropout0_p)
       print "dropout1_p:          %6.2f"%(dropout1_p)
       print "dropout2_p:          %6.2f"%(dropout2_p)
       print "dropout3_p:          %6.2f"%(dropout3_p)
@@ -73,15 +73,15 @@ def func_nn(params):
       #print "leakiness:            %6.2e"%(leakiness)
       input_shape =X.shape[1]
       #input_shape = int(math.floor(X.shape[1]*max_features))
-      print "max_features: 	 %6.4f (%6d)"%(max_features,input_shape)
-      print "max_samples: 	 %6.4f"%(max_samples)
+      #print "max_features: 	 %6.4f (%6d)"%(max_features,input_shape)
+      #print "max_samples: 	 %6.4f"%(max_samples)
       
       print input_shape
       #input_shape = 271
 
       
       basemodel = NeuralNet(layers=[('input', layers.InputLayer),
-	('dropout0', layers.DropoutLayer),
+	#('dropout0', layers.DropoutLayer),
 	('hidden1', layers.DenseLayer),
 	('dropout1', layers.DropoutLayer),
 	('hidden2', layers.DenseLayer),
@@ -91,7 +91,7 @@ def func_nn(params):
 	('output', layers.DenseLayer)],
 
 	input_shape=(None, input_shape),
-	dropout0_p=dropout0_p,
+	#dropout0_p=dropout0_p,
 
 	hidden1_num_units=hidden1_num_units,
 	hidden1_nonlinearity=nonlinearities.LeakyRectify(leakiness=0.1),
@@ -111,7 +111,7 @@ def func_nn(params):
 	regression=True,
 	objective=RMSE,
 	objective_alpha=L2_alpha,
-	batch_iterator_train=ShuffleBatchIterator(batch_size = 128),
+	batch_iterator_train=ShuffleBatchIterator(batch_size = 64),
 
 	#update=adagrad,#0.001
 	update=rmsprop,
@@ -207,16 +207,20 @@ counter=0
 #best = fmin(fn=func_xgb,space=space_xgb,algo=tpe.suggest,max_evals=50,rseed=123)
 
 #NN
-Xtest,X,y,idx,ta,_ = prepareDataset(seed=123,nsamples='shuffle',log1p=True,balance=base_cols+comp_cols+spec_cols,logtransform=log_cols+new_feats+new_feats2,createFeatures=True,createSupplierFeatures=['supplier','quantity','annual_usage','diameter'],createMaterialFeatures=['material_id','quantity','annual_usage','diameter'],createVerticalFeatures=False,shapeFeatures=True,timeFeatures=True,standardize=numerical_cols+new_feats+new_feats2,oneHotenc=categoricals_nospec,removeRare=20,removeSpec=True)  
+Xtest,X,y,idx,ta,_ = prepareDataset(seed=123,nsamples='shuffle',log1p=True,loadBN='load',removeLowVariance = True)
+X,Xtest = removeCorrelations(X,Xtest,0.995)
 #interact_analysis(X)
 #dropFeatures=None#['supplier_2','supplier_45','supplier_40','supplier_33','supplier_23','supplier_21','supplier_8','supplier_7','supplier_3','supplier_1','quantity_8','supplier_11','supplier_0','supplier_27','supplier_28','supplier_34','supplier_6','component_id_8','material_id_1','supplier_44','component_id_7','quantity_7']
 #Xtest,X,y,idx,ta,_ = prepareDataset(seed=1234,nsamples='shuffle',log1p=True,balance=base_cols+comp_cols+spec_cols,logtransform=log_cols+new_feats,createFeatures=True,createVerticalFeatures=False,standardize=numerical_cols+new_feats,oneHotenc=categoricals_nospec,removeRare=25,removeSpec=True,removeLowVariance=True)   
+print X.describe()
+#showCorrelations(X)
 scaler = StandardScaler()
 X = scaler.fit_transform(X.values)
+
 #interact_analysis(X)
 #X = X.values
 #y = y.reshape((y.shape[0],1))
-best = fmin(fn=func_nn,space=space_nn,algo=tpe.suggest,max_evals=60,rseed=1234)
+best = fmin(fn=func_nn,space=space_nn,algo=tpe.suggest,max_evals=200,rseed=1234)
 
 
 

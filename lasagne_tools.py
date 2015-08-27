@@ -623,7 +623,7 @@ nnet_cater = NeuralNet(layers=[('input', layers.InputLayer),
 #('dropout3', layers.DropoutLayer), 
 ('output', layers.DenseLayer)],
 
-input_shape=(None, 271),
+input_shape=(None, 260),
 dropout0_p=0.0,
 
 hidden1_num_units=256,
@@ -649,21 +649,22 @@ output_nonlinearity=None,
 
 regression=True,
 objective=RMSE,
+objective_alpha=0.0,
 batch_iterator_train=ShuffleBatchIterator(batch_size = 64),
 
 #update=nesterov_momentum,
 update=rmsprop,#0.005
 #update=adagrad,#0.25
 #update_learning_rate=theano.shared(float32(0.25)),
-update_learning_rate=theano.shared(float32(0.005)),
+update_learning_rate=theano.shared(float32(0.01)),
 #update_momentum=0.9, #only used with nesterov_
 
-eval_size=0.0,
+eval_size=0.2,
 verbose=1,
-max_epochs=125,
+max_epochs=75,
 
  on_epoch_finished=[
-        #AdjustVariable('update_learning_rate', start=0.01, stop=0.001),
+        AdjustVariable('update_learning_rate', start=0.01, stop=0.0001),
         #EarlyStopping(patience=20),
         ],
 )
@@ -760,6 +761,7 @@ nnet_cater3 = NeuralNet(layers=[('input', layers.InputLayer),
 		#EarlyStopping(patience=20),
 		],
 )
+
 
 
 nnet_ensembler1 = NeuralNet(layers=[('input', layers.InputLayer),
@@ -886,5 +888,160 @@ nnet_ensembler3 = NeuralNet(layers=[('input', layers.InputLayer),
 		#EarlyStopping(patience=20),
 		],
 )
+
+
+#RMSE~0.240 10 fold
+nn10_BN1 = NeuralNet(layers=[('input', layers.InputLayer),
+	('dropout0', layers.DropoutLayer),
+	('hidden1', layers.DenseLayer),
+	('dropout1', layers.DropoutLayer),
+	('hidden2', layers.DenseLayer),
+	('dropout2', layers.DropoutLayer),
+	('hidden3', layers.DenseLayer),
+	('dropout3', layers.DropoutLayer),
+	('output', layers.DenseLayer)],
+
+	input_shape=(None, 274),
+	dropout0_p=0.0,
+
+	hidden1_num_units=600,
+	#hidden1_nonlinearity=nonlinearities.LeakyRectify(leakiness=0.1),
+    hidden1_nonlinearity=nonlinearities.rectify,
+	dropout1_p=0.15,
+
+	hidden2_num_units=600,
+	#hidden2_nonlinearity=nonlinearities.LeakyRectify(leakiness=0.1),
+    hidden2_nonlinearity=nonlinearities.rectify,
+	dropout2_p=0.1,
 	
+	hidden3_num_units=600,
+	#hidden3_nonlinearity=nonlinearities.LeakyRectify(leakiness=0.1),
+    hidden3_nonlinearity=nonlinearities.rectify,
+	dropout3_p=0.1,
+
+	output_num_units=1,
+	output_nonlinearity=None,
+
+	regression=True,
+	objective=RMSE,
+	objective_alpha=5.0*1E-4,
+	batch_iterator_train=ShuffleBatchIterator(batch_size = 64),#->32?
+
+	#update=adagrad,#0.001
+	update=rmsprop,
+	update_learning_rate=theano.shared(float32(0.0005)),
 	
+	eval_size=0.0,
+	verbose=1,
+	max_epochs=20,
+
+	on_epoch_finished=[
+		AdjustVariable('update_learning_rate', start=0.0005, stop=0.0000001),
+		#EarlyStopping(patience=20),
+		],
+)
+
+nn10_BN_small2 = NeuralNet(layers=[('input', layers.InputLayer),
+	('dropout0', layers.DropoutLayer),
+	('hidden1', layers.DenseLayer),
+	('dropout1', layers.DropoutLayer),
+	('hidden2', layers.DenseLayer),
+	('dropout2', layers.DropoutLayer),
+	#('hidden3', layers.DenseLayer),
+	#('dropout3', layers.DropoutLayer),
+	('output', layers.DenseLayer)],
+
+	input_shape=(None, 258),
+	dropout0_p=0.0,
+
+	hidden1_num_units=500,
+	#hidden1_nonlinearity=nonlinearities.LeakyRectify(leakiness=0.1),
+    hidden1_nonlinearity=nonlinearities.rectify,
+	dropout1_p=0.1,
+
+	hidden2_num_units=500,
+	hidden2_nonlinearity=nonlinearities.rectify,
+    #hidden1_nonlinearity=nonlinearities.LeakyRectify(leakiness=0.1),
+	dropout2_p=0.1,
+
+	#hidden3_num_units=600,
+	#hidden3_nonlinearity=nonlinearities.LeakyRectify(leakiness=0.1),
+	#dropout3_p=0.0,
+
+	output_num_units=1,
+	output_nonlinearity=None,
+
+	regression=True,
+	objective=RMSE,
+	objective_alpha=1.0*1E-5,
+	batch_iterator_train=ShuffleBatchIterator(batch_size = 256),#->32?
+
+	#update=adagrad,#0.001
+	update=rmsprop,
+	update_learning_rate=theano.shared(float32(1.0*1e-04)),
+
+	eval_size=0.2,
+	verbose=1,
+	max_epochs=75,
+
+	on_epoch_finished=[
+		AdjustVariable('update_learning_rate', start=1.0*1e-04, stop=1.0*1e-06),
+		#EarlyStopping(patience=20),
+		],
+)
+
+nn10_BN_small = NeuralNet(layers=[('input', layers.InputLayer),
+    ('dropout0', layers.DropoutLayer),
+    ('hidden1', layers.DenseLayer),
+    ('dropout1', layers.DropoutLayer),
+    ('hidden2', layers.DenseLayer),
+    ('dropout2', layers.DropoutLayer),
+    #('hidden3', layers.DenseLayer),
+    #('dropout3', layers.DropoutLayer), 
+    ('output', layers.DenseLayer)],
+
+    input_shape=(None, 260),
+    dropout0_p=0.0,
+
+    hidden1_num_units=500,
+    #hidden1_nonlinearity=nonlinearities.rectify,#not stable why?
+    hidden1_nonlinearity=nonlinearities.sigmoid,
+    #hidden1_nonlinearity=nonlinearities.LeakyRectify(leakiness=0.1),
+    #hidden1_nonlinearity=nonlinearities.tanh,
+    dropout1_p=0.1,
+
+    hidden2_num_units=500,
+    #hidden2_nonlinearity=nonlinearities.rectify,
+    hidden2_nonlinearity=nonlinearities.sigmoid,
+    #hidden2_nonlinearity=nonlinearities.LeakyRectify(leakiness=0.1),
+    #hidden2_nonlinearity=nonlinearities.tanh,
+    dropout2_p=0.1,
+
+    #hidden3_num_units=512,
+    #hidden2_nonlinearity=nonlinearities.rectify,
+    #hidden3_nonlinearity=nonlinearities.sigmoid,
+
+    output_num_units=1,
+    output_nonlinearity=None,
+
+    regression=True,
+    objective=RMSE,
+    objective_alpha=1E-5,
+    batch_iterator_train=BatchIterator(batch_size = 32),
+
+    #update=nesterov_momentum,
+    update=rmsprop,#0.005
+    #update=adagrad,#0.25
+    #update_learning_rate=theano.shared(float32(0.25)),
+    update_learning_rate=theano.shared(float32(0.005)),
+    #update_momentum=0.9, #only used with nesterov_
+
+    eval_size=0.2,
+    verbose=1,
+    max_epochs=75,
+
+    on_epoch_finished=[
+	    AdjustVariable('update_learning_rate', start=0.005, stop=0.00001),
+	    #EarlyStopping(patience=20),
+	    ],
+)
