@@ -47,7 +47,6 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
             Xtest = pd.read_csv("./data/testing_Aug15_v2.csv")
         Xtrain.drop(['cost'], axis=1, inplace=True)
         Xtest.drop(['cost'], axis=1, inplace=True)
-        print "Loading BN data..."
         print Xtrain.shape
         print Xtest.shape
 
@@ -62,7 +61,7 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
         Xall = pd.concat([Xtest, Xtrain])
         # raw_input()
 
-    if not useRdata and not loadBN:
+    if not useRdata and not loadBN and not isinstance(loadBN, str):
         print "Generating data from scratch..."
         Xtrain = pd.read_csv('./data/train_set.csv', parse_dates=[2, ])
         Xtest = pd.read_csv('./data/test_set.csv', parse_dates=[3, ])
@@ -1306,13 +1305,26 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
 
     if holdout:
         print "Split holdout..."
+        unique_labels = np.unique(ta_train)
+        print unique_labels
+        unique_labels = shuffle(unique_labels)[0].tolist()
         split_pc = 0.7
-        idx = int(split_pc * Xtrain.shape[0])
-        Xval = Xtrain.iloc[idx:].copy()
-        Xtrain = Xtrain.iloc[:idx, :].copy()
-        yval = y[idx:].copy()
-        y = y[:idx].copy()
-        ta_train = ta_train[:idx]
+        idx = int(split_pc * len(unique_labels))
+        unique_val = unique_labels[idx:]
+
+        val_mask = np.in1d(ta_train,unique_val)
+        train_mask = np.logical_not(val_mask)
+
+        Xval = Xtrain[val_mask].copy()
+        Xtrain = Xtrain[train_mask].copy()
+        yval = y[val_mask].copy()
+        y = y[train_mask].copy()
+        ta_train = ta_train[train_mask].copy()
+
+        print "Xtrain:",Xtrain.shape
+        print "yval:",yval.shape
+        print "ta_train:",ta_train.shape
+
 
     print "#Xtrain:", Xtrain.shape
     print "#Xtest:", Xtest.shape
@@ -1323,6 +1335,7 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
     if holdout:
         print "#Xval:", Xval.shape
         return Xtest, Xtrain, y, idx, ta_train, sample_weight, Xval, yval
+
     else:
         print "#data preparation finished!\n\n"
         return Xtest, Xtrain, y, idx, ta_train, sample_weight
@@ -1460,7 +1473,7 @@ if __name__ == "__main__":
     useRdata = False
     useSampleWeights = False
     useTubExtended = False
-    loadBN = 'nn'
+    loadBN = 'other'
 
     # output transformations
     log1p = True
@@ -1589,7 +1602,7 @@ if __name__ == "__main__":
     # model = XgboostRegressor(n_estimators=400,learning_rate=0.0632,max_depth=13,subsample=.58,colsample_bytree=0.82,min_child_weight=5,n_jobs=2,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
     # model = XgboostRegressor(n_estimators=4000,learning_rate=0.02,max_depth=7,subsample=.95,colsample_bytree=.6,min_child_weight=5,n_jobs=2,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
     # model = BaggingRegressor(base_estimator=model,n_estimators=10,n_jobs=1,verbose=2,random_state=None,max_samples=0.96,max_features=.96,bootstrap=False)
-    # model = XgboostRegressor(n_estimators=4000,learning_rate=0.02,max_depth=8,subsample=.7,colsample_bytree=0.7,min_child_weight=5,n_jobs=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
+    model = XgboostRegressor(n_estimators=1000,learning_rate=0.05,max_depth=8,subsample=.8,colsample_bytree=0.8,min_child_weight=1,n_jobs=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
     # model = RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=2, max_features=Xtrain.shape[1]/3,oob_score=True)
     #model = RandomForestRegressor(n_estimators=250, max_depth=None, min_samples_leaf=1, n_jobs=4,  max_features=Xtrain.shape[1] / 2)
     # model = ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=2, max_features=3*Xtrain.shape[1]/3)
@@ -1598,7 +1611,7 @@ if __name__ == "__main__":
     # xgbFeatureImportance(model,Xtrain,Xtest)
     Xtrain = scaleData(Xtrain,normalize=False).values
     # model = Pipeline([('scaler', StandardScaler()), ('model',nn10_BN)])
-    model = nnet_BN_deep  # nn10_BN
+    #model = nnet_BN_deep  # nn10_BN
     print model
     # featureImportance(model,Xtrain,ytrain)
 
@@ -1609,7 +1622,7 @@ if __name__ == "__main__":
     # XVALIDATION#
     # cv = KFold(ytrain.shape[0],5,shuffle=True)
     # cv = LeavePLabelOutWrapper(ta_train,n_folds=3,p=1)
-    cv = KLabelFolds(pd.Series(ta_train), n_folds=5, repeats=1)
+    cv = KLabelFolds(pd.Series(ta_train), n_folds=8, repeats=1)
     # XVAL END
 
     if isinstance(model, NeuralNet) or isinstance(model, KerasNNReg):
@@ -1631,8 +1644,8 @@ if __name__ == "__main__":
     # parameters = {'n_estimators':[15,20,25],'max_features':[0.95],'max_samples':[1.0]}
     #model = makeGridSearch(model, Xtrain, ytrain, n_jobs=1, refit=True, cv=cv, scoring=scoring_func,parameters=parameters, random_iter=30)
 
-    model = buildXvalModel(model,Xtrain,ytrain,sample_weight=sample_weight,refit=True,cv=cv,class_names=ta_train)
-    # model = buildModel(model,Xtrain,ytrain,cv=cv,scoring=scoring_func,n_jobs=4,trainFull=True,verbose=True)
+    #model = buildXvalModel(model,Xtrain,ytrain,sample_weight=sample_weight,refit=True,cv=cv,class_names=ta_train)
+    model = buildModel(model,Xtrain,ytrain,cv=cv,scoring=scoring_func,n_jobs=8,trainFull=True,verbose=True)
     #iterativeFeatureSelection(model, Xtrain, Xtest, ytrain.ravel(), iterations=50, nrfeats=2, scoring=scoring_func, cv=cv, n_jobs=2)
     # print Xtest.describe()
     # print Xtest.shape

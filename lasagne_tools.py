@@ -856,7 +856,7 @@ nnet_ensembler3 = NeuralNet(layers=[('input', layers.InputLayer),
 	('dropout2', layers.DropoutLayer),
 	('output', layers.DenseLayer)],
 
-	input_shape=(None, 20),
+	input_shape=(None, 29),
 	dropout0_p=0.0,
 
 	hidden1_num_units=128,
@@ -872,19 +872,19 @@ nnet_ensembler3 = NeuralNet(layers=[('input', layers.InputLayer),
 
 	regression=True,
 	objective=RMSE,
-	objective_alpha=0.002,
-	batch_iterator_train=ShuffleBatchIterator(batch_size = 32),
+	objective_alpha=0.001,
+	batch_iterator_train=ShuffleBatchIterator(batch_size = 64),
 
 	#update=adagrad,#0.001
 	update=rmsprop,
 	update_learning_rate=theano.shared(float32(0.002)),
-	
+
 	eval_size=0.0,
 	verbose=1,
 	max_epochs=75,
 
 	on_epoch_finished=[
-		AdjustVariable('update_learning_rate', start=0.002, stop=0.0005),
+		AdjustVariable('update_learning_rate', start=0.002, stop=0.00005),
 		#EarlyStopping(patience=20),
 		],
 )
