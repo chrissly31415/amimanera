@@ -1,4 +1,4 @@
-#!/usr/bin/python 
+#!/usr/bin/python
 # coding: utf-8
 
 from qsprLib import *
@@ -29,7 +29,7 @@ def f_quad(x, a, b, c):
     return a * x + b * x ** 2 + c
 
 
-def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, concat=True, balance=False,
+def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, concat=True, balance=None,
              bagofwords=None, bagofwords_v2_0=None, endform=True, comptypes=0, logtransform=None, NA_filler=0,
              skipLabelEncoding=None, useTubExtended=False, encodeKeepNumber=False, loadBN=False):
     # load training and test datasets
@@ -39,9 +39,12 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
     if isinstance(loadBN, str):
         print "Loading BN data..."
 
-        Xtrain = pd.read_csv("./data/training_Aug23_log.csv")
-        Xtest = pd.read_csv("./data/testing_Aug23_log.csv")
-
+        if loadBN in "logtransformed" or loadBN in "nn":
+            Xtrain = pd.read_csv("./data/training_Aug23_log.csv")
+            Xtest = pd.read_csv("./data/testing_Aug23_log.csv")
+        else:
+            Xtrain = pd.read_csv("./data/training_Aug15_v2.csv")
+            Xtest = pd.read_csv("./data/testing_Aug15_v2.csv")
         Xtrain.drop(['cost'], axis=1, inplace=True)
         Xtest.drop(['cost'], axis=1, inplace=True)
         print "Loading BN data..."
@@ -467,7 +470,7 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
 
 def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useRdata=False, createFeatures=False,
                    verbose=False, standardize=None, oneHotenc=None, concat=False, bagofwords=None, bagofwords_v2_0=None,
-                   balance=False, removeComp=False, removeSpec=False, createVolumeFeats=False, useFrequencies=False,
+                   balance=None, removeComp=False, removeSpec=False, createVolumeFeats=False, useFrequencies=False,
                    dropFeatures=None, keepFeatures=None, createSparse=False, removeRare=None, logtransform=None,
                    createVerticalFeatures=False, createSupplierFeatures=None, owenEncoding=None, computeDiscount=False,
                    comptypes=0, NA_filler=0, removeLowVariance=False, skipLabelEncoding=None, createInflationData=False,
@@ -477,6 +480,7 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
                    computeFixVarCost=False, removeRare_freq=None, createVerticalFeaturesV2=None, loadBN=False,
                    holdout=False):
     np.random.seed(seed)
+
     Xtest, Xtrain, y, idx, ta_train, ta_test = loadData(nsamples=nsamples, useRdata=useRdata, concat=concat,
                                                         bagofwords=bagofwords, bagofwords_v2_0=bagofwords_v2_0,
                                                         balance=balance, useFrequencies=useFrequencies,
@@ -1352,7 +1356,7 @@ def loadBNdata():
 
 
 if __name__ == "__main__":
-    """   
+    """
     MAIN PART
     """
     # TODO feature engineering: volume material, number of specs, EUR<->USD avg of year
@@ -1456,7 +1460,7 @@ if __name__ == "__main__":
     useRdata = False
     useSampleWeights = False
     useTubExtended = False
-    loadBN = 'load'
+    loadBN = 'nn'
 
     # output transformations
     log1p = True
@@ -1559,12 +1563,11 @@ if __name__ == "__main__":
         pd.DataFrame(ytrain, columns=['cost']).to_csv('./data/ytrain.csv', index=False)
         pd.DataFrame(ta_train, columns=['tube_assembly_id']).to_csv('./data/ta.csv', index=False)
 
-
     # interact_analysis(Xtrain)
     # showCorrelations(Xtrain,steps=3)
     # Xtrain.iloc[:,:30].hist(bins=50)
     # plt.show()
-    Xtrain, Xtest = removeCorrelations(Xtrain, Xtest, 0.995)
+    #Xtrain, Xtest = removeCorrelations(Xtrain, Xtest, 0.995)
     ##MODELS##
     # model = KNeighborsRegressor(n_neighbors=5)
     # model = SVR()
@@ -1595,7 +1598,7 @@ if __name__ == "__main__":
     # xgbFeatureImportance(model,Xtrain,Xtest)
     Xtrain = scaleData(Xtrain,normalize=False).values
     # model = Pipeline([('scaler', StandardScaler()), ('model',nn10_BN)])
-    model = nn10_BN  # nn10_BN
+    model = nnet_BN_deep  # nn10_BN
     print model
     # featureImportance(model,Xtrain,ytrain)
 
@@ -1606,7 +1609,7 @@ if __name__ == "__main__":
     # XVALIDATION#
     # cv = KFold(ytrain.shape[0],5,shuffle=True)
     # cv = LeavePLabelOutWrapper(ta_train,n_folds=3,p=1)
-    cv = KLabelFolds(pd.Series(ta_train), n_folds=10, repeats=1)
+    cv = KLabelFolds(pd.Series(ta_train), n_folds=5, repeats=1)
     # XVAL END
 
     if isinstance(model, NeuralNet) or isinstance(model, KerasNNReg):
@@ -1621,15 +1624,12 @@ if __name__ == "__main__":
     # parameters = {'n_estimators':[2000],'max_depth':[8],'learning_rate':[0.01,0.02,0.03],'subsample':[0.75],'colsample_bytree':[0.75],'min_child_weight':[5]}
     # parameters = {'n_estimators':[8000],'max_depth':[8],'learning_rate':[0.008,0.01,0.02],'subsample':[0.7],'colsample_bytree':[0.7],'min_child_weight':[5]}
     # parameters = {'dropout0_p':[0.0],'hidden1_num_units': [256],'dropout1_p':[0.0,0.1,0.15],'hidden2_num_units': [256],'dropout2_p':[0.0,0.1,0.15],'max_epochs':[100,125,150]}
-    # parameters = {'dropout0_p': [0.0], 'hidden1_num_units': [600], 'dropout1_p': [0.0, 0.1], 'hidden2_num_units': [600],
-    #              'dropout2_p': [0.0, 0.1], 'hidden3_num_units': [600], 'dropout3_p': [0.0, 0.1],
-    #              'max_epochs': [50, 75, 100]}
+    parameters = {'dropout0_p': [0.0], 'hidden1_num_units': [600], 'dropout1_p': [0.0, 0.1,0.2], 'hidden2_num_units': [600,800],'dropout2_p': [0.0, 0.1,0.2], 'hidden3_num_units': [600,800], 'dropout3_p': [0.0, 0.1,0.2],'max_epochs': [100]}
     # parameters = {'n_estimators':[250,500],'max_features':[85,90,95],'min_samples_leaf':[1,2],'bootstrap':[False]}
     # parameters = {'n_neighbors':[4,5,6,7]}
     # parameters = {'C': [5000,1000,500]}
     # parameters = {'n_estimators':[15,20,25],'max_features':[0.95],'max_samples':[1.0]}
-    # model = makeGridSearch(model, Xtrain, ytrain, n_jobs=1, refit=True, cv=cv, scoring=scoring_func,
-    #                       parameters=parameters, random_iter=-1)
+    #model = makeGridSearch(model, Xtrain, ytrain, n_jobs=1, refit=True, cv=cv, scoring=scoring_func,parameters=parameters, random_iter=30)
 
     model = buildXvalModel(model,Xtrain,ytrain,sample_weight=sample_weight,refit=True,cv=cv,class_names=ta_train)
     # model = buildModel(model,Xtrain,ytrain,cv=cv,scoring=scoring_func,n_jobs=4,trainFull=True,verbose=True)

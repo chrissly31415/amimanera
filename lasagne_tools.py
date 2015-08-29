@@ -772,7 +772,7 @@ nnet_ensembler1 = NeuralNet(layers=[('input', layers.InputLayer),
 	('dropout2', layers.DropoutLayer),
 	('output', layers.DenseLayer)],
 
-	input_shape=(None, 25),
+	input_shape=(None, 21),
 	dropout0_p=0.0,
 
 	hidden1_num_units=128,
@@ -804,7 +804,7 @@ nnet_ensembler1 = NeuralNet(layers=[('input', layers.InputLayer),
 		#EarlyStopping(patience=20),
 		],
 )
-	
+
 nnet_ensembler2 = NeuralNet(layers=[('input', layers.InputLayer),
 	('dropout0', layers.DropoutLayer),
 	('hidden1', layers.DenseLayer),
@@ -813,7 +813,7 @@ nnet_ensembler2 = NeuralNet(layers=[('input', layers.InputLayer),
 	('dropout2', layers.DropoutLayer),
 	('output', layers.DenseLayer)],
 
-	input_shape=(None, 27),
+	input_shape=(None, 26),
 	dropout0_p=0.0,
 
 	hidden1_num_units=128,
@@ -828,24 +828,24 @@ nnet_ensembler2 = NeuralNet(layers=[('input', layers.InputLayer),
 	output_nonlinearity=None,
 
 	regression=True,
-	#objective=RMSE,
 	objective=RMSE,
 	objective_alpha=0.001,
-	batch_iterator_train=ShuffleBatchIterator(batch_size = 64),
+	batch_iterator_train=ShuffleBatchIterator(batch_size = 32),
 
 	#update=adagrad,#0.001
 	update=rmsprop,
-	update_learning_rate=theano.shared(float32(0.002)),
-	
+	update_learning_rate=theano.shared(float32(0.0025)),
+
 	eval_size=0.0,
 	verbose=1,
-	max_epochs=60,
+	max_epochs=75,
 
 	on_epoch_finished=[
-		AdjustVariable('update_learning_rate', start=0.002, stop=0.00005),
+		AdjustVariable('update_learning_rate', start=0.0025, stop=0.00005),
 		#EarlyStopping(patience=20),
 		],
 )
+
 	
 	
 nnet_ensembler3 = NeuralNet(layers=[('input', layers.InputLayer),
@@ -891,7 +891,7 @@ nnet_ensembler3 = NeuralNet(layers=[('input', layers.InputLayer),
 
 
 #RMSE~0.240 10 fold
-nn10_BN1 = NeuralNet(layers=[('input', layers.InputLayer),
+nnet_BN1 = NeuralNet(layers=[('input', layers.InputLayer),
 	('dropout0', layers.DropoutLayer),
 	('hidden1', layers.DenseLayer),
 	('dropout1', layers.DropoutLayer),
@@ -901,7 +901,7 @@ nn10_BN1 = NeuralNet(layers=[('input', layers.InputLayer),
 	('dropout3', layers.DropoutLayer),
 	('output', layers.DenseLayer)],
 
-	input_shape=(None, 274),
+	input_shape=(None, 258),
 	dropout0_p=0.0,
 
 	hidden1_num_units=600,
@@ -933,13 +933,80 @@ nn10_BN1 = NeuralNet(layers=[('input', layers.InputLayer),
 	
 	eval_size=0.0,
 	verbose=1,
-	max_epochs=20,
+	max_epochs=100,
 
 	on_epoch_finished=[
 		AdjustVariable('update_learning_rate', start=0.0005, stop=0.0000001),
 		#EarlyStopping(patience=20),
 		],
 )
+
+#RMSE~
+nnet_BN_deep = NeuralNet(layers=[('input', layers.InputLayer),
+	('dropout0', layers.DropoutLayer),
+	('hidden1', layers.DenseLayer),
+	('dropout1', layers.DropoutLayer),
+	('hidden2', layers.DenseLayer),
+	('dropout2', layers.DropoutLayer),
+	('hidden3', layers.DenseLayer),
+	('dropout3', layers.DropoutLayer),
+    ('hidden4', layers.DenseLayer),
+	('dropout4', layers.DropoutLayer),
+    ('hidden5', layers.DenseLayer),
+	('dropout5', layers.DropoutLayer),
+    ('hidden6', layers.DenseLayer),
+	('dropout6', layers.DropoutLayer),
+	('output', layers.DenseLayer)],
+
+	input_shape=(None, 258),
+	dropout0_p=0.0,
+
+	hidden1_num_units=128,
+    hidden1_nonlinearity=nonlinearities.rectify,
+	dropout1_p=0.0,
+
+	hidden2_num_units=128,
+    hidden2_nonlinearity=nonlinearities.rectify,
+	dropout2_p=0.0,
+
+	hidden3_num_units=128,
+    hidden3_nonlinearity=nonlinearities.rectify,
+	dropout3_p=0.1,
+
+    hidden4_num_units=128,
+    hidden4_nonlinearity=nonlinearities.rectify,
+	dropout4_p=0.1,
+
+    hidden5_num_units=128,
+    hidden5_nonlinearity=nonlinearities.rectify,
+	dropout5_p=0.1,
+
+    hidden6_num_units=128,
+    hidden6_nonlinearity=nonlinearities.rectify,
+	dropout6_p=0.1,
+
+	output_num_units=1,
+	output_nonlinearity=None,
+
+	regression=True,
+	objective=RMSE,
+	objective_alpha=1E-3,
+	batch_iterator_train=BatchIterator(batch_size = 64),#->32?
+
+	#update=adagrad,#0.001
+	update=rmsprop,
+	update_learning_rate=theano.shared(float32(0.0025)),
+
+	eval_size=0.2,
+	verbose=1,
+	max_epochs=100,
+
+	on_epoch_finished=[
+		AdjustVariable('update_learning_rate', start=0.0025, stop=1E-6),
+		#EarlyStopping(patience=20),
+		],
+)
+
 
 nn10_BN_small2 = NeuralNet(layers=[('input', layers.InputLayer),
 	('dropout0', layers.DropoutLayer),
