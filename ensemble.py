@@ -1814,6 +1814,12 @@ if __name__ == "__main__":
 																			'xrf3_br1', 'xrf4_br1', 'rf1_br1', 'rf3_br1', 'nn2_br1', 'nn1_br1', 'lr2_br1',
 																			'gbr1_br1', 'lr3_br1', 'svm2_br1', 'knn1_br1', 'bagxgb5_br1', 'nn7_br25','xgb7_br1','xgbbn1_br1','nnet_BN1_br1','xrfbn1_br1']
 
+	best_submission_nofinance_nofeat_BN_KNN = ['xgb2_br1', 'xgb3_br1', 'xgb4_br1', 'xgb5_br1', 'xgb6_br1', 'xgb7_br1',
+																			'xgb8_br1', 'xgb9_br1', 'xgb10_br1', 'nn6_br1', 'xrf1_br1', 'xrf2_br1',
+																			'xrf3_br1', 'xrf4_br1', 'rf1_br1', 'rf3_br1', 'nn2_br1', 'nn1_br1', 'lr2_br1',
+																			'gbr1_br1', 'lr3_br1', 'svm2_br1', 'knn1_br1', 'bagxgb5_br1', 'nn7_br25','xgb7_br1','nnet_BN1_br1','xrfbn1_br1','knnbn1_br1']
+
+
 	best_models_nofinance_nofeat_BN = ['xgb3_br1', 'xgb4_br1', 'xgb5_br1', 'xgb6_br1', 'xgb7_br1',
 																			'xgb8_br1', 'xgb9_br1', 'xgb10_br1', 'xrf1_br1', 'xrf2_br1',
 																			'xrf3_br1', 'xrf4_br1', 'rf1_br1', 'rf3_br1', 'nn2_br1', 'nn1_br1', 'lr2_br1',
@@ -1822,7 +1828,7 @@ if __name__ == "__main__":
 	best_models_nofinance_nofeat_BN_KNN = ['xgb3_br1', 'xgb4_br1', 'xgb5_br1', 'xgb6_br1', 'xgb7_br1',
 																			'xgb8_br1', 'xgb9_br1', 'xgb10_br1', 'xrf1_br1', 'xrf2_br1',
 																			'xrf3_br1', 'xrf4_br1', 'rf1_br1', 'rf3_br1', 'nn2_br1', 'nn1_br1', 'lr2_br1',
-																			'gbr1_br1', 'lr3_br1', 'svm2_br1', 'knn1_br1', 'bagxgb5_br1','xgb7_br1','xgbbn1_br1','xrfbn1_br1','nn9_br20','xgb16_br1', 'rf4_br1','knnbn1_br1']
+																			'gbr1_br1', 'lr3_br1', 'svm2_br1', 'knn1_br1', 'bagxgb5_br1','xgb7_br1','xrfbn1_br1','nn9_br20','xgb16_br1', 'rf4_br1','knnbn1_br1']
 
 	hill_climb1 = ['xgb16_br1', 'xgbbn1_br1', 'nn9_br20', 'nnet_BN1_br1', 'bagxgb5_br1', 'xgb10_br1']
 	hill_climb2 = ['xgb16_br1', 'nn9_br20', 'bagxgb5_br1', 'xgb8_br1', 'nn7_br25', 'xgb10_br1']
@@ -1834,9 +1840,9 @@ if __name__ == "__main__":
 	# models = ['svm7_br3','xrf4_br3','nn1_br3']
 	# manual=['xgb7_r1','nn6_r1']
 	# models = ['xgb2_br1','xgb3_br1','xgb4_br1','xgb5_br1','xgb6_br1','xgb7_br1','xgb8_br1','xgb9_br1']#['xgb2_r1','nn1_r1','gbr1_r1','xrf1_r1','knn1_r1','lr1_r1']
-	models = best_submission_nofinance_nofeat  # best_submission_nofinance_nofeat# ['nn8_br1']#all_models_bagmode_manually#all_models_bagmode_manually#['xgb16_br1','xgb5_br1','xgb6_br1','xgb7_br1','xgb8_br1','xgb9_br1','xgb10_br1']
+	models = best_submission_nofinance_nofeat_BN_KNN  # best_submission_nofinance_nofeat# ['nn8_br1']#all_models_bagmode_manually#all_models_bagmode_manually#['xgb16_br1','xgb5_br1','xgb6_br1','xgb7_br1','xgb8_br1','xgb9_br1','xgb10_br1']
 	useCols = None
-	trainEnsemble(models, mode='classical', score_func='rmse', useCols=None, addMetaFeatures=False, use_proba=False,dropCorrelated=False, subfile='./submissions/sub30082015e.csv')
+	trainEnsemble(models, mode='classical', score_func='rmse', useCols=None, addMetaFeatures=False, use_proba=False,dropCorrelated=False, subfile='./submissions/sub30082015XXX.csv')
 	#selectModelsGreedy(models,startensemble=['xgb16_br1'],niter=20,mode='mean',greater_is_better=False,dropCorrelated=False)
 
 
