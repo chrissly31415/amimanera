@@ -77,12 +77,12 @@ def createModelsHoldout():
 	xmodel = XModel("xgb16_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
 	ensemble.append(xmodel)
 
-	"""
 	#LR1
 	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,useRdata=False,createFeatures=True,createVolumeFeats=True,standardize=None,balance=base_cols+comp_cols+spec_cols,oneHotenc=['material_id','supplier'],holdout=True)
 	model = LassoLarsCV()
 	xmodel = XModel("lr1_hr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
 	ensemble.append(xmodel)
+
 
 	#BAGXGB5 alternative ... CV_8f=0.222 PL=0.225 only slighlty overfitted!?
 	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,standardize=None,balance=base_cols+comp_cols+spec_cols,bagofwords=None,createFeatures=True,createVerticalFeatures=True,oneHotenc=['supplier'],removeRare=10,removeSpec=True,dropFeatures=None,holdout=True)
@@ -90,13 +90,14 @@ def createModelsHoldout():
 	model = BaggingRegressor(base_estimator=model,n_estimators=3,n_jobs=1,verbose=2,random_state=None,max_samples=0.96,max_features=.96,bootstrap=False)
 	xmodel = XModel("bagxgb5_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
 	ensemble.append(xmodel)
-	"""
 
-	#RF3 CV=0.260 on sparse data (CV_3f = 0.267)? CV_8f=0.257
+
+	#RF3 CV=0.260 on sparse data (CV_3f = 0.267)? CV_8f=0.257 ->sparse
 	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,balance=base_cols+comp_cols+spec_cols,createSparse=True,standardize=None,oneHotenc=categoricals,holdout=True)
 	model = RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=4, max_features=Xtrain.shape[1]/2)
 	xmodel = XModel("rf3_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
 	ensemble.append(xmodel)
+
 
 	#RF1 CV=0.262 CV_8f=0.263
 	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,balance=base_cols+comp_cols+spec_cols,useRdata=False,createFeatures=True,standardize=None,oneHotenc=['supplier'],holdout=True)
@@ -104,18 +105,113 @@ def createModelsHoldout():
 	xmodel = XModel("rf1_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
 	ensemble.append(xmodel)
 
+
 	#RF4 CV_10f=0.244 # sample_weights!!!
 	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,standardize=None,balance=base_cols+comp_cols+spec_cols,removeRare=10,oneHotenc=['supplier'],createFeatures=True,createSupplierFeatures=['supplier','quantity','annual_usage','diameter'],createMaterialFeatures=['material_id','quantity','diameter'],createVerticalFeatures=False,shapeFeatures=True,timeFeatures=True,materialCost=False,removeLowVariance=True,removeSpec=True,useSampleWeights=True,holdout=True)
 	model = RandomForestRegressor(n_estimators=400,max_depth=None,min_samples_leaf=1,n_jobs=1, max_features=Xtrain.shape[1]/2,bootstrap=True)
 	xmodel = XModel("rf4_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
 	ensemble.append(xmodel)
 
+
 	#RF5 CV_10f=0.244
 	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,standardize=None,balance=base_cols+comp_cols+spec_cols,removeRare=10,oneHotenc=['supplier'],createFeatures=True,createSupplierFeatures=['supplier','quantity','annual_usage','diameter'],createMaterialFeatures=['material_id','quantity','diameter'],createVerticalFeatures=False,shapeFeatures=True,timeFeatures=True,materialCost=False,removeLowVariance=True,removeSpec=True,useSampleWeights=True,holdout=True)
 	model = RandomForestRegressor(n_estimators=400,max_depth=None,min_samples_leaf=1,n_jobs=1, max_features=Xtrain.shape[1]/2,bootstrap=True)
 	xmodel = XModel("rf5_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
 	ensemble.append(xmodel)
+
+
+	#GBR1 CV_5f = 0.232 CV_8f = 0.229
+	#Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,balance=base_cols+comp_cols+spec_cols,useRdata=False,createFeatures=True,standardize=None,oneHotenc=['supplier'],removeRare=30,removeSpec=True,holdout=True)
+	#model = GradientBoostingRegressor(n_estimators=2000,learning_rate=0.05,max_depth=7,subsample=.5)
+	#xmodel = XModel("gbr1_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
+	#ensemble.append(xmodel)
+
+	#XRF3 ALL component data CV_10f_bm=0.286 -> sparse
+	#Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,balance=base_cols+comp_cols+spec_cols,NA_filler=0,comptypes=7,createSparse=True,removeLowVariance=True,removeSpec=False,holdout=True)
+	#model = ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1, max_features=3*Xtrain.shape[1]/4,bootstrap=False)
+	#xmodel = XModel("xrf3_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
+	#ensemble.append(xmodel)
+
+
+	#XRF1  CV=0.259  CV_8f = 0.264 #needs a lot of mxfeatures!!!
+	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,standardize=None,balance=base_cols+comp_cols+spec_cols,bagofwords=None,createFeatures=True,oneHotenc=['material_id','supplier'],removeSpec=True,dropFeatures=None,holdout=True)
+	model = ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1, max_features=90,bootstrap=False)
+	xmodel = XModel("xrf1_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
+	ensemble.append(xmodel)
+
+
+	#XRF2  CV= CV_8f = 0.249    PL=0.242 !!!  CV_10f_bm = 0.248
+	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,standardize=None,balance=base_cols+comp_cols+spec_cols,removeRare=15,oneHotenc=['supplier','material_id'],createFeatures=True,createSupplierFeatures=['supplier','quantity'],createVerticalFeatures=True,removeSpec=True,holdout=True)
+	model = ExtraTreesRegressor(n_estimators=500,max_depth=None,min_samples_leaf=1,n_jobs=1, max_features=70,bootstrap=False)
+	xmodel = XModel("xrf2_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
+	ensemble.append(xmodel)
+
+	#XRF4 createInflationData=False more owen encoding  CV_10f_bm=0.278
+	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,standardize=None,balance=base_cols+comp_cols+spec_cols,removeRare=None,oneHotenc=None,createFeatures=True,owenEncoding=['supplier','material_id'],createInflationData=False,holdout=True)
+	model = ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1, max_features=3*Xtrain.shape[1]/4,bootstrap=False)
+	xmodel = XModel("xrf4_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
+	ensemble.append(xmodel)
+
+	#XRF5 CV_10f=0.266
+	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,standardize=None,balance=base_cols+comp_cols+spec_cols,removeRare=10,oneHotenc=['supplier'],createFeatures=True,createSupplierFeatures=['supplier','quantity','annual_usage','diameter'],createMaterialFeatures=['material_id','quantity','diameter'],createVerticalFeatures=False,shapeFeatures=True,timeFeatures=True,materialCost=False,removeLowVariance=True,removeSpec=True,useSampleWeights=True,holdout=True)
+	model = ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1, max_features=5*Xtrain.shape[1]/6,bootstrap=False)
+	xmodel = XModel("xrf5_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
+	ensemble.append(xmodel)
+
+
+
+	#XGB1 CV=0.232 PL=0.246 CV_8f= 0.251
+	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,balance=base_cols+comp_cols+spec_cols,useRdata=False,createFeatures=True,standardize=None,oneHotenc=['material_id','supplier'],bagofwords_v2_0=True,holdout=True)
+	model = XgboostRegressor(n_estimators=400,learning_rate=0.05,max_depth=15,subsample=.5,colsample_bytree=0.8,n_jobs=2,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
+	xmodel = XModel("xgb1_hr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
+	ensemble.append(xmodel)
+
+
+	#XGB3  balance also for comp and spec! PL=0.228 CV_8f=0.228
+	dropFeatures=['supplier_2','supplier_45','supplier_40','supplier_33','supplier_23','supplier_21','supplier_8','supplier_7','supplier_3','supplier_1','quantity_8','supplier_11','supplier_0','supplier_27','supplier_28','supplier_34','supplier_6','component_id_8','material_id_1','supplier_44','component_id_7','quantity_7']
+	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,standardize=None,balance=base_cols+comp_cols+spec_cols,bagofwords=None,createFeatures=True,oneHotenc=['material_id','supplier'],removeSpec=True,dropFeatures=dropFeatures,holdout=True)
+	model = XgboostRegressor(n_estimators=2000,learning_rate=0.05,max_depth=7,subsample=.8,colsample_bytree=0.8,min_child_weight=5,n_jobs=2,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
+	xmodel = XModel("xgb3_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
+	ensemble.append(xmodel)
+
+
+	#XGB5 BAG_OF_WORDS! CV_8f=0.240
+	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,standardize=None,balance=base_cols+comp_cols+spec_cols,bagofwords_v2_0=True,createFeatures=True,useFrequencies=False,removeSpec=False,removeComp=False,holdout=True)
+	model = XgboostRegressor(n_estimators=2000,learning_rate=0.05,max_depth=7,subsample=.8,colsample_bytree=0.8,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
+	xmodel = XModel("xgb5_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
+	ensemble.append(xmodel)
+
+	#XGB6 FEATURE FREQUENCIES CV_10f=0.2367
+	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,standardize=None,balance=base_cols+comp_cols+spec_cols,bagofwords_v2_0=None,createFeatures=True,useFrequencies=True,removeSpec=True,holdout=True)
+	model = XgboostRegressor(n_estimators=8000,learning_rate=0.01,max_depth=8,subsample=.7,colsample_bytree=.7,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
+	xmodel = XModel("xgb6_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
+	ensemble.append(xmodel)
+
+
+	#XGB6 FEATURE FREQUENCIES CV_10f=0.2367
+	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,standardize=None,balance=base_cols+comp_cols+spec_cols,bagofwords_v2_0=None,createFeatures=True,useFrequencies=True,removeSpec=True,holdout=True)
+	model = XgboostRegressor(n_estimators=8000,learning_rate=0.01,max_depth=8,subsample=.7,colsample_bytree=.7,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
+	xmodel = XModel("xgb6_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
+	ensemble.append(xmodel)
+
+
+	#XGB8 ALL component data CV_10f_bag=0.226 ->SPARSE!
+	#Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,balance=base_cols+comp_cols+spec_cols,NA_filler=0,comptypes=7,createSparse=True,removeLowVariance=True,removeSpec=False,holdout=True)
+	#model = XgboostRegressor(NA=0,n_estimators=8000,learning_rate=0.01,max_depth=8,subsample=.7,colsample_bytree=.7,min_child_weight=5,n_jobs=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
+	#xmodel = XModel("xgb8_hbr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
+	#ensemble.append(xmodel)
 	"""
+	#XGB9 simple owen encoding
+	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,standardize=None,balance=base_cols+comp_cols+spec_cols,removeRare=None,oneHotenc=None,createFeatures=True,owenEncoding=['supplier'],holdout=True)
+	model = XgboostRegressor(NA=0,n_estimators=400,learning_rate=0.05,max_depth=15,subsample=.5,colsample_bytree=0.8,n_jobs=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
+	xmodel = XModel("xgb9_hbr1",classifier=clone(model),Xtrain=Xtrain.copy(),Xtest=Xtest.copy(),ytrain=ytrain,Xval=Xval.copy(),yval=yval,cv_labels=ta,bag_mode=False)
+	ensemble.append(xmodel)
+
+	#XGB10 createInflationData=False  more owen encoding  CV_10f_bm=0.225
+	Xtest,Xtrain,ytrain,idx,ta,_,Xval,yval = prepareDataset(seed=123,nsamples='shuffle',log1p=True,standardize=None,balance=base_cols+comp_cols+spec_cols,removeRare=None,oneHotenc=None,createFeatures=True,owenEncoding=['supplier','material_id'],createInflationData=False,holdout=True)
+	model = XgboostRegressor(booster='gbtree',NA=0,n_estimators=8000,learning_rate=0.01,max_depth=8,subsample=.5,colsample_bytree=0.8,n_jobs=1,objective='reg:linear',eval_metric='rmse',silent=1,eval_size=0.0)
+	xmodel = XModel("xgb10_hbr1",classifier=clone(model),Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=ta,bag_mode=False)
+	ensemble.append(xmodel)
 
 
 	for m in ensemble:
@@ -588,21 +684,18 @@ def createModels():
 	xmodel = XModel("xgb14_br1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,cv_labels=ta,bag_mode=True)
 	ensemble.append(xmodel)
 
-
-
 	#XGB15 MANY ITERATIONS ALL FEATURES using weights hyper_opt overfit? ->Check it...
 	Xtest,Xtrain,ytrain,idx,ta,_ = prepareDataset(seed=123,nsamples='shuffle',log1p=True,standardize=None,balance=base_cols+comp_cols+spec_cols,removeRare=20,oneHotenc=['supplier'],createFeatures=True,createSupplierFeatures=['supplier','quantity'],createVerticalFeatures=False,shapeFeatures=True,timeFeatures=True,materialCost=False,removeLowVariance=True,removeSpec=True)
 	model = XgboostRegressor(n_estimators=4000,learning_rate=0.0269,max_depth=7,subsample=0.9587,colsample_bytree=0.5772,min_child_weight=6,gamma=2.1712, n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
 	xmodel = XModel("xgb15_br1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,cv_labels=ta,bag_mode=True)
 	ensemble.append(xmodel)
 
-
 	#XGB_BN1
 	Xtest,Xtrain,ytrain,idx,ta,_ = prepareDataset(seed=123,nsamples='shuffle',log1p=True,loadBN="yes",holdout=False)
 	model = XgboostRegressor(n_estimators=1000,learning_rate=0.05,max_depth=8,subsample=.8,colsample_bytree=0.8,min_child_weight=1,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
 	xmodel = XModel("xgbbn1_br1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=None,yval=None,cv_labels=ta,bag_mode=True)
 	ensemble.append(xmodel)
-	"""
+
 
 	##XGB_BN2
 	#Xtest,Xtrain,ytrain,idx,ta,_ = prepareDataset(seed=123,nsamples='shuffle',log1p=True,loadBN="somedata",holdout=False)
@@ -615,9 +708,22 @@ def createModels():
 	model = ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=1, max_features=3*Xtrain.shape[1]/4,bootstrap=False)
 	xmodel = XModel("xrfbn1_br1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,cv_labels=ta,bag_mode=True)
 	ensemble.append(xmodel)
-
-
 	"""
+
+	#SVM2 CV_8f=0.314
+	Xtest,Xtrain,ytrain,idx,ta,_ = prepareDataset(seed=123,nsamples='shuffle',log1p=True,loadBN="nn",holdout=False)
+	model  = SVR(C=100,gamma=0.0)
+	xmodel = XModel("svmbn1_br1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,cv_labels=ta,bag_mode=True)
+	ensemble.append(xmodel)
+	"""
+
+	#KNN1 CV=0.589 CV_8f=0.551
+	Xtest,Xtrain,ytrain,idx,ta,_ =  prepareDataset(seed=123,nsamples='shuffle',log1p=True,loadBN="nn",holdout=False)
+	model = KNeighborsRegressor(n_neighbors=5)
+	xmodel = XModel("knnbn1_br1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,cv_labels=ta,bag_mode=True)
+	ensemble.append(xmodel)
+
+
 	#nnet_BN1
 	Xtest,Xtrain,ytrain,idx,ta,_ = prepareDataset(seed=123,nsamples='shuffle',log1p=True,loadBN="nn",holdout=False)
 	model = NeuralNet(layers=[('input', layers.InputLayer),
@@ -1024,7 +1130,7 @@ def trainEnsemble(ensemble, mode='linear', score_func='log_loss', useCols=None, 
 	basedir = "./data/"
 
 	for i, model in enumerate(ensemble):
-
+		print ''.join(['-']*120)
 		print "Loading model:", i, " name:", model
 		xmodel = XModel.loadModel(basedir + model)
 		class_names = xmodel.class_names
@@ -1046,15 +1152,12 @@ def trainEnsemble(ensemble, mode='linear', score_func='log_loss', useCols=None, 
 		else:
 			Xtrain = xmodel.oob_preds
 			Xtest = xmodel.preds
-			print type(xmodel.oob_preds)
 			y = xmodel.ytrain
 			colnames = [model + "_" + n for n in class_names]
 			Xtrain.columns = colnames
-
 			Xval = None
 			yval = None
 			if hasattr(xmodel,'Xval') and xmodel.Xval is not None:
-				print type(xmodel.val_preds)
 				Xval = xmodel.val_preds
 				yval = xmodel.yval
 				print Xval.shape
@@ -1079,7 +1182,7 @@ def trainEnsemble(ensemble, mode='linear', score_func='log_loss', useCols=None, 
 		results = classicalBlend(ensemble, Xtrain, Xtest, y, valpreds=Xval, yval=yval, score_func=score_func, use_proba=use_proba, skipCV=skipCV,
 														 subfile=subfile, cv_labels=xmodel.cv_labels, dropCorrelated=dropCorrelated)
 	elif mode is 'mean':
-		results = linearBlend(ensemble, Xtrain, Xtest, y, valpreds=Xval, yval=yval,score_func=score_func, takeMean=True, subfile=subfile,
+		results = linearBlend(ensemble, Xtrain, Xtest, y, Xval=Xval, yval=yval,score_func=score_func, takeMean=True, subfile=subfile,
 												  dropCorrelated=dropCorrelated)
 	elif mode is 'voting':
 		results = voting_multiclass(ensemble, Xtrain, Xtest, y, score_func=score_func, n_classes=1, subfile=subfile,
@@ -1088,7 +1191,7 @@ def trainEnsemble(ensemble, mode='linear', score_func='log_loss', useCols=None, 
 		return (Xtest, Xtrain, y, None, xmodel.cv_labels, None)
 
 	else:
-		results = linearBlend(ensemble, Xtrain, Xtest, y,valpreds=Xval, yval=yval, score_func=score_func, takeMean=False, subfile=subfile,
+		results = linearBlend(ensemble, Xtrain, Xtest, y,Xval=Xval, yval=yval, score_func=score_func, takeMean=False, subfile=subfile,
 												  dropCorrelated=dropCorrelated)
 	return (results)
 
@@ -1190,8 +1293,9 @@ def classicalBlend(ensemble, oobpreds, testset, ly,valpreds=None,yval=None, use_
 
 	if kwargs['dropCorrelated']:
 		# showCorrelations(oobpreds)
-		oobpreds, testset = removeCorrelations(oobpreds, testset, 0.994)
+		oobpreds, testset = removeCorrelations(oobpreds, testset, 0.995)
 		print oobpreds.shape
+		raw_input()
 
 	#blender=Ridge(alpha=10.0)#0.212644
 	# blender = Pipeline([('pca', PCA(n_components=19,whiten=False)), ('model', LinearRegression())])
@@ -1204,7 +1308,9 @@ def classicalBlend(ensemble, oobpreds, testset, ly,valpreds=None,yval=None, use_
 
 	#blender = Pipeline([('scaler', StandardScaler()), ('model',nnet_ensembler1)])#0.206
 	#blender = Pipeline([('scaler', StandardScaler()), ('model',nnet_ensembler2)])#0.207 26 features
-	blender = Pipeline([('scaler', StandardScaler()), ('model',nnet_ensembler3)])
+	#blender = Pipeline([('scaler', StandardScaler()), ('model',nnet_ensembler3)])#0.200 29 features
+	#blender = Pipeline([('scaler', StandardScaler()), ('model',nnet_ensembler4)])#0.2002 29 features
+	blender = Pipeline([('scaler', StandardScaler()), ('model',nnet_ensembler5)])
 	#blender = Pipeline([('scaler', StandardScaler()), ('model', blender)])
 
 	blender = BaggingRegressor(base_estimator=blender,n_estimators=20,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=1.0,bootstrap=False)
@@ -1213,7 +1319,7 @@ def classicalBlend(ensemble, oobpreds, testset, ly,valpreds=None,yval=None, use_
 		# blender = CalibratedClassifierCV(baseblender, method='sigmoid', cv=3)
 		# cv = KFold(ly.shape[0], n_folds=10,shuffle=True)
 		print kwargs['cv_labels']
-		cv = KLabelFolds(pd.Series(kwargs['cv_labels']), n_folds=2, repeats=1)
+		cv = KLabelFolds(pd.Series(kwargs['cv_labels']), n_folds=2, repeats=2)
 		# cv = LeavePLabelOutWrapper(ta,n_folds=8,p=1)
 		# score_func = make_scorer(funcdict[score_func], greater_is_better = False)
 		# parameters = {'n_estimators':[300],'max_depth':[3],'learning_rate':[0.03],'subsample':[0.5],'colsample_bytree':[0.5],'min_child_weight':[1]}#XGB
@@ -1409,8 +1515,6 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
 	Blending for multiclass systems
 	"""
 
-	print Xval
-
 	def fopt(params):
 		# nxm  * m*1 ->n*1
 		if np.isnan(np.sum(params)):
@@ -1490,12 +1594,12 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
 	oob_score = funcdict[score_func](y, ypred)
 	print "->score,opt: %4.4f" % (oob_score)
 	if Xval is not None:
-		print "Evaluating on test set..."
-		yval_pred = blend_mult(Xval, xopt, n_classes)
-		pred_score = funcdict[score_func](yval, yval_pred)
-		yval_mean = np.mean(Xtrain.values, axis=1)
+		print "Evaluating on validation set..."
+		yval_mean = np.mean(Xval.values, axis=1)
 		pred_score = funcdict[score_func](yval, yval_mean)
 		print "->score,mean: %4.4f" % (pred_score)
+		yval_pred = blend_mult(Xval, xopt, n_classes)
+		pred_score = funcdict[score_func](yval, yval_pred)
 		print "->score,opt: %4.4f" % (pred_score)
 
 	zero_models = []
@@ -1510,7 +1614,7 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
 			zero_models.append(model)
 		if Xval is not None:
 			coldata_val = np.asarray(Xval.iloc[:, idx_start:idx_end])
-			score = funcdict[score_func](yval, coldata)
+			score = funcdict[score_func](yval, coldata_val)
 			print "(val: %6.3f)"%(score)
 		else:
 			print ""
@@ -1663,7 +1767,7 @@ if __name__ == "__main__":
 	"""
 	#ensemble = createModels()
 	#ensemble = createModelsHoldout()
-	#ensemble = createOOBdata(ensemble, repeats=1, n_folds=8, n_jobs=2, use_proba=False,score_func='rmse')  # oob data averaging leads to significant variance reduction
+	#ensemble = createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=5, use_proba=False,score_func='rmse')  # oob data averaging leads to significant variance reduction
 
 	# createDataSets()
 	# saveTrainData(ensemble)
@@ -1700,11 +1804,6 @@ if __name__ == "__main__":
 											 'nn9_br20', 'rf1_br1', 'xgb16_br1', 'xgb2_br1', 'xgb7_br1','xgbbn1_br1','nnet_BN1_br1']
 	# loadTrainData(all_models_sorted)
 
-	best_submission_nofinance = ['xgb2_br1', 'xgb3_br1', 'xgb4_br1', 'xgb5_br1', 'xgb6_br1', 'xgb7_br1', 'xgb8_br1',
-															 'xgb9_br1', 'xgb10_br1', 'nn6_br1', 'xrf1_br1', 'xrf2_br1', 'xrf3_br1', 'xrf4_br1',
-															 'rf1_br1', 'rf3_br1', 'nn2_br1', 'nn1_br1', 'lr2_br1', 'quantity', 'gbr1_br1',
-															 'lr3_br1', 'annual_usage', 'svm2_br1', 'knn1_br1', 'bagxgb5_br1', 'nn7_br1']
-
 	best_submission_nofinance_nofeat = ['xgb2_br1', 'xgb3_br1', 'xgb4_br1', 'xgb5_br1', 'xgb6_br1', 'xgb7_br1',
 																			'xgb8_br1', 'xgb9_br1', 'xgb10_br1', 'nn6_br1', 'xrf1_br1', 'xrf2_br1',
 																			'xrf3_br1', 'xrf4_br1', 'rf1_br1', 'rf3_br1', 'nn2_br1', 'nn1_br1', 'lr2_br1',
@@ -1715,19 +1814,29 @@ if __name__ == "__main__":
 																			'xrf3_br1', 'xrf4_br1', 'rf1_br1', 'rf3_br1', 'nn2_br1', 'nn1_br1', 'lr2_br1',
 																			'gbr1_br1', 'lr3_br1', 'svm2_br1', 'knn1_br1', 'bagxgb5_br1', 'nn7_br25','xgb7_br1','xgbbn1_br1','nnet_BN1_br1','xrfbn1_br1']
 
+	best_models_nofinance_nofeat_BN = ['xgb3_br1', 'xgb4_br1', 'xgb5_br1', 'xgb6_br1', 'xgb7_br1',
+																			'xgb8_br1', 'xgb9_br1', 'xgb10_br1', 'xrf1_br1', 'xrf2_br1',
+																			'xrf3_br1', 'xrf4_br1', 'rf1_br1', 'rf3_br1', 'nn2_br1', 'nn1_br1', 'lr2_br1',
+																			'gbr1_br1', 'lr3_br1', 'svm2_br1', 'knn1_br1', 'bagxgb5_br1','xgb7_br1','xgbbn1_br1','nnet_BN1_br1','xrfbn1_br1','nn9_br20','xgb16_br1', 'rf4_br1']
+
+	best_models_nofinance_nofeat_BN_KNN = ['xgb3_br1', 'xgb4_br1', 'xgb5_br1', 'xgb6_br1', 'xgb7_br1',
+																			'xgb8_br1', 'xgb9_br1', 'xgb10_br1', 'xrf1_br1', 'xrf2_br1',
+																			'xrf3_br1', 'xrf4_br1', 'rf1_br1', 'rf3_br1', 'nn2_br1', 'nn1_br1', 'lr2_br1',
+																			'gbr1_br1', 'lr3_br1', 'svm2_br1', 'knn1_br1', 'bagxgb5_br1','xgb7_br1','xgbbn1_br1','xrfbn1_br1','nn9_br20','xgb16_br1', 'rf4_br1','knnbn1_br1']
+
 	hill_climb1 = ['xgb16_br1', 'xgbbn1_br1', 'nn9_br20', 'nnet_BN1_br1', 'bagxgb5_br1', 'xgb10_br1']
 	hill_climb2 = ['xgb16_br1', 'nn9_br20', 'bagxgb5_br1', 'xgb8_br1', 'nn7_br25', 'xgb10_br1']
 
-	hold_out= ['xgbbn1_hbr1','xgbbn2_hbr1','xgb2_hbr1','xgb7_hbr1','xgb16_hbr1']
+	hold_out= ['xgbbn1_hbr1','xgbbn2_hbr1','xgb2_hbr1','xgb7_hbr1','xgb16_hbr1','lr1_hr1','rf1_hbr1','rf4_hbr1','rf5_hbr1','xrf2_hbr','xrf4_hbr','xrf5_hbr','xgb1_hr1','xgb3_hbr1','xgb5_hbr1','xgb6_hbr1']
 	# nnets = ['nn1_br1''nn2_br1','nn6_br1','nn7_br25','nn9_br20']
 	# all_models_bagmode_old = ['xgb2_br1','xgb3_br1','xgb4_br1','xgb5_br1','xgb6_br1','xgb7_br1','xgb8_br1','xgb9_br1','xgb10_br1','nn6_br1','xrf1_br1','xrf2_br1','xrf3_br1','xrf4_br1','rf1_br1','rf3_br1','nn2_br1','nn1_br1','lr2_br1','quantity','gbr1_br1','lr3_br1','annual_usage','svm2_br1','knn1_br1','bagxgb5_br1','nn7_br25']
 	# best_models = ['xgb2_r1', 'nn1_r1', 'gbr1_r1','svm2_r1','xgb4_r1','xgb5_r1','xgb6_r1','nn6_r1','xgb6_r1','xgb7_r1','xrf2_r1']
 	# models = ['svm7_br3','xrf4_br3','nn1_br3']
 	# manual=['xgb7_r1','nn6_r1']
 	# models = ['xgb2_br1','xgb3_br1','xgb4_br1','xgb5_br1','xgb6_br1','xgb7_br1','xgb8_br1','xgb9_br1']#['xgb2_r1','nn1_r1','gbr1_r1','xrf1_r1','knn1_r1','lr1_r1']
-	models = hold_out  # best_submission_nofinance_nofeat# ['nn8_br1']#all_models_bagmode_manually#all_models_bagmode_manually#['xgb16_br1','xgb5_br1','xgb6_br1','xgb7_br1','xgb8_br1','xgb9_br1','xgb10_br1']
+	models = best_submission_nofinance_nofeat  # best_submission_nofinance_nofeat# ['nn8_br1']#all_models_bagmode_manually#all_models_bagmode_manually#['xgb16_br1','xgb5_br1','xgb6_br1','xgb7_br1','xgb8_br1','xgb9_br1','xgb10_br1']
 	useCols = None
-	trainEnsemble(models, mode='mean', score_func='rmse', useCols=None, addMetaFeatures=False, use_proba=False,dropCorrelated=False, subfile='./submissions/sub29082015XXX.csv')
+	trainEnsemble(models, mode='classical', score_func='rmse', useCols=None, addMetaFeatures=False, use_proba=False,dropCorrelated=False, subfile='./submissions/sub30082015e.csv')
 	#selectModelsGreedy(models,startensemble=['xgb16_br1'],niter=20,mode='mean',greater_is_better=False,dropCorrelated=False)
 
 
