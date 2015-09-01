@@ -22,8 +22,9 @@ class XModel:
     Wrapper for ensemble building
     """
     modelcount = 0
+
     def __init__(self, name, classifier, Xtrain, Xtest, ytrain=None, sample_weight=None, Xval=None, yval=None,
-                  cutoff=None, class_names=None, cv_labels=None, bag_mode=False):
+                 cutoff=None, class_names=None, cv_labels=None, bag_mode=False):
         self.name = name
         self.classifier = classifier
         self.Xtrain = Xtrain
@@ -46,7 +47,7 @@ class XModel:
         if Xval is not None:
             self.val_preds = np.zeros((Xval.shape[0], 1))
 
-        if Xval is not None  and sample_weight is not None:
+        if Xval is not None and sample_weight is not None:
             raise Exception("Holdout and sampleweight currently not supported!")
         self.cutoff = cutoff
         if cutoff is not None:
@@ -63,7 +64,7 @@ class XModel:
         print " type         :", type(self.Xtest)
 
         if self.Xval is not None:
-            print "Valid. data   : ",self.Xval.shape
+            print "Valid. data   : ", self.Xval.shape
         if self.sample_weight is not None:
             print "sample_weight:", self.sample_weight.shape,
             print " type        :", type(self.sample_weight)
@@ -82,7 +83,6 @@ class XModel:
     def __repr__(self):
         self.summary()
 
-
     # static function for saving
     @staticmethod
     def saveModel(xmodel, filename):
@@ -91,7 +91,6 @@ class XModel:
             pickle_out = open(filename.replace('.csv', ''), 'wb')
             pickle.dump(xmodel, pickle_out)
             pickle_out.close()
-
 
     @staticmethod
     def saveDataSet(xmodel, restoreOrder=True, basedir='./share/'):
@@ -103,7 +102,6 @@ class XModel:
             xmodel.Xtrain.to_csv(basedir + "Xtrain_" + xmodel.name + ".csv", index=False)
             # Xtest_ta = pd.concat([pd.DataFrame(_,columns=['tube_assembly_id'],index=Xtest.index),Xtest],axis=1)
             xmodel.Xtest.to_csv(basedir + "Xtest_" + xmodel.name + ".csv", index=False)
-
 
     @staticmethod
     def loadDataSet(xmodel, restoreOrder=True, basedir='./share/'):
@@ -118,7 +116,6 @@ class XModel:
 
         return (xmodel.Xtrain, xmodel.Xtest)
 
-
     # static function for saving only the important parameters
     @staticmethod
     def saveCoreData(xmodel, filename):
@@ -132,7 +129,6 @@ class XModel:
         pickle_out = open(filename.replace('.csv', ''), 'wb')
         pickle.dump(xmodel, pickle_out)
         pickle_out.close()
-
 
     # static function for loading
     @staticmethod
@@ -236,8 +232,8 @@ class ConstrainedLinearRegressor(BaseEstimator):
         if self.greater_is_better: score = -1 * score
         return score
 
-    def blend_mult(self,X,params,n_classes=None):
-        if n_classes <2:
-            return np.dot(X,params)
-        #    else:
-        #        return multiclass_mult(X,params,n_classes)
+    def blend_mult(self, X, params, n_classes=None):
+        if n_classes < 2:
+            return np.dot(X, params)
+            #    else:
+            #        return multiclass_mult(X,params,n_classes)

@@ -28,7 +28,7 @@ from sklearn.cross_validation import StratifiedKFold, KFold, StratifiedShuffleSp
     LeavePLabelOut
 from sklearn.metrics import roc_auc_score, classification_report, make_scorer, f1_score, precision_score, \
     mean_squared_error, accuracy_score, log_loss
-# from sklearn.utils.extmath import density
+
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.decomposition import TruncatedSVD, PCA, RandomizedPCA, FastICA, MiniBatchSparsePCA, SparseCoder, \
     DictionaryLearning, MiniBatchDictionaryLearning
@@ -36,6 +36,7 @@ from sklearn.pipeline import Pipeline
 
 from sklearn.feature_selection import SelectKBest, SelectPercentile, chi2, f_classif, f_regression, \
     GenericUnivariateSelect, VarianceThreshold
+
 from sklearn.naive_bayes import BernoulliNB, MultinomialNB, GaussianNB
 from sklearn.cluster import k_means
 from sklearn.isotonic import IsotonicRegression
@@ -56,6 +57,8 @@ from sklearn.learning_curve import learning_curve
 from sklearn.multiclass import OneVsRestClassifier, OneVsOneClassifier
 
 from sklearn.base import clone
+
+from sklearn.base import BaseEstimator, TransformerMixin
 
 from sklearn.calibration import CalibratedClassifierCV
 
@@ -1372,6 +1375,26 @@ class KLabelFolds():
                 # tr = shuffle(tr)
                 # print tr
                 yield (tr, np.where(test_mask)[0])
+
+
+class ScaleContinuousOnly(BaseEstimator, TransformerMixin):
+    def __init__(self, copy=True, with_mean=True, with_std=True):
+        self.copy = copy
+        self.with_mean = with_mean
+        self.with_std = with_std
+
+    def fit(self, X, y=None):
+        self.columns = X.columns
+        self.binary_features = X.columns[(X.dtypes==np.int64) & (X.max()==1) & (X.min()==0)]
+        self.continuous_features = X[[c for c in X.columns if c not in self.binary_features]].columns
+        self.standard_scaler = StandardScaler()
+        self.standard_scaler.fit(X[self.continuous_features])
+        return self
+
+    def transform(self, X, y=None, copy=None):
+        scaled_df = pd.DataFrame(self.standard_scaler.transform(X[self.continuous_features]), index=X.index, columns=self.continuous_features)
+        scaled_df = pd.concat([scaled_df, X[self.binary_features]], axis=1)[self.columns]
+        return scaled_df
 
 
 # some global vars

@@ -92,7 +92,8 @@ class MSE(Objective):
         return loss
 
 
-def shuffle(*arrays):
+def shuffle_arrays(*arrays):
+    print "This is lasagne!!!"
     p = np.random.permutation(len(arrays[0]))
     return [array[p] for array in arrays]
 
@@ -106,7 +107,7 @@ class ShuffleBatchIterator(object):
         return self
 
     def __iter__(self):
-        self.X, self.y = shuffle(self.X, self.y)
+        self.X, self.y = shuffle_arrays(self.X, self.y)
         n_samples = self.X.shape[0]
         bs = self.batch_size
         for i in range((n_samples + bs - 1) / bs):	    
@@ -973,6 +974,46 @@ nnet_ensembler5 = NeuralNet(layers=[('input', layers.InputLayer),
 		],
 )
 
+nnet_ensembler6 = NeuralNet(layers=[('input', layers.InputLayer),
+	('dropout0', layers.DropoutLayer),
+	('hidden1', layers.DenseLayer),
+	('dropout1', layers.DropoutLayer),
+	('hidden2', layers.DenseLayer),
+	('dropout2', layers.DropoutLayer),
+	('output', layers.DenseLayer)],
+
+	input_shape=(None, 33),
+	dropout0_p=0.0,
+
+	hidden1_num_units=128,
+	hidden1_nonlinearity=nonlinearities.rectify,
+	dropout1_p=0.0,
+
+	hidden2_num_units=128,
+	hidden2_nonlinearity=nonlinearities.rectify,
+	dropout2_p=0.0,
+
+	output_num_units=1,
+	output_nonlinearity=None,
+
+	regression=True,
+	objective=RMSE,
+	objective_alpha=0.001,
+	batch_iterator_train=ShuffleBatchIterator(batch_size = 64),
+
+	#update=adagrad,#0.001
+	update=rmsprop,
+	update_learning_rate=theano.shared(float32(0.002)),
+
+	eval_size=0.0,
+	verbose=1,
+	max_epochs=75,
+
+	on_epoch_finished=[
+		AdjustVariable('update_learning_rate', start=0.002, stop=0.00005),
+		#EarlyStopping(patience=20),
+		],
+)
 #RMSE~0.240 10 fold
 nnet_BN1 = NeuralNet(layers=[('input', layers.InputLayer),
 	('dropout0', layers.DropoutLayer),

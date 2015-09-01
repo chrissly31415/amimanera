@@ -17,6 +17,7 @@ from scipy.sparse import csr_matrix
 from scipy.spatial.distance import euclidean, seuclidean
 
 
+
 def f_hyperbel(x, a, b):
     return -1.0 * a / x + b
 
@@ -463,6 +464,7 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
         Xtrain = Xtrain.iloc[rows, :]
         y = y[rows]
         ta_train = ta_train[rows]
+
 
     return Xtest, Xtrain, y, idx, ta_train, ta_test
 
@@ -1152,9 +1154,11 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
 
             # prepare dataframe
             Xtrain = Xall[len(Xtest.index):]
+
             df_yt = pd.DataFrame(np.zeros((Xtrain.shape[0], 2)), columns=[vn, vn_y])
             df_yt[vn_y] = y
             df_yt[vn] = Xtrain[vn].values
+
 
             # compute mean from training data
             mean0 = df_yt[vn_y].mean() * np.ones(Xall.shape[0])
@@ -1168,10 +1172,14 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
             # count for suppliers
             cnt1 = grp1[vn_y].aggregate(np.size)
 
+
+
             # merge data
             _key_codes = Xall[vn]
             _sum = sum1.loc[_key_codes].values
             _cnt = cnt1.loc[_key_codes].values
+
+
 
             _cnt[np.isnan(_sum)] = 0
             _sum[np.isnan(_sum)] = 0
@@ -1185,8 +1193,10 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
             df_y[len(Xtest.index):] = df_yt[vn_y].values
             df_y[:len(Xtest.index)] = 0
 
+
             _sum -= df_y
             _cnt[len(Xtest.index):] -= 1
+
 
             # Xall['oe_'+vn] = (_sum + cred_k * mean0)/(_cnt + cred_k)
             # Leustagos:
@@ -1201,7 +1211,10 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
             # Xall['exp2_'+vn] = (_sum + cred_k * mean0)/(_cnt + cred_k)
             # Xall['oe_'+vn] = _sum / (_cnt +1)
 
+
+
         Xall.drop(owenEncoding, axis=1, inplace=True)
+
 
     if removeLowVariance:
         print Xall
@@ -1268,6 +1281,7 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
             print "Col: %20s Is null: %d" % (col, Xall[col].isnull().sum())
 
     Xtrain = Xall[len(Xtest.index):]
+
     Xtest = Xall[:len(Xtest.index)]
 
     if verbose:
@@ -1305,12 +1319,19 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
 
     if holdout:
         print "Split holdout..."
+
         unique_labels = np.unique(ta_train)
-        print unique_labels
-        unique_labels = shuffle(unique_labels)[0].tolist()
+
+        print type(unique_labels)
+
+        unique_labels = shuffle(np.asarray(unique_labels,dtype='S8'),random_state=seed)
         split_pc = 0.7
-        idx = int(split_pc * len(unique_labels))
-        unique_val = unique_labels[idx:]
+        index = int(split_pc * len(unique_labels))
+
+        unique_val = unique_labels[index:]
+
+        print unique_val[:10]
+        print unique_val[-10:]
 
         val_mask = np.in1d(ta_train,unique_val)
         train_mask = np.logical_not(val_mask)
