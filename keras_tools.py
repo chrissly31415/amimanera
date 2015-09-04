@@ -182,7 +182,7 @@ class KerasNN3(Sequential,BaseEstimator):
 
 class KerasNNReg(Sequential,BaseEstimator):
     
-    def __init__(self,dims=81,nb_classes=1,nb_epoch=50,learning_rate=0.05,validation_split=0.0,batch_size=128,verbose=1):
+    def __init__(self,dims=271,nb_classes=1,nb_epoch=50,learning_rate=0.1,validation_split=0.0,batch_size=32,verbose=1):
 	Sequential.__init__(self)
 	self.dims = dims
 	self.nb_classes = nb_classes
@@ -191,24 +191,28 @@ class KerasNNReg(Sequential,BaseEstimator):
 	self.validation_split = validation_split
 	self.batch_size = batch_size
 	self.verbose = verbose
-	print('Initializing Keras Deep Net for regression with %d features and %d classes'%(self.dims,self.nb_classes))
+	print('Initializing Keras Deep Net for regression with %d features,  %d classes and learning rate: %f'%(self.dims,self.nb_classes,self.learning_rate))
 	
 	# Keras model
 	#self.add(Dropout(0.5))
-	self.add(Dense(dims, 512))
-	self.add(Activation('tanh'))
-	self.add(Dropout(0.2))
-	self.add(Dense(512, 512))
-	self.add(Activation('tanh'))
-	self.add(Dropout(0.2))
-	self.add(Dense(512, 1))
+	self.add(Dense(dims, 256, init='uniform'))
+	self.add(Activation('relu'))
+	#self.add(PReLU((256,)))
+	#self.add(BatchNormalization((256,)))
+	self.add(Dropout(0.1))
+	
+	self.add(Dense(256, 256, init='uniform'))
+	self.add(Activation('relu'))
+	#self.add(BatchNormalization((256,)))
+	#self.add(PReLU((256,)))
+	self.add(Dropout(0.1))
+	
+	self.add(Dense(256, 1, init='uniform'))
 
-	#sgd = SGD(lr=self.learning_rate, decay=1e-7, momentum=0.99, nesterov=True)
-	#self.compile(loss='categorical_crossentropy', optimizer=sgd)
 	self.compile(loss='mse', optimizer='rmsprop')
 
     def fit(self,X,y):
-	Sequential.fit(self,X, y, nb_epoch=self.nb_epoch, batch_size=self.batch_size, validation_split=self.validation_split)
+	Sequential.fit(self,X, y, nb_epoch=self.nb_epoch, verbose=1,batch_size=self.batch_size, validation_split=self.validation_split)
 	
 
     def predict_proba(self,Xtest):
@@ -217,7 +221,7 @@ class KerasNNReg(Sequential,BaseEstimator):
 	print(ypred.shape)
 	return ypred
       
-    def get_params(self, deep=True):
+    def get_params(self, deep=False):
         """
         Get parameters for this estimator.
 
@@ -241,17 +245,67 @@ class KerasNNReg(Sequential,BaseEstimator):
     #	#ypred = Sequential.predict_classes(self,Xtest,batch_size=128,verbose=1)
     #	ypred = Sequential.predict_classes(self,Xtest)
     #	return ypred
+
+class KerasNNReg2(Sequential,BaseEstimator):
     
-def make_regression_nn():
-    # Keras model
-    model = Sequential()
-    model.add(Dense(train.shape[1], 256))
-    model.add(Activation('relu'))
-    model.add(Dropout(0.2))
-    model.add(Dense(256, 256))
-    model.add(Activation('relu'))
-    model.add(Dropout(0.2))
-    model.add(Dense(256, 1))
-    model.compile(loss='mse', optimizer='rmsprop')
-    return model
+    def __init__(self,dims=271,nb_classes=1,nb_epoch=50,learning_rate=0.2,validation_split=0.0,batch_size=32,verbose=1):
+	Sequential.__init__(self)
+	self.dims = dims
+	self.nb_classes = nb_classes
+	self.nb_epoch = nb_epoch
+	self.learning_rate = learning_rate
+	self.validation_split = validation_split
+	self.batch_size = batch_size
+	self.verbose = verbose
+	print('Initializing Keras Deep Net for regression with %d features,  %d classes and learning rate: %f'%(self.dims,self.nb_classes,self.learning_rate))
+	
+	# Keras model
+	#self.add(Dropout(0.5))
+	self.add(Dense(dims, 256, init='uniform'))
+	self.add(Activation('relu'))
+	self.add(Dropout(0.2))
+	
+	self.add(Dense(256, 256, init='uniform'))
+	self.add(Activation('relu'))
+	self.add(Dropout(0.2))
+	
+	self.add(Dense(256, 256, init='uniform'))
+	self.add(Activation('relu'))
+	self.add(Dropout(0.2))
+	
+	self.add(Dense(256, 256, init='uniform'))
+	self.add(Activation('relu'))
+	self.add(Dropout(0.2))
+	
+	
+	
+	self.add(Dense(256, 1, init='uniform'))
+
+	self.compile(loss='mse', optimizer='rmsprop')
+
+    def fit(self,X,y):
+	Sequential.fit(self,X, y, nb_epoch=self.nb_epoch, verbose=1,batch_size=self.batch_size, validation_split=self.validation_split)
+	
+    def predict_proba(self,Xtest):
+	#ypred = Sequential.predict_proba(self,Xtest,batch_size=128,verbose=1)
+	ypred = Sequential.predict_proba(self,Xtest,batch_size=self.batch_size,verbose=self.verbose)
+	print(ypred.shape)
+	return ypred
+      
+    def get_params(self, deep=False):
+	return {} 
+
+ 
+#def make_regression_nn():
+    ## Keras model
+    #model = Sequential()
+    #model.add(Dense(train.shape[1], 256))
+    #model.add(Activation('relu'))
+    #model.add(Dropout(0.2))
+    #model.add(Dense(256, 256))
+    #model.add(Activation('relu'))
+    #model.add(Dropout(0.2))
+    #model.add(Dense(256, 1))
+    #model.compile(loss='mse', optimizer='rmsprop')
+    #return model
 
