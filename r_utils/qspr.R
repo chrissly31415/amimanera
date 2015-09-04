@@ -777,8 +777,7 @@ gbm_grid<-function(lX,ly,lossfn="auc",treemethod="gbm",repeatcv=3,parameters=lis
         }
       }
     }
-  }
-  
+  }  
 }
 
 #parallel crossvalidation that delivers also out-of-bag predictions 
@@ -916,7 +915,7 @@ trainRF<-function(lX,ly,iter=500,mtry=if (!is.null(ly) && !is.factor(ly)) max(fl
   require(randomForest)
   cat("Training random forest...") 
   require(randomForest)
-  mydata.rf <- randomForest(lX,ly,ntree=iter,mtry=m.try,importance = fimportance,nodesize =node.size)
+  #mydata.rf <- randomForest(lX,ly,ntree=iter,mtry=m.try,importance = fimportance,nodesize =node.size)
   mydata.rf <- randomForest(lX,ly,ntree=iter,mtry=mtry,importance = fimportance,nodesize =node.size)
   
   print(mydata.rf)
