@@ -1231,20 +1231,28 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",parameters=list(iter=
         }        
       }  
     ############################################# 
-    # MARS                                      #
+    # XGBOOST                                      #
     #############################################
     } else if (modname=="xgboost") {
+      X = as.matrix(Xtrain)
       if (lossfn=="rmse") {
-      param <- list(objective = "reg:linear",
+      xgb_params <- list(objective = "reg:linear",
                     eval_metric = "rmse",
                     max.depth=parameters$depth,
                     eta=parameters$shseq,
                     silent=1, 
                     subsample=parameters$subsample,
                     nthread = parameters$nthread)
-      X = as.matrix(Xtrain)
+      str(xgb_params)  
       n.tree <- parameters$iter
-      model = xgboost(param=param, data =X, label= ytrain,nrounds=n.tree,missing = NA)
+      fit = xgboost(param=xgb_params, data =X, label= ytrain,nrounds=n.tree,missing = NA)
+      
+      
+      #
+      #oinfo(Xtrain)
+      #oinfo(ytrain)
+      #fit = xgboost(param=xgb_params, data =X, label= ytrain,nrounds=n.tree,missing = NA)
+      
       }
       
     } else if (modname=="mars") {
@@ -1294,8 +1302,9 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",parameters=list(iter=
       pred<-predict(fits[[gbm_steps]],Xtest,n.trees=parameters$iter,type="response")
       print(summary(data.frame(pred)))
     } else if (modname=="xgboost") {
+      cat("TEST XGBOOST: ")
       if (lossfn=="rmse") {
-        pred<-predict(model,as.matrix(Xtest),outputmargin=T,predleaf=F, missing = NA)#XGBOOST
+        pred<-predict(fit,as.matrix(Xtest),outputmargin=T,predleaf=F, missing = NA)#XGBOOST
       }
     } else if (modname=="mars") {
       cat("TEST MARS: ")
