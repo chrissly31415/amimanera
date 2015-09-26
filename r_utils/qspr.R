@@ -777,8 +777,7 @@ gbm_grid<-function(lX,ly,lossfn="auc",treemethod="gbm",repeatcv=3,parameters=lis
         }
       }
     }
-  }
-  
+  }  
 }
 
 #parallel crossvalidation that delivers also out-of-bag predictions 
@@ -916,7 +915,7 @@ trainRF<-function(lX,ly,iter=500,mtry=if (!is.null(ly) && !is.factor(ly)) max(fl
   require(randomForest)
   cat("Training random forest...") 
   require(randomForest)
-  mydata.rf <- randomForest(lX,ly,ntree=iter,mtry=m.try,importance = fimportance,nodesize =node.size)
+  #mydata.rf <- randomForest(lX,ly,ntree=iter,mtry=m.try,importance = fimportance,nodesize =node.size)
   mydata.rf <- randomForest(lX,ly,ntree=iter,mtry=mtry,importance = fimportance,nodesize =node.size)
   
   print(mydata.rf)
@@ -1232,20 +1231,28 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",parameters=list(iter=
         }        
       }  
     ############################################# 
-    # MARS                                      #
+    # XGBOOST                                      #
     #############################################
     } else if (modname=="xgboost") {
+      X = as.matrix(Xtrain)
       if (lossfn=="rmse") {
-      param <- list(objective = "reg:linear",
+      xgb_params <- list(objective = "reg:linear",
                     eval_metric = "rmse",
                     max.depth=parameters$depth,
                     eta=parameters$shseq,
                     silent=1, 
                     subsample=parameters$subsample,
                     nthread = parameters$nthread)
-      X = as.matrix(Xtrain)
+      str(xgb_params)  
       n.tree <- parameters$iter
-      model = xgboost(param=param, data =X, label= ytrain,nrounds=n.tree,missing = NA)
+      fit = xgboost(param=xgb_params, data =X, label= ytrain,nrounds=n.tree,missing = NA)
+      
+      
+      #
+      #oinfo(Xtrain)
+      #oinfo(ytrain)
+      #fit = xgboost(param=xgb_params, data =X, label= ytrain,nrounds=n.tree,missing = NA)
+      
       }
       
     } else if (modname=="mars") {
@@ -1295,8 +1302,9 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",parameters=list(iter=
       pred<-predict(fits[[gbm_steps]],Xtest,n.trees=parameters$iter,type="response")
       print(summary(data.frame(pred)))
     } else if (modname=="xgboost") {
+      cat("TEST XGBOOST: ")
       if (lossfn=="rmse") {
-        pred<-predict(model,as.matrix(Xtest),outputmargin=T,predleaf=F, missing = NA)#XGBOOST
+        pred<-predict(fit,as.matrix(Xtest),outputmargin=T,predleaf=F, missing = NA)#XGBOOST
       }
     } else if (modname=="mars") {
       cat("TEST MARS: ")
