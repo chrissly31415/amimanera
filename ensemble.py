@@ -1859,8 +1859,8 @@ if __name__ == "__main__":
     # 1nd LEVEL MODEL BUILDING
     """
     # ensemble = createModels()
-    ensemble = createModelsHoldout()
-    ensemble = createOOBdata(ensemble, repeats=1, n_folds=8, n_jobs=4, use_proba=False,score_func='rmse')  # oob data averaging leads to significant variance reduction
+    #ensemble = createModelsHoldout()
+    #ensemble = createOOBdata(ensemble, repeats=1, n_folds=8, n_jobs=4, use_proba=False,score_func='rmse')  # oob data averaging leads to significant variance reduction
 
     # createDataSets()
     # saveTrainData(ensemble)
@@ -1952,10 +1952,10 @@ if __name__ == "__main__":
     # models = ['svm7_br3','xrf4_br3','nn1_br3']
     # manual=['xgb7_r1','nn6_r1']
     # models = ['xgb2_br1','xgb3_br1','xgb4_br1','xgb5_br1','xgb6_br1','xgb7_br1','xgb8_br1','xgb9_br1']#['xgb2_r1','nn1_r1','gbr1_r1','xrf1_r1','knn1_r1','lr1_r1']
-    models = hold_out  # best_submission_nofinance_nofeat# ['nn8_br1']#all_models_bagmode_manually#all_models_bagmode_manually#['xgb16_br1','xgb5_br1','xgb6_br1','xgb7_br1','xgb8_br1','xgb9_br1','xgb10_br1']
+    models = ['xgbbn1_br1']  # best_submission_nofinance_nofeat# ['nn8_br1']#all_models_bagmode_manually#all_models_bagmode_manually#['xgb16_br1','xgb5_br1','xgb6_br1','xgb7_br1','xgb8_br1','xgb9_br1','xgb10_br1']
     useCols = None
-    trainEnsemble(models, mode='classical', score_func='rmse', useCols=None, addMetaFeatures=False, use_proba=False,
-                  dropCorrelated=False, subfile='./submissions/sub31082015a.csv')
+    trainEnsemble(models, mode='mean', score_func='rmse', useCols=None, addMetaFeatures=False, use_proba=False,
+                  dropCorrelated=False, subfile='./submissions/sub_xgbbn1_br1.csv')
     #selectModelsGreedy(all_models_sorted,startensemble=best_models_nofinance_nofeat_BN,niter=20,mode='mean',greater_is_better=False,dropCorrelated=False)
 
 
