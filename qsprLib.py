@@ -60,7 +60,7 @@ from sklearn.base import clone
 
 from sklearn.base import BaseEstimator, TransformerMixin
 
-from sklearn.calibration import CalibratedClassifierCV
+#from sklearn.calibration import CalibratedClassifierCV
 
 from xgboost_sklearn import *
 import seaborn as sns
@@ -249,11 +249,12 @@ def weightedGridsearch(lmodel, lX, ly, lw, fitWithWeights=False, n_folds=5, useP
     return (clf_opt.best_estimator_)
 
 
-def buildModel(clf, lX, ly, cv=None, scoring=None, n_jobs=8, trainFull=True, verbose=False):
+def buildModel(clf, lX, ly, cv=None, scoring=None, n_jobs=1, trainFull=False, verbose=False):
+
     if isinstance(lX, pd.DataFrame): lX = lX.values
     if isinstance(ly, pd.DataFrame) or isinstance(ly, pd.Series): ly = ly.values
 
-    score = cross_validation.cross_val_score(clf, lX, ly, fit_params=None, scoring=scoring, cv=cv, n_jobs=n_jobs)
+    score = -1.0*cross_validation.cross_val_score(clf, lX, ly, fit_params=None, scoring=scoring, cv=cv, n_jobs=n_jobs)
     if verbose:
         print "cv-score: %6.3f +/- %6.3f" % (score.mean(), score.std())
         print "all scores: %r" % (score)
@@ -283,7 +284,7 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
     if isinstance(sample_weight, pd.Series): sample_weight = sample_weight.values
 
     ypred = np.zeros((len(ly),))
-    rmsle = np.zeros((len(cv), 1))
+    rmse = np.zeros((len(cv), 1))
     mae = np.zeros((len(cv), 1))
     for i, (train, test) in enumerate(cv):
         clf = clone(clf_orig)
@@ -298,20 +299,22 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
             clf.fit(lX[train, :], ytrain)
         ypred[test] = clf.predict(lX[test, :])
         # acc[i] = accuracy_score(ly[test], ypred[test])
-        mae[i] = mean_absolute_error(ly[test], ypred[test])
-        rmsle[i] = root_mean_squared_error(ly[test], ypred[test])
+        #print lX[train]
+        mae[i] = mean_abs_percentage_error(np.expm1(ly[test]),np.expm1(ypred[test]))
+        #rmse[i] = root_mean_squared_error(ly[test], ypred[test])
+        rmse[i] = root_mean_squared_percentage_error_mod(ly[test],ypred[test])
         # acc = accuracy_score(ly[test], ypred[test])
-        # showMisclass(ly[test],ypred[test],lX[test,:],index=class_names[test])
+
 
         print "train set: %2d samples: %5d/%5d rmse: %4.3f  mean: %4.3f %s " % (
-        i, lX[train, :].shape[0], lX[test, :].shape[0], rmsle[i], rmsle[:i + 1].mean(), sw)
-
+        i, lX[train, :].shape[0], lX[test, :].shape[0], rmse[i], rmse[:i + 1].mean(), sw)
+        #showMisclass(np.expm1(ly[test]),np.expm1(ypred[test]),lX[test,:],index=class_names.values[test],t=2.0)
     # if isinstance(lX_df,pd.DataFrame):
     #  showMisclass(ly,ypred,lX_df,index=class_names)
     # print classification_report(ly, ypred, target_names=class_names)
 
     print("MAE       :%6.3f +/-%6.3f" % (mae.mean(), mae.std()))
-    print("RMSE     :%6.3f +/-%6.3f" % (rmsle.mean(), rmsle.std()))
+    print("RMSE      :%6.3f +/-%6.3f" % (rmse.mean(), rmse.std()))
 
 
     # training on all data
@@ -821,6 +824,32 @@ def pcAnalysis(X, Xtest, y=None, w=None, ncomp=2, transform=False, classificatio
         plt.show()
 
 
+def root_mean_squared_percentage_error(ytrue,y,factor=1.0):
+    assert(len( ytrue ) == len( y ))
+    if factor>-1.0:
+        #print "Scaling y with %4.3f"%(factor)
+        y = y *factor
+
+    if y.shape != ytrue.shape:
+        ytrue = ytrue.flatten()
+        y = y.flatten()
+
+    err = np.power((y - ytrue)/ytrue,2)
+    err[np.where(ytrue<1E-15)] = 0.0
+    err = np.sqrt(np.mean(err))
+    return err
+
+def mean_abs_percentage_error(ytrue,ypred):
+    return  np.mean(np.abs((ypred/ytrue-1)))
+
+def root_mean_squared_percentage_error_old(ytrue,ypred):
+    return  np.sqrt(np.mean((ypred/ytrue-1) ** 2))
+
+def root_mean_squared_percentage_error_mod(ytrue, ypred):
+    ytrue = np.expm1(ytrue)
+    ypred = np.expm1(ypred)
+    return root_mean_squared_percentage_error(ytrue,ypred,factor=0.985)
+
 def root_mean_squared_log_error(x, y):
     x = np.clip(x, a_min=0.0, a_max=1E15)
     y = np.clip(y, a_min=0.0, a_max=1E15)
@@ -979,28 +1008,31 @@ def showMisclass(ly, preds, lXs, index=None, model=None, t=1.0, bubblesizes=None
     if model is not None:
         folds = 4
         repeats = 1
-        preds = getOOBCVPredictions(lmodel, lXs, ly, folds, repeats, returnSD=False)
+        preds = getOOBCVPredictions(model, lXs, ly, folds, repeats, returnSD=False)
 
     abs_err = pd.DataFrame({'abs_err': pd.Series(np.abs(ly - preds))})
+    perc_err = pd.DataFrame({'abs_perc_err': pd.Series(np.abs(ly - preds)/ly)})
+    sq_percerr = pd.DataFrame({'sq_percerr': pd.Series((ly - preds)/ly)**2})
     residue = pd.DataFrame({'residue': pd.Series((ly - preds))})
     ly = pd.DataFrame({'y': pd.Series(ly)})
     preds = pd.DataFrame({'preds': pd.Series(preds)})
 
-    lXs_plot = pd.concat([ly, preds, residue, abs_err], axis=1)
+    lXs_plot = pd.concat([ly, preds, residue, abs_err, perc_err, sq_percerr], axis=1)
     if index is None:
         lXs_plot.index = lXs.index
     else:
         lXs_plot.index = index
     # lXs_plot=pd.concat([lXs_plot,lXs], axis=1)
-    lXs_plot.sort(columns='abs_err', inplace=True, ascending=False)
-    lXs_plot.sort_index(inplace=True)
+    lXs_plot.sort(columns='sq_percerr', inplace=True, ascending=False)
+    #lXs_plot.sort_index(inplace=True)
 
-    boolindex = lXs_plot['abs_err'] > t
+    boolindex = lXs_plot['abs_perc_err'] > t
 
     lXs_plot = lXs_plot[boolindex]
     print "Number of instances left: %6d with threshold %f" % (lXs_plot.shape[0], t)
     col1 = 'preds'
-    col2 = 'residue'
+    #col2 = 'residue'
+    col2 = 'y'
     # bubblesizes=lXs_plot['y']*50
     bubblesizes = 30
 
@@ -1009,23 +1041,22 @@ def showMisclass(ly, preds, lXs, index=None, model=None, t=1.0, bubblesizes=None
     # sct = plt.scatter(lXs_plot[col1], lXs_plot[col2],s=bubblesizes, linewidths=2, edgecolor='black')
     sct.set_alpha(0.75)
 
-    print "%4s %10s %6s %6s %8s" % ("nr", "index", 'y', 'preds', 'residue')
+    print "%4s %10s %8s %8s %8s %8s %8s %8s" % ("nr", "index", 'y', 'preds', 'residue','abs_error','%%errorabs','sq_percerr')
     for i, (row_index, row) in enumerate(lXs_plot.iterrows()):
         plt.text(row[col1], row[col2], row_index, size=10, horizontalalignment='center')
-        print "%4d %10s %6.3f %6.3f %8.3f" % (i, row_index, row['y'], row['preds'], row['residue'])
+        print "%4d %10s %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f" % (i, row_index, row['y'], row['preds'], row['residue'], row['abs_err'], row['abs_perc_err'],row['sq_percerr'])
         if i > 100: break
-    print "%4s %10s %6s %6s %8s" % ("nr", "index", 'y', 'preds', 'residue')
-    label = 'TA-00608'  #
-    label = 'TA-05000'
-    idx = index == label
-    print idx
-    print type(lXs)
-    print lXs[idx]
-    print lXs[idx].describe()
+    print "%4s %10s %6s %6s %8s %8s %8s %8s" % ("nr", "index", 'y', 'preds', 'residue','abs_error','%%errorabs','sq_percerr')
+
+    print "MEAN:\n",lXs_plot.describe()
+    print "MEAN:\n",lXs_plot.iloc[1:,:].describe()
 
     plt.xlabel(col1)
     plt.ylabel(col2)
     plt.title("error")
+    plt.draw()
+    lXs_plot.abs_perc_err.hist(bins=50)
+
     plt.show()
 
 
@@ -1365,7 +1396,7 @@ class KLabelFolds():
         unique_labels = np.unique(self.labels)
         for i in range(self.repeats):
             cv = cross_validation.KFold(len(unique_labels), self.n_folds)
-            unique_labels = shuffle(unique_labels)
+            unique_labels = shuffle(unique_labels)#reproducible?
             for train, test in cv:
                 test_labels = unique_labels[test]
                 test_mask = np.in1d(self.labels, test_labels)
@@ -1401,6 +1432,8 @@ class ScaleContinuousOnly(BaseEstimator, TransformerMixin):
 funcdict = {}
 funcdict['rmse'] = root_mean_squared_error
 funcdict['rmsle'] = root_mean_squared_log_error
+funcdict['rmspe'] = root_mean_squared_percentage_error
+funcdict['rmspe_exp1m'] = root_mean_squared_percentage_error_mod
 funcdict['auc'] = roc_auc_score
 funcdict['mae'] = mean_absolute_error
 funcdict['msq'] = mean_squared_error

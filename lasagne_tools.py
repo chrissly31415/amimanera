@@ -1,3 +1,7 @@
+
+#import sys
+#sys.path.append("/usr/local/cuda-6.0/bin")
+
 import theano
 import numpy as np
 
@@ -71,7 +75,7 @@ class RMSE(Objective):
   
     def __init__(self, input_layer, loss_function=None, aggregation='mean',**args):
 	Objective.__init__(self, input_layer, loss_function, aggregation)
-	if args['alpha']:
+	if 'alpha' in args:
 	  self.alpha=args['alpha']
 	else:
 	  self.alpha=0.0
@@ -93,7 +97,6 @@ class MSE(Objective):
 
 
 def shuffle_arrays(*arrays):
-    print "This is lasagne!!!"
     p = np.random.permutation(len(arrays[0]))
     return [array[p] for array in arrays]
 
@@ -765,7 +768,7 @@ nnet_cater3 = NeuralNet(layers=[('input', layers.InputLayer),
 
 
 
-nnet_ensembler1 = NeuralNet(layers=[('input', layers.InputLayer),
+nnet_ensembler_rossmann = NeuralNet(layers=[('input', layers.InputLayer),
 	('dropout0', layers.DropoutLayer),
 	('hidden1', layers.DenseLayer),
 	('dropout1', layers.DropoutLayer),
@@ -773,14 +776,14 @@ nnet_ensembler1 = NeuralNet(layers=[('input', layers.InputLayer),
 	('dropout2', layers.DropoutLayer),
 	('output', layers.DenseLayer)],
 
-	input_shape=(None, 21),
+	input_shape=(None, 10),
 	dropout0_p=0.0,
 
-	hidden1_num_units=128,
+	hidden1_num_units=32,
 	hidden1_nonlinearity=nonlinearities.rectify,
 	dropout1_p=0.0,
 
-	hidden2_num_units=128,
+	hidden2_num_units=32,
 	hidden2_nonlinearity=nonlinearities.rectify,
 	dropout2_p=0.0,
 
@@ -794,14 +797,14 @@ nnet_ensembler1 = NeuralNet(layers=[('input', layers.InputLayer),
 
 	#update=adagrad,#0.001
 	update=rmsprop,
-	update_learning_rate=theano.shared(float32(0.002)),
+	update_learning_rate=theano.shared(float32(0.001)),
 	
-	eval_size=0.0,
+	eval_size=0.1,
 	verbose=1,
-	max_epochs=50,
+	max_epochs=20,
 
 	on_epoch_finished=[
-		AdjustVariable('update_learning_rate', start=0.002, stop=0.00005),
+		AdjustVariable('update_learning_rate', start=0.001, stop=0.00005),
 		#EarlyStopping(patience=20),
 		],
 )
@@ -1235,4 +1238,50 @@ nn10_BN_small = NeuralNet(layers=[('input', layers.InputLayer),
 	    AdjustVariable('update_learning_rate', start=0.005, stop=0.00001),
 	    #EarlyStopping(patience=20),
 	    ],
+)
+
+ross1 = NeuralNet(layers=[('input', layers.InputLayer),
+	('dropout0', layers.DropoutLayer),
+	('hidden1', layers.DenseLayer),
+	('dropout1', layers.DropoutLayer),
+	('hidden2', layers.DenseLayer),
+	('dropout2', layers.DropoutLayer),
+	('hidden3', layers.DenseLayer),
+	('dropout3', layers.DropoutLayer),
+	('output', layers.DenseLayer)],
+
+	input_shape=(None, 24),
+	dropout0_p=0.0,
+
+	hidden1_num_units=256,
+	hidden1_nonlinearity=nonlinearities.rectify,
+	dropout1_p=0.1,
+
+	hidden2_num_units=256,
+	hidden2_nonlinearity=nonlinearities.rectify,
+	dropout2_p=0.1,
+
+	hidden3_num_units=256,
+	hidden3_nonlinearity=nonlinearities.rectify,
+	dropout3_p=0.1,
+
+	output_num_units=1,
+	output_nonlinearity=None,
+
+	regression=True,
+	objective=RMSE,
+	#objective_alpha=1.0*1E-3,
+	batch_iterator_train=ShuffleBatchIterator(batch_size = 64),#->32?
+
+	update=rmsprop,
+	update_learning_rate=theano.shared(float32(1E-05)),
+
+	eval_size=0.5,
+	verbose=1,
+	max_epochs=75,
+
+	on_epoch_finished=[
+		AdjustVariable('update_learning_rate', start=1e-05, stop=0.0005),
+		#EarlyStopping(patience=20),
+		],
 )

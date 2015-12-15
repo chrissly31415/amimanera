@@ -184,6 +184,11 @@ def evalerror(preds, dtrain):
     score = qsprLib.root_mean_squared_error(preds, labels)
     return 'rmse(mod)', score
 
+def rmspe_xg(preds, dtrain):
+    dtrain = np.expm1(dtrain.get_label())
+    preds = np.expm1(preds)
+    return "rmspe", qsprLib.root_mean_squared_percentage_error(dtrain,preds)
+
 
 # user define objective function, given prediction, return gradient and second order gradient
 # this is loglikelihood loss

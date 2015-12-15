@@ -16,7 +16,8 @@ import readline
 
 
 def interact_analysis(df,n_bins=30):
-    plt.ion()
+
+    #plt.ion()
     
     readline.parse_and_bind('tab: complete')
     readline.parse_and_bind('set editing-mode vi')
@@ -31,9 +32,14 @@ def interact_analysis(df,n_bins=30):
             """
     func_dic = {'np.log1p': np.log1p, 'np.sqrt': np.sqrt}
     func_hist={}
-    print df.describe()
-    num_colums = df._get_numeric_data().columns
-    for i,col in enumerate(num_colums):
+    print df.columns
+    num_columns = df._get_numeric_data().columns
+    print "\n\nInteractive Analysis of Data\n"
+    print "Numeric columns       n=%4d %s"%(len(num_columns),num_columns)
+    nonnum_columns = df.columns.difference(num_columns)
+    print "Non-numeric columns   n=%4d %s"%(len(nonnum_columns),nonnum_columns)
+
+    for i,col in enumerate(num_columns):
         leave_it = False
         df_orig = df[col].copy()
         func_hist[col] = None
@@ -44,6 +50,7 @@ def interact_analysis(df,n_bins=30):
             print 'ENTERED: "%s"' % line
             if line == 'q':
                 leave_it = True
+                func_hist[col] = None
                 break
             if line == 'l':
                 df[col] = df[col].map(func_dic['np.log1p'])
@@ -59,7 +66,7 @@ def interact_analysis(df,n_bins=30):
                 df[col] = df_orig
                 func_hist[col] = None
                 line = 'p'
-            if line in num_colums:
+            if line in num_columns:
 		col = line
 		df_orig = df[col].copy()
             print "Column:",col
@@ -74,7 +81,7 @@ def interact_analysis(df,n_bins=30):
                 plt.subplot(212)
                 plt.hist(df[col].values,bins=n_bins)
                 plt.xlabel(col)
-                plt.draw()
+                plt.show()
         
         if leave_it == True: break
     
