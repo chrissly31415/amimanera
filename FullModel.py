@@ -141,8 +141,8 @@ class XModel:
 
 class FeaturePredictor(BaseEstimator):
     """
-        Yields single column(s) with Feature
-        """
+    Yields single column(s) with Feature
+    """
 
     def __init__(self, fname):
         self.fname = fname
@@ -156,8 +156,8 @@ class FeaturePredictor(BaseEstimator):
 
 class NothingTransform(BaseEstimator):
     """
-        Yields single column(s) with Feature
-        """
+    Yields single column(s) with Feature
+    """
 
     def fit(self, lX, ly=None, sample_weight=None):
         pass

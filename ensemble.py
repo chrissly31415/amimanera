@@ -74,6 +74,13 @@ def createModels():
     #xmodel = XModel("xgb7_shn8",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
     #ensemble.append(xmodel)
 
+    # dummy
+    Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples=-1, holdout=True)
+    model = DummyRegressor(strategy='constant',constant=1.0)
+    xmodel = XModel("constant",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    ensemble.append(xmodel)
+
+    """
     #NN2 lower learning rate
     Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples=-1, holdout=True, oneHotenc = ['Assortment','StoreType'],createVerticalFeatures=True,logtransform = ['CompetitionDistance'],dropFeatures=['Store'])
     model = NeuralNet(layers=[('input', layers.InputLayer),
@@ -124,6 +131,7 @@ def createModels():
     model = Pipeline([('scaler', StandardScaler()), ('model',model)])
     xmodel = XModel("nn2_shn8",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain.reshape((ytrain.shape[0],1)),Xval=Xval,yval=yval.reshape((yval.shape[0],1)),cv_labels=None,bag_mode=False)
     ensemble.append(xmodel)
+    """
 
     # RF1 RMSPE=0.118
     #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples=-1, holdout=True,createVerticalFeatures=True, other_features = True)
@@ -219,8 +227,6 @@ def loadDataSet(ensemble):
     for i, model in enumerate(ensemble):
 
         xmodel = XModel.loadModel(basedir + model)
-        if xmodel.name in "nn7_br40":
-            xmodel.name = 'nn7_br25'
 
         Xtrain, Xtest = XModel.loadDataSet(xmodel)
         print "model: %-20s %20r %20r %20r" % (xmodel.name, Xtrain.shape, Xtest.shape, type(xmodel.classifier))
@@ -422,7 +428,7 @@ def trainEnsemble(ensemble, mode='linear', score_func='log_loss', useCols=None, 
     basedir = "./data/"
 
     for i, model in enumerate(ensemble):
-        print ''.join(['-'] * 120)
+        print ''.join(['-'] * 60)
         print "Loading model:", i, " name:", model
         xmodel = XModel.loadModel(basedir + model)
         class_names = xmodel.class_names
@@ -582,12 +588,12 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
     """
     Blending using sklearn classifier
     """
-    oobpreds, testset = preprocess(oobpreds, testset)
+    #oobpreds, testset = preprocess(oobpreds, testset)
     showAVGCorrelations(oobpreds, testset)
 
     if kwargs['dropCorrelated']:
         # showCorrelations(oobpreds)
-        oobpreds, testset = removeCorrelations(oobpreds, testset, 0.995)
+        oobpreds, testset, valpreds = removeCorrelations(oobpreds, testset,valpreds, 0.995)
         print oobpreds.shape
 
 
@@ -599,7 +605,7 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
     # blender = Pipeline([('ohc', OneHotEncoder(sparse=False)), ('model',ExtraTreesClassifier(n_estimators=300,max_depth=None,min_samples_leaf=7,n_jobs=4,criterion='gini', max_features=3,oob_score=False))])
     # blender=RandomForestRegressor(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
     #blender = XgboostRegressor(n_estimators=200,learning_rate=0.03,max_depth=2,subsample=.5,n_jobs=4,min_child_weight=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1)#0.216854
-
+    print oobpreds.shape
     blender = Pipeline([('scaler', StandardScaler()), ('model',nnet_ensembler_rossmann)])#0.206
     # blender = Pipeline([('scaler', StandardScaler()), ('model', blender)])
 
@@ -616,7 +622,7 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
         # parameters = {'model__hidden1_num_units': [128],'model__dropout1_p':[0.0],'model__hidden2_num_units': [128],'model__dropout2_p':[0.0],'model__max_epochs':[75],'model__objective_alpha':[0.002]}
         parameters = {'model__max_epochs':[5,10,15]}
         #blender=makeGridSearch(blender,oobpreds,ly,n_jobs=1,refit=False,cv=cv,scoring=score_func,parameters=parameters,random_iter=-1)
-        buildXvalModel(blender,oobpreds,ly,sample_weight=None,class_names=None,refit=True,cv=cv)
+        #buildXvalModel(blender,oobpreds,ly,sample_weight=None,class_names=None,refit=True,cv=cv)
         blend_scores = np.zeros(len(cv))
         n_classes = 1
         blend_oob = np.zeros((oobpreds.shape[0], n_classes))
@@ -828,9 +834,9 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
     n_models = len(ensemble)
     n_classes = Xtrain.shape[1] / len(ensemble)
 
-    lowerbound = 0.0
-    upperbound = .5
-    constr = None
+    lowerbound = -100
+    upperbound = 0.5
+    #constr = None
     constr = [lambda x, z=i: x[z] - lowerbound for i in range(n_models)]
     #constr2 = [lambda x, z=i: upperbound - x[z] for i in range(n_models)]
     #constr = constr + constr2
@@ -841,7 +847,7 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
     x0 = np.ones((n_models, 1)) / float(n_models)
 
     if not takeMean:
-        xopt = fmin_cobyla(fopt, x0, constr, rhoend=1e-5, maxfun=200)
+        xopt = fmin_cobyla(fopt, x0, constr, rhoend=1e-5, maxfun=2000)
         # xopt = minimize(fopt, x0,method='Nelder-Mead')
         # xopt = minimize(fopt, x0,method='COBYLA',constraints=cons)
         print xopt
@@ -1066,14 +1072,14 @@ if __name__ == "__main__":
     """
     # 1nd LEVEL ENSEMBLING
     """
-    all_models = ['xgb1_shn8','xgb2_shn8','xgb3_shn8','xgb4_shn8','xgb5_shn8','xgb6_shn8','xgb7_shn8','lr1_shn8','knn1_shn8','rf1_shn8','rf2_shn8','rf3_shn8','xrf1_shn8','nn1_shn8','nn2_shn8'] #random shuffle
-    new_models = ['xgb7_shn8']
-    best_models = ['xgb6_shn8', 'xgb7_shn8', 'nn1_shn8', 'xgb4_shn8', 'xgb4_shn8', 'xgb7_shn8', 'xgb7_shn8', 'xgb4_shn8', 'xgb7_shn8', 'xgb7_shn8', 'xgb4_shn8', 'xgb7_shn8', 'xgb4_shn8', 'xgb7_shn8', 'xgb7_shn8', 'xgb4_shn8', 'xgb7_shn8', 'xgb7_shn8']#hillclimber
+    all_models = ['xgb1_shn8','xgb2_shn8','xgb3_shn8','xgb4_shn8','xgb5_shn8','lr1_shn8','knn1_shn8','rf1_shn8','rf2_shn8','xrf1_shn8','nn1_shn8','nn2_shn8'] #without overfitter due to sales_per_week and sales_per_day
+    new_models = ['xgb5_shn8','constant']
+    best_models_old = ['xgb6_shn8', 'xgb7_shn8', 'nn1_shn8', 'xgb4_shn8', 'xgb4_shn8', 'xgb7_shn8', 'xgb7_shn8', 'xgb4_shn8', 'xgb7_shn8', 'xgb7_shn8', 'xgb4_shn8', 'xgb7_shn8', 'xgb4_shn8', 'xgb7_shn8', 'xgb7_shn8', 'xgb4_shn8', 'xgb7_shn8', 'xgb7_shn8']#includes overfitter
+    best_models_hillclimb = ['xgb5_shn8', 'xgb4_shn8', 'xgb2_shn8', 'xgb4_shn8', 'xgb4_shn8', 'xgb2_shn8', 'xgb4_shn8', 'xgb2_shn8', 'xgb4_shn8', 'xgb2_shn8', 'xgb4_shn8', 'xgb2_shn8']
     models = all_models
-    useCols = None
-    #trainEnsemble(models, mode='opt', score_func='rmspe_exp1m', useCols=None, addMetaFeatures=False, use_proba=False,
-    #             dropCorrelated=True, subfile='./submissions/subaftercomp.csv')
-    selectModelsGreedy(all_models,startensemble=new_models,niter=15,mode='mean',greater_is_better=False, replacement = True)
+    trainEnsemble(models, mode='classical', score_func='rmspe_exp1m', useCols=None, addMetaFeatures=False, use_proba=False,
+                 dropCorrelated=False, subfile='./submissions/subnn.csv')
+    #selectModelsGreedy(all_models,startensemble=new_models,niter=20,mode='mean',greater_is_better=False, replacement = True)
 
 
     """

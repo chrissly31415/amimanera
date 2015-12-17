@@ -776,7 +776,7 @@ nnet_ensembler_rossmann = NeuralNet(layers=[('input', layers.InputLayer),
 	('dropout2', layers.DropoutLayer),
 	('output', layers.DenseLayer)],
 
-	input_shape=(None, 10),
+	input_shape=(None, 12),
 	dropout0_p=0.0,
 
 	hidden1_num_units=32,
@@ -799,7 +799,7 @@ nnet_ensembler_rossmann = NeuralNet(layers=[('input', layers.InputLayer),
 	update=rmsprop,
 	update_learning_rate=theano.shared(float32(0.001)),
 	
-	eval_size=0.1,
+	eval_size=0.0,
 	verbose=1,
 	max_epochs=20,
 

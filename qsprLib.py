@@ -18,47 +18,50 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import pylab as pl
 
-from sklearn.preprocessing import StandardScaler, PolynomialFeatures, OneHotEncoder
-from sklearn.feature_extraction.text import CountVectorizer, HashingVectorizer, TfidfVectorizer
-from sklearn.feature_extraction import FeatureHasher
-# from sklearn import metrics
-from sklearn import cross_validation, grid_search
+#import tools
 from sklearn.utils import shuffle
+from sklearn import cross_validation, grid_search
+
 from sklearn.cross_validation import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit, train_test_split, \
     LeavePLabelOut
+
 from sklearn.metrics import roc_auc_score, classification_report, make_scorer, f1_score, precision_score, \
     mean_squared_error, accuracy_score, log_loss
 
-from sklearn.feature_extraction import DictVectorizer
-from sklearn.decomposition import TruncatedSVD, PCA, RandomizedPCA, FastICA, MiniBatchSparsePCA, SparseCoder, \
-    DictionaryLearning, MiniBatchDictionaryLearning
+from sklearn.preprocessing import StandardScaler, PolynomialFeatures, OneHotEncoder
+
+
+
 from sklearn.pipeline import Pipeline
 
 from sklearn.feature_selection import SelectKBest, SelectPercentile, chi2, f_classif, f_regression, \
     GenericUnivariateSelect, VarianceThreshold
+from sklearn.learning_curve import learning_curve
 
+#import models
+from sklearn.base import BaseEstimator, TransformerMixin,clone
+from sklearn.dummy import DummyRegressor
 from sklearn.naive_bayes import BernoulliNB, MultinomialNB, GaussianNB
 from sklearn.cluster import k_means
 from sklearn.isotonic import IsotonicRegression
-
 from sklearn.linear_model import LogisticRegression, RandomizedLogisticRegression, SGDClassifier, Perceptron, \
     SGDRegressor, RidgeClassifier, LinearRegression, Ridge, BayesianRidge, ElasticNet, RidgeCV, LassoLarsCV, Lasso, \
     LassoCV, LassoLars, LarsCV, ElasticNetCV
 from sklearn.cross_decomposition import PLSRegression, PLSSVD
+from sklearn.decomposition import TruncatedSVD, PCA, RandomizedPCA, FastICA, MiniBatchSparsePCA, SparseCoder, \
+    DictionaryLearning, MiniBatchDictionaryLearning
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, ExtraTreesClassifier, \
     AdaBoostClassifier, ExtraTreesRegressor, GradientBoostingRegressor, BaggingRegressor, BaggingClassifier, \
     RandomForestRegressor, RandomTreesEmbedding
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.svm import LinearSVC, SVC, SVR
-
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.cluster import KMeans, MiniBatchKMeans
-from sklearn.learning_curve import learning_curve
 from sklearn.multiclass import OneVsRestClassifier, OneVsOneClassifier
+from sklearn.feature_extraction import DictVectorizer,FeatureHasher
+from sklearn.feature_extraction.text import CountVectorizer, HashingVectorizer, TfidfVectorizer
 
-from sklearn.base import clone
 
-from sklearn.base import BaseEstimator, TransformerMixin
 
 #from sklearn.calibration import CalibratedClassifierCV
 
@@ -114,7 +117,7 @@ def showAVGCorrelations(X_all, X_test=None):
         print "model: %20s mean correl: %5.3f" % (c.index[row], av1)
 
 
-def removeCorrelations(X_all, X_test=None, threshhold=0.99):
+def removeCorrelations(X_all, X_test=None, X_valid=None, threshhold=0.99):
     """
     Remove correlations, we could improve it by only removing the variable frmo two showing the highest correlations with others
     """
@@ -122,6 +125,10 @@ def removeCorrelations(X_all, X_test=None, threshhold=0.99):
     if X_test is not None:
         X_test.columns = X_all.columns
         X_all = pd.concat([X_test, X_all], axis=0, ignore_index=True)
+
+    if X_valid is not None:
+        X_valid.columns = X_all.columns
+        X_all = pd.concat([X_valid, X_all], axis=0, ignore_index=True)
 
     c = X_all.corr().abs()
 
@@ -150,6 +157,14 @@ def removeCorrelations(X_all, X_test=None, threshhold=0.99):
         X_train = X_all[len(X_test.index):]
         X_test = X_all[:len(X_test.index)]
         return (X_train, X_test)
+
+    if X_valid is not None:
+        X_train = X_all[(len(X_valid)+len(X_test.index)):]
+        X_test = X_all[len(X_valid):len(X_test.index)]
+        X_valid = X_all[:len(X_valid)]
+        return (X_train, X_test, X_valid)
+
+
     else:
         return X_all
 
