@@ -25,7 +25,7 @@ class XgboostClassifier(BaseEstimator):
     """
 
     def __init__(self, n_estimators=120, learning_rate=0.3, max_depth=6, subsample=1.0, min_child_weight=1,
-                 colsample_bytree=1.0, gamma=0, objective='binary:logistic', eval_metric='rmse', booster='gbtree',
+                 colsample_bytree=1.0, gamma=0, objective='binary:logistic', eval_metric='auc', booster='gbtree',
                  n_jobs=1, cutoff=0.50, NA=-999.0, alpha_L1=0, lambda_L2=0, silent=1, eval_size=0.0):
         """
         Constructor
@@ -58,13 +58,20 @@ class XgboostClassifier(BaseEstimator):
 
     def fit(self, lX, ly, sample_weight=None):
         # avoid problems with pandas dataframes and DMatrix
-        if isinstance(lX, pd.DataFrame): lX = np.asarray(lX)
-        if isinstance(ly, pd.DataFrame): ly = np.asarray(ly)
+        if isinstance(lX, pd.DataFrame): lX = lX.values
+        if isinstance(ly, pd.Series) or isinstance(ly, pd.DataFrame): ly = ly.values
 
+        """
         if not self.isRegressor:
+            print "Encoding:"
+            print ly
+            print ly.shape
             self.classes_ = np.unique(ly)
             self.encoder = preprocessing.LabelEncoder()
             ly = self.encoder.fit_transform(ly)
+            print "After:"
+
+        """
 
         # if sample_weight is not None:
         #
@@ -78,8 +85,6 @@ class XgboostClassifier(BaseEstimator):
             yeval = ly[idx_test]
             lX = lX[idx_train, :]
             ly = ly[idx_train]
-            print "Xeval:", Xeval.shape
-            print "X:", lX.shape
             deval = xgb.DMatrix(Xeval, label=yeval)
 
         ly = ly.reshape((ly.shape[0], -1))
@@ -94,10 +99,7 @@ class XgboostClassifier(BaseEstimator):
         param = {}
         param['objective'] = self.objective  # 'binary:logitraw', 'binary:logistic', 'multi:softprob'
         param['eval_metric'] = self.eval_metric  # 'auc','mlogloss'
-        feval = None
-        if 'rmsle' in self.eval_metric:
-            feval = evalerror
-            param['eval_metric'] = 'rmse'
+        #feval = None
         param['booster'] = self.booster  # gblinear
         param['subsample'] = self.subsample
         param['min_child_weight'] = self.min_child_weight
@@ -107,26 +109,26 @@ class XgboostClassifier(BaseEstimator):
         param['bst:max_depth'] = self.max_depth
         param['nthread'] = self.n_jobs
         param['silent'] = self.silent
-        if not self.isRegressor: param['num_class'] = np.unique(ly).shape[0]
+        #if not self.isRegressor: param['num_class'] = np.unique(ly).shape[0]
+        #print "num_class:",np.unique(ly).shape[0]
         param['alpha'] = self.alpha_L1
         param['lambda'] = self.lambda_L2
 
         plst = param.items()
         # watchlist = [ (dtrain,'train') ]
-        if self.eval_size > 0.0:
+        if self.eval_size > 1E-15:
             watchlist = [(dtrain, 'train'), (deval, 'eval')]
             self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators, evals=watchlist,
-                                           early_stopping_rounds=None, obj=None, feval=evalerror)
+                                           early_stopping_rounds=None, obj=None)
         else:
             watchlist = [(dtrain, 'train')]
             # self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators,evals=watchlist)
-            self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators, feval=evalerror)
+            self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators)
 
     def predict(self, lX):
         ly = self.predict_proba(lX)
         if 'multi:softprob' in self.objective:
             ly = np.argmax(ly)
-
         if not self.isRegressor:
             return self.encoder.inverse_transform(ly.astype(int))
         else:
@@ -134,9 +136,10 @@ class XgboostClassifier(BaseEstimator):
 
     def predict_proba(self, lX):
         # avoid problems with pandas dataframes and DMatrix
-        if isinstance(lX, pd.DataFrame): lX = np.asarray(lX)
+        if isinstance(lX, pd.DataFrame): lX = lX.values
         xgmat_test = xgb.DMatrix(lX, missing=self.NA)
         ly = self.xgboost_model.predict(xgmat_test)
+        ly = np.column_stack((1.0 - ly,ly))
         return ly
 
     def get_fscore(self):
@@ -178,11 +181,11 @@ def evalerror_old(preds, dtrain):
     return 'kappa', kappa
 
 
-def evalerror(preds, dtrain):
-    ## label are in [0,1,2,3] as required by XGBoost for multi-classification
-    labels = dtrain.get_label()
-    score = qsprLib.root_mean_squared_error(preds, labels)
-    return 'rmse(mod)', score
+#def evalerror(preds, dtrain):
+#    ## label are in [0,1,2,3] as required by XGBoost for multi-classification
+#    labels = dtrain.get_label()
+#    score = qsprLib.root_mean_squared_error(preds, labels)
+#    return 'rmse(mod)', score
 
 def rmspe_xg(preds, dtrain):
     dtrain = np.expm1(dtrain.get_label())

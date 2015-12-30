@@ -4,6 +4,7 @@ from keras.initializations import one
 
 from qsprLib import *
 from lasagne_tools import *
+from keras_tools import *
 
 sys.path.append('/home/loschen/calc/smuRF/python_wrapper')
 import smurf as sf
@@ -261,7 +262,7 @@ def prepareDataset(seed=123, nsamples=-1, holdout=False, removeZeroSales = True,
     if oneHotenc is not None:
         print "1-0 Encoding categoricals...", oneHotenc
         for col in oneHotenc:
-            print "Unique values for col:", col, " -", np.unique(Xall[col].values)
+            #print "Unique values for col:", col, " -", np.unique(Xall[col].values)
             encoder = OneHotEncoder()
             X_onehot = pd.DataFrame(encoder.fit_transform(Xall[[col]].values).todense())
             X_onehot.columns = [col + "_" + str(column) for column in X_onehot.columns]
@@ -475,23 +476,23 @@ if __name__ == "__main__":
     print "scipy:", sp.__version__
 
     seed = 51176
-    nsamples = 'shuffle'
+    nsamples = -1#'shuffle'
     holdout = True
-    dropFeatures = ['Store']# ['CompetitionDistance','CompetitionOpenSinceMonth']
+    dropFeatures = None#['Store']# ['CompetitionDistance','CompetitionOpenSinceMonth']
     keepFeatures = None#['Store','DayOfWeek','Promo']
     usePromoInterval = False
     useStateInfo = False
     imputing = False
     removeTrainStoreOnly = False
-    oneHotenc = ['Assortment','StoreType']
+    oneHotenc = ['Assortment','StoreType','DayOfWeek','CompetitionOpenSinceMonth','CompetitionOpenSinceYear']
     removeRare_freq = None
     removeOutlier = False
     specialNA = False
     other_features = False
     removeClosed = False
     createVerticalFeatures = True
-    sales_per_week = False
-    sales_per_day = False
+    sales_per_week = False#overfit
+    sales_per_day = False#overfit?
     logtransform = ['CompetitionDistance']
 
     Xtest, Xtrain, ytrain, idx,  sample_weight, Xval, yval = prepareDataset(seed=seed, nsamples=nsamples, holdout=holdout,keepFeatures = keepFeatures, specialNA=specialNA, dropFeatures= dropFeatures,usePromoInterval = usePromoInterval,useStateInfo=useStateInfo,imputing=imputing,removeTrainStoreOnly=removeTrainStoreOnly, oneHotenc= oneHotenc, removeRare_freq=removeRare_freq, removeOutlier= removeOutlier, other_features= other_features, createVerticalFeatures=createVerticalFeatures, removeClosed=removeClosed, sales_per_week= sales_per_week,sales_per_day=sales_per_day, logtransform=logtransform)
@@ -503,7 +504,7 @@ if __name__ == "__main__":
     print Xtrain.head()
     #interact_analysis(Xtrain)
     #model = sf.RandomForest(n_estimators=120,mtry=5,node_size=5,max_depth=6,n_jobs=2,verbose_level=0)
-    model = Pipeline([('scaler', StandardScaler()), ('model',ross1)])
+    #model = Pipeline([('scaler', StandardScaler()), ('model',ross1)])
     #model = RandomForestRegressor(n_estimators=100,max_depth=None,min_samples_leaf=5,n_jobs=4, max_features=Xtrain.shape[1]/3,oob_score=False)
     #model = XgboostRegressor(n_estimators=300,learning_rate=0.3,max_depth=10, NA=0,subsample=.9,colsample_bytree=0.7,min_child_weight=5,n_jobs=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
     #model = XgboostRegressor(n_estimators=250,learning_rate=0.05,max_depth=10,subsample=.5,lambda_L2=0.001,n_jobs=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
@@ -511,6 +512,9 @@ if __name__ == "__main__":
     #model = LinearRegression()#0.445
     #model = KNeighborsRegressor(n_neighbors=5)
     #model = ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=2, max_features=3*Xtrain.shape[1]/3)
+
+    model = KerasNNReg(dims=Xtrain.shape[1],nb_classes=1,nb_epoch=3,learning_rate=0.02,validation_split=0.0,batch_size=64,verbose=1,loss='mse')
+    model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
 
     #cv = KFold(ytrain.shape[0],8,shuffle=True)
     cv = ForwardDateCV(Xtrain.Month,Xtrain.Year,n_iter=2,repeats=1,useAll=False,verbose=True)
@@ -521,22 +525,23 @@ if __name__ == "__main__":
     #scoring_func = make_scorer(root_mean_squared_percentage_error, greater_is_better=False)
     #df = sf.DF(Xtrain.values, label=ytrain)
     #print df.printSummary()
-    parameters = {'n_estimators':[3000],'max_depth':[8,10],'learning_rate':[0.02,0.05],'subsample':[0.9],'colsample_bytree':[0.7],'min_child_weight':[5]}
-    #model = makeGridSearch(model, Xtrain, ytrain, n_jobs=8, refit=True, cv=cv, scoring=scoring_func,parameters=parameters, random_iter=-1)
+    #parameters = {'n_estimators':[3000],'max_depth':[8,10],'learning_rate':[0.02,0.05],'subsample':[0.9],'colsample_bytree':[0.7],'min_child_weight':[5]}
+    parameters = {'nn__nb_epoch':[10,20],'nn__learning_rate':[0.2 ]}
+    model = makeGridSearch(model, Xtrain, ytrain, n_jobs=1, refit=True, cv=cv, scoring=scoring_func,parameters=parameters, random_iter=-1)
 
     #Xtrain, ytrain = mergeWithXval(Xtrain,Xval,ytrain,yval)
     print Xtrain.shape
-    #model = buildModel(model,Xtrain,ytrain,cv=cv, scoring=scoring_func, n_jobs=1,trainFull=True,verbose=True)
-    model = buildXvalModel(model,Xtrain,ytrain,sample_weight=None,class_names=None,refit=True,cv=cv)
+    model = buildModel(model,Xtrain,ytrain,cv=cv, scoring=scoring_func, n_jobs=1,trainFull=True,verbose=True)
+    #model = buildXvalModel(model,Xtrain,ytrain,sample_weight=None,class_names=None,refit=True,cv=cv)
 
     yval_pred = model.predict(Xval)
     print "Eval-score: %5.3f"%(root_mean_squared_percentage_error(np.expm1(yval),np.expm1(yval_pred)))
 
     print "Training the final model (incl. Xval.)"
     Xtrain, ytrain = mergeWithXval(Xtrain,Xval,ytrain,yval)
-    model.fit(Xtrain,ytrain)
+    #model.fit(Xtrain,ytrain)
 
-    makePredictions(model,Xtest,idx=idx, filename='./submissions/sub30112015.csv')
+    #makePredictions(model,Xtest,idx=idx, filename='./submissions/sub30112015.csv')
 
     plt.show()
     print("Model building done in %fs" % (time() - t0))

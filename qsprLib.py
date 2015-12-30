@@ -7,39 +7,28 @@ Code fragment collection for QPSR. Using sklearn, pandas and numpy
 from time import time
 import itertools
 from random import choice
-
 import numpy as np
 import numpy.random as nprnd
 import pandas as pd
 import scipy as sp
 from scipy import sparse
-
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import pylab as pl
-
-#import tools
+# import tools
 from sklearn.utils import shuffle
 from sklearn import cross_validation, grid_search
-
 from sklearn.cross_validation import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit, train_test_split, \
     LeavePLabelOut
-
 from sklearn.metrics import roc_auc_score, classification_report, make_scorer, f1_score, precision_score, \
     mean_squared_error, accuracy_score, log_loss
-
 from sklearn.preprocessing import StandardScaler, PolynomialFeatures, OneHotEncoder
-
-
-
 from sklearn.pipeline import Pipeline
-
 from sklearn.feature_selection import SelectKBest, SelectPercentile, chi2, f_classif, f_regression, \
     GenericUnivariateSelect, VarianceThreshold
 from sklearn.learning_curve import learning_curve
-
-#import models
-from sklearn.base import BaseEstimator, TransformerMixin,clone
+# import models
+from sklearn.base import BaseEstimator, TransformerMixin, clone
 from sklearn.dummy import DummyRegressor
 from sklearn.naive_bayes import BernoulliNB, MultinomialNB, GaussianNB
 from sklearn.cluster import k_means
@@ -58,19 +47,28 @@ from sklearn.svm import LinearSVC, SVC, SVR
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.cluster import KMeans, MiniBatchKMeans
 from sklearn.multiclass import OneVsRestClassifier, OneVsOneClassifier
-from sklearn.feature_extraction import DictVectorizer,FeatureHasher
+from sklearn.feature_extraction import DictVectorizer, FeatureHasher
 from sklearn.feature_extraction.text import CountVectorizer, HashingVectorizer, TfidfVectorizer
-
-
-
-#from sklearn.calibration import CalibratedClassifierCV
+# from sklearn.calibration import CalibratedClassifierCV
 
 from xgboost_sklearn import *
 import seaborn as sns
 
 
-#####IDEA: Feature inserter
-# https://www.kaggle.com/cannonjunior/crowdflower-search-relevance/geo-benchmarks
+#####Check List
+# Regression / Classification
+# What kind of metric?
+# Regression: gaussian distribution? Should we log transform data?
+# Classification: Class imbalance?
+# Multi-Classification: e.g. with kappa / ordered classes: shall we cast it into regression?
+# Is the dataset ordered by an meany?  Does is contain a timeseries? Is the dataset grouped?
+# How will it influence the CV procedure?
+# Should we shuffle before training (e.g. important when using Neural Net wih mini-batch gradient training!)
+# Size of dataset: Can we use a holdout dataset or can we even make a nested CV?
+# Features: numerical, binary, categorical, ordered categorical?
+# Interactive analysis of each feature, which can be made gaussian
+# Was there anything similar on Kaggle!!!
+
 
 def showCorrelations(X, steps=3):
     n = X.shape[1]
@@ -159,7 +157,7 @@ def removeCorrelations(X_all, X_test=None, X_valid=None, threshhold=0.99):
         return (X_train, X_test)
 
     if X_valid is not None:
-        X_train = X_all[(len(X_valid)+len(X_test.index)):]
+        X_train = X_all[(len(X_valid) + len(X_test.index)):]
         X_test = X_all[len(X_valid):len(X_test.index)]
         X_valid = X_all[:len(X_valid)]
         return (X_train, X_test, X_valid)
@@ -265,11 +263,10 @@ def weightedGridsearch(lmodel, lX, ly, lw, fitWithWeights=False, n_folds=5, useP
 
 
 def buildModel(clf, lX, ly, cv=None, scoring=None, n_jobs=1, trainFull=False, verbose=False):
-
     if isinstance(lX, pd.DataFrame): lX = lX.values
     if isinstance(ly, pd.DataFrame) or isinstance(ly, pd.Series): ly = ly.values
 
-    score = -1.0*cross_validation.cross_val_score(clf, lX, ly, fit_params=None, scoring=scoring, cv=cv, n_jobs=n_jobs)
+    score = cross_validation.cross_val_score(clf, lX, ly, fit_params=None, scoring=scoring, cv=cv, n_jobs=n_jobs)
     if verbose:
         print "cv-score: %6.3f +/- %6.3f" % (score.mean(), score.std())
         print "all scores: %r" % (score)
@@ -299,8 +296,8 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
     if isinstance(sample_weight, pd.Series): sample_weight = sample_weight.values
 
     ypred = np.zeros((len(ly),))
-    rmse = np.zeros((len(cv), 1))
-    mae = np.zeros((len(cv), 1))
+    score1 = np.zeros((len(cv), 1))
+    score2 = np.zeros((len(cv), 1))
     for i, (train, test) in enumerate(cv):
         clf = clone(clf_orig)
         ytrain, ytest = ly[train], ly[test]
@@ -312,29 +309,31 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
             clf.fit(lX[train, :], ytrain, sample_weight=sample_weight[train])
         else:
             clf.fit(lX[train, :], ytrain)
-        ypred[test] = clf.predict(lX[test, :])
-        # acc[i] = accuracy_score(ly[test], ypred[test])
-        #print lX[train]
-        mae[i] = mean_abs_percentage_error(np.expm1(ly[test]),np.expm1(ypred[test]))
-        #rmse[i] = root_mean_squared_error(ly[test], ypred[test])
-        rmse[i] = root_mean_squared_percentage_error_mod(ly[test],ypred[test])
-        # acc = accuracy_score(ly[test], ypred[test])
 
+        ypred[test] = clf.predict(lX[test, :])
+        score1[i] = accuracy_score(ly[test], ypred[test])
+        #score1[i] = mean_abs_percentage_error(np.expm1(ly[test]), np.expm1(ypred[test]))
+        # rmse[i] = root_mean_squared_error(ly[test], ypred[test])
+        # score2[i] = root_mean_squared_percentage_error_mod(ly[test], ypred[test])
+        ypred[test] = clf.predict_proba(lX[test, :])[:,1]
+        score2[i] = roc_auc_score(ly[test], ypred[test])
 
         print "train set: %2d samples: %5d/%5d rmse: %4.3f  mean: %4.3f %s " % (
-        i, lX[train, :].shape[0], lX[test, :].shape[0], rmse[i], rmse[:i + 1].mean(), sw)
-        #showMisclass(np.expm1(ly[test]),np.expm1(ypred[test]),lX[test,:],index=class_names.values[test],t=2.0)
+        i, lX[train, :].shape[0], lX[test, :].shape[0], score2[i], score2[:i + 1].mean(), sw)
+        # showMisclass(np.expm1(ly[test]),np.expm1(ypred[test]),lX[test,:],index=class_names.values[test],t=2.0)
     # if isinstance(lX_df,pd.DataFrame):
     #  showMisclass(ly,ypred,lX_df,index=class_names)
     # print classification_report(ly, ypred, target_names=class_names)
 
-    print("MAE       :%6.3f +/-%6.3f" % (mae.mean(), mae.std()))
-    print("RMSE      :%6.3f +/-%6.3f" % (rmse.mean(), rmse.std()))
-
+    print("ACC       :%6.3f +/-%6.3f" % (score1.mean(), score1.std()))
+    print("AUC      :%6.3f +/-%6.3f" % (score2.mean(), score2.std()))
 
     # training on all data
     if refit:
-        clf_orig.fit(lX, ly, sample_weight=sample_weight)
+        if sample_weight is not None:
+            clf_orig.fit(lX, ly, sample_weight=sample_weight)
+        else:
+            clf_orig.fit(lX, ly)
     return (clf_orig)
 
 
@@ -432,7 +431,6 @@ def group_sparse(Xold, Xold_test, degree=2, append=True):
         else:
             new_data = pd.concat([new_data, pd.DataFrame(Xtmp[indices].apply(np.min, axis=1))], axis=1)
         print new_data.shape
-
 
     # making test data
     Xreduced_test = new_data[:Xold_test.shape[0]]
@@ -696,8 +694,8 @@ def greedyFeatureSelection(lmodel, lX, ly, itermax=10, itermin=5, pool_features=
 
             if verbose:
                 print "(%4d/%4d) TARGET: %-12s - <score>= %0.4f (+/- %0.5f) score,iteration best= %0.4f score,overall best: %0.4f features: %5d time: %6.2f" % (
-                a + 1, len(pool_features), act_feature, score.mean(), score.std(), score_best, score_opt,
-                lX.loc[:, features].shape[1], run_time)
+                    a + 1, len(pool_features), act_feature, score.mean(), score.std(), score_best, score_opt,
+                    lX.loc[:, features].shape[1], run_time)
 
             if score.mean() < score_best:
                 score_best = score.mean()
@@ -782,7 +780,7 @@ def removeLowVar(X_all, threshhold=1E-5):
 
     if len(X_all.columns[idx]) > 0:
         print "Dropped %4d zero variance columns (threshold=%6.3f): %r" % (
-        np.sum(idx), threshhold, list(X_all.columns[idx]).sort())
+            np.sum(idx), threshhold, list(X_all.columns[idx]).sort())
         X_all.drop(X_all.columns[idx], axis=1, inplace=True)
     else:
         print "Variance filter dropped nothing (threshhold = %6.3f)." % (threshhold)
@@ -839,31 +837,35 @@ def pcAnalysis(X, Xtest, y=None, w=None, ncomp=2, transform=False, classificatio
         plt.show()
 
 
-def root_mean_squared_percentage_error(ytrue,y,factor=1.0):
-    assert(len( ytrue ) == len( y ))
-    if factor>-1.0:
-        #print "Scaling y with %4.3f"%(factor)
-        y = y *factor
+def root_mean_squared_percentage_error(ytrue, y, factor=1.0):
+    assert (len(ytrue) == len(y))
+    if factor > -1.0:
+        # print "Scaling y with %4.3f"%(factor)
+        y = y * factor
 
     if y.shape != ytrue.shape:
         ytrue = ytrue.flatten()
         y = y.flatten()
 
-    err = np.power((y - ytrue)/ytrue,2)
-    err[np.where(ytrue<1E-15)] = 0.0
+    err = np.power((y - ytrue) / ytrue, 2)
+    err[np.where(ytrue < 1E-15)] = 0.0
     err = np.sqrt(np.mean(err))
     return err
 
-def mean_abs_percentage_error(ytrue,ypred):
-    return  np.mean(np.abs((ypred/ytrue-1)))
 
-def root_mean_squared_percentage_error_old(ytrue,ypred):
-    return  np.sqrt(np.mean((ypred/ytrue-1) ** 2))
+def mean_abs_percentage_error(ytrue, ypred):
+    return np.mean(np.abs((ypred / ytrue - 1)))
+
+
+def root_mean_squared_percentage_error_old(ytrue, ypred):
+    return np.sqrt(np.mean((ypred / ytrue - 1) ** 2))
+
 
 def root_mean_squared_percentage_error_mod(ytrue, ypred):
     ytrue = np.expm1(ytrue)
     ypred = np.expm1(ypred)
-    return root_mean_squared_percentage_error(ytrue,ypred,factor=0.985)
+    return root_mean_squared_percentage_error(ytrue, ypred, factor=0.985)
+
 
 def root_mean_squared_log_error(x, y):
     x = np.clip(x, a_min=0.0, a_max=1E15)
@@ -923,8 +925,8 @@ def getOOBCVPredictions(lmodel, lXs, ly, repeats=1, cv=5, returnSD=True, score_f
             else:
                 oobpreds[test, j] = lmodel.predict_proba(Xtest)[:, 1]
                 scores[i] = funcdict['scorer_funct'](ly[test], oobpreds[test, j])
-            # print "AUC: %0.2f " % (scores[i])
-            # save oobpredictions
+                # print "AUC: %0.2f " % (scores[i])
+                # save oobpredictions
         print "Iteration:", j,
         print " <score>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
 
@@ -973,7 +975,7 @@ def filterClassNoise(lmodel, lXs, lXs_test, ly):
     # print rdidx
     # lXs = lXs.iloc[rdidx]
     # ly = ly[rdidx]
-    preds = getOOBCVPredictions(lmodel, Xs, Xs_test, y, folds, 10)
+    preds = getOOBCVPredictions(lmodel, lXs, lXs_test, ly, folds, 10)
     print preds
     plt.hist(preds, bins=20)
     plt.show()
@@ -1001,7 +1003,7 @@ def filterClassNoise(lmodel, lXs, lXs_test, ly):
             scores[i, j] = roc_auc_score(ly[test], oobpreds[test, j])
 
         print "Threshhold: %0.3f  <AUC>: %0.3f (+/- %0.3f) removed instances: %4.2f" % (
-        t, scores[:, j].mean(), scores[:, j].std(), ninst.mean()),
+            t, scores[:, j].mean(), scores[:, j].std(), ninst.mean()),
         print " AUC oob: %0.3f" % (roc_auc_score(ly, oobpreds[:, j]))
     scores = np.mean(scores, axis=0)
     print scores
@@ -1026,8 +1028,8 @@ def showMisclass(ly, preds, lXs, index=None, model=None, t=1.0, bubblesizes=None
         preds = getOOBCVPredictions(model, lXs, ly, folds, repeats, returnSD=False)
 
     abs_err = pd.DataFrame({'abs_err': pd.Series(np.abs(ly - preds))})
-    perc_err = pd.DataFrame({'abs_perc_err': pd.Series(np.abs(ly - preds)/ly)})
-    sq_percerr = pd.DataFrame({'sq_percerr': pd.Series((ly - preds)/ly)**2})
+    perc_err = pd.DataFrame({'abs_perc_err': pd.Series(np.abs(ly - preds) / ly)})
+    sq_percerr = pd.DataFrame({'sq_percerr': pd.Series((ly - preds) / ly) ** 2})
     residue = pd.DataFrame({'residue': pd.Series((ly - preds))})
     ly = pd.DataFrame({'y': pd.Series(ly)})
     preds = pd.DataFrame({'preds': pd.Series(preds)})
@@ -1039,14 +1041,14 @@ def showMisclass(ly, preds, lXs, index=None, model=None, t=1.0, bubblesizes=None
         lXs_plot.index = index
     # lXs_plot=pd.concat([lXs_plot,lXs], axis=1)
     lXs_plot.sort(columns='sq_percerr', inplace=True, ascending=False)
-    #lXs_plot.sort_index(inplace=True)
+    # lXs_plot.sort_index(inplace=True)
 
     boolindex = lXs_plot['abs_perc_err'] > t
 
     lXs_plot = lXs_plot[boolindex]
     print "Number of instances left: %6d with threshold %f" % (lXs_plot.shape[0], t)
     col1 = 'preds'
-    #col2 = 'residue'
+    # col2 = 'residue'
     col2 = 'y'
     # bubblesizes=lXs_plot['y']*50
     bubblesizes = 30
@@ -1056,15 +1058,18 @@ def showMisclass(ly, preds, lXs, index=None, model=None, t=1.0, bubblesizes=None
     # sct = plt.scatter(lXs_plot[col1], lXs_plot[col2],s=bubblesizes, linewidths=2, edgecolor='black')
     sct.set_alpha(0.75)
 
-    print "%4s %10s %8s %8s %8s %8s %8s %8s" % ("nr", "index", 'y', 'preds', 'residue','abs_error','%%errorabs','sq_percerr')
+    print "%4s %10s %8s %8s %8s %8s %8s %8s" % (
+    "nr", "index", 'y', 'preds', 'residue', 'abs_error', '%%errorabs', 'sq_percerr')
     for i, (row_index, row) in enumerate(lXs_plot.iterrows()):
         plt.text(row[col1], row[col2], row_index, size=10, horizontalalignment='center')
-        print "%4d %10s %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f" % (i, row_index, row['y'], row['preds'], row['residue'], row['abs_err'], row['abs_perc_err'],row['sq_percerr'])
+        print "%4d %10s %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f" % (
+        i, row_index, row['y'], row['preds'], row['residue'], row['abs_err'], row['abs_perc_err'], row['sq_percerr'])
         if i > 100: break
-    print "%4s %10s %6s %6s %8s %8s %8s %8s" % ("nr", "index", 'y', 'preds', 'residue','abs_error','%%errorabs','sq_percerr')
+    print "%4s %10s %6s %6s %8s %8s %8s %8s" % (
+    "nr", "index", 'y', 'preds', 'residue', 'abs_error', '%%errorabs', 'sq_percerr')
 
-    print "MEAN:\n",lXs_plot.describe()
-    print "MEAN:\n",lXs_plot.iloc[1:,:].describe()
+    print "MEAN:\n", lXs_plot.describe()
+    print "MEAN:\n", lXs_plot.iloc[1:, :].describe()
 
     plt.xlabel(col1)
     plt.ylabel(col2)
@@ -1230,18 +1235,15 @@ def df_info(X):
     print "Shape:", X.shape, " size (MB):", float(X.nbytes) / 1.0E6, " dtype:", X.dtype
 
 
-def analyzeLearningCurve(model, X, y, cv=8, score_func='roc_auc_score'):
+def analyzeLearningCurve(model, X, y, cv=8, score_func='roc_auc'):
     """
     make a learning curve according to http://scikit-learn.org/dev/auto_examples/plot_learning_curve.html
     """
-
-    # cv = cross_validation.ShuffleSplit(X.shape[0], n_iter=10, test_size=0.2, random_state=0)
-    # cv = KFold(X.shape[0], n_folds=folds,shuffle=True)
-    plot_learning_curve(model, "learning curve", X, y, ylim=(0.1, 1.01), cv=cv, n_jobs=1, scoring='accuracy')
+    plot_learning_curve(model, "learning curve", X, y, ylim=(0.1, 1.01), cv=cv, n_jobs=1, scoring=score_func)
 
 
 def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, scoring=f1_score,
-                        train_sizes=np.linspace(.1, 1.0, 5)):
+                        train_sizes=np.linspace(.01, 1.0, 5)):
     """
     Generate a simple plot of the test and traning learning curve.
 
@@ -1280,6 +1282,9 @@ def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, sc
     plt.ylabel("Score")
     train_sizes, train_scores, test_scores = learning_curve(estimator, X, y, cv=cv, n_jobs=n_jobs, scoring=scoring,
                                                             train_sizes=train_sizes)
+
+    print "train_scores:",train_scores
+    print "test_scores:",test_scores
     train_scores_mean = np.mean(train_scores, axis=1)
     train_scores_std = np.std(train_scores, axis=1)
     test_scores_mean = np.mean(test_scores, axis=1)
@@ -1411,7 +1416,7 @@ class KLabelFolds():
         unique_labels = np.unique(self.labels)
         for i in range(self.repeats):
             cv = cross_validation.KFold(len(unique_labels), self.n_folds)
-            unique_labels = shuffle(unique_labels)#reproducible?
+            unique_labels = shuffle(unique_labels)  # reproducible?
             for train, test in cv:
                 test_labels = unique_labels[test]
                 test_mask = np.in1d(self.labels, test_labels)
@@ -1431,14 +1436,15 @@ class ScaleContinuousOnly(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         self.columns = X.columns
-        self.binary_features = X.columns[(X.dtypes==np.int64) & (X.max()==1) & (X.min()==0)]
+        self.binary_features = X.columns[(X.dtypes == np.int64) & (X.max() == 1) & (X.min() == 0)]
         self.continuous_features = X[[c for c in X.columns if c not in self.binary_features]].columns
         self.standard_scaler = StandardScaler()
         self.standard_scaler.fit(X[self.continuous_features])
         return self
 
     def transform(self, X, y=None, copy=None):
-        scaled_df = pd.DataFrame(self.standard_scaler.transform(X[self.continuous_features]), index=X.index, columns=self.continuous_features)
+        scaled_df = pd.DataFrame(self.standard_scaler.transform(X[self.continuous_features]), index=X.index,
+                                 columns=self.continuous_features)
         scaled_df = pd.concat([scaled_df, X[self.binary_features]], axis=1)[self.columns]
         return scaled_df
 
