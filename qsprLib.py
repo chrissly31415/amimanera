@@ -410,13 +410,38 @@ def compareList(uniq_train, uniq_test, verbose=True):
     return np.hstack((uniq_train[only_train], uniq_test[only_test]))
 
 
-def group_sparse(Xold, Xold_test, degree=2, append=True):
+def group_binary_data(lX, degree=2, append=True):
+    """
+    This function groups binary data (i.e. after one hot encoding)
+    Only for several categorical data!!! Better group several columns with categoricals!!!
+    Alternatively one could group cols before and then one hot encode...
+    """
+    m, n = lX.shape
+    new_data = None
+    combs = itertools.combinations(range(n), degree)
+    for indices in combs:
+        print indices
+        indices = lX.columns[list(indices)]
+        print indices
+        print lX[indices].head(30)
+        if not isinstance(new_data, pd.DataFrame):
+            new_data = pd.DataFrame(lX[indices].apply(np.multiply, axis=1))
+        else:
+            new_data = pd.concat([new_data, pd.DataFrame(lX[indices].apply(np.multiply, axis=1))], axis=1)
+
+    if append:
+        lX_reduced = pd.concat([lX,new_data],axis=1)
+    else:
+        lX_reduced = new_data
+    print "New test data:", lX_reduced.shape
+    return lX_reduced
+
+
+def group_binary_sparse(lXs, lXs_test, degree=2, append=True):
     """ 
     multiply columns of sparse data
     """
     print "Columnwise min of data..."
-    # only for important data
-    (lXs, lXs_test) = linearFeatureSelection(model, Xold, Xold_test, 10)
     # also transform old data
     # (Xold,Xold_test) = linearFeatureSelection(model,Xold,Xold_test,5000)
     Xtmp = sparse.vstack((lXs_test, lXs), format="csc")
@@ -433,15 +458,15 @@ def group_sparse(Xold, Xold_test, degree=2, append=True):
         print new_data.shape
 
     # making test data
-    Xreduced_test = new_data[:Xold_test.shape[0]]
+    Xreduced_test = new_data[:lXs_test.shape[0]]
     if append:
-        Xreduced_test = sparse.hstack((Xold_test, Xreduced_test), format="csr")
+        Xreduced_test = sparse.hstack((lXs_test, Xreduced_test), format="csr")
     print "New test data:", Xreduced_test.shape
 
     # making train data
-    Xreduced = new_data[Xold_test.shape[0]:]
+    Xreduced = new_data[lXs.shape[0]:]
     if append:
-        Xreduced = sparse.hstack((Xold, Xreduced), format="csr")
+        Xreduced = sparse.hstack((lXs, Xreduced), format="csr")
     print "New test data:", Xreduced.shape
     return (Xreduced, Xreduced_test)
 
@@ -1151,10 +1176,8 @@ def make_polynomials(Xtrain, Xtest=None, degree=2, cutoff=100):
     new_data = []
     colnames = []
     for i, j in indices:
-        ##Xnew = (Xtrain.values[:, np.newaxis, i] * Xtrain.values[:, j, np.newaxis]).reshape(len(Xtrain), -1)
         name = str(Xtrain.columns[i]) + "x" + str(Xtrain.columns[j])
         Xnew = (Xtrain.values[:, i] * Xtrain.values[:, j])
-        # Xnew = (Xtrain.iloc[:, i] * Xtrain.iloc[:, j])
         n_nonnull = (Xnew != 0).astype(int).sum()
         if n_nonnull > cutoff:
             new_data.append(Xnew)
@@ -1163,7 +1186,6 @@ def make_polynomials(Xtrain, Xtest=None, degree=2, cutoff=100):
             print "Dropped:", name
 
     new_data = pd.DataFrame(np.array(new_data).T, columns=colnames)
-
     return new_data
 
 
@@ -1461,3 +1483,4 @@ funcdict['msq'] = mean_squared_error
 funcdict['log_loss'] = multiclass_log_loss
 funcdict['accuracy_score'] = accuracy_score
 funcdict['quadratic_weighted_kappa'] = quadratic_weighted_kappa
+funcdict['roc_auc'] = roc_auc_score

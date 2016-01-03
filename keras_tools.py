@@ -108,6 +108,7 @@ class KerasNN(BaseEstimator):
 
         self.dims = dims
         self.nb_classes = nb_classes
+        self.classes_ = None # list containing classes
         self.nb_epoch = nb_epoch
         self.learning_rate = learning_rate
         self.validation_split = validation_split
@@ -123,6 +124,54 @@ class KerasNN(BaseEstimator):
         self.model.add(Dropout(0.2))
 
         self.model.add(Dense(output_dim=512, init='lecun_uniform'))
+        self.model.add(Activation('relu'))
+        self.model.add(BatchNormalization())
+        self.model.add(Dropout(0.2))
+
+        self.model.add(Dense(output_dim=nb_classes))
+        self.model.add(Activation('softmax'))
+
+        #sgd = SGD(lr=self.learning_rate, decay=1e-7, momentum=0.99, nesterov=True)
+        print('Compiling Keras Deep Net with loss: %s' % (str(loss)))
+        self.model.compile(loss=loss, optimizer="adadelta")
+
+    def fit(self, X, y, sample_weight=None):
+        print('Fitting  Keras Deep Net for regression with batch_size %d, epochs %d  and learning rate: %f' % (
+        self.batch_size, self.nb_epoch, self.learning_rate))
+        y = np_utils.to_categorical(y)
+        self.classes_ = np.unique(y)
+        self.model.fit(X, y, nb_epoch=self.nb_epoch, batch_size=self.batch_size,
+                       validation_split=self.validation_split)
+
+    def predict_proba(self, Xtest):
+        ypred = self.model.predict_proba(Xtest, batch_size=self.batch_size, verbose=self.verbose)
+        return ypred
+
+    def predict(self, Xtest):
+        ypred = self.model.predict(Xtest, batch_size=self.batch_size, verbose=self.verbose)
+        return np_utils.probas_to_classes(ypred)
+
+class KerasEnsembler(BaseEstimator): # AUC 0.52558
+    def __init__(self, dims=66, nb_classes=1, nb_epoch=30, learning_rate=0.5, validation_split=0.0, batch_size=64,
+                 loss='categorical_crossentropy', verbose=1):
+
+        self.dims = dims
+        self.nb_classes = nb_classes
+        self.nb_epoch = nb_epoch
+        self.learning_rate = learning_rate
+        self.validation_split = validation_split
+        self.batch_size = batch_size
+        self.loss = loss
+        self.verbose = verbose
+
+        self.model = Sequential()
+        # Keras model
+        self.model.add(Dense(output_dim=16, input_dim=dims, init='lecun_uniform'))
+        self.model.add(Activation('relu'))
+        self.model.add(BatchNormalization())
+        self.model.add(Dropout(0.2))
+
+        self.model.add(Dense(output_dim=16, init='lecun_uniform'))
         self.model.add(Activation('relu'))
         self.model.add(BatchNormalization())
         self.model.add(Dropout(0.2))
