@@ -61,17 +61,15 @@ class XgboostClassifier(BaseEstimator):
         if isinstance(lX, pd.DataFrame): lX = lX.values
         if isinstance(ly, pd.Series) or isinstance(ly, pd.DataFrame): ly = ly.values
 
-        """
+
         if not self.isRegressor:
-            print "Encoding:"
-            print ly
-            print ly.shape
+            #print "Encoding:"
+            #print ly
+            #print ly.shape
             self.classes_ = np.unique(ly)
             self.encoder = preprocessing.LabelEncoder()
             ly = self.encoder.fit_transform(ly)
-            print "After:"
-
-        """
+            #print "After:"
 
         # if sample_weight is not None:
         #

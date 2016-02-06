@@ -15,7 +15,7 @@ import seaborn as sns
 import readline
 
 
-def interact_analysis(df,n_bins=30):
+def interact_analysis(df,n_bins=100):
 
     #plt.ion()
     
@@ -91,6 +91,13 @@ def interact_analysis(df,n_bins=30):
     print "Finished!"
     
 
+def pairplot(df,hue_name=None):
+
+    if hue_name is not None:
+        df['target']=hue_name
+        sns.pairplot(df, hue='target')
+    else:
+        sns.pairplot(df)
 
 
 if __name__=="__main__":

@@ -751,8 +751,8 @@ def greedyFeatureSelection(lmodel, lX, ly, itermax=10, itermin=5, pool_features=
 
 def iterativeFeatureSelection(lmodel, Xold, Xold_test, ly, iterations=5, nrfeats=1, scoring=None, cv=None, n_jobs=8):
     """
-	Iterative feature selection e.g. via random Forest
-	"""
+    Iterative feature selection e.g. via random Forest
+    """
     print "Iterative features selection"
     for i in xrange(iterations):
         print ">>>Iteration: ", i, "<<<"
@@ -766,9 +766,9 @@ def iterativeFeatureSelection(lmodel, Xold, Xold_test, ly, iterations=5, nrfeats
 
 def removeInstances(lXs, ly, preds, t, returnSD=True):
     """
-	Removes examples from train set either due to prediction error or due to standard deviation
-	Preds should come from repeated CV.
-	"""
+    Removes examples from train set either due to prediction error or due to standard deviation
+    Preds should come from repeated CV.
+    """
     if returnSD:
         res = preds
     else:
@@ -786,11 +786,40 @@ def removeInstances(lXs, ly, preds, t, returnSD=True):
     ly_reduced = ly[np.asarray(boolindex)]
     return (lXs_reduced, ly_reduced)
 
+def removeLowFreq(df, column_names, removeRare_freq = 2, discard_rows = False, fillNA = 9999):
+    """
+    Remove categories with frequency lowe than threshold
+    """
+    print "Remove rare features based on frequency..."
+    for col in column_names:
+        ser = df[col]
+        counts = ser.value_counts().keys()
+        idx = ser.value_counts() > removeRare_freq
+        threshold = idx.astype(int).sum()
+        print "%s has %d different values before, min freq: %d - threshold %d" % (
+            col, len(counts), removeRare_freq, threshold)
+        if len(counts) > threshold:
+            if discard_rows:
+                print "Removing rows!"
+                print df.shape
+                df = df[ser.isin(counts[:threshold])]
+                print df.shape
+            else:
+                ser[~ser.isin(counts[:threshold])] = fillNA
+        if len(counts) <= 1:
+            print("Dropping Column %s with %d values" % (col, len(counts)))
+            df = df.drop(col, axis=1)
+        #else:
+        #    df[col] = ser.astype('category')
+        counts = df[col].value_counts().keys()
+        print "%s has %d different values after" % (col, len(counts))
+
+    return df
 
 def removeLowVar(X_all, threshhold=1E-5):
     """
-	remove useless data
-	"""
+    remove useless data
+    """
     print X_all.std()
 
     if isinstance(X_all, sparse.csc_matrix):
@@ -925,8 +954,8 @@ def multiclass_log_loss(y_true, y_pred, eps=1e-15):
 
 def getOOBCVPredictions(lmodel, lXs, ly, repeats=1, cv=5, returnSD=True, score_func='rmse'):
     """
-	Get cv oob predictions for classifiers
-	"""
+    Get cv oob predictions for classifiers
+    """
     funcdict = {}
     if score_func == 'rmse':
         funcdict['scorer_funct'] = root_mean_squared_error
@@ -969,8 +998,8 @@ def getOOBCVPredictions(lmodel, lXs, ly, repeats=1, cv=5, returnSD=True, score_f
 
 def lofFilter(pred, threshhold=10.0, training=True):
     """
-	filter data according to local outlier frequency as computed by R...did not work
-	"""
+    filter data according to local outlier frequency as computed by R...did not work
+    """
     indices = []
     global test_indices
     lof = pd.read_csv("../stumbled_upon/data/lof.csv", sep=",", index_col=0)
@@ -988,11 +1017,11 @@ def lofFilter(pred, threshhold=10.0, training=True):
 
 def filterClassNoise(lmodel, lXs, lXs_test, ly):
     """
-	Removes training samples which could be class noise
-	Done in outer XVal loop
-	precision: Wieviel falsche habe ich erwischt
-	recall: wieviele richtige sind durch die Lappen gegangen
-	"""
+    Removes training samples which could be class noise
+    Done in outer XVal loop
+    precision: Wieviel falsche habe ich erwischt
+    recall: wieviele richtige sind durch die Lappen gegangen
+    """
     threshhold = [0.045, 0.04, 0.035]
     folds = 10
     print "Filter strongly misclassified classes..."
@@ -1166,13 +1195,16 @@ def binarizeProbs(a, cutoff):
         return 0.0
 
 
-def make_polynomials(Xtrain, Xtest=None, degree=2, cutoff=100):
+def make_polynomials(Xtrain, Xtest=None, degree=2, cutoff=100,quadratic=True):
     """
     Generate polynomial features
     """
     if Xtest is not None: Xtrain = Xtrain[len(Xtest.index):]
     m, n = Xtrain.shape
-    indices = list(itertools.combinations(range(n), degree))
+    if quadratic:
+        indices = list(itertools.combinations_with_replacement(range(n), degree))
+    else:
+        indices = list(itertools.combinations(range(n), degree))
     new_data = []
     colnames = []
     for i, j in indices:
@@ -1411,6 +1443,30 @@ def quadratic_weighted_kappa(y, y_pred):
             denominator += d * expected_count / num_scored_items
 
     return (1.0 - numerator / denominator)
+
+
+def differentiateFeatures(X,plotting=False):
+    """
+    make derivative
+    """
+    print "Making 1st derivative..."
+    tutto=[]
+    for ind in X.index:
+        row=[]
+        row.append(ind)
+        for el in np.gradient(X.ix[ind,:].values):
+            row.append(el)
+        tutto.append(row)
+    newdf = pd.DataFrame(tutto).set_index(0)
+    colnames = [ "diff"+str(x) for x in xrange(newdf.shape[1]) ]
+    newdf.columns=colnames
+    if plotting:
+        newdf.iloc[3,:].plot()
+        plt.show()
+
+    print newdf.head(10)
+    ###print newdf.describe()
+    return(newdf)
 
 
 def LeavePLabelOutWrapper(str_labels, n_folds=8, p=1, verbose=True):

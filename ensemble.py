@@ -14,7 +14,7 @@ http://mlwave.com/kaggle-ensembling-guide/
 
 """
 
-from numerai import *
+from genentech import *
 from FullModel import *
 
 import sys
@@ -32,128 +32,49 @@ def createModels():
     global idx
     ensemble = []
 
-    #XGB1 AUC=0.5224
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,dummy_encoding = ['c1'])
-    #model = XgboostClassifier(n_estimators=1000,learning_rate=0.001,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.75,min_child_weight=5,n_jobs=2,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
+    #XGB1
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, quickload='./data/store_db1.h5', nsamples=-1, holdout=True,labelEncode = ['patient_age_group','patient_state','ethinicity','household_income','education_level'],oneHotenc = ['patient_state','ethinicity'],createVerticalFeatures = False, diagnosis = True)
+    #model = XgboostClassifier(n_estimators=800,learning_rate=0.025,max_depth=10, NA=0,subsample=.9,colsample_bytree=0.7,min_child_weight=5,n_jobs=2,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
     #xmodel = XModel("xgb1_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
     #ensemble.append(xmodel)
 
-    #XGB2 AUC=
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,dummy_encoding = ['c1'])
-    #model = XgboostClassifier(n_estimators=2000,learning_rate=0.0005,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.5,min_child_weight=5,n_jobs=2,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
-    #xmodel = XModel("xgb2_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
+    #XGB2
+    Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, quickload="./data/store_db3.h5", nsamples=-1, holdout=True,labelEncode = ['patient_age_group','patient_state','ethinicity','household_income','education_level'],oneHotenc = ['patient_state','ethinicity'],createVerticalFeatures = False, diagnosis = True)
+    model = XgboostClassifier(n_estimators=800,learning_rate=0.01,max_depth=20, NA=0,subsample=.7,colsample_bytree=0.9,min_child_weight=5,n_jobs=8,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
+    xmodel = XModel("xgb2_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    ensemble.append(xmodel)
 
-    #XGB3 AUC=
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,dummy_encoding = ['c1'])
-    #model = XgboostClassifier(n_estimators=200,learning_rate=0.01,max_depth=6, NA=0,subsample=.9,colsample_bytree=0.9,min_child_weight=5,n_jobs=2,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
-    #xmodel = XModel("xgb3_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #XGB4 AUC=
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,dummy_encoding = ['c1'])
-    #model = XgboostClassifier(n_estimators=1000,learning_rate=0.001,max_depth=20, NA=0,subsample=.75,colsample_bytree=0.75,min_child_weight=1,n_jobs=2,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
-    #xmodel = XModel("xgb4_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #XGB5 AUC=
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,labelEncode = ['c1'],createVerticalFeatures=True, oneHotenc = ['c1'])
-    #model = XgboostClassifier(n_estimators=2000,learning_rate=0.0001,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.5,min_child_weight=1,n_jobs=2,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
-    #xmodel = XModel("xgb5_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-
-    #LR1 AUC=0.51806
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,dummy_encoding = ['c1'])
-    #model = LogisticRegression()
+    #LR1 AUC=
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, quickload='./data/store_db1.h5', nsamples=-1, holdout=True,labelEncode = ['patient_age_group','patient_state','ethinicity','household_income','education_level'],oneHotenc = ['patient_state','ethinicity'],createVerticalFeatures = False, diagnosis = True, useActivity=False)
+    #model = LogisticRegression(C=10,penalty='l2')
+    ##model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
     #xmodel = XModel("lr1_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
     #ensemble.append(xmodel)
 
-    #LR2 AUC=0.5273 LINEAR!!!
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,dummy_encoding = ['c1'])
-    #model = LinearRegression()
-    #xmodel = XModel("lr2_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
 
-    #LR3 AUC= LINEAR!!!
-    #greedy1 = ['f1', 'f6', 'c1_c1_10', 'f3', 'f5', 'c1_c1_12', 'c1_c1_3', 'c1_c1_16', 'c1_c1_5', 'c1_c1_11', 'f11', 'f7', 'f4', 'c1_c1_7', 'c1_c1_9', 'c1_c1_20', 'f13', 'c1_c1_24', 'f14']
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,dummy_encoding = ['c1'],keepFeatures = greedy1)
-    #model = LinearRegression()
-    #xmodel = XModel("lr3_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #LR4 AUC= LINEAR!!!
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,labelEncode = ['c1'],createVerticalFeatures=True, oneHotenc = ['c1'])
-    #model = LinearRegression()
-    #xmodel = XModel("lr4_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #LR5 AUC=0.5176
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,createVerticalFeatures=True,  labelEncode = ['c1'],oneHotenc = ['c1'], polynomialFeatures = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12', 'f13', 'f14'])
-    #model = LogisticRegression(C=10,penalty='l2')
-    #model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
-    #xmodel = XModel("lr5_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #LR7 AUC=0.51603
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,createVerticalFeatures=True,  labelEncode = ['c1'],oneHotenc = ['c1'], polynomialFeatures = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12', 'f13', 'f14'])
-    #model = Ridge(alpha=1.0)
-    #model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
-    #xmodel = XModel("lr7_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #SVC1 AUC=0.52489
-    Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,createVerticalFeatures=True,  labelEncode = ['c1'],oneHotenc = ['c1'], polynomialFeatures = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12', 'f13', 'f14'])
-    model = SVC(C=1.0,probability=True)
-    model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
-    xmodel = XModel("svc1_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    ensemble.append(xmodel)
-
-    #LR6 AUC=
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,createVerticalFeatures=True,  labelEncode = ['c1'],oneHotenc = ['c1'], polynomialFeatures = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12', 'f13', 'f14'])
-    #model = LogisticRegression(C=10,penalty='l2')
-    #model = BaggingClassifier(base_estimator=model,n_estimators=10,n_jobs=1,verbose=2,random_state=None,max_samples=0.9,max_features=0.9,bootstrap=True)
-    #model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
-    #xmodel = XModel("lr6_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
 
     #XRF1
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,dummy_encoding = ['c1'])
-    #model =  ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=2, max_features=3*Xtrain.shape[1]/3)
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, quickload='./data/store_db1.h5', nsamples=-1, holdout=True,labelEncode = ['patient_age_group','patient_state','ethinicity','household_income','education_level'],oneHotenc = ['patient_state','ethinicity'],createVerticalFeatures = False, diagnosis = True, useActivity=False)
+    #model =  ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=1, max_features=3*Xtrain.shape[1]/3)
     #xmodel = XModel("xrf1_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
     #ensemble.append(xmodel)
 
-    #RF1
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,dummy_encoding = ['c1'])
-    #model = RandomForestClassifier(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=2, max_features=Xtrain.shape[1]/3,oob_score=False)
+    #RF1#
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, quickload='./data/store_db1.h5', nsamples=-1, holdout=True,labelEncode = ['patient_age_group','patient_state','ethinicity','household_income','education_level'],oneHotenc = ['patient_state','ethinicity'],createVerticalFeatures = False, diagnosis = True, useActivity=False)
+    #model = RandomForestClassifier(n_estimators=200,max_depth=None,min_samples_leaf=5,n_jobs=2, max_features=Xtrain.shape[1]/3,oob_score=False)
     #xmodel = XModel("rf1_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
     #ensemble.append(xmodel)
 
-    #NN1 AUC = 0.51876
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,dummy_encoding = ['c1'])
-    #model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=20,learning_rate=0.02,validation_split=0.0,batch_size=64,verbose=1,loss='categorical_crossentropy')
-    #model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
-    #xmodel = XModel("nn1_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
+    #NN1
+    best30 = ['v72.31 ', 'v70.0 ', 'patient_age_group', 'rare ', 'nan ', 'v22.1 ', 'v76.12 ', 'X616.10 ', 'X401.9 ', 'v27.0 ', 'X272.4 ', 'v58.69 ', 'X780.79 ', 'X244.9 ', 'household_income', 'X789.00 ', 'X729.5 ', 'X599.0 ', 'education_level', 'X724.2 ', 'X626.2 ', 'v04.81 ', 'X530.81 ', 'X401.1 ', 'X311 ', 'X786.50 ', 'X784.0 ', 'X719.46 ', 'X272.0 ', 'X625.9 ', 'X786.2 ', 'X611.72 ', 'v76.51 ', 'X723.1 ', 'X300.00 ', 'X305.1 ', 'X250.00 ', 'X465.9 ', 'X719.41 ', 'X462 ', 'X461.9 ', 'X733.90 ', 'X268.9 ', 'X285.9 ', 'v22.2 ', 'X466.0 ', 'X493.90 ', 'X477.9 ', 'X724.5 ', 'X278.00 ', 'X780.4 ', 'X719.45 ', 'X786.05 ', 'X787.91 ', 'X785.1 ', 'X729.1 ', 'X620.2 ', 'X789.09 ', 'X788.1 ', 'X719.47 ', 'v57.1 ', 'X272.2 ', 'X346.90 ', 'patient_state_9', 'X787.01 ', 'X780.52 ', 'X782.0 ', 'X473.9 ', 'X789.06 ', 'X786.59 ', 'X564.00 ', 'X786.09 ', 'X278.01 ', 'X174.9 ', 'X724.4 ', 'X327.23 ', 'X722.52 ', 'X787.02 ', 'X782.3 ', 'patient_state_20', 'patient_state_10', 'X280.9 ', 'X723.4 ', 'X722.10 ', 'X486 ', 'X250.02 ', 'X496 ', 'X715.96 ', 'X477.0 ', 'X721.3 ', 'patient_state_37', 'patient_state_38', 'X780.2 ', 'patient_state_34', 'patient_state_35', 'X728.85 ', 'ethinicity_2', 'v58.83 ', 'patient_state_47', 'X338.29 ', 'patient_state_4', 'X739.2 ', 'X714.0 ', 'X477.8 ', 'X739.3 ', 'X414.01 ', 'ethinicity_1', 'ethinicity_0', 'patient_state_31', 'X739.1 ', 'v58.61 ', 'patient_state_43', 'X427.31 ', 'patient_state_18', 'patient_state_5', 'patient_state_6', 'ethinicity_3', 'patient_state_36', 'patient_state_22', 'patient_state_27', 'patient_state_1', 'patient_state_45', 'patient_state_3', 'X428.0 ', 'patient_state_23', 'patient_state_15', 'patient_state_14', 'patient_state_19', 'patient_state_8', 'patient_state_40', 'patient_state_42', 'patient_state_24', 'patient_state_17', 'patient_state_44', 'patient_state_12', 'patient_state_49', 'patient_state_26', 'patient_state_48', 'patient_state_25', 'patient_state_2', 'patient_state_29', 'patient_state_33', 'patient_state_16', 'patient_state_21', 'patient_state_7', 'patient_state_0', 'X285.21 ', 'X585.6 ', 'patient_state_11', 'X588.81 ', 'patient_state_32', 'patient_state_39', 'patient_state_13', 'patient_state_30', 'patient_state_46', 'patient_state_50', 'patient_state_41', 'patient_state_28']
+    Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, quickload='./data/store_db3.h5', nsamples=-1, holdout=True,labelEncode = ['patient_age_group','patient_state','ethinicity','household_income','education_level'],oneHotenc = ['patient_state','ethinicity'],createVerticalFeatures = False, diagnosis = True, useActivity=False, keepFeatures = best30)
+    model  = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=10,learning_rate=0.02,validation_split=0.0,batch_size=128,verbose=1,layers=[128,128], dropout=[0.2,0.2])
+    model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
+    xmodel = XModel("nn1_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    ensemble.append(xmodel)
 
-    #NN2  AUC = 0.5263
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,labelEncode = ['c1'],createVerticalFeatures=True, oneHotenc= ['c1'])
-    #model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=20,learning_rate=0.02,validation_split=0.0,batch_size=64,verbose=1,loss='categorical_crossentropy')
-    #model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
-    #xmodel = XModel("nn2_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #NN3 AUC= 0.52188
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,createVerticalFeatures=True,  labelEncode = ['c1'],oneHotenc = ['c1'], polynomialFeatures = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12', 'f13', 'f14'])
-    #model = KerasNN(dims=Xtrain.shape[1]*0.9,nb_classes=2,nb_epoch=5,validation_split=0.0,batch_size=64,verbose=1,loss='categorical_crossentropy')
-    #model = BaggingClassifier(base_estimator=model,n_estimators=20,n_jobs=1,verbose=2,random_state=None,max_samples=0.9,max_features=0.9,bootstrap=True)
-    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
-    #xmodel = XModel("nn3_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-
-    #KNN1 AUC=0.50636
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples='shuffle', holdout=True,dummy_encoding = ['c1'])
+    #KNN1
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(seed=51176, nsamples=-1, holdout=True,dummy_encoding = ['c1'])
     #model = KNeighborsClassifier(n_neighbors=100)
     #xmodel = XModel("knn1_shn",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
     #ensemble.append(xmodel)
@@ -168,11 +89,6 @@ def finalizeModel(m, use_proba=True):
     Make predictions and save them
     """
     print "Make predictions and save them..."
-    # oob from crossvalidation
-    yoob = m.oob_preds
-    # final prediction
-    ypred = m.preds
-
     m.summary()
 
     # put data to data.frame and save
@@ -364,6 +280,7 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
 
                 print "Predicting on test set..."
                 if use_proba:
+                    print m.Xtest.describe()
                     m.preds = m.classifier.predict_proba(m.Xtest)[:,1]
                 else:
                     m.preds = m.classifier.predict(m.Xtest)
@@ -388,8 +305,12 @@ def fit_and_score(xmodel, X, y, train, valid, sample_weight=None, scale_wt=None,
     """
     Score function for parallel oob creation
     """
+
     if isinstance(X, pd.DataFrame):
         X = X.values
+
+    if isinstance(y, pd.DataFrame):
+        y = y.values
 
     Xtrain = X[train]
     Xvalid = X[valid]
@@ -400,6 +321,7 @@ def fit_and_score(xmodel, X, y, train, valid, sample_weight=None, scale_wt=None,
         print "Using sample weight...", sample_weight[train]
         xmodel.fit(Xtrain, ytrain, sample_weight=sample_weight[train])
     else:
+
         xmodel.fit(Xtrain, ytrain)
 
     if use_proba:
@@ -608,7 +530,7 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
 
     if not skipCV:
         # blender = CalibratedClassifierCV(baseblender, method='sigmoid', cv=3)
-        cv = StratifiedKFold(ly, n_folds=8,shuffle=True)
+        cv = StratifiedKFold(ly, n_folds=2,shuffle=True)
         #ForwardDateCV(m.Xtrain.Month,m.Xtrain.Year,n_iter=8,useAll=False,verbose=True)
         #score_func = make_scorer(funcdict[score_func], greater_is_better = False)
         # parameters = {'n_estimators':[300],'max_depth':[3],'learning_rate':[0.03],'subsample':[0.5],'colsample_bytree':[0.5],'min_child_weight':[1]}#XGB
@@ -1059,14 +981,15 @@ def blendSubmissions(fileList, coefList):
 if __name__ == "__main__":
     np.random.seed(123)
     plt.interactive(False)
-    idx = pd.HDFStore('./data_numerai/store.h5')['test_id']
-    print idx
+    global idx
+    store = pd.HDFStore('./data/store_db1.h5')
+    idx = store['test_id']
 
     """
     # 1nd LEVEL MODEL BUILDING
     """
     #ensemble = createModels()
-    #ensemble = createOOBdata(ensemble, repeats=1, n_folds=8, n_jobs=4, use_proba=True,score_func='roc_auc')  # oob data averaging leads to significant variance reduction
+    #ensemble = createOOBdata(ensemble, repeats=1, n_folds=2, n_jobs=1, use_proba=True,score_func='roc_auc')  # oob data averaging leads to significant variance reduction
 
     # createDataSets()
     # saveTrainData(ensemble)
@@ -1074,11 +997,10 @@ if __name__ == "__main__":
     """
     # 1nd LEVEL ENSEMBLING
     """
-    all_models = ['svc1_shn','xgb1_shn','xgb2_shn','xgb3_shn','xgb4_shn','xgb5_shn','lr1_shn','lr2_shn','lr3_shn','lr3_shn','lr4_shn','lr5_shn','lr6_shn','lr7_shn','nn1_shn','nn2_shn','nn3_shn','knn1_shn','rf1_shn','xrf1_shn']
-    best_models = ['xgb1_shn','xgb2_shn','lr2_shn','nn1_shn','nn2_shn']#0.52865
-    final = ['svc1_shn','nn3_shn']#0.52435
-    models = final
-    trainEnsemble(models, mode='mean', score_func='roc_auc', useCols=None, addMetaFeatures=False, use_proba=True,
-                 dropCorrelated=False, subfile='./submissions/sub31122015_final.csv')
+    all_models = ['xgb1_shn','lr1_shn','rf1_shn','nn1_shn']
+    best_models = []
+    models = all_models
+    trainEnsemble(models, mode='classical', score_func='roc_auc', useCols=None, addMetaFeatures=False, use_proba=True,
+                 dropCorrelated=False, subfile='./submissions/gensub23012015.csv')
     #selectModelsGreedy(all_models,startensemble=new_models,niter=20,mode='mean',greater_is_better=False, replacement = True)
 

@@ -104,7 +104,7 @@ class KerasNN_OLD(Sequential, BaseEstimator):
 
 class KerasNN(BaseEstimator):
     def __init__(self, dims=66, nb_classes=1, nb_epoch=30, learning_rate=0.5, validation_split=0.0, batch_size=64,
-                 loss='categorical_crossentropy', verbose=1):
+                 loss='categorical_crossentropy', layers=[32,32], dropout=[0.2,0.2],verbose=1):
 
         self.dims = dims
         self.nb_classes = nb_classes
@@ -114,19 +114,18 @@ class KerasNN(BaseEstimator):
         self.validation_split = validation_split
         self.batch_size = batch_size
         self.loss = loss
+        self.layers = layers
+        self.dropout = dropout
         self.verbose = verbose
 
         self.model = Sequential()
         # Keras model
-        self.model.add(Dense(output_dim=512, input_dim=dims, init='lecun_uniform'))
-        self.model.add(Activation('relu'))
-        self.model.add(BatchNormalization())
-        self.model.add(Dropout(0.2))
+        for layer,dropout in zip(self.layers,self.dropout):
+            self.model.add(Dense(output_dim=layer, input_dim=dims, init='lecun_uniform'))
+            self.model.add(Activation('relu'))
+            self.model.add(BatchNormalization())
+            self.model.add(Dropout(dropout))
 
-        self.model.add(Dense(output_dim=512, init='lecun_uniform'))
-        self.model.add(Activation('relu'))
-        self.model.add(BatchNormalization())
-        self.model.add(Dropout(0.2))
 
         self.model.add(Dense(output_dim=nb_classes))
         self.model.add(Activation('softmax'))
