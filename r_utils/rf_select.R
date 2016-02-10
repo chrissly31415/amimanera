@@ -1,5 +1,5 @@
 #!/usr/bin/Rscript
-rf_select<-function(lX,ly,iter,nvar) {
+rf_select<-function(lX,ly,iter=250,nvar=5) {
   require(randomForest)
   cat("Selection of variables by RF importance (increase in MSE due to permutation of variables):\n")
   mydata=data.frame(lX,target=ly)

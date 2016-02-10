@@ -219,87 +219,6 @@ prepareData_ons<-function(ldata,lowT,highT,testSet) {
   #return(ldata)
 }
 
-prepareData_acree<-function(ldata,lowT,highT,testSet) {
-  #REMOVE ROWS
-  #print(summary(ldata))
-  #ldata<-ldata[ldata$Fragments<2,]
-  #ldata<-ldata[ldata$Alkane>0,]
-  ldata<-ldata[ldata$mpK<highT,]
-  ldata<-ldata[ldata$mpK>lowT,]
-  #ldata<-ldata[ldata$Hfus_exp.kcal.mol.<10,]
-  #ldata<-ldata[ldata$Hfus_exp.kcal.mol.>0,]
-  
-  
-  if (testSet==T) {
-    ldata<-ldata[ldata$Alkane>0,]
-    #ldata<-ldata[ldata$zwitterion>0,]
-    #ldata<-ldata[ldata$Fragments<2,]
-  } 
-  #remove outliers
-  ldata<-ldata[ldata$SMILES!="CCCCC(CCCC)=O",]
-  hist(ldata$mpK,50)
-  
-  #ldata<-ldata[ldata$Si.Sn<1,]
-  #define matrix
-  smiles<-ldata[,2:3]
-  ldata<-ldata[,6:length(ldata)]
-  #ADD COLS
-  #entropy100<-ldata$mu_self-ldata$hint_self100
-  #ldata<-cbind(entropy100,ldata)
-  Txentropy<-(ldata$mu_self-ldata$hint_self)*-1
-  ldata<-cbind(Txentropy,ldata)
-  #hfus_est<-ldata$hint_self-ldata$hint_self100
-  #ldata<-cbind(hfus_est,ldata)
-  #hist(ldata$mu_self_noVDW,50)
-  avratio<-ldata$Area/ldata$Volume
-  #avratio<-ldata$Area/(ldata$Volume^(2/3))
-  ldata<-cbind(avratio,ldata) 
-  #REMOVE COLS
-  ldata<-subset(ldata,select=-Fragments)
-  #ldata<-subset(ldata,select=-Kier2)
-  #ldata<-subset(ldata,select=-Kier1)
-  #ldata<-subset(ldata,select=-mu_self100)
-  #ldata<-subset(ldata,select=-mu_self)
-  #ldata<-subset(ldata,select=-hint_self100)
-  ldata<-subset(ldata,select=-hint_self)
-  #ldata<-subset(ldata,select=-hb_self100)
-  #ldata<-subset(ldata,select=-hb_self)
-  #ldata<-subset(ldata,select=-S_crs)
-  #ldata<-subset(ldata,select=-H_crs)
-  #ldata<-subset(ldata,select=-H_total)
-  ldata<-subset(ldata,select=-X..moment5)
-  ldata<-subset(ldata,select=-X..moment4)
-  #ldata<-subset(ldata,select=-X..moment2)
-  ldata<-subset(ldata,select=-X..moment3)
-  ldata<-subset(ldata,select=-X..moment6)
-  
-  ldata<-subset(ldata,select=-HB.don_m3)
-  ldata<-subset(ldata,select=-HB.don_m4)
-  ldata<-subset(ldata,select=-HB.acc_m3)
-  ldata<-subset(ldata,select=-HB.acc_m4)
-  #ldata<-subset(ldata,select=-nbr3s3s)
-  #ldata<-subset(ldata,select=-nbr3u1)
-  #ldata<-subset(ldata,select=-nbr2s1)
-  #ldata<-subset(ldata,select=-nbr3s2s)
-  #ldata<-subset(ldata,select=-nbr3s1)
-  #ldata<-subset(ldata,select=-nbr3u2u)
-  #ldata<-subset(ldata,select=-nbr2u1)
-  ldata<-subset(ldata,select=-mpK)
-  #ldata<-subset(ldata,select=-Hfus_exp.kcal.mol.)
-  ldata<-subset(ldata,select=-Sfus_exp.cal.molK.)
-  
-  if (testSet==F) { 
-    cs<-colSums(abs(ldata)==0)
-    cat(cs)
-    if (0 %in% cs) {
-      ldata<-ldata[,which(colSums((ldata))!=0)]
-    }
-    
-  } 
-  print(summary(ldata))
-  return(list(ldata,smiles))
-}
-
 prepareData_cdk<-function(ldata,lowT,highT,testSet) {
   ldata<-ldata[ldata$mpK<highT,]
   ldata<-ldata[ldata$mpK>lowT,]
@@ -371,6 +290,9 @@ removeColVar<-function(ldata,cvalue) {
   return(ldata)
 }
 
+
+
+
 linRegPredict<-function(fit,lX_test,exp,lid_test=NULL) {
   if (!is.null(lid_test)) {
     print(lid_test$SMILES)
@@ -410,7 +332,7 @@ linRegTrain<-function(lX,ly,lid=NULL,plot=T) {
     #plot(fit)
     rmse<-compRMSE(fit$fitted.values,ly)
     cat("MLR TRAINING RMSE:",rmse,"\n")
-    er<-(fit$fitted.values-ly)
+    er<-(ly-fit$fitted.values)
     se<-(er)^2
     plot(ly,er,col="blue",pch=1, xlab = "target", ylab = "residual")
     #points(se,col="red",pch=1)  
@@ -419,7 +341,7 @@ linRegTrain<-function(lX,ly,lid=NULL,plot=T) {
     } else {
 	pred<-data.frame(predicted=fit$fitted.values,exp=ly,se,er)
     }
-    pred<-pred[with(pred, order(-se)), ]
+    #pred<-pred[with(pred, order(-se)), ]
     write.table(pred,file="prediction.csv",sep=",",row.names=FALSE)
     write.table(pred,file="prediction.csv",sep=";",row.names=FALSE)
     print(colnames(lX))
@@ -446,8 +368,26 @@ varSelectGA<-function(lX,ly) {
   #str(gamodel$subsets)
 }
 
+splitDataFrame<-function(df,name_list) {
+  for (rname in name_list) {
+    cat("name:",rname,"\n")
+  }
+  #print(summary(df))
+  #oinfo(df)
+  #row.names(df)<-df$API
+  #paste(name_list,collapse="|")
+  
+  df_test<-df[-grep(paste(name_list,collapse="|"),df$API,invert=T),]#test set
+  df_train<-df[grep(paste(name_list,collapse="|"),df$API,invert=T),]#train set
+  #df_test = df[row.names(df)%in%name_list,]
+  #df_train = df[!row.names(df)%in%name_list,]
+  oinfo(df_test)
+  oinfo(df_train)
+  return(list(df_train,df_test))
+}
 
-variableSelection<-function(lX,ly,mode,nvariables,plotting=F) {
+
+variableSelection<-function(lX,ly,mode="forward",nvariables=5,plotting=F) {
   ldata<-data.frame(lX,target=ly)
   # All Subsets Regression
   library(leaps)
@@ -494,6 +434,114 @@ genLinMod<-function(lX,ly) {
   #print(summary(larsmodel))
 }
 
+cleanFrame<-function(df) {
+  #remove numeric
+  nums <- sapply(df, is.numeric)
+  df<-df[,nums]
+  #remove zero columns
+  cs<-colSums(abs(df)==0)
+  if (0 %in% cs) {
+    df<-df[,which(colSums((df))!=0)]
+  } 
+  return(df)
+}
+
+
+compareViaPrinComp<-function(lX1,lX2=NULL,ly=NULL,threshold=0.5,plot=TRUE) {
+  par(xpd=TRUE) # plot outside for legend
+  #clean data: remove non-numeric & zero columns  
+  lX1$train=1
+  if (!is.null(lX2)) {
+    lX2$train=0
+    lX2<-matchByColumns(lX1,lX2)
+    lX1<-data.frame(rbind(lX1,lX2))   
+  }
+  
+  l=unique(c(as.character(lX1$API)))
+  target<-droplevels(factor(lX1$API, levels=l))  
+  API_ID<-as.numeric(factor(lX1$API, levels=l))  
+  lX1<-cleanFrame(lX1)
+  cat("COLUMNS:",colnames(lX1),"\n")
+  #using ly for plotting
+  if (!is.null(ly)) {    
+    cat("Using label data...\n")
+    #lX1<-lX1[lX1$NRing<7,]
+    if (!is.null(lX2)) {
+      CLASS<- droplevels(as.factor(lX1$train))
+    } else {
+      all_data<-data.frame(lX1,target=ly)
+      CLASS<- droplevels(as.factor(all_data$target))
+    }  
+    lX1 <- subset(lX1, select = -train)
+    lX1 <- subset(lX1, select = -solvate)
+    pca <- prcomp(lX1, center=TRUE, scale.=TRUE)
+    pc <- c(1,2)
+    PCH<-c(15,16)[as.numeric(CLASS)]
+    plot(pca$x[,pc[1]], pca$x[,pc[2]], col=CLASS,pch=PCH,xlab=paste0("PC ", pc[1], " (", round(pca$sdev[pc[1]]/sum(pca$sdev)*100,0), "%)"), ylab=paste0("PC ", pc[2], " (", round(pca$sdev[pc[2]]/sum(pca$sdev)*100,0), "%)"))
+    legend_text <- c("train","validation")
+    legend("bottomright", inset=c(+0.05,0.05), legend=legend_text, col=c(2,1),pch=c(16,15))
+    print(summary(pca))
+    #biplot(pca)
+    #special for solvates
+    plot(lX1$H_ex_FINE,lX1$ova_idx,col=CLASS,pch=PCH,xlab='excess enthapy',ylab='ovality')
+    legend_text <- c("solvate","non-solvate")
+    legend("topright", inset=c(+0.05,0.05), legend=legend_text, col=c(2,1),pch=c(16,15))
+    
+    #plot KDE
+    require(MASS)
+    lims <- c(-1.5,1.0,1.0,1.2)
+    xlim<-c(-1.5,1.0)
+    ylim<-c(1.02,1.2)
+     
+    #linear decision boundary
+    #intercept_orig<-16.770
+    #c_ovality<--16.596
+    intercept_orig<-15.947
+    c_ovality<--14.554
+    c_Hex<--1.0    
+    x<-seq(-1.5,1.0,0.1)
+    y<--1.0*c_Hex/c_ovality*x -1.0*intercept_orig/c_ovality
+    ylim_idx<- (y>1.02 & y<1.2)
+    dens <- kde2d(lX1[CLASS==0,]$H_ex_FINE,lX1[CLASS==0,]$ova_idx,n = 100,lims = lims )
+    image(dens,xlab = "Hex/RT",ylab="ovality",xlim=xlim,ylim=ylim)
+    lines(x[ylim_idx],y[ylim_idx],col="blue")
+    ylim(1.0,1.2)
+    dens <- kde2d(lX1[CLASS==1,]$H_ex_FINE,lX1[CLASS==1,]$ova_idx,n = 100,lims = lims)
+    image(dens,xlab = "Hex/RT",ylab="ovality",xlim=xlim,ylim=ylim)
+    lines(x[ylim_idx],y[ylim_idx],col="blue")
+    ylim(1.0,1.2)
+    
+    
+    #points(x,y)
+    
+    #contour(dens, add=T)
+    
+    print(summary(pca))
+    
+  } else {
+    lX1_tmp <- subset(lX1, select = -train) 
+    pca <- prcomp(lX1_tmp, center=TRUE, scale.=TRUE)#prcomp is via SVD, princomp via eigen value decomp
+    print(summary(pca)) # print variance accounted for
+    print(pca)
+    if (plot) {
+      COLOR <- c(1:length(target))   
+      TRAIN<- droplevels(as.factor(lX1$train))    
+      pc <- c(1,2)
+      plot(pca, type = "l")
+      plot(pca$x[,pc[1]], pca$x[,pc[2]], col=COLOR[target], pch=API_ID, xlab=paste0("PC ", pc[1], " (", round(pca$sdev[pc[1]]/sum(pca$sdev)*100,0), "%)"), ylab=paste0("PC ", pc[2], " (", round(pca$sdev[pc[2]]/sum(pca$sdev)*100,0), "%)"),xlim=c(-4,4))
+      #plot(pca$x[,pc[1]], pca$x[,pc[2]], col=COLOR[target], pch=as.character(lX1$API_ID), xlab=paste0("PC ", pc[1], " (", round(pca$sdev[pc[1]]/sum(pca$sdev)*100,0), "%)"), ylab=paste0("PC ", pc[2], " (", round(pca$sdev[pc[2]]/sum(pca$sdev)*100,0), "%)"))
+      #text(pca$x[,pc[1]], pca$x[,pc[2]],label=as.character(lX1$API_ID),col=COLOR[target])      
+      legend_text <- c(1:length(API_ID))
+      legend("topright", inset=c(-0.05,0), legend=levels(target), col=COLOR,pch=legend_text)
+      #legend("topleft", legend=c("test", "train"), col=1, pch=PCH)
+      #biplot(pca)
+      #http://stats.stackexchange.com/questions/72839/how-to-use-r-prcomp-results-for-prediction
+    }
+    #print(summary(pca$x))
+  }
+  
+}
+
 
 pc_analysis<-function(lX,ly,lX_test=NULL) {
   #mydata<-data.frame(lX,target=ly)
@@ -515,9 +563,6 @@ pc_analysis<-function(lX,ly,lX_test=NULL) {
   #labels <- 1:nrow(lX)
   labels <- rep("-",nrow(lX))
   biplot(fit,xlabs=labels)
-  
-  
-  
 }
 
 matchByColumns<-function(df_orig,df_test) {
@@ -555,17 +600,20 @@ compRSQ<-function(predicted,actual) {
 
 gam_model<-function(lX,ly,verbose) {
   library(mgcv)
-  mydata<-data.frame(lX,mpK=ly)
-  #gam1<-gam(mpK ~ avratio + Rotatable.bonds+ Internal.H.bonds +Conjugated.bonds +hb_self+ X..moment4 +mu_self100 +HB.acc_m3+HB.don_m4+n_arom,family=gaussian,data=mydata)
+  mydata<-data.frame(lX,target=ly)
   #gam1<-gam(mpK ~ s(avratio) + s(Rotatable.bonds)+s(Ringbonds)+s(hb_self)+s(E_dielec)+ s(Txentropy)+s(X.rotbdsmod_new),data=mydata)
   #gam1<-gam(mpK ~ s(avratio) + s(Txentropy)+s(Ringbonds)+s(Conjugated.bonds)+s(hb_self_mod)+s(E_dielec)+ s(HB.don_m2)+s(other_rotbonds)+s(n_total),data=mydata)
   #best lin model
-  gam1<-gam(mpK ~ s(avratio)+s(hb_self_lowT) + s(Molweight..g.mol.) +s(Conjugated.bonds) + s(HB.don_m1) +s(E_dielec)+s(Rotatable.bonds)+s(nbr11)+s(Kier2),data=mydata)
+  #gam1<-gam(target ~ s(avratio)+s(hb_self_lowT) + s(Molweight..g.mol.) +s(Conjugated.bonds) + s(HB.don_m1) +s(E_dielec)+s(Rotatable.bonds)+s(nbr11)+s(Kier2),data=mydata)
+  #gam1<-gam(target ~ Hex.kcal.mol.+s(ringbonds_API,k=3)+ringbonds2+ln_vcosmo+s(M2_API,k=3),data=mydata,family=binomial(link=logit),method="GCV.Cp")
+  gam1<-gam(target ~ Hex.kcal.mol.+s(ringbonds_API,k=3)+ringbonds2+ln_vcosmo+s(ln_vfree_drug,k=3),data=mydata,family=binomial(link=logit),method="GCV.Cp")
+  
+  #gam1<-gam(target ~ Hex.kcal.mol.+s(ln_vcosmo,k=3),data=mydata,family=binomial(link=logit),method="GCV.Cp")
   #gam1<-gam(mpK ~ s(avratio,k=4) + s(Txentropy)+s(Conjugated.bonds)+s(hb_self_mod)+s(E_dielec),data=mydata)
-  #gam1<-gam(mpK ~ s(.),data=mydata)
+
   #print(summary(gam1))
   #str(gam1)  
-  cat("GAM RMSE:",compRMSE(gam1$fitted.values,ly),"\n")
+  #cat("GAM RMSE:",compRMSE(gam1$fitted.values,ly),"\n")
   if (verbose==T) {
     plot(gam1,residuals=FALSE,pch=12,shade=T, scale=0)
     gam.check(gam1,pch=19,cex=.3)
@@ -630,7 +678,12 @@ sigmoidal<-function(x,a=1.0,b=0.0) {
 }
 
 #computes enrichment factor
-computeEF<-function(predicted,truth,returnMax=FALSE,top=1) {
+computeEF<-function(predicted,truth,returnMax=FALSE,top=1.0,invert=T,verbose=F) {
+  if(is.factor(truth)) truth<-as.numeric(as.character(truth))
+  if(invert) {
+    truth<-(-1*truth+1)
+    predicted<--1*predicted
+  }
   res<-data.frame(pred=predicted,truth=truth)
   res<-res[with(res, order(-predicted)), ]
   Nfh<- match(1, res$truth)
@@ -642,10 +695,13 @@ computeEF<-function(predicted,truth,returnMax=FALSE,top=1) {
   } else {
     EF<-(1.0/Nfh)/(nh/N)
   }
-  #cat("Nfh:",Nfh,"\n")
-  #cat("nh:",nh,"\n")
-  #cat("N:",N,"\n")
-  #cat("Ef:",EF,"\n")
+  if (verbose) {
+    cat(sprintf("Number to first hit(Nfh): %4d\n",Nfh))
+    cat(sprintf("Number of hits(nh): %4d\n",nh))
+    cat(sprintf("Total N: %4d\n",N))
+    cat(sprintf("Enrichment: %5.2f\n",EF))
+  }
+  
   return(EF)
 }
 
@@ -663,32 +719,94 @@ computeMultiLogLoss <- function(act, pred,verbose=F)   {
       return(ll);
     }
 
+confintAUC<-function(auc,ytrue) {
+  #see J Comput Aided Mol Des (2014) 28:887-918
+  n_pos<-sum(ytrue==1)
+  n_neg<-sum(ytrue==0)
+  var_pos<-auc**2*(1-auc)/(1+auc)/n_pos
+  var_neg<-auc*(1-auc)**2/(2-auc)/n_neg
+  var<-1.96*sqrt(var_pos+var_neg)
+  return(var)
+}
 
-computeAUC<-function(predicted,truth,titlename=NULL,verbose=F) {
+computeROC_EF<-function(predicted,truth,cutoff=0.01) {
+  #computes ROC enrichment J Comput Aided Mol Des (2014) 28:887-918
+  #http://www.ub.edu/cbdd/?q=content/how-calculate-roc-curves
+  #works only with smooth curves
   require("ROCR")
-  #print(summary(truth))
+  pred<-prediction(predicted, truth)
+  perf <- performance(pred,"tpr","fpr")
+  EF_roc <- perf@y.values[[1]]/perf@x.values[[1]]
+  cat("Fraction neg.:",perf@x.values[[1]],"\n")
+  cat("EF_roc:",EF_roc,"\n")
+  EF_roc_cut <- EF_roc[which(perf@x.values[[1]] > cutoff)[1]]
+  return(EF_roc_cut) 
+}
+
+computeF1score<-function(predicted,truth) {
+  retrieved <- sum(predicted)
+  #Precision is the fraction of retrieved instances that are relevant
+  precision <- sum(predicted & truth) / retrieved
+  #Recall is the fraction of relevant instances that are retrieved
+  recall <- sum(predicted & truth) / sum(truth)
+  f1score <- 2 * precision * recall / (precision + recall)
+  return(f1score)
+}
+
+computeAccuracy<-function(predicted,truth,threshold=0.5,metric='Accuracy',verbose=F) {
+  #Computes accuracy from probabilities
+  predicted<-as.numeric(predicted)#for GAM model
+  predicted<- factor( ifelse(predicted < threshold, "0", "1") )
+  cm<-confusionMatrix(predicted, as.factor(truth),positive = "1")
+  if (verbose) print(cm)
+  acc<-cm$overall[metric]
+  return(acc)
+}
+
+
+computeAUC<-function(predicted,truth,titlename=NULL,verbose=F,predicted2=NULL) {
+  require("ROCR")
+  predicted<-as.numeric(predicted)#for GAM model
   pred<-prediction(predicted, truth)
   perf <- performance(pred,"tpr","fpr")
 
   auc<-performance(pred,"auc")
   auc<-unlist(slot(auc, "y.values"))
   if (verbose) {
-    if (auc<0.7)  {
-      color<-"red"
+    if (auc<0.70)  {
+      color<-"orange"
+      lty<-2
+    } else if (auc<0.55)  {
+        color<-"red"
+        lty<-1
     } else {
       color<-"blue"
+      lty<-1
     }
-    plot(perf,col=color,lty=1, lwd=3,xlim=c(0,1),xlab="FPR",ylab="TPR")
-    abline(0.0,1.0, col = "black",lwd=3,xlim=c(0,1))
+    plot(perf,col=color,lty=lty, lwd=3,xlim=c(0,1),xlab="FPR",ylab="TPR")
+    if (!is.null(predicted2)) {
+      pred2<-prediction(predicted2, truth)
+      perf2 <- performance(pred2,"tpr","fpr")
+      auc2<-performance(pred2,"auc")
+      auc2<-unlist(slot(auc2, "y.values"))    
+      lines(perf2@x.values[[1]],perf2@y.values[[1]],col=color,lty=3, lwd=3,xlim=c(0,1),xlab="FPR",ylab="TPR")
+      legend("bottomright", legend=c("fit","hex"), col='blue',lty=c(1,3))
+    }
+    #abline(0.0,1.0, col = "black",lwd=3,xlim=c(0,1))
+    lines(seq(0.0,1.0,0.1),seq(0.0,1.0,0.1),col = "black",lwd=2)
+    xlim(0.0,1.0)
+    ylim(0.0,1.0)
     if (!is.null(titlename)) {
       title(titlename,cex.main=1.0) # scale title
-      text(0.7,0.1,sprintf("AUC: %6.2f",auc))
+      if (!is.null(predicted2)) {
+        text(0.6,0.1,sprintf("AUC: %6.2f (%3.2f)",auc,auc2))
+      } else {
+        text(0.6,0.1,sprintf("AUC: %6.2f",auc))
+      }      
     }
   }
   auc<-performance(pred,"auc")
   auc<-unlist(slot(auc, "y.values"))
-  
-  
   #str(auc)
   #if (verbose) cat("AUC:",auc,"\n")
   return(auc)
@@ -749,10 +867,10 @@ caret_train<-function(Xl,yl,classification=F,lmethod="gbm") {
   #
 }
 
-gbm_grid<-function(lX,ly,lossfn="auc",treemethod="gbm",repeatcv=3,parameters=list(depth=c(4,8),shseq=c(0.01,0.02),iterations=c(500), minobsinnode=c(5))) {
+gbm_grid<-function(lX,ly,lossfn="auc",treemethod="gbm",repeatcv=3,parameters=list(depth=c(4,8),shseq=c(0.01,0.02),iterations=c(500), minobsinnode=c(5))) { 
   df<-data.frame(lX,ly) 
   iterations<-parameters[["iterations"]]#number of tress
-  if (treemethod=="gbm") { 
+  if (treemethod=="gbm"|| treemethod=="xgboost") { 
     param_a<-parameters[["depth"]] 
     param_b<-parameters[["shseq"]]
     param_c<-parameters[["minobsinnode"]]
@@ -766,9 +884,9 @@ gbm_grid<-function(lX,ly,lossfn="auc",treemethod="gbm",repeatcv=3,parameters=lis
     for(j in param_b) {
       for(k in iterations) {
         for(l in param_c) {
-          if (treemethod=="gbm") {
+          if (treemethod=="gbm" || treemethod=="xgboost") {
             cat("Iterations:",k," int.depth:",i, " shrinkage:",j," minobsinnodee:", l)
-            xval_oob(lX,ly,iterations=k,nrfolds=5,intdepth=i,sh=j,minobsinnode=l,repeatcv=repeatcv,lossfn=lossfn,method=treemethod)
+            xval_oob(lX,ly,iterations=k,nrfolds=5,intdepth=i,sh=j,minobsinnode=l,repeatcv=repeatcv,lossfn=lossfn,method=treemethod)     
           } else {
             cat("Iterations:",k," mtry:",i," nodsize:",l,"\n")
             xval_oob(lX,ly,iterations=k,nrfolds=5,mtry=i,minobsinnode=l,repeatcv=repeatcv,lossfn=lossfn,method=treemethod)
@@ -781,9 +899,13 @@ gbm_grid<-function(lX,ly,lossfn="auc",treemethod="gbm",repeatcv=3,parameters=lis
 }
 
 #parallel crossvalidation that delivers also out-of-bag predictions 
-xval_oob<-function(Xl,yl,Xtest=NULL,iterations=500,nrfolds=5,intdepth=2,sh=0.01,minobsinnode=10,repeatcv=2,lossfn="rmse",method="gbm",mtry=5,oobfile='oob_res.csv',folds_from_file=NULL) {
-  cat("xval-oob....\n")
-  saveFoldsToFile(Xl,k=nrfolds,n=repeatcv,filename="folds.csv")
+xval_oob<-function(Xl,yl,Xtest=NULL,iterations=500,nrfolds=5,intdepth=2,sh=0.01,minobsinnode=10,repeatcv=2,lossfn="rmse",method="gbm",mtry=5,oobfile='oob_res.csv',folds_from_file=NULL,analyzeResidues=FALSE,verbose=F) {
+  if (verbose) cat("\nxval-oob - repeats: ",repeatcv)
+  if (!is.null(folds_from_file)) {
+    cat(" - folds from file:",folds_from_file,"\n")
+    saveFoldsToFile(Xl,k=nrfolds,n=repeatcv,filename="folds.csv")
+  } 
+  
   #outer serial loop, column bind!!!
   results_all<-foreach(j = 1:repeatcv,.combine="cbind") %do% {      
     if (!is.null(folds_from_file)) {
@@ -794,15 +916,17 @@ xval_oob<-function(Xl,yl,Xtest=NULL,iterations=500,nrfolds=5,intdepth=2,sh=0.01,
     }    
     cl<-makeCluster(nrfolds, type = "SOCK")
     registerDoSNOW(cl) 
-    #inner parallel loop, automatically rbind results to res
-    res_all<-foreach(i = 1:nrfolds,.packages=c('gbm','randomForest'),.combine="rbind",.export=c("compRMSE","computeAUC","oinfo","linRegTrain","variableSelection")) %dopar% {
-      cat("###FOLD: ",i," Iterations: ",iterations," ") 
+    
+    #inner parallel loop, automatically rbind results to res use dopar
+    res_all<-foreach(i = 1:nrfolds,.packages=c('gbm','randomForest','xgboost'),.combine="rbind",.export=c("compRMSE","computeAUC","oinfo","linRegTrain","variableSelection")) %do% { 
+      if (verbose) cat("###FOLD: ",i,"\n") 
       idx <- which(train == i)
-      Xtrain<-Xl[-idx,]
+      Xtrain<-Xl[-idx,,drop=F]
       ytrain<-yl[-idx]
-      Xvalid<-Xl[idx,]
+      Xvalid<-Xl[idx,,drop=F]
       ytest<-yl[idx]
       test_data<-NULL
+      #CLASSIFICATION
       if (lossfn=="auc") {
         if (method=="gbm") {
           #GBM
@@ -819,10 +943,10 @@ xval_oob<-function(Xl,yl,Xtest=NULL,iterations=500,nrfolds=5,intdepth=2,sh=0.01,
             test_pred<-predict(rf1,Xtest,type="vote")[,2]
           }
         } else if (method=='linear') {
-          #linear regression
-          #Xtrain<-variableSelection(Xtrain,ytrain,"forward",iterations)
-          fit<-linRegTrain(Xtrain,ytrain,NULL,F)
-          oob_pred<-predict(fit,Xvalid)
+          #linear regression 
+          Xtrain$ytrain <- ytrain          
+          fit<-glm(ytrain~., data=Xtrain,family=binomial(link="logit"))
+          oob_pred<-predict(fit,Xvalid,type='response')
           if (!is.null(Xtest)) {
             test_pred<-predict(fit,Xvalid)
           }
@@ -837,6 +961,21 @@ xval_oob<-function(Xl,yl,Xtest=NULL,iterations=500,nrfolds=5,intdepth=2,sh=0.01,
           if (!is.null(Xtest)) {
             test_pred<-predict.gbm(gbm1,Xtest,n.trees=iterations,type="response")
           }
+        } else if (method=='xgboost'|| method=='xgb') {
+          xgb_params <- list(objective = "reg:linear",
+                             eval_metric = "rmse",
+                             max.depth=intdepth,
+                             eta=sh,
+                             silent=1, 
+                             subsample=0.5,
+                             nthread = 1,
+                             min_child_weight = minobsinnode)
+           
+          fit<-xgboost(param=xgb_params, data =as.matrix(Xtrain), label= ytrain,nrounds=iterations,missing = NA)
+          oob_pred <-predict(fit,as.matrix(Xvalid),outputmargin=T,predleaf=F, missing = NA)#XGBOOST
+          if (!is.null(Xtest)) {
+            test_pred<-predict(fit,as.matrix(Xtest),outputmargin=T,predleaf=F, missing = NA)#XGBOOST
+          }         
         } else if (method=='randomForest'|| method=='rf') {
           #RF
           rf1 <- randomForest(Xtrain,ytrain,ntree=iterations,mtry=mtry,importance = F)
@@ -855,7 +994,8 @@ xval_oob<-function(Xl,yl,Xtest=NULL,iterations=500,nrfolds=5,intdepth=2,sh=0.01,
         }
         score<-compRMSE(oob_pred,ytest)
       }        
-      cat(" LOSS:",score,"\n") 
+      if (verbose) cat(" LOSS:",score,"\n") 
+     
       #returning dataframe with predictions and truth
       oob_data<-data.frame(idx,pred=oob_pred,ytest=ytest,testidx=-1)     
       if (!is.null(Xtest)) {
@@ -866,24 +1006,22 @@ xval_oob<-function(Xl,yl,Xtest=NULL,iterations=500,nrfolds=5,intdepth=2,sh=0.01,
       return(oob_data)
     }#end parallel inner loop
     #average test set prediction via fold index
-    pred_df<-res_all[which(res_all$idx<0),]
-    pred_df<-aggregate(pred_df$pred, by=list(pred_df$testidx),FUN=mean)[,2]
-    
+    if (!is.null(Xtest)) {
+      pred_df<-res_all[which(res_all$idx<0),]
+      pred_df<-aggregate(pred_df$pred, by=list(pred_df$testidx),FUN=mean)[,2]
+    }
     res<-res_all[which(res_all$idx>0),]
     #restore original order 
     res<-res[order(res$idx),]   
     if (lossfn=="auc") {
       auc_cv<-computeAUC(res$pred,res$ytest)
-      cat("AUC, CV:",auc_cv,"\n")
+      if (verbose) cat("AUC, CV:",auc_cv,"\n")
     } else {
       auc_cv<-compRMSE(res$pred,res$ytest)
-      cat("RMSE, CV:",auc_cv,"\n")
+      if (verbose) cat("RMSE, CV:",auc_cv,"\n")
     }
-    #res$pred<-rbind(res$pred,pred_df)   
-    oinfo(res$pred)
-    oinfo(pred_df)
-    tmp<-c(res$pred,pred_df)
-    oinfo(tmp)
+    #tmp<-c(res$pred,pred_df)
+    tmp<-c(res$pred)
     stopCluster(cl) 
     return(tmp)
   }#end outer loop
@@ -894,8 +1032,8 @@ xval_oob<-function(Xl,yl,Xtest=NULL,iterations=500,nrfolds=5,intdepth=2,sh=0.01,
   
   if (lossfn=="auc") {
     score_iter<-apply(results_oob, 2, function(x) computeAUC(x,yl,F))
-    cat("AUC of iterations:",score_iter,"\n")
-    cat("<AUC,oob>:",computeAUC(mean_oob,yl,F),"\n") 
+    if (verbose) cat("AUC of iterations:",score_iter,"\n")
+    if (verbose) cat("<AUC,oob>:",computeAUC(mean_oob,yl,F),"\n") 
   } else {
     score_iter<-apply(results_oob, 2, function(x) compRMSE(x,yl))
     cat("RMSE of iterations:",score_iter,"\n")
@@ -906,6 +1044,14 @@ xval_oob<-function(Xl,yl,Xtest=NULL,iterations=500,nrfolds=5,intdepth=2,sh=0.01,
   if (!is.null(oobfile)) {
     write.table(res,file=oobfile,sep=",",row.names=FALSE)
   }
+  #look at oob predictions
+  if (analyzeResidues) {
+    plot(mean_oob,yl,col = "blue")
+    abline(0,1, col = "black")
+    residue = yl- mean_oob
+    plot(mean_oob,residue,col = "red")
+    write.table(data.frame(prediction=mean_oob,exp=yl,residue=residue),file="oob_only.csv",sep=",",row.names=FALSE)
+  }
   return(res)
 }
 
@@ -914,8 +1060,6 @@ xval_oob<-function(Xl,yl,Xtest=NULL,iterations=500,nrfolds=5,intdepth=2,sh=0.01,
 trainRF<-function(lX,ly,iter=500,mtry=if (!is.null(ly) && !is.factor(ly)) max(floor(ncol(lX)/3), 1) else floor(sqrt(ncol(lX))),node.size=5, verbose=T,fimportance=F) {
   require(randomForest)
   cat("Training random forest...") 
-  require(randomForest)
-  #mydata.rf <- randomForest(lX,ly,ntree=iter,mtry=m.try,importance = fimportance,nodesize =node.size)
   mydata.rf <- randomForest(lX,ly,ntree=iter,mtry=mtry,importance = fimportance,nodesize =node.size)
   
   print(mydata.rf)
@@ -945,12 +1089,12 @@ trainRF<-function(lX,ly,iter=500,mtry=if (!is.null(ly) && !is.factor(ly)) max(fl
       t<-paste("RF wtih ",nrow(lX)," data points and ",ncol(lX), " variables.")
       t<-paste("RF with ",nrow(lX)," data points and ",ncol(lX), " variables.")
       title(main = t) 
-      #residues: pred-y 
-      results<-data.frame(exp=mydata.rf$y,residue=mydata.rf$predicted-mydata.rf$y)
+      #residues: y-pred 
+      results<-data.frame(predicted=mydata.rf$predicted,residue=mydata.rf$y-mydata.rf$predicted)
       plot(results,col="blue",pch=1, xlab = "exp", ylab = "residues")
       title(main = "RF residuals (y-pred)")
       se<-(mydata.rf$predicted-mydata.rf$y)^2
-      ldata<-data.frame(predicted=mydata.rf$predicted,exp=mydata.rf$y,se)
+      ldata<-data.frame(predicted=mydata.rf$predicted,exp=mydata.rf$y,se,residue=mydata.rf$y-mydata.rf$predicted)
       #if (!is.null(rownames)) {
       #  ldata<-data.frame(name=rownames,predicted=mydata.rf$predicted,exp=mydata.rf$y,se)
       #}
@@ -980,7 +1124,7 @@ trainRF<-function(lX,ly,iter=500,mtry=if (!is.null(ly) && !is.factor(ly)) max(fl
       #pc_correct(ldata$predicted,ldata$truth)
     }
   }   
-  #write.table(ldata,file="prediction_rf.csv",sep=",",row.names=FALSE)
+  write.table(ldata,file="prediction_rf.csv",sep=",",row.names=FALSE)
   #write.table(ldata,file="prediction_rf.csv",sep=";",row.names=FALSE)
   return(mydata.rf)
 }
@@ -1050,34 +1194,7 @@ prepareStandard<-function(filename) {
 }
 
 
-compareViaPrinComp<-function(lX1,lX2,ly=NULL,threshold=0.5) {
-  if (!is.null(ly)) {
-    #remove zero columns
-    cs<-colSums(abs(lX1)==0)
-    #cat(cs)
-    if (0 %in% cs) {
-      lX1<-lX1[,which(colSums((lX1))!=0)]
-    }   
-    print(summary(lX1))
-    cat("Using label data...")
-    idx <- which(as.numeric(as.character(ly)) < threshold)
-    lX1<-lX1[idx,]
-    lX2<-lX1[-idx,]
-    print(summary(lX1))
-    print(summary(lX2))
-  } 
-  pc1 <- prcomp(lX1, scale. = T)
-  x1 <- pc1$x  
-  pc2 <- prcomp(lX2, scale. = T)
-  x2 <- pc2$x
-  
-  #print(summary(x))
-  #plot(x1[, 1], x1[, 2], pch = 2,col=rgb(1,0,0,1/4),xlim=c(-10,20),ylim=c(-20,30))
-  plot(x1[, 1], x1[, 2], pch = 2,col=rgb(1,0,0,1/4))
-  points(x2[, 1], x2[, 2], pch = 1,col=rgb(0,0,1,1/4))
-  legend(5, -20, c("Xtrain","Xtest"), cex=1,pch=c(2,1),col=c("red","blue"))
-  #biplot
-}
+
 
 #works not properly loss function too low -> use xvalid instead
 xvalSVM<-function(lX,ly) {
@@ -1237,18 +1354,16 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",parameters=list(iter=
       X = as.matrix(Xtrain)
       if (lossfn=="rmse") {
       xgb_params <- list(objective = "reg:linear",
-                    eval_metric = "rmse",
+                    #eval_metric = "rmse",
                     max.depth=parameters$depth,
                     eta=parameters$shseq,
-                    silent=1, 
                     subsample=parameters$subsample,
+                    verbose=0,
                     nthread = parameters$nthread)
-      str(xgb_params)  
+      #str(xgb_params)  
       n.tree <- parameters$iter
-      fit = xgboost(param=xgb_params, data =X, label= ytrain,nrounds=n.tree,missing = NA)
-      
-      
-      #
+      fit = xgboost(param=xgb_params, data =X, label= ytrain,nrounds=n.tree,missing = NA,verbose=xgb_params$verbose)
+
       #oinfo(Xtrain)
       #oinfo(ytrain)
       #fit = xgboost(param=xgb_params, data =X, label= ytrain,nrounds=n.tree,missing = NA)
@@ -1271,8 +1386,7 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",parameters=list(iter=
         fit<-linRegTrain(Xtrain,ytrain,NULL,F)
       } else {
         fit <- glm(target ~ ., data=data.frame(Xtrain,target=ytrain),family=binomial(link="logit"))
-        #fit<-glm.fit(Xtrain,ytrain,family=binomial(link="logit"))
-        
+        #fit<-glm.fit(Xtrain,ytrain,family=binomial(link="logit"))     
       }
     }
     ############################################# 
@@ -1333,6 +1447,56 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",parameters=list(iter=
   }
   return(mean(loss))
 }
+
+run_xgboost<-function(Xtrain,ytrain,analysis=F) {
+  #current optimized parameters: ntree=2000, max.depth=10, eta=0.005, subsample=0.5 nsamples=12491 nvariables=30 RMSE(CV)=33.
+  require(xgboost)
+  require(methods)
+  # Set necessary parameter
+#   xgb_par_mp <- list(objective = "reg:linear",
+#                   eval_metric = "rmse",
+#                   max.depth=10,
+#                   eta=0.005,
+#                   silent=1, 
+#                   subsample=0.5,
+#                   nthread = 4)
+  
+  xgb_par <- list(objective = "reg:linear",
+                     #eval_metric = "rmse",
+                     max.depth=10,
+                     eta=0.005,
+                     silent=1, 
+                     subsample=0.5,
+                     nthread = 4,
+                     verbose = 0)
+  #gbm_parameters<-list(depth=c(10),shseq=c(0.005),iterations=c(200),minobsinnode=c(5,1))
+  #gbm_grid(Xtrain,ytrain,repeatcv=2,lossfn="rmse",treemethod='xgboost',parameters=gbm_parameters) 
+  n.tree<-2000
+  #xval_oob(Xtrain,ytrain,Xtest=Xtrain,iterations=n.tree,nrfolds=8,repeatcv=2,lossfn="rmse",method="xgboost",intdepth=xgb_par$max.depth,sh=xgb_par$eta,oobfile='oob_res.csv',folds_from_file=NULL)
+  xvalid(X,ytrain,nrfolds=8,modname="xgboost",loss="rmse",parameters=list(iter=n.tree,depth=xgb_par$max.depth,shseq=xgb_par$eta,subsample=xgb_par$subsample,nthread=xgb_par$nthread))
+  #bst.cv = xgb.cv(param=parameters, data =as.matrix(Xtrain), label= ytrain, nfold = 8, nrounds=n.tree)
+  #print(summary(bst.cv))
+  model = xgboost(param=xgb_par, data =as.matrix(Xtrain), label= ytrain,nrounds=n.tree,missing = NA)
+  #xgb.dump(model, 'xgb.model.dump', with.stats = FALSE)
+
+  #trees<-xgb.model.dt.tree(feature_names = colnames(Xtrain),model = model,n_first_tree=n.tree)
+  #saveXGB(model,"Tm[K]",colnames(Xtrain),filename="T(melting).propx")
+  saveXGB(model,"density[g/cm3]",colnames(Xtrain),filename="density(crystal).propx")
+  #test_data(model,Xtrain)
+  if (analysis) {
+    print(summary(trees))
+    print(trees)
+    
+    diagram_info<-xgb.plot.tree(feature_names = colnames(Xtrain),  model = model,
+                                n_first_tree = 1, width= 100, height=100)
+    
+    require(DiagrammeR)
+    print(DiagrammeR(diagram_info$x$diagram))
+  }
+  
+  
+}
+
 
 trainDBN<-function(lX,ly,lXtest=NULL,lytest=NULL){
   library(h2o)
@@ -1481,6 +1645,33 @@ correlationEllipses<-function(cor){
   plotcorr(xc,col=tmp)
   #  dev.off()
   #print(xc) 
+}
+
+
+plotTSNE<-function(X=NULL,labels=NULL,colors_col=NULL,nfeatures=20,nbins=2) {
+  require(tsne)
+  if (is.null(labels)) {
+    X$levels = cut(X$rotatable_bonds,breaks=nbins)
+    X$levels = cut(X$h_int,breaks=nbins)
+  } else {
+    X$levels = labels
+  }
+  print(summary(X))
+  #oinfo(X$levels)
+  #cat(X$levels)
+  colors = rainbow(length(unique(colors_col)))
+  names(colors) = unique(colors_col)
+  ecb = function(x,y){ 
+    plot(x,t='n'); 
+    text(x,labels=X$levels, col=colors[colors_col])
+    legend("topright", inset=c(-0.1,0), legend=unique(colors_col),pch=1, col=colors)}
+  tsne_data = tsne(X[,1:nfeatures], epoch_callback = ecb, perplexity=20,epoch=20)
+  # compare to PCA
+  #dev.new()
+  pca_data = princomp(X[,1:nfeatures])$scores[,1:2]
+  plot(pca_data, t='n')
+  text(pca_data, labels=X$levels,col=colors[colors_col])
+  legend("topright", inset=c(-0.5,0), legend=unique(colors_col),pch=1, col=colors)
 }
 
 plotPartialdependence<-function(rf,ldata,n=3) {
