@@ -46,7 +46,7 @@ def R_var_importance(nsamples=40000):
     r['options'](warn=-1)
 
     r.library('randomForest')
-    rf = r.randomForest(Xtrain_R, ytrain_R,ntree=50,importance = True,do_trace=1)
+    rf = r.randomForest(Xtrain_R, ytrain_R,ntree=250,importance = True,do_trace=1)
     df_imp_R = rf.rx("importance")
     df_imp_R = base.as_data_frame(df_imp_R)
     df_imp = pandas2ri.ri2py(df_imp_R)
@@ -61,4 +61,4 @@ def R_var_importance(nsamples=40000):
 
 
 if __name__ == "__main__":
-    R_var_importance()
+    R_var_importance(nsamples=30000)

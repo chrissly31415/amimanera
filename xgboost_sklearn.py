@@ -135,9 +135,11 @@ class XgboostClassifier(BaseEstimator):
     def predict_proba(self, lX):
         # avoid problems with pandas dataframes and DMatrix
         if isinstance(lX, pd.DataFrame): lX = lX.values
+
         xgmat_test = xgb.DMatrix(lX, missing=self.NA)
         ly = self.xgboost_model.predict(xgmat_test)
-        ly = np.column_stack((1.0 - ly,ly))
+        if not self.isRegressor:
+            ly = np.column_stack((1.0 - ly,ly))
         return ly
 
     def get_fscore(self):
@@ -146,7 +148,7 @@ class XgboostClassifier(BaseEstimator):
 
 class XgboostRegressor(XgboostClassifier):
     def __init__(self, n_estimators=120, learning_rate=0.3, max_depth=6, subsample=1.0, min_child_weight=1,
-                 colsample_bytree=1.0, gamma=0, objective='binary:logistic', eval_metric='auc', booster='gbtree',
+                 colsample_bytree=1.0, gamma=0, objective='reg:linear', eval_metric='rmse', booster='gbtree',
                  n_jobs=1, cutoff=0.50, NA=-999.0, alpha_L1=0, lambda_L2=0, silent=1, eval_size=0.0):
         super(XgboostRegressor, self).__init__(n_estimators=n_estimators, learning_rate=learning_rate,
                                                max_depth=max_depth, subsample=subsample,

@@ -16,40 +16,43 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import pylab as pl
 # import tools
-from sklearn.utils import shuffle
-from sklearn import cross_validation, grid_search
-from sklearn.cross_validation import StratifiedKFold, KFold, StratifiedShuffleSplit, ShuffleSplit, train_test_split, \
-    LeavePLabelOut
-from sklearn.metrics import roc_auc_score, classification_report, make_scorer, f1_score, precision_score, \
-    mean_squared_error, accuracy_score, log_loss
-from sklearn.preprocessing import StandardScaler, PolynomialFeatures, OneHotEncoder
-from sklearn.pipeline import Pipeline
-from sklearn.feature_selection import SelectKBest, SelectPercentile, chi2, f_classif, f_regression, \
-    GenericUnivariateSelect, VarianceThreshold
-from sklearn.learning_curve import learning_curve
-# import models
-from sklearn.base import BaseEstimator, TransformerMixin, clone
-from sklearn.dummy import DummyRegressor
-from sklearn.naive_bayes import BernoulliNB, MultinomialNB, GaussianNB
-from sklearn.cluster import k_means
-from sklearn.isotonic import IsotonicRegression
-from sklearn.linear_model import LogisticRegression, RandomizedLogisticRegression, SGDClassifier, Perceptron, \
-    SGDRegressor, RidgeClassifier, LinearRegression, Ridge, BayesianRidge, ElasticNet, RidgeCV, LassoLarsCV, Lasso, \
-    LassoCV, LassoLars, LarsCV, ElasticNetCV
-from sklearn.cross_decomposition import PLSRegression, PLSSVD
-from sklearn.decomposition import TruncatedSVD, PCA, RandomizedPCA, FastICA, MiniBatchSparsePCA, SparseCoder, \
-    DictionaryLearning, MiniBatchDictionaryLearning
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, ExtraTreesClassifier, \
-    AdaBoostClassifier, ExtraTreesRegressor, GradientBoostingRegressor, BaggingRegressor, BaggingClassifier, \
-    RandomForestRegressor, RandomTreesEmbedding
-from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
-from sklearn.svm import LinearSVC, SVC, SVR
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.cluster import KMeans, MiniBatchKMeans
-from sklearn.multiclass import OneVsRestClassifier, OneVsOneClassifier
-from sklearn.feature_extraction import DictVectorizer, FeatureHasher
-from sklearn.feature_extraction.text import CountVectorizer, HashingVectorizer, TfidfVectorizer
-# from sklearn.calibration import CalibratedClassifierCV
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=DeprecationWarning)
+    from sklearn.utils import shuffle
+    from sklearn import cross_validation, grid_search
+    from sklearn.cross_validation import StratifiedKFold, KFold, LabelKFold, LabelShuffleSplit,  StratifiedShuffleSplit, ShuffleSplit, train_test_split, \
+        LeavePLabelOut
+    from sklearn.metrics import roc_auc_score, classification_report, make_scorer, f1_score, precision_score, \
+        mean_squared_error, accuracy_score, log_loss
+    from sklearn.preprocessing import StandardScaler, PolynomialFeatures, OneHotEncoder
+    from sklearn.pipeline import Pipeline
+    from sklearn.feature_selection import SelectKBest, SelectPercentile, chi2, f_classif, f_regression, \
+        GenericUnivariateSelect, VarianceThreshold
+    from sklearn.learning_curve import learning_curve
+    # import models
+    from sklearn.base import BaseEstimator, TransformerMixin, clone
+    from sklearn.dummy import DummyRegressor
+    from sklearn.naive_bayes import BernoulliNB, MultinomialNB, GaussianNB
+    from sklearn.cluster import k_means
+    from sklearn.isotonic import IsotonicRegression
+    from sklearn.linear_model import LogisticRegression, RandomizedLogisticRegression, SGDClassifier, Perceptron, \
+        SGDRegressor, RidgeClassifier, LinearRegression, Ridge, BayesianRidge, ElasticNet, RidgeCV, LassoLarsCV, Lasso, \
+        LassoCV, LassoLars, LarsCV, ElasticNetCV
+    from sklearn.cross_decomposition import PLSRegression, PLSSVD
+    from sklearn.decomposition import TruncatedSVD, PCA, RandomizedPCA, FastICA, MiniBatchSparsePCA, SparseCoder, \
+        DictionaryLearning, MiniBatchDictionaryLearning
+    from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, ExtraTreesClassifier, \
+        AdaBoostClassifier, ExtraTreesRegressor, GradientBoostingRegressor, BaggingRegressor, BaggingClassifier, \
+        RandomForestRegressor, RandomTreesEmbedding
+    from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+    from sklearn.svm import LinearSVC, SVC, SVR
+    from sklearn.tree import DecisionTreeClassifier
+    from sklearn.cluster import KMeans, MiniBatchKMeans
+    from sklearn.multiclass import OneVsRestClassifier, OneVsOneClassifier
+    from sklearn.feature_extraction import DictVectorizer, FeatureHasher
+    from sklearn.feature_extraction.text import CountVectorizer, HashingVectorizer, TfidfVectorizer
+    # from sklearn.calibration import CalibratedClassifierCV
 
 from xgboost_sklearn import *
 import seaborn as sns
@@ -289,6 +292,7 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
     print "Training the model..."
 
     if isinstance(lX_df, pd.DataFrame):
+        #lX = lX_df
         lX = lX_df.values
     else:
         lX = lX_df
@@ -310,13 +314,16 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
         else:
             clf.fit(lX[train, :], ytrain)
 
+
+
         ypred[test] = clf.predict(lX[test, :])
-        score1[i] = accuracy_score(ly[test], ypred[test])
+        #score1[i] = accuracy_score(ly[test], ypred[test])
         #score1[i] = mean_abs_percentage_error(np.expm1(ly[test]), np.expm1(ypred[test]))
-        # rmse[i] = root_mean_squared_error(ly[test], ypred[test])
-        # score2[i] = root_mean_squared_percentage_error_mod(ly[test], ypred[test])
-        ypred[test] = clf.predict_proba(lX[test, :])[:,1]
-        score2[i] = roc_auc_score(ly[test], ypred[test])
+        score1[i] = mean_absolute_error(ly[test], ypred[test])
+        score2[i] = root_mean_squared_error(ly[test], ypred[test])
+        #score2[i] = root_mean_squared_percentage_error_mod(ly[test], ypred[test])
+        #ypred[test] = clf.predict_proba(lX[test, :])[:,1]
+        #score2[i] = roc_auc_score(ly[test], ypred[test])
 
         print "train set: %2d samples: %5d/%5d rmse: %4.3f  mean: %4.3f %s " % (
         i, lX[train, :].shape[0], lX[test, :].shape[0], score2[i], score2[:i + 1].mean(), sw)
@@ -325,8 +332,8 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
     #  showMisclass(ly,ypred,lX_df,index=class_names)
     # print classification_report(ly, ypred, target_names=class_names)
 
-    print("ACC       :%6.3f +/-%6.3f" % (score1.mean(), score1.std()))
-    print("AUC      :%6.3f +/-%6.3f" % (score2.mean(), score2.std()))
+    print("MAE       :%6.3f +/-%6.3f" % (score1.mean(), score1.std()))
+    print("RMSE      :%6.3f +/-%6.3f" % (score2.mean(), score2.std()))
 
     # training on all data
     if refit:
@@ -398,11 +405,11 @@ def compareList(uniq_train, uniq_test, verbose=True):
     Comparing to lists
     """
     # uniq_train = Xtrain[col].unique()
-    if verbose: print "Train - unique: %d %r:" % (uniq_train.shape[0], uniq_train)
+    if verbose: print "In Train - unique values: %d %r:" % (uniq_train.shape[0], uniq_train)
     # uniq_test = Xtest[col].unique()
-    if verbose: print "Test - unique: %d %r:" % (uniq_test.shape[0], uniq_test)
+    if verbose: print "In Test - unique values: %d %r:" % (uniq_test.shape[0], uniq_test)
     isect = np.intersect1d(uniq_train, uniq_test)
-    if verbose: print "Test - intersect: %d %r:" % (isect.shape[0], isect)
+    if verbose: print "In Test/Train - intersect of unique values: %d %r:" % (isect.shape[0], isect)
     only_train = np.in1d(uniq_train, isect, assume_unique=True, invert=True)
     if verbose: print "In Train only : %d %r:" % (uniq_train[only_train].shape[0], uniq_train[only_train])
     only_test = np.in1d(uniq_test, isect, assume_unique=True, invert=True)
@@ -1475,6 +1482,35 @@ def LeavePLabelOutWrapper(str_labels, n_folds=8, p=1, verbose=True):
     cv = LeavePLabelOut(labels, p=1)
     if verbose: print "Labels: %r length %d" % (np.unique(labels).shape, len(cv))
     return cv
+
+
+def label_train_test_plit(X,y,labels=None,test_size=0.25, random_state=None):
+
+    if labels is None:
+        labels = y
+
+    lenc = preprocessing.LabelEncoder()
+    labels_ = lenc.fit_transform(labels)
+
+    unique_labels = np.unique(labels_)
+    #enlarge array
+    #print unique_labels
+    #print unique_labels.shape
+    #tmp = np.random.choice(unique_labels,int(unique_labels.shape[0]*0.3),replace=False)
+    #print tmp
+    #print tmp.shape
+    #unique_labels = np.concatenate((unique_labels,tmp))
+    #raw_input()
+
+    shuffled_labels = shuffle(unique_labels,random_state=random_state)
+
+    dummy = np.arange(0,len(shuffled_labels),1)
+    test_mask = dummy < test_size * len(shuffled_labels)
+    test_mask = np.in1d(labels, shuffled_labels[test_mask])
+    train_mask = np.logical_not(test_mask)
+
+    return X[train_mask], X[test_mask], y[train_mask], y[test_mask]
+
 
 
 class KLabelFolds():

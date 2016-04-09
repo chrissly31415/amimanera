@@ -117,6 +117,7 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
     if polynomialFeatures:
         print "Polynomial feature of degree:", polynomialFeatures
         if isinstance(polynomialFeatures, str) and 'load' in polynomialFeatures:
+            print "Loading polynomials..."
             X_poly = pd.read_csv('poly.csv').reset_index(drop=True)
             print X_poly.describe()
         else:
@@ -228,7 +229,10 @@ def mergeWithXval(Xtrain,Xval,ytrain,yval):
 def makePredictions(model=None,Xtest=None,idx=None,filename='submission.csv'):
     print "Saving submission: ", filename
     if model is not None:
-        preds = model.predict_proba(Xtest)[:,1]
+        if not hasattr(model,'predict_proba'):
+            preds = model.predict(Xtest)
+        else:
+            preds = model.predict_proba(Xtest)[:,1]
     else:
         preds = Xtest
     if idx is None:
@@ -260,20 +264,21 @@ if __name__ == "__main__":
     greedy3 = ['f9', 'f6', 'c1_8', 'c1_14', 'c1_2', 'c1_12', 'f7', 'c1_5', 'c1_6', 'c1_1', 'f1', 'c1_21', 'count_f4', 'c1_17', 'count_f6']#via logistic regression AUC=0.5333
     greedy4 = ['count_f5', 'f1', 'f11', 'f3', 'f6', 'sdev_f9', 'f14', 'sdev_f10', 'count_f4']#via XGboost
     greedy5 = ['count_f5', 'f1', 'f11', 'f3', 'f6', 'sdev_f9', 'f14', 'sdev_f10', 'count_f4', 'f7xf13', 'f1xf4']#via XGboost AUC=0.5363
+    greedy6 = ['f1', 'f3xf6', 'sdev_f7', 'f1xf12', 'median_f2', 'diff1', 'c1_21', 'f6xf7', 'f7xf7', 'f7xf8', 'f1xf11', 'f2xf14', 'c1_1', 'f12', 'diff0', 'diff8', 'count_f1', 'f12xf13', 'f5xf8', 'c1_16', 'sdev_f10', 'median_f9', 'f13']
 
     quickload = False
     seed = 51176
-    nsamples = 'shuffle'
+    nsamples = -1
     holdout = True
     makeDiff = '1st'
-    dummy_encoding = None#['c1']
+    dummy_encoding = None# ['c1']
     labelEncode = ['c1']
     oneHotenc = ['c1']
     removeRare_freq = None
-    createVerticalFeatures = False#True
+    createVerticalFeatures = True
     logtransform = numericals
     polynomialFeatures = numericals#numericals
-    keepFeatures = None#greedy5
+    keepFeatures = None# greedy6
     dropFeatures = None# ['c1_0', 'c1_1', 'c1_2', 'c1_3', 'c1_4', 'c1_5', 'c1_6', 'c1_7', 'c1_8', 'c1_9', 'c1_10', 'c1_11', 'c1_12', 'c1_13', 'c1_14', 'c1_15', 'c1_16', 'c1_17', 'c1_18', 'c1_19', 'c1_20', 'c1_21', 'c1_22']
     Xtest, Xtrain, ytrain, idx,  sample_weight, Xval, yval = prepareDataset(quickload=quickload,seed=seed, nsamples=nsamples, holdout=holdout,keepFeatures = keepFeatures, dropFeatures= dropFeatures, dummy_encoding=dummy_encoding, labelEncode=labelEncode, oneHotenc= oneHotenc, removeRare_freq=removeRare_freq,  logtransform=logtransform, createVerticalFeatures=createVerticalFeatures,polynomialFeatures=polynomialFeatures,makeDiff=makeDiff)
     print list(Xtrain.columns)
@@ -284,57 +289,70 @@ if __name__ == "__main__":
 
     #model = sf.RandomForest(n_estimators=120,mtry=5,node_size=5,max_depth=6,n_jobs=2,verbose_level=0)
     #model = Pipeline([('scaler', StandardScaler()), ('model',ross1)])
-    model = RandomForestClassifier(n_estimators=100,max_depth=None,min_samples_leaf=5,n_jobs=2, max_features=Xtrain.shape[1]/3,oob_score=False)
-    #model = XgboostClassifier(n_estimators=100,learning_rate=0.01,max_depth=3, NA=0,subsample=.75,colsample_bytree=1.0,min_child_weight=5,n_jobs=2,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
-    #model = XgboostRegressor(n_estimators=300,learning_rate=0.3,max_depth=10, NA=0,subsample=.9,colsample_bytree=1.0,min_child_weight=5,n_jobs=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
+    #model = RandomForestClassifier(n_estimators=100,max_depth=None,min_samples_leaf=5,n_jobs=2, max_features=Xtrain.shape[1]/3,oob_score=False)
+    #model = XgboostClassifier(n_estimators=250,learning_rate=0.01,max_depth=3, NA=0,subsample=.75,colsample_bytree=1.0,min_child_weight=5,n_jobs=2,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
+    #model = XgboostClassifier(n_estimators=250,learning_rate=0.01,max_depth=4, NA=0,subsample=.75,colsample_bytree=1.0,min_child_weight=5,n_jobs=4,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
+    #model = XgboostRegressor(n_estimators=200,learning_rate=0.3,max_depth=10, NA=0,subsample=.9,colsample_bytree=1.0,min_child_weight=5,n_jobs=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
     #model = ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=2, max_features=3*Xtrain.shape[1]/3)
-    model = KNeighborsClassifier(n_neighbors=20)
+    #model = KNeighborsClassifier(n_neighbors=20)
     #model = LinearRegression()
-    #model = Pipeline([('scaler', StandardScaler()),('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', LinearRegression())])
-    #model = Pipeline([('scaler', StandardScaler()),('filter', GenericUnivariateSelect(f_regression, param=95,mode='percentile')), ('model', SVC(C=1))])
+    #model = Ridge()
+    model = LogisticRegression(C=10,penalty='l2')
+    #model = LogisticRegression(C=1,penalty='l1')
+    #model = SVC(C=1,kernel='linear',probability=True)
+    model = Pipeline([('scaler', StandardScaler()),('filter', GenericUnivariateSelect(f_regression, param=60,mode='percentile')), ('model', model)])
+    #model = BaggingRegressor(base_estimator=model,n_estimators=20,n_jobs=1,verbose=0,random_state=None,max_samples=0.9,max_features=0.9,bootstrap=False)
+    model = BaggingClassifier(base_estimator=model,n_estimators=10,n_jobs=1,verbose=0,random_state=None,max_samples=0.8,max_features=0.8,bootstrap=False)
+    #model = Pipeline([('scaler', StandardScler()),('filter', GenericUnivariateSelect(f_regression, param=95,mode='percentile')), ('model', SVC(C=1))])
     #model = Pipeline([('pca', PCA(n_components=10)),('model', Ridge())])
     #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')),('model', ElasticNet(alpha=.01,l1_ratio=0.001,max_iter=1000)) ])
     #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', PLSRegression(n_components=20))])
     #model = RidgeClassifier()
-    #model = Ridge()
-    #model = LogisticRegression(C=10,penalty='l2')
-    #model = LogisticRegression(C=100,penalty='l1')
+
+
+    #model = LinearSVC(C=1)
+    #model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=25,learning_rate=0.001,validation_split=0.2,batch_size=32,verbose=1,layers=[32], dropout=[0.1])
+    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
     #model = LinearSVC()
     #model = GaussianNB()
     #model = KerasNN(dims=Xtrain.shape[1]*0.9,nb_classes=2,nb_epoch=3,validation_split=0.0,batch_size=64,verbose=1,loss='categorical_crossentropy')
-    #model = BaggingClassifier(base_estimator=model,n_estimators=2,n_jobs=1,verbose=2,random_state=None,max_samples=0.9,max_features=0.9,bootstrap=True)
-    model = Pipeline([('scaler', StandardScaler()), ('m',model)])
+    #model = BaggingClassifier(base_estimator=model,n_estimators=10,n_jobs=1,verbose=2,random_state=None,max_samples=0.9,max_features=0.9,bootstrap=True)
+
     #cv = StratifiedKFold(ytrain,8,shuffle=True)
     # cv = KFold(X.shape[0], n_folds=folds,shuffle=True)
-    cv = StratifiedShuffleSplit(ytrain,n_iter=8,test_size=0.1)
+    cv = StratifiedShuffleSplit(ytrain,n_iter=32,test_size=0.2)
 
-    #parameters = {'n_estimators':[100],'max_depth':[3],'learning_rate':[0.01],'subsample':[0.5],'colsample_bytree':[1.0],'min_child_weight':[10,20,50,100]}
+    #parameters = {'n_estimators':[250,300],'max_depth':[3,4],'learning_rate':[0.01],'subsample':[0.5,0.75],'colsample_bytree':[1.0,0.75],'min_child_weight':[5]}
     #parameters = {'n_estimators':[150],'min_samples_leaf':[5,10,15],'max_features':[100],'criterion':['entropy']}
     #parameters = {'m__nb_epoch':[10,20,30,40],'m__learning_rate':[0.2,0.02]}
-    parameters = {'m__n_neighbors':[5,10,15]}
-    #parameters = {'filter__param':[99,95]}
-    #parameters = {'m__C':[10],'m__penalty':['l2']}
+    #parameters = {'m__n_neighbors':[5,10,15]}
+    #parameters = {'filter__param':[65,70,75,80,85,90],'model__C':[10,1],'model__penalty':['l2','l1']}
+    #parameters = {'m__C':[10,1],'m__penalty':['l2','l1']}
     #parameters = {'m__C':[100],'m__gamma':[1.0/Xtrain.shape[1]]}
-    model = makeGridSearch(model, Xtrain, ytrain, n_jobs=4, refit=True, cv=cv, scoring='roc_auc',parameters=parameters, random_iter=-1)
+    #model = makeGridSearch(model, Xtrain, ytrain, n_jobs=4, refit=True, cv=cv, scoring='roc_auc',parameters=parameters, random_iter=-1)
     print model
-    #greedyFeatureSelection(model, Xtrain, ytrain, itermax=30, itermin=20, pool_features=None, start_features=greedy4,verbose=True, cv=cv, n_jobs=4, scoring_func='roc_auc')
+    #greedyFeatureSelection(model, Xtrain, ytrain, itermax=30, itermin=20, pool_features=None, start_features=['f1'],verbose=True, cv=cv, n_jobs=4, scoring_func='roc_auc')
 
     #Xtrain, ytrain = mergeWithXval(Xtrain,Xval,ytrain,yval)
     print Xtrain.shape
-    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True), scoring='roc_auc', n_jobs=8,trainFull=True,verbose=True)
+    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True), scoring='roc_auc', n_jobs=1,trainFull=True,verbose=True)
     #analyzeLearningCurve(model, Xtrain, ytrain, cv=cv, score_func='roc_auc')
     #model = buildXvalModel(model,Xtrain,ytrain,sample_weight=None,class_names=None,refit=True,cv=cv)
 
     model.fit(Xtrain,ytrain)
-    yval_pred = model.predict_proba(Xval)[:,1]
-    print yval_pred
+
+    if not hasattr(model,'predict_proba'):
+        yval_pred = model.predict(Xval)
+    else:
+        yval_pred = model.predict_proba(Xval)[:,1]
+
     print "Eval-score: %5.3f"%(roc_auc_score(yval,yval_pred))
 
     print "Training the final model (incl. Xval.)"
     Xtrain, ytrain = mergeWithXval(Xtrain,Xval,ytrain,yval)
     model.fit(Xtrain,ytrain)
 
-    makePredictions(model,Xtest,idx=idx, filename='./submissions/numJan16a.csv')
+    makePredictions(model,Xtest,idx=idx, filename='./submissions/numFeb21a.csv')
 
     plt.show()
     print("Model building done in %fs" % (time() - t0))

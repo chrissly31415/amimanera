@@ -5,7 +5,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 import numpy as np
 from keras.models import Sequential
-from keras.optimizers import SGD
+from keras.optimizers import SGD,Adagrad,RMSprop
 from keras.layers.core import Dense, Dropout, Activation, Reshape, Merge
 from keras.layers.normalization import BatchNormalization
 from keras.layers.advanced_activations import PReLU
@@ -46,8 +46,6 @@ Rossmann 3d place: https://github.com/entron/category-embedding-rossmann/blob/ma
 
 
 def RMSPE(y_true, y_pred):
-    # y_true = T.exp(y_true)
-    # y_pred = T.exp(y_pred)
     loss = T.sqrt(T.sqr((y_true - y_pred) / y_true).mean(axis=-1))
     return loss
 
@@ -57,54 +55,9 @@ def RMSE(y_true, y_pred):
     return loss
 
 
-class KerasNN_OLD(Sequential, BaseEstimator):
-    def __init__(self, dims=93, nb_classes=9, nb_epoch=50, learning_rate=0.004, validation_split=0.0, batch_size=128,
-                 verbose=1):
-        Sequential.__init__(self)
-        self.dims = dims
-        self.nb_classes = nb_classes
-        self.nb_epoch = nb_epoch
-        self.learning_rate = learning_rate
-        self.validation_split = validation_split
-        self.batch_size = batch_size
-        self.verbose = verbose
-        print('Initializing Keras Deep Net with %d features and %d classes' % (self.dims, self.nb_classes))
-
-        self.add(Dropout(0.15))
-        self.add(Dense(dims, 512, activation='tanh'))
-        self.add(BatchNormalization((512,)))
-        self.add(Dropout(0.5))
-
-        self.add(Dense(512, 256))
-        self.add(PReLU((256,)))
-        self.add(BatchNormalization((256,)))
-        self.add(Dropout(0.3))
-
-        self.add(Dense(256, 128))
-        self.add(PReLU((128,)))
-        self.add(BatchNormalization((128,)))
-        self.add(Dropout(0.1))
-
-        self.add(Dense(128, nb_classes))
-        self.add(Activation('softmax'))
-
-        sgd = SGD(lr=self.learning_rate, decay=1e-7, momentum=0.99, nesterov=True)
-        self.compile(loss='categorical_crossentropy', optimizer=sgd)
-
-    def fit(self, X, y):
-        y = np_utils.to_categorical(y)
-        Sequential.fit(self, X, y, nb_epoch=self.nb_epoch, batch_size=self.batch_size,
-                       validation_split=self.validation_split)
-
-    def predict_proba(self, Xtest):
-        # ypred = Sequential.predict_proba(self,Xtest,batch_size=128,verbose=1)
-        ypred = Sequential.predict_proba(self, Xtest, batch_size=self.batch_size, verbose=self.verbose)
-        print(ypred.shape)
-        return ypred
-
 class KerasNN(BaseEstimator):
     def __init__(self, dims=66, nb_classes=1, nb_epoch=30, learning_rate=0.5, validation_split=0.0, batch_size=64,
-                 loss='categorical_crossentropy', layers=[32,32], dropout=[0.2,0.2],verbose=1):
+                 loss='categorical_crossentropy', layers=[32,32], activation='relu',  dropout=[0.2,0.2],verbose=1):
 
         self.dims = dims
         self.nb_classes = nb_classes
@@ -115,30 +68,50 @@ class KerasNN(BaseEstimator):
         self.batch_size = batch_size
         self.loss = loss
         self.layers = layers
+        self.activation = activation
         self.dropout = dropout
         self.verbose = verbose
 
         self.model = Sequential()
         # Keras model
-        for layer,dropout in zip(self.layers,self.dropout):
-            self.model.add(Dense(output_dim=layer, input_dim=dims, init='lecun_uniform'))
-            self.model.add(Activation('relu'))
+        for i,dropout in enumerate(self.dropout):
+            if i>0:
+                dims = self.layers[i-1]
+            self.model.add(Dense(output_dim=layers[i], input_dim=dims, init='lecun_uniform'))
+            #self.model.add(Activation('sigmoid'))
+            #self.model.add(Activation('prelu'))
+            self.model.add(Activation(self.activation))
             self.model.add(BatchNormalization())
             self.model.add(Dropout(dropout))
 
+        if 'rmse' in loss or 'mean_absolute_error' in loss:
+            self.model.add(Dense(output_dim=1))
+            self.model.add(Activation('linear'))
+            #optimizer = Adagrad(lr=self.learning_rate) # 0.01
+            #optimizer = Adagrad()
+            print("Learning rate:",self.learning_rate)
+            optimizer = RMSprop(lr=self.learning_rate) # 0.001
+            #optimizer = RMSprop()
+            self.model.compile(loss='mean_absolute_error', optimizer=optimizer)
 
-        self.model.add(Dense(output_dim=nb_classes))
-        self.model.add(Activation('softmax'))
+        if 'categorical_crossentropy' in loss:
+            self.model.add(Dense(output_dim=nb_classes))
+            self.model.add(Activation('softmax'))
+            self.model.compile(loss=loss, optimizer="adadelta")
+
+        # tanh better for regression?
+
 
         #sgd = SGD(lr=self.learning_rate, decay=1e-7, momentum=0.99, nesterov=True)
         print('Compiling Keras Deep Net with loss: %s' % (str(loss)))
-        self.model.compile(loss=loss, optimizer="adadelta")
+
 
     def fit(self, X, y, sample_weight=None):
         print('Fitting  Keras Deep Net for regression with batch_size %d, epochs %d  and learning rate: %f' % (
         self.batch_size, self.nb_epoch, self.learning_rate))
-        y = np_utils.to_categorical(y)
-        self.classes_ = np.unique(y)
+        if self.nb_classes>1:
+            y = np_utils.to_categorical(y)
+            self.classes_ = np.unique(y)
         self.model.fit(X, y, nb_epoch=self.nb_epoch, batch_size=self.batch_size,
                        validation_split=self.validation_split)
 
@@ -148,111 +121,12 @@ class KerasNN(BaseEstimator):
 
     def predict(self, Xtest):
         ypred = self.model.predict(Xtest, batch_size=self.batch_size, verbose=self.verbose)
-        return np_utils.probas_to_classes(ypred)
-
-class KerasEnsembler(BaseEstimator): # AUC 0.52558
-    def __init__(self, dims=66, nb_classes=1, nb_epoch=30, learning_rate=0.5, validation_split=0.0, batch_size=64,
-                 loss='categorical_crossentropy', verbose=1):
-
-        self.dims = dims
-        self.nb_classes = nb_classes
-        self.nb_epoch = nb_epoch
-        self.learning_rate = learning_rate
-        self.validation_split = validation_split
-        self.batch_size = batch_size
-        self.loss = loss
-        self.verbose = verbose
-
-        self.model = Sequential()
-        # Keras model
-        self.model.add(Dense(output_dim=16, input_dim=dims, init='lecun_uniform'))
-        self.model.add(Activation('relu'))
-        self.model.add(BatchNormalization())
-        self.model.add(Dropout(0.2))
-
-        self.model.add(Dense(output_dim=16, init='lecun_uniform'))
-        self.model.add(Activation('relu'))
-        self.model.add(BatchNormalization())
-        self.model.add(Dropout(0.2))
-
-        self.model.add(Dense(output_dim=nb_classes))
-        self.model.add(Activation('softmax'))
-
-        #sgd = SGD(lr=self.learning_rate, decay=1e-7, momentum=0.99, nesterov=True)
-        print('Compiling Keras Deep Net with loss: %s' % (str(loss)))
-        self.model.compile(loss=loss, optimizer="adadelta")
-
-    def fit(self, X, y, sample_weight=None):
-        print('Fitting  Keras Deep Net for regression with batch_size %d, epochs %d  and learning rate: %f' % (
-        self.batch_size, self.nb_epoch, self.learning_rate))
-        y = np_utils.to_categorical(y)
-        self.model.fit(X, y, nb_epoch=self.nb_epoch, batch_size=self.batch_size,
-                       validation_split=self.validation_split)
-
-    def predict_proba(self, Xtest):
-        ypred = self.model.predict_proba(Xtest, batch_size=self.batch_size, verbose=self.verbose)
+        if self.nb_classes>1:
+            ypred = np_utils.probas_to_classes(ypred)
+        else:
+            ypred = ypred.flatten()
         return ypred
 
-    def predict(self, Xtest):
-        ypred = self.model.predict(Xtest, batch_size=self.batch_size, verbose=self.verbose)
-        return np_utils.probas_to_classes(ypred)
-
-
-class KerasNNReg(BaseEstimator):
-    def __init__(self, dims=66, nb_classes=1, nb_epoch=30, learning_rate=0.5, validation_split=0.0, batch_size=64,
-                 loss='mean_absolute_error', verbose=1):
-        self.dims = dims
-        self.nb_classes = nb_classes
-        self.nb_epoch = nb_epoch
-        self.learning_rate = learning_rate
-        self.validation_split = validation_split
-        self.batch_size = batch_size
-        self.loss = loss
-        self.verbose = verbose
-
-        # Embedding
-        # model_store = Sequential()
-        # model_store.add(Embedding(1115, 50, input_length=1))
-        # model_store.add(Reshape(dims=(50,)))
-        # models.append(model_store)
-
-
-        self.model = Sequential()
-        # self.model.add(Merge(models, mode='concat'))
-        # Keras model
-        self.model.add(Dense(output_dim=1024, input_dim=dims, init='uniform'))
-        self.model.add(Activation('sigmoid'))
-        self.model.add(BatchNormalization())
-        #self.model.add(Dropout(0.0))
-
-        self.model.add(Dense(output_dim=512, init='uniform'))
-        self.model.add(Activation('sigmoid'))
-        self.model.add(BatchNormalization())
-        #self.model.add(Dropout(0.0))
-
-        #self.model.add(Dense(output_dim=256, init='uniform'))
-        #self.model.add(Activation('relu'))
-        # self.model.add(Dropout(0.1))
-
-        self.model.add(Dense(1))
-        # self.model.add(Activation('sigmoid'))
-
-        print('Compiling Keras Deep Net with loss: %s' % (str(loss)))
-        self.model.compile(loss=loss, optimizer='rmsprop')
-
-    def fit(self, X, y, sample_weight=None):
-        print('Fitting  Keras Deep Net for regression with batch_size %d, epochs %d  and learning rate: %f' % (
-        self.batch_size, self.nb_epoch, self.learning_rate))
-        self.model.fit(X, y, nb_epoch=self.nb_epoch, batch_size=self.batch_size,
-                       validation_split=self.validation_split)
-
-    def predict_proba(self, Xtest):
-        ypred = self.model.predict_proba(Xtest, batch_size=self.batch_size, verbose=self.verbose)
-        return ypred
-
-    def predict(self, Xtest):
-        ypred = self.model.predict(Xtest, batch_size=self.batch_size, verbose=self.verbose)
-        return ypred
 
 class KerasMP(BaseEstimator):
     def __init__(self, dims=66, nb_classes=1, nb_epoch=30, learning_rate=0.5, validation_split=0.0, batch_size=64,
