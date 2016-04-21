@@ -7,11 +7,11 @@ from rpy2.robjects import pandas2ri
 from rpy2.robjects.packages import importr
 import numpy as np
 
-def R_var_importance(nsamples=40000):
+def R_var_importance(nsamples=40000,data_store=None):
     base = importr('base')
     ###################################################
     # load dataframe
-    store = pd.HDFStore('./data/store.h5')
+    store = pd.HDFStore(data_store)
     print store
 
     #pandas2ri.activate()
@@ -61,4 +61,4 @@ def R_var_importance(nsamples=40000):
 
 
 if __name__ == "__main__":
-    R_var_importance(nsamples=30000)
+    R_var_importance(nsamples=30000,data_store = './data/store_db1b.h5')

@@ -17,7 +17,7 @@ http://mlwave.com/kaggle-ensembling-guide/
 from home_depot import *
 from FullModel import *
 
-import sys
+import sys,os
 import itertools
 from random import randint
 
@@ -27,110 +27,138 @@ from sklearn.externals.joblib import Parallel, delayed, logger
 from sklearn.base import clone
 from sklearn import preprocessing
 
+
 def createModels():
 
     global idx
     ensemble = []
-
     """
-    #XGB0 RMSE = 0.4645
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_db1.h5',
+     #creating best DF -> './data/store_db1b.h5'
+    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_db1b.h5',
                                                                            seed=42,
-                                                                           nsamples=-1, holdout=True,
+                                                                           nsamples=-1,
+                                                                           #holdout='holdout_chrisslz.csv',
+                                                                           holdout=False,#use holdout=False for full Xtrain
                                                                            keepFeatures=None,
                                                                            dropFeatures=['product_title','product_description','product_info'],
-                                                                           labelEncode=['search_term'],
+                                                                           labelEncode=['search_term']+[u'MFG Brand Name'],
                                                                            stemmData=None,
                                                                            createCommonWords=True,
-                                                                           useAttributes=None,
-                                                                           computeSim=None,#{'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 2), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
+                                                                           useAttributes=[u'MFG Brand Name'],
+                                                                           createVerticalFeatures=True,
+                                                                           computeSim={'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
                                                                            doTFIDF=['search_term','product_title'],
                                                                            n_components=[50,50],
-                                                                           cleanData=None,
+                                                                           cleanData=True,
                                                                            merge_product_infos = True,
-                                                                           computeAddFeates=False)
+                                                                           spellchecker = True,
+                                                                           word2vecFeates= True,
+                                                                           computeAddFeates=True)
 
+    os.rename('./data/store.h5','./data/store_db1b.h5')
+    Xtrain.to_csv("Xtrain_chrisslz_db1b.csv",index=False)
+    Xtest.to_csv("Xtest_chrisslz_db1b.csv",index=False)
+
+
+     #creating best DF -> './data/store_db1c.h5'
+    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_db1c.h5',
+                                                                           seed=42,
+                                                                           nsamples=-1,
+                                                                           use_new_spellchecker=True,
+                                                                           holdout='holdout_chrisslz.csv',
+                                                                           #holdout=False,#use holdout=False for full Xtrain
+                                                                           keepFeatures=None,
+                                                                           dropFeatures=['product_title','product_description','product_info'],
+                                                                           labelEncode=['search_term']+[u'MFG Brand Name'],
+                                                                           stemmData=None,
+                                                                           createCommonWords=True,
+                                                                           useAttributes=[u'MFG Brand Name'],
+                                                                           createVerticalFeatures=True,
+                                                                           computeSim={'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
+                                                                           doTFIDF=['search_term','product_title'],
+                                                                           n_components=[50,50],
+                                                                           cleanData=True,
+                                                                           merge_product_infos = True,
+                                                                           spellchecker = True,
+                                                                           word2vecFeates= True,
+                                                                           computeAddFeates=True)
+
+    os.rename('./data/store.h5','./data/store_db1c.h5')
+    #Xtrain.to_csv("Xtrain_chrisslz_spellcheck.csv",index=False)
+    #Xtest.to_csv("Xtest_chrisslz_spellcheck.csv",index=False)
+
+
+
+    #XGB1b RMSE = 0.457 EVAL = ? PL = 0.4548 !
+    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1b.h5')
+    model = XgboostRegressor(n_estimators=2000,learning_rate=0.005,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
+    xmodel = XModel("xgb1b_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
+    ensemble.append(xmodel)
+
+    #XGB1c RMSE = 0.457 EVAL = ? PL = 0.4548 !
+    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1c.h5')
+    model = XgboostRegressor(n_estimators=2000,learning_rate=0.005,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
+    xmodel = XModel("xgb1c_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
+    ensemble.append(xmodel)
+
+    #XRF3 RMSE = 0.459 EVAL=0.461
+    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1b.h5')
+    model =  ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=2, max_features=3*Xtrain.shape[1]/4)
+    xmodel = XModel("xrf3_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
+    ensemble.append(xmodel)
+
+
+    #XRF4 RMSE = 0.459 EVAL=0.462
+    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1c.h5')
+    model =  ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=2, max_features=3*Xtrain.shape[1]/4)
+    xmodel = XModel("xrf4_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
+    ensemble.append(xmodel)
+
+
+    #XGB0 RMSE = 0.4645
+    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1b.h5')
     model = XgboostRegressor(n_estimators=200,learning_rate=0.05,max_depth=10, NA=0,subsample=.75,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
     xmodel = XModel("xgb0_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
     ensemble.append(xmodel)
 
 
-    #XGB1 RMSE = 0.4645
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_db1.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout=True,
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=['product_title','product_description','product_info'],
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           useAttributes=None,
-                                                                           computeSim={'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=['search_term','product_title'],
-                                                                           n_components=[50,50],
-                                                                           cleanData=True,
-                                                                           merge_product_infos = True,
-                                                                           computeAddFeates=True)
-
-    model = XgboostRegressor(n_estimators=200,learning_rate=0.05,max_depth=10, NA=0,subsample=.75,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    xmodel = XModel("xgb1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-
-
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_db1.h5',
-                                                                           holdout=False,
-                                                                           seed=42,
-                                                                           nsamples=-1,
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=['product_title','product_description','product_info'],
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           useAttributes=None,
-                                                                           computeSim={'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=['search_term','product_title'],
-                                                                           n_components=[50,50],
-                                                                           cleanData=True,
-                                                                           merge_product_infos = True,
-                                                                           computeAddFeates=True,
-                                                                           spellchecker=False)
-
-    Xtrain.to_csv("Xtrain_xgb1_f8r1.csv",index=False)
-    Xtest.to_csv("Xtest_xgb1_f8r1.csv",index=False)
-
-
-
-
-
-    #XGB2 RMSE = 0.460  EVAL=0.460 PL=0.457
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_db1.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout=True,
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=['product_title','product_description','product_info'],
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           useAttributes=None,
-                                                                           computeSim={'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=['search_term','product_title'],
-                                                                           n_components=[50,50],
-                                                                           cleanData=True,
-                                                                           merge_product_infos = True,
-                                                                           computeAddFeates=True,
-                                                                           spellchecker=False)
-
+    #bagxgb1 RMSE = 0.456 EVAL = 0.457  time for n_est = 10 ->
+    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1b.h5')
     model = XgboostRegressor(n_estimators=800,learning_rate=0.01,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    xmodel = XModel("xgb2_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
+    model = BaggingRegressor(model,n_estimators=10, max_samples=1.0, max_features=0.9, bootstrap=True,verbose=1)
+    xmodel = XModel("bagxgb1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
     ensemble.append(xmodel)
 
 
+    #NN1
+    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1b.h5')
+    model  = KerasNN(dims=Xtrain.shape[1],nb_classes=1,nb_epoch=35,learning_rate=1E-4,validation_split=0.0,batch_size=128,verbose=1,activation='sigmoid', layers=[260,480], dropout=[0.17,0.16],loss='mse')
+    model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
+    #model = BaggingRegressor(model,n_estimators=10, max_samples=1.0, max_features=1.0)
+    xmodel = XModel("nn1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
+    ensemble.append(xmodel)
+
+    #NN2
+    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1b.h5')
+    model  = KerasNN(dims=Xtrain.shape[1],nb_classes=1,nb_epoch=20,learning_rate=1E-4,validation_split=0.0,batch_size=512,verbose=1,activation='sigmoid', layers=[256,256], dropout=[0.1,0.0],loss='mse') # best
+    model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
+    #model = BaggingRegressor(model,n_estimators=10, max_samples=1.0, max_features=1.0)
+    xmodel = XModel("nn2_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
+    ensemble.append(xmodel)
+
+    #NN1 bag
+    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1b.h5')
+    model  = KerasNN(dims=Xtrain.shape[1],nb_classes=1,nb_epoch=35,learning_rate=1E-4,validation_split=0.0,batch_size=128,verbose=1,activation='sigmoid', layers=[260,480], dropout=[0.17,0.16],loss='mse')
+    model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
+    model = BaggingRegressor(model,n_estimators=10, max_samples=1.0, max_features=1.0)
+    xmodel = XModel("bagnn1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
+    ensemble.append(xmodel)
 
 
     #XGB2b RMSE =   EVAL= PL=
     Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,
                                                                            seed=42,
-                                                                           nsamples=-1, holdout=True,
+                                                                           nsamples=-1, holdout='holdout_chrisslz.csv',
                                                                            keepFeatures=None,
                                                                            dropFeatures=['product_title','product_description','product_info'],
                                                                            labelEncode=['search_term'],
@@ -150,33 +178,11 @@ def createModels():
     ensemble.append(xmodel)
 
 
-    #XGB2c RMSE = 0.463   EVAL=0.463 PL=
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout=True,
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=['product_title','product_description','product_info'],
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           useAttributes=None,
-                                                                           computeSim={'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': CountVectorizer(binary=True, min_df=3,  max_features=None, lowercase=True,analyzer="word",ngram_range=(1,2),stop_words=stop_words,strip_accents='unicode') },
-                                                                           doTFIDF=['search_term','product_title'],
-                                                                           n_components=[50,50],
-                                                                           cleanData=True,
-                                                                           merge_product_infos = True,
-                                                                           computeAddFeates=True,
-                                                                           spellchecker=False)
-
-    model = XgboostRegressor(n_estimators=800,learning_rate=0.01,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    xmodel = XModel("xgb2c_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-
 
     #XGB3 RMSE = 0.467
     Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_db2.h5',
                                                                            seed=42,
-                                                                           nsamples=-1, holdout=True,
+                                                                           nsamples=-1, holdout='holdout_chrisslz.csv',
                                                                            keepFeatures=None,
                                                                            dropFeatures=['product_title','product_description','product_info'],
                                                                            labelEncode=['search_term','MFG Brand Name','Material'],
@@ -199,11 +205,11 @@ def createModels():
 
 
     #XGB4 RMSE = 0.47
-    attribute_list = [u'MFG Brand Name',u'Material']
+    attribute_list = [u'MFG Brand Name']
     #attribute_list = [u'MFG Brand Name',u'Material',u'Product Width (in.)',u'Color Family',u'Product Height (in.)',u'Product Depth (in.)',u'Product Weight (lb.)',u'Color/Finish',u'Certifications and Listings']
     Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_large.h5',
                                                                            seed=42,
-                                                                           nsamples=-1, holdout=True,
+                                                                           nsamples=-1, holdout='holdout_chrisslz.csv',
                                                                            keepFeatures=None,
                                                                            dropFeatures=[u'product_title',u'product_description',u'product_info']+ attribute_list,
                                                                            labelEncode=['search_term'],
@@ -211,7 +217,7 @@ def createModels():
                                                                            createCommonWords=True,
                                                                            computeSim = None,#{'columns': ['product_info','search_term'],'doSVD': 200, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
                                                                            doTFIDF=['search_term','product_info'],
-                                                                           n_components=[200,500],
+                                                                           n_components=[200,400],
                                                                            cleanData=True,
                                                                            merge_product_infos = [u'product_title',u'product_description'] +attribute_list,
                                                                            spellchecker = True,
@@ -228,10 +234,10 @@ def createModels():
 
 
 
-    #XGB5 RMSE =
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_db4.h5',
+    #XGB5 RMSE = ? somehow is doe not run through??
+    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,
                                                                            seed=42,
-                                                                           nsamples=-1, holdout=True,
+                                                                           nsamples=-1, holdout='holdout_chrisslz.csv',
                                                                            keepFeatures=None,
                                                                            dropFeatures=[u'product_title',u'product_description',u'product_info'],
                                                                            labelEncode=['search_term'],
@@ -239,13 +245,11 @@ def createModels():
                                                                            createCommonWords=True,
                                                                            oneHotenc = None,
                                                                            computeSim = None,#{'columns': ['product_info','search_term'],'doSVD': 500, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=None,#['search_term','product_info'],
-                                                                           n_components=None,#[75,200],
+                                                                           doTFIDF={'columns': ['search_term','product_title'],'vectorizer': TfidfVectorizer(min_df=100,  max_features=None, strip_accents='unicode', analyzer='char',ngram_range=(1, 2), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = None,token_pattern=r'\w{1,}')},
+                                                                           n_components=[75,300],
                                                                            cleanData=True,
-                                                                           merge_product_infos = [u'product_title',u'product_description'] ,
                                                                            spellchecker = True,
                                                                            useAttributes = None,
-                                                                           word2vecFeates_new = True,
                                                                            removeCorr = False,
                                                                            computeAddFeates = False,
                                                                            computeAddFeates_new=False,
@@ -259,7 +263,7 @@ def createModels():
     #XGB6 RMSE =
     Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_db5.h5',
                                                                            seed=42,
-                                                                           nsamples=-1, holdout=True,
+                                                                           nsamples=-1, holdout='holdout_chrisslz.csv',
                                                                            keepFeatures=None,
                                                                            dropFeatures=[u'product_title',u'product_description',u'product_info'],
                                                                            labelEncode=['search_term'],
@@ -280,44 +284,16 @@ def createModels():
                                                                            query_correction=False)
 
     model = XgboostRegressor(n_estimators=800,learning_rate=0.01,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    xmodel = XModel("xgb6_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=Xtrain['search_term'],bag_mode=False)
-    ensemble.append(xmodel)
-
-
-    #XGB7 RMSE =
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_db5.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout=True,
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=[u'product_title',u'product_description',u'product_info'],
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=None,#True,
-                                                                           createCommonWords=False,#True,
-                                                                           oneHotenc = None,
-                                                                           computeSim = None,#{'columns': ['product_title','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=None,#['search_term','product_info'],
-                                                                           n_components=None,#[75,75],
-                                                                           cleanData=None,
-                                                                           merge_product_infos = None,#[u'product_title',u'product_description'],
-                                                                           spellchecker = False,
-                                                                           useAttributes = None,
-                                                                           word2vecFeates = False,
-                                                                           removeCorr = False,
-                                                                           computeAddFeates = False,
-                                                                           computeAddFeates_new=False,
-                                                                           query_correction=False)
-
-    model = XgboostRegressor(n_estimators=800,learning_rate=0.01,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    xmodel = XModel("xgb7_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=Xtrain['search_term'],bag_mode=False)
+    xmodel = XModel("xgb6_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
     ensemble.append(xmodel)
 
 
 
     #XRF2
     attribute_list = [u'MFG Brand Name',u'Material']
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload='./data/store_db3.h5',
+    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_db3.h5',
                                                                            seed=42,
-                                                                           nsamples=-1, holdout=True,
+                                                                           nsamples=-1, holdout='holdout_chrisslz.csv',
                                                                            keepFeatures=None,
                                                                            dropFeatures=[u'product_title',u'product_description',u'product_info']+ attribute_list,
                                                                            labelEncode=['search_term'],
@@ -336,15 +312,14 @@ def createModels():
                                                                            computeAddFeates_new=True,
                                                                            query_correction=False)
     model =  ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=2, max_features=3*Xtrain.shape[1]/3)
-    xmodel = XModel("xrf2_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=Xtrain['search_term'],bag_mode=False)
+    xmodel = XModel("xrf2_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
     ensemble.append(xmodel)
-
 
 
     #XSVR2 RMSE =
     Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload='./data/store_db1.h5',
                                                                            seed=42,
-                                                                           nsamples=-1, holdout=True,
+                                                                           nsamples=-1, holdout='holdout_chrisslz.csv',
                                                                            keepFeatures=None,
                                                                            dropFeatures=['product_title','product_description','product_info'],
                                                                            labelEncode=['search_term'],
@@ -358,173 +333,33 @@ def createModels():
                                                                            merge_product_infos = True,
                                                                            computeAddFeates=True)
 
-    model = SVR(C=1.0)
+    model = KernelRidge(kernel='linear')
     model = Pipeline([('scaler', StandardScaler()), ('model',model)])
-    xmodel = XModel("svr1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=Xtrain['search_term'],bag_mode=False)
+    xmodel = XModel("svr1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
     ensemble.append(xmodel)
 
 
     #LR1 RMSE=4735
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload='./data/store_db1.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout=True,
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=['product_title','product_description','product_info'],
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           useAttributes=None,
-                                                                           computeSim={'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=['search_term','product_title'],
-                                                                           n_components=[50,50],
-                                                                           cleanData='load',
-                                                                           merge_product_infos = True,
-                                                                           computeAddFeates=True)
-    model = Pipeline([('scaler', StandardScaler()), ('nn', LinearRegression())])
-    xmodel = XModel("lr1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=Xtrain['search_term'],bag_mode=False)
+    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload='./data/store_db1b.h5')
+    model = Pipeline([('scaler', StandardScaler()), ('nn', RidgeCV())])
+    xmodel = XModel("lr1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
     ensemble.append(xmodel)
-
-
-    #XRF1
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload='./data/store_db1.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout=True,
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=['product_title','product_description','product_info'],
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           useAttributes=None,
-                                                                           computeSim={'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=['search_term','product_title'],
-                                                                           n_components=[50,50],
-                                                                           cleanData='load',
-                                                                           merge_product_infos = True,
-                                                                           computeAddFeates=True)
-    model =  ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=2, max_features=3*Xtrain.shape[1]/3)
-    xmodel = XModel("xrf1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=Xtrain['search_term'],bag_mode=False)
-    ensemble.append(xmodel)
-
 
     #RF1
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload='./data/store_db1.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout=True,
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=['product_title','product_description','product_info'],
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           useAttributes=None,
-                                                                           computeSim={'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=['search_term','product_title'],
-                                                                           n_components=[50,50],
-                                                                           cleanData='load',
-                                                                           merge_product_infos = True,
-                                                                           computeAddFeates=True)
+    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload='./data/store_db1b.h5')
     model = RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=2, max_features=Xtrain.shape[1]/3,oob_score=False)
-    xmodel = XModel("rf1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=Xtrain['search_term'],bag_mode=False)
+    xmodel = XModel("rf1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
     ensemble.append(xmodel)
 
 
     #KNN1
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload='./data/store_db1.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout=True,
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=['product_title','product_description','product_info'],
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           useAttributes=None,
-                                                                           computeSim={'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=['search_term','product_title'],
-                                                                           n_components=[50,50],
-                                                                           cleanData='load',
-                                                                           merge_product_infos = True,
-                                                                           computeAddFeates=True)
+    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload='./data/store_db1b.h5')
     model = KNeighborsRegressor(n_neighbors=30)
-    xmodel = XModel("knn1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=Xtrain['search_term'],bag_mode=False)
-    ensemble.append(xmodel)
-
-
-    #NN1
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload='./data/store_db1.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout=True,
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=['product_title','product_description','product_info'],
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           useAttributes=None,
-                                                                           computeSim={'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=['search_term','product_title'],
-                                                                           n_components=[50,50],
-                                                                           cleanData='load',
-                                                                           merge_product_infos = True,
-                                                                           computeAddFeates=True)
-
-    model  = KerasNN(dims=Xtrain.shape[1],nb_classes=1,nb_epoch=20,learning_rate=0.01,validation_split=0.0,batch_size=64,verbose=1,activation='relu', layers=[256]*2, dropout=[0.05]*2,loss='rmse')
-    model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
-    model = BaggingRegressor(model,n_estimators=10, max_samples=1.0, max_features=1.0)
-    xmodel = XModel("nn1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=Xtrain['search_term'],bag_mode=False)
-    ensemble.append(xmodel)
-
-    """
-    #NN1b
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload='./data/store_db1.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout=True,
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=['product_title','product_description','product_info'],
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           useAttributes=None,
-                                                                           computeSim={'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=['search_term','product_title'],
-                                                                           n_components=[50,50],
-                                                                           cleanData='load',
-                                                                           merge_product_infos = True,
-                                                                           computeAddFeates=True)
-
-    model  = KerasNN(dims=Xtrain.shape[1],nb_classes=1,nb_epoch=30,learning_rate=0.0001,validation_split=0.0,batch_size=64,verbose=1,activation='relu', layers=[512]*3, dropout=[0.25]*3,loss='rmse')
-    model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
-    model = BaggingRegressor(model,n_estimators=30, max_samples=1.0, max_features=1.0)
-    xmodel = XModel("nn1b_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=Xtrain['search_term'],bag_mode=False)
+    xmodel = XModel("knn1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
     ensemble.append(xmodel)
     """
 
-    #NN2
-    attribute_list = [u'MFG Brand Name',u'Material']
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload='./data/store_large.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout=True,
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=[u'product_title',u'product_description',u'product_info']+ attribute_list,
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           computeSim = None,#{'columns': ['product_info','search_term'],'doSVD': 200, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=['search_term','product_info'],
-                                                                           n_components=[200,500],
-                                                                           cleanData=True,
-                                                                           merge_product_infos = [u'product_title',u'product_description'] +attribute_list,
-                                                                           spellchecker = True,
-                                                                           useAttributes = attribute_list,
-                                                                           word2vecFeates = True,
-                                                                           removeCorr = True,
-                                                                           computeAddFeates = False,
-                                                                           computeAddFeates_new=False,
-                                                                           query_correction=False)
 
-    model  = KerasNN(dims=Xtrain.shape[1],nb_classes=1,nb_epoch=20,learning_rate=0.01,validation_split=0.0,batch_size=64,verbose=1,activation='tanh', layers=[256]*2, dropout=[0.05]*2,loss='rmse')
-    model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
-    #model = BaggingRegressor(model,n_estimators=10, max_samples=1.0, max_features=1.0)
-    xmodel = XModel("nn2_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=Xtrain['search_term'],bag_mode=False)
-    ensemble.append(xmodel)
-    """
 
     for m in ensemble:
         m.summary()
@@ -969,9 +804,9 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
     # blender=RandomForestRegressor(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
     #blender = XgboostRegressor(n_estimators=200,learning_rate=0.03,max_depth=2,subsample=.5,n_jobs=4,min_child_weight=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1)#0.216854
     #print oobpreds.shape
-    model = KerasNN(dims=oobpreds.shape[1],nb_classes=1,nb_epoch=30,learning_rate=0.005,validation_split=0.1,batch_size=64,verbose=1,activation='relu', layers=[64]*2, dropout=[0.5]*2,loss='rmse')
+    model = KerasNN(dims=oobpreds.shape[1],nb_classes=1,nb_epoch=30,learning_rate=0.005,validation_split=0.1,batch_size=64,verbose=1,activation='relu', layers=[32]*2, dropout=[0.0]*2,loss='rmse')
     blender = Pipeline([('scaler', StandardScaler()), ('model',model)])#0.206
-    blender = BaggingRegressor(base_estimator=blender, n_estimators=20, n_jobs=1, verbose=2, random_state=None,max_samples=1.0, max_features=1.0, bootstrap=False)
+    #blender = BaggingRegressor(base_estimator=blender, n_estimators=20, n_jobs=1, verbose=2, random_state=None,max_samples=1.0, max_features=1.0, bootstrap=False)
 
     if not skipCV:
         # blender = CalibratedClassifierCV(baseblender, method='sigmoid', cv=3)
@@ -1342,13 +1177,12 @@ if __name__ == "__main__":
     #idx = store['test_id']
     idx = pd.read_csv('./data/test.csv', encoding="ISO-8859-1")['id']
     cv_labels = pd.Series.from_csv('./data/labels_for_cv.csv')
-    print cv_labels
 
     """
     # 1nd LEVEL MODEL BUILDING
     """
     ensemble = createModels()
-    ensemble = createOOBdata(ensemble, repeats=1, n_folds=8, n_jobs=1, use_proba=USE_PROBA,score_func=OBJECTIVE)  # oob data averaging leads to significant variance reduction
+    ensemble = createOOBdata(ensemble, repeats=1, n_folds=8, n_jobs=2, use_proba=USE_PROBA,score_func=OBJECTIVE)  # oob data averaging leads to significant variance reduction
 
     # createDataSets()
     # saveTrainData(ensemble)
@@ -1357,10 +1191,10 @@ if __name__ == "__main__":
     # 1nd LEVEL ENSEMBLING
     """
 
-    all_models = ['xgb0_f8r1','xgb1_f8r1','xgb2_f8r1','xgb2b_f8r1','xgb2c_f8r1','xgb3_f8r1','xgb4_f8r1','xrf1_f8r1','rf1_f8r1','nn1_f8r1','nn1b_f8r1','nn2_f8r1','knn1_f8r1','svr1_f8r1','lr1_f8r1']
-    best = ['xgb2_f8r1']
-    best_greedy = ['nn1_f8r1']
-    models = all_models
-    #trainEnsemble(models, mode='mean', score_func=OBJECTIVE, useCols=None, addMetaFeatures=False, use_proba=USE_PROBA,dropCorrelated=False, subfile='./submissions/sub070416b.csv')
+    all_models_old = ['xgb0_f8r1','xgb1_f8r1','xgb2_f8r1','xgb2b_f8r1','xgb2c_f8r1','xgb3_f8r1','xgb4_f8r1','xrf1_f8r1','rf1_f8r1','nn1_f8r1','nn1b_f8r1','nn2_f8r1','knn1_f8r1','svr1_f8r1','lr1_f8r1']
+    all_models = ['bagxgb1_f8r1','xgb1b_f8r1','xgb0_f8r1','xrf3_f8r1','nn1_f8r1','nn2_f8r1','bagnn1_f8r1','xgb2b_f8r1','xgb3_f8r1','xgb4_f8r1','xgb5_f8r1','xgb6_f8r1','xrf2_f8r1','lr1_f8r1','knn1_f8r1','rf1_f8r1']
+    best = ['xgb1b_f8r1', 'bagxgb1_f8r1', 'xgb1b_f8r1', 'xrf2_f8r1']
+    models = best
+    #trainEnsemble(models, mode='classical', score_func=OBJECTIVE, useCols=None, addMetaFeatures=False, use_proba=USE_PROBA,dropCorrelated=False, subfile='./submissions/sub150416a.csv')
     #selectModelsGreedy(all_models,startensemble=best,niter=10,mode='mean',greater_is_better=False,score_func=OBJECTIVE, replacement = True)
 

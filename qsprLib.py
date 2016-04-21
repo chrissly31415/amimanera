@@ -25,7 +25,7 @@ with warnings.catch_warnings():
         LeavePLabelOut
     from sklearn.metrics import roc_auc_score, classification_report, make_scorer, f1_score, precision_score, \
         mean_squared_error, accuracy_score, log_loss
-    from sklearn.preprocessing import StandardScaler, PolynomialFeatures, OneHotEncoder
+    from sklearn.preprocessing import StandardScaler, PolynomialFeatures, OneHotEncoder, RobustScaler
     from sklearn.pipeline import Pipeline
     from sklearn.feature_selection import SelectKBest, SelectPercentile, chi2, f_classif, f_regression, \
         GenericUnivariateSelect, VarianceThreshold
@@ -47,6 +47,7 @@ with warnings.catch_warnings():
         RandomForestRegressor, RandomTreesEmbedding
     from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
     from sklearn.svm import LinearSVC, SVC, SVR
+    from sklearn.kernel_ridge import KernelRidge
     from sklearn.tree import DecisionTreeClassifier
     from sklearn.cluster import KMeans, MiniBatchKMeans
     from sklearn.multiclass import OneVsRestClassifier, OneVsOneClassifier
@@ -150,8 +151,11 @@ def removeCorrelations(X_all, X_test=None, X_valid=None, threshhold=0.99):
                 corcols[key] = c.index[row] + " <> " + c.columns[col] + " :" + str(
                     "%4.3f mean: (%4.3f/%4.3f)" % (c.iloc[row, col], av1, av2))
 
+    drop_list=[]
     for el in corcols.keys():
         print "Dropped: %-32s due to: %32r" % (el, corcols[el])
+        drop_list.append(el)
+    print drop_list
     X_all = X_all.drop(corcols, axis=1)
 
     if X_test is not None:
@@ -327,10 +331,7 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
 
         print "train set: %2d samples: %5d/%5d rmse: %4.3f  mean: %4.3f %s " % (
         i, lX[train, :].shape[0], lX[test, :].shape[0], score2[i], score2[:i + 1].mean(), sw)
-        # showMisclass(np.expm1(ly[test]),np.expm1(ypred[test]),lX[test,:],index=class_names.values[test],t=2.0)
-    # if isinstance(lX_df,pd.DataFrame):
-    #  showMisclass(ly,ypred,lX_df,index=class_names)
-    # print classification_report(ly, ypred, target_names=class_names)
+        #showMisclass(ly[test],ypred[test],lX[test,:],index=lX_df.search_term[test],t=2.0)
 
     print("MAE       :%6.3f +/-%6.3f" % (score1.mean(), score1.std()))
     print("RMSE      :%6.3f +/-%6.3f" % (score2.mean(), score2.std()))

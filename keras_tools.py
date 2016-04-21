@@ -6,10 +6,10 @@ from __future__ import print_function
 import numpy as np
 from keras.models import Sequential
 from keras.optimizers import SGD,Adagrad,RMSprop
-from keras.layers.core import Dense, Dropout, Activation, Reshape, Merge
+from keras.layers.core import Dense, Dropout, Activation, MaxoutDense
+
 from keras.layers.normalization import BatchNormalization
-from keras.layers.advanced_activations import PReLU
-from keras.layers.embeddings import Embedding
+from keras.layers.advanced_activations import PReLU,LeakyReLU
 from keras.utils import np_utils, generic_utils
 from sklearn.base import BaseEstimator
 import theano.tensor as T
@@ -44,14 +44,9 @@ Rossmann 3d place: https://github.com/entron/category-embedding-rossmann/blob/ma
 
 '''
 
-
-def RMSPE(y_true, y_pred):
-    loss = T.sqrt(T.sqr((y_true - y_pred) / y_true).mean(axis=-1))
-    return loss
-
-
 def RMSE(y_true, y_pred):
     loss = T.sqrt(T.sqr(y_true - y_pred).mean(axis=-1))
+    #print(loss)
     return loss
 
 
@@ -77,14 +72,31 @@ class KerasNN(BaseEstimator):
         for i,dropout in enumerate(self.dropout):
             if i>0:
                 dims = self.layers[i-1]
-            self.model.add(Dense(output_dim=layers[i], input_dim=dims, init='lecun_uniform'))
-            #self.model.add(Activation('sigmoid'))
-            #self.model.add(Activation('prelu'))
-            self.model.add(Activation(self.activation))
-            self.model.add(BatchNormalization())
-            self.model.add(Dropout(dropout))
 
-        if 'rmse' in loss or 'mean_absolute_error' in loss:
+            if 'maxout' in self.activation:
+                self.model.add(MaxoutDense(output_dim=layers[i], nb_feature=4, input_dim=dims))
+            else:
+                self.model.add(Dense(output_dim=layers[i], input_dim=dims, init='glorot_uniform'))
+                #https://www.reddit.com/r/MachineLearning/comments/22u1yt/is_deep_learning_basically_just_neural_networks/
+                #https://www.kaggle.com/c/job-salary-prediction/forums/t/4208/congratulations-to-the-preliminary-winners?page=2
+                if 'PReLU' in self.activation:
+                    self.model.add(PReLU())
+                elif 'LeakyReLU' in self.activation:
+                    self.model.add(LeakyReLU(alpha=0.3))
+                else:
+                    self.model.add(Activation(self.activation))
+
+            self.model.add(BatchNormalization())
+            if dropout>1E-15:
+                self.model.add(Dropout(dropout))
+
+
+        if 'categorical_crossentropy' in loss:
+            self.model.add(Dense(output_dim=nb_classes))
+            self.model.add(Activation('softmax'))
+            self.model.compile(loss=loss, optimizer="adadelta")
+
+        else:
             self.model.add(Dense(output_dim=1))
             self.model.add(Activation('linear'))
             #optimizer = Adagrad(lr=self.learning_rate) # 0.01
@@ -92,18 +104,15 @@ class KerasNN(BaseEstimator):
             print("Learning rate:",self.learning_rate)
             optimizer = RMSprop(lr=self.learning_rate) # 0.001
             #optimizer = RMSprop()
-            self.model.compile(loss='mean_absolute_error', optimizer=optimizer)
-
-        if 'categorical_crossentropy' in loss:
-            self.model.add(Dense(output_dim=nb_classes))
-            self.model.add(Activation('softmax'))
-            self.model.compile(loss=loss, optimizer="adadelta")
+            if 'rmse' in self.loss:
+                self.model.compile(loss=RMSE, optimizer=optimizer)
+            else:
+                self.model.compile(loss=self.loss, optimizer=optimizer)
 
         # tanh better for regression?
 
-
         #sgd = SGD(lr=self.learning_rate, decay=1e-7, momentum=0.99, nesterov=True)
-        print('Compiling Keras Deep Net with loss: %s' % (str(loss)))
+        print('Compiling Keras Deep Net with loss: %s and activation: %s' % (str(self.loss),self.activation))
 
 
     def fit(self, X, y, sample_weight=None):
@@ -113,7 +122,7 @@ class KerasNN(BaseEstimator):
             y = np_utils.to_categorical(y)
             self.classes_ = np.unique(y)
         self.model.fit(X, y, nb_epoch=self.nb_epoch, batch_size=self.batch_size,
-                       validation_split=self.validation_split)
+                       validation_split=self.validation_split,verbose=self.verbose)
 
     def predict_proba(self, Xtest):
         ypred = self.model.predict_proba(Xtest, batch_size=self.batch_size, verbose=self.verbose)
