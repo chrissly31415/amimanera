@@ -410,7 +410,7 @@ def compareList(uniq_train, uniq_test, verbose=True):
     # uniq_test = Xtest[col].unique()
     if verbose: print "In Test - unique values: %d %r:" % (uniq_test.shape[0], uniq_test)
     isect = np.intersect1d(uniq_train, uniq_test)
-    if verbose: print "In Test/Train - intersect of unique values: %d %r:" % (isect.shape[0], isect)
+    if verbose: print "In Test/Train - intersect of unique values: %d (%4.2f of train) %r:" % (isect.shape[0], isect.shape[0]/float(uniq_train.shape[0])*100, isect)
     only_train = np.in1d(uniq_train, isect, assume_unique=True, invert=True)
     if verbose: print "In Train only : %d %r:" % (uniq_train[only_train].shape[0], uniq_train[only_train])
     only_test = np.in1d(uniq_test, isect, assume_unique=True, invert=True)

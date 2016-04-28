@@ -172,20 +172,22 @@ def func_xgb(params):
       return -1*score.mean()
 
 space_keras  = (
-	hp.quniform( 'hidden1_num_units', 500,1000,10),
-	hp.quniform( 'hidden2_num_units', 500,1000,10),
-	hp.quniform( 'hidden3_num_units', 100,1000,10),
-	hp.quniform( 'hidden4_num_units', 100,1000,10),
+	hp.quniform( 'hidden1_num_units', 50,2000,10),
+	hp.quniform( 'hidden2_num_units', 50,2000,10),
+	#hp.quniform( 'hidden3_num_units', 100,1000,10),
+	#hp.quniform( 'hidden4_num_units', 100,1000,10),
 	#hp.uniform( 'dropout0_p', 0.0, 0.0),
 	hp.uniform( 'dropout1_p', 0.0, 0.5 ),
 	hp.uniform( 'dropout2_p', 0.0, 0.5 ),
-	hp.uniform( 'dropout3_p', 0.0, 0.5 ),
-	hp.uniform( 'dropout4_p', 0.0, 0.5 ),
-	hp.quniform( 'max_epochs', 20,40,5),
-	hp.choice( 'batch_size', [256,512] ),
+	#hp.uniform( 'dropout3_p', 0.0, 0.5 ),
+	#hp.uniform( 'dropout4_p', 0.0, 0.5 ),
+	hp.quniform( 'max_epochs', 20,60,5),
+	hp.choice( 'batch_size', [124,256,512] ),
 	hp.loguniform( 'learning_rate', np.log( 1E-5 ), np.log( 1E-3 )),
 	#hp.choice( 'learning_rate', [0.0001]),
-	hp.choice( 'activation', ['sigmoid'])
+	hp.choice( 'activation', ['tanh']),
+	hp.choice('bootstrap',[True,False]),
+	hp.uniform('max_features',0.8,1.0)
 )
 
 def func_keras(params):
@@ -197,10 +199,13 @@ def func_keras(params):
 	s = time()
 
 	#hl1,hl2,do1,do2,max_epochs, bs,learning_rate, act = params
-	hl1,hl2,hl3,hl4,do1,do2,do3,do4,max_epochs, bs,learning_rate, act = params
-	model  = KerasNN(dims=X.shape[1],nb_classes=1,nb_epoch=int(max_epochs),learning_rate=learning_rate,validation_split=0.0,batch_size=bs,verbose=0,activation=act, layers=[hl1,hl2,hl3,hl4], dropout=[do1,do2,do3,do4],loss='mse')
+	hl1,hl2,do1,do2,max_epochs, bs,learning_rate, act, boot, maxf = params
+	#hl1,hl2,hl3,hl4,do1,do2,do3,do4,max_epochs, bs,learning_rate, act = params
+	model  = KerasNN(dims=int(X.shape[1]*maxf),nb_classes=1,nb_epoch=int(max_epochs),learning_rate=learning_rate,validation_split=0.0,batch_size=bs,verbose=0,activation=act, layers=[hl1,hl2], dropout=[do1,do2],loss='mse')
 	basemodel = Pipeline([('scaler', StandardScaler()), ('nn',model)])
-	basemodel = BaggingRegressor(basemodel,n_estimators=5, max_samples=1.0, max_features=1.0, bootstrap=False)
+	print int(X.shape[1]*maxf)
+	basemodel = BaggingRegressor(basemodel,n_estimators=5, max_samples=1.0, max_features=int(X.shape[1]*maxf), bootstrap=boot)
+	print basemodel
 	#cv_labels = pd.Series.from_csv('./data/labels_for_cv.csv')
 	#cv = LabelKFold(cv_labels, n_folds=8)
 	#score = buildModel(basemodel,X,y,cv=cv, scoring=scoring_func, n_jobs=1,trainFull=False,verbose=True)
@@ -213,16 +218,18 @@ def func_keras(params):
 	print "Iteration: %d >>score: %6.3f (+/- %6.3f)"%(counter,score.mean(),score.std())
 	print "hidden1_num_units:    %6d"% (hl1)
 	print "hidden2_num_units:    %6d"% (hl2)
-	print "hidden3_num_units:    %6d"% (hl3)
-	print "hidden4_num_units:    %6d"% (hl4)
+	#print "hidden3_num_units:    %6d"% (hl3)
+	#print "hidden4_num_units:    %6d"% (hl4)
 	print "dropout1_p:          %6.2f"%(do1)
 	print "dropout2_p:          %6.2f"%(do2)
-	print "dropout3_p:          %6.2f"%(do3)
-	print "dropout4_p:          %6.2f"%(do4)
+	#print "dropout3_p:          %6.2f"%(do3)
+	#print "dropout4_p:          %6.2f"%(do4)
 	print "max_epochs:          %6d"% (max_epochs)
 	print "batch_size:          %6d"% (bs)
 	print "learning_rate:       %6.2e"%(learning_rate)
 	print "activation:       %s"%(act)
+	print "bootstrap:       %s"%(boot)
+	print "max_features:          %6.2f"%(maxf)
 	print "elapsed: {}s \n".format( int( round( time() - s )))
 	print ''.join(['-'] * 60)
 
@@ -233,7 +240,7 @@ def func_keras(params):
 
 counter=0
 #stdbuf -o 0 ./hyperopt_driver.py | tee log
-np.random.seed(123)
+np.random.seed(1234)
 scoring_func = make_scorer(root_mean_squared_error, greater_is_better = False)
 greater_is_better=False
 #XGB

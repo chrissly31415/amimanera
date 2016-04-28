@@ -154,7 +154,6 @@ def createModels():
     xmodel = XModel("bagnn1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
     ensemble.append(xmodel)
 
-
     #XGB2b RMSE =   EVAL= PL=
     Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,
                                                                            seed=42,
@@ -794,33 +793,34 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
         print oobpreds.shape
 
 
-    #blender=Ridge(alpha=10.0)#0.212644
+    blender=Ridge(alpha=1.0)#0.4546/0.4552
     #blender = LinearRegression()
     #blender = Pipeline([('pca', PCA(n_components=19,whiten=False)), ('model', LinearRegression())])
     # blender = Pipeline([('scaler', StandardScaler()), ('model', Ridge(alpha=1.0))])
     #blender = ConstrainedLinearRegressor(lowerbound=0, upperbound=.2, n_classes=1, alpha=None, corr_penalty=None,normalize=False, loss='rmse', greater_is_better=False)  # 0.216467
+
     #blender=ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='mse', max_features=4*oobpreds.shape[1]/5,oob_score=False)#0.215702
     #blender = Pipeline([('ohc', OneHotEncoder(sparse=False)), ('model',ExtraTreesClassifier(n_estimators=300,max_depth=None,min_samples_leaf=7,n_jobs=4,criterion='gini', max_features=3,oob_score=False))])
     # blender=RandomForestRegressor(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
-    #blender = XgboostRegressor(n_estimators=200,learning_rate=0.03,max_depth=2,subsample=.5,n_jobs=4,min_child_weight=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1)#0.216854
+    #blender = XgboostRegressor(n_estimators=200,learning_rate=0.03,max_depth=2,subsample=.5,n_jobs=4,min_child_weight=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1)#0.4547 / 0.4560
     #print oobpreds.shape
-    model = KerasNN(dims=oobpreds.shape[1],nb_classes=1,nb_epoch=30,learning_rate=0.005,validation_split=0.1,batch_size=64,verbose=1,activation='relu', layers=[32]*2, dropout=[0.0]*2,loss='rmse')
+    model = KerasNN(dims=oobpreds.shape[1],nb_classes=1,nb_epoch=30,learning_rate=0.001,validation_split=0.0,batch_size=256,verbose=1,activation='sigmoid', layers=[32]*2, dropout=[0.0]*2,loss='mse')
     blender = Pipeline([('scaler', StandardScaler()), ('model',model)])#0.206
-    #blender = BaggingRegressor(base_estimator=blender, n_estimators=20, n_jobs=1, verbose=2, random_state=None,max_samples=1.0, max_features=1.0, bootstrap=False)
+    blender = BaggingRegressor(base_estimator=blender, n_estimators=20, n_jobs=1, verbose=2, random_state=None,max_samples=1.0, max_features=1.0, bootstrap=False)# + 0.454
 
     if not skipCV:
         # blender = CalibratedClassifierCV(baseblender, method='sigmoid', cv=3)
         #cv = StratifiedKFold(ly, n_folds=8,shuffle=True)
         pd.Series.from_csv('./data/labels_for_cv.csv')
-        cv = LabelKFold(cv_labels, n_folds=5)
+        cv = LabelKFold(cv_labels, n_folds=8)
         #ForwardDateCV(m.Xtrain.Month,m.Xtrain.Year,n_iter=8,useAll=False,verbose=True)
         #score_func = make_scorer(funcdict[score_func], greater_is_better = False)
-        # parameters = {'n_estimators':[300],'max_depth':[3],'learning_rate':[0.03],'subsample':[0.5],'colsample_bytree':[0.5],'min_child_weight':[1]}#XGB
-        # parameters = {'n_estimators':[200,300],'max_features':[5,7],'min_samples_leaf':[1,5,10],'criterion':['mse']}#XGB
+        #parameters = {'n_estimators':[200,400],'max_depth':[3],'learning_rate':[0.03],'subsample':[0.5],'colsample_bytree':[0.5],'min_child_weight':[5]}#XGB
+        parameters = {'n_estimators':[500],'max_features':[8,10,12],'min_samples_leaf':[5],'criterion':['mse']}#RF
         # parameters = {'max_features':[0.9,0.95,1.0],'max_samples':[0.9,0.95,1.0],'bootstrap':[False,True]}#XGB
         # parameters = {'model__hidden1_num_units': [128],'model__dropout1_p':[0.0],'model__hidden2_num_units': [128],'model__dropout2_p':[0.0],'model__max_epochs':[75],'model__objective_alpha':[0.002]}
         #parameters = {'model__max_epochs':[5,10,15]}
-        #blender=makeGridSearch(blender,oobpreds,ly,n_jobs=1,refit=False,cv=cv,scoring=score_func,parameters=parameters,random_iter=-1)
+        blender=makeGridSearch(blender,oobpreds,ly,n_jobs=1,refit=False,cv=cv,scoring=score_func,parameters=parameters,random_iter=-1)
         #buildXvalModel(blender,oobpreds,ly,sample_weight=None,class_names=None,refit=True,cv=cv)
         blend_scores = np.zeros(len(cv))
         n_classes = 1
@@ -1181,8 +1181,8 @@ if __name__ == "__main__":
     """
     # 1nd LEVEL MODEL BUILDING
     """
-    ensemble = createModels()
-    ensemble = createOOBdata(ensemble, repeats=1, n_folds=8, n_jobs=2, use_proba=USE_PROBA,score_func=OBJECTIVE)  # oob data averaging leads to significant variance reduction
+    #ensemble = createModels()
+    #ensemble = createOOBdata(ensemble, repeats=1, n_folds=8, n_jobs=1, use_proba=USE_PROBA,score_func=OBJECTIVE)  # oob data averaging leads to significant variance reduction
 
     # createDataSets()
     # saveTrainData(ensemble)
@@ -1194,7 +1194,7 @@ if __name__ == "__main__":
     all_models_old = ['xgb0_f8r1','xgb1_f8r1','xgb2_f8r1','xgb2b_f8r1','xgb2c_f8r1','xgb3_f8r1','xgb4_f8r1','xrf1_f8r1','rf1_f8r1','nn1_f8r1','nn1b_f8r1','nn2_f8r1','knn1_f8r1','svr1_f8r1','lr1_f8r1']
     all_models = ['bagxgb1_f8r1','xgb1b_f8r1','xgb0_f8r1','xrf3_f8r1','nn1_f8r1','nn2_f8r1','bagnn1_f8r1','xgb2b_f8r1','xgb3_f8r1','xgb4_f8r1','xgb5_f8r1','xgb6_f8r1','xrf2_f8r1','lr1_f8r1','knn1_f8r1','rf1_f8r1']
     best = ['xgb1b_f8r1', 'bagxgb1_f8r1', 'xgb1b_f8r1', 'xrf2_f8r1']
-    models = best
+    models = all_models
     #trainEnsemble(models, mode='classical', score_func=OBJECTIVE, useCols=None, addMetaFeatures=False, use_proba=USE_PROBA,dropCorrelated=False, subfile='./submissions/sub150416a.csv')
-    #selectModelsGreedy(all_models,startensemble=best,niter=10,mode='mean',greater_is_better=False,score_func=OBJECTIVE, replacement = True)
+    selectModelsGreedy(all_models,startensemble=['xgb1b_f8r1'],niter=10,mode='mean',greater_is_better=False,score_func=OBJECTIVE, replacement = True)
 

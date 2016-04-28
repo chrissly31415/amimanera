@@ -6,6 +6,7 @@ import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.packages import importr
 import numpy as np
+from home_depot import *
 
 def R_var_importance(nsamples=40000,data_store=None):
     base = importr('base')
@@ -17,6 +18,9 @@ def R_var_importance(nsamples=40000,data_store=None):
     #pandas2ri.activate()
     Xtrain = store['Xtrain']
     ytrain = store['ytrain']
+
+    Xtest, Xtrain, ytrain, Xval, yval, test_idx, val_idx = prepareAllFeatures()
+
     #sample
     if nsamples != -1:
         if isinstance(nsamples, str) and 'shuffle' in nsamples:
