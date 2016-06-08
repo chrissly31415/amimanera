@@ -19,7 +19,7 @@ def R_var_importance(nsamples=40000,data_store=None):
     Xtrain = store['Xtrain']
     ytrain = store['ytrain']
 
-    Xtest, Xtrain, ytrain, Xval, yval, test_idx, val_idx = prepareAllFeatures()
+    #Xtest, Xtrain, ytrain, Xval, yval, test_idx, val_idx = prepareAllFeatures()
 
     #sample
     if nsamples != -1:

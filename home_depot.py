@@ -85,6 +85,55 @@ with open('spell_check_yang.csv') as outfile:
         if k not in spell_check_machine:
             spell_check_machine[k] = v
 
+
+def train_all():
+  Xtest, Xtrain, ytrain, Xval, yval, test_idx, val_idx = prepareAllFeatures()
+  #model = Ridge()
+  #model = Pipeline([('scaler', StandardScaler()), ('nn',PLSRegression())])
+  model  = KerasNN(dims=Xtrain.shape[1],nb_classes=1,nb_epoch=30,learning_rate=8.91E-4,validation_split=0.0,batch_size=256,verbose=1,activation='tanh', layers=[1000,1000], dropout=[0.5,0.0],loss='mse') # best
+  model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
+  #model = BaggingRegressor(model,n_estimators=3, max_samples=1.0, max_features=1.0, bootstrap=True)
+  cv_labels = pd.Series.from_csv('./data/labels_for_cv.csv')
+  cv = LabelKFold(cv_labels, n_folds=8)
+  #cv = LabelShuffleSplit(cv_labels, n_iter=2)
+  scoring_func = make_scorer(root_mean_squared_error, greater_is_better=False)
+
+  print "Evaluation data set..."
+  model.fit(Xtrain,ytrain)
+  yval_pred = model.predict(Xval)
+  print " Eval-score: %5.4f"%(root_mean_squared_error(yval,np.clip(yval_pred,1.0,3.0)))
+  df_val = {'id': val_idx, 'pred': yval_pred, 'relevance': yval}
+  df_val = pd.DataFrame(df_val)
+  df_val.to_csv('bn_val.csv',index=False)
+
+  #Extract hidden layer
+  w = model.named_steps['nn'].model.layers[0].get_weights()
+  print w[0].shape
+  print type(w[0])
+
+  model_best = model.named_steps['nn'].model
+  get_feature = theano.function([model_best.layers[0].input],model_best.layers[3].get_output(train=False),allow_input_downcast=True)
+  feature = get_feature(Xtrain.values)
+  print feature
+  print feature.shape
+
+  #model2 = Sequential()
+  #model2.add(Dense(632, 1000, weights=w))
+  #model2.add(Activation('sigmoid'))
+  #act = model2.predict(Xtrain)
+  #print act
+  #print type(act)
+
+  print "Training the final model (incl. Xval.)"
+  Xtrain, ytrain = mergeWithXval(Xtrain,Xval,ytrain,yval)
+  model.fit(Xtrain,ytrain)
+  df_test = {'id': test_idx, 'relevance': model.predict(Xtest)}
+  df_test = pd.DataFrame(df_test)
+  df_test.to_csv('bn_test.csv',index=False)
+
+  #makePredictions(model,Xtest,idx=idx, filename='./submissions/subbaggednn.csv')
+
+
 #spelling_corrections
 typo_pairs = {
  'accesorios': 'accessories',
@@ -1604,7 +1653,7 @@ if __name__ == "__main__":
     #model = BaggingRegressor(RandomForestRegressor(n_estimators=15, max_depth=6, random_state=0), n_estimators=45, max_samples=0.1, random_state=25)
     #model = ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=2, max_features=3*Xtrain.shape[1]/4)
     #model = KNeighbors(n_neighbors=20)
-    model = LinearRegression()
+    #model = LinearRegression()
     #model  = KerasNN(dims=Xtrain.shape[1],nb_classes=1,nb_epoch=20,learning_rate=0.0001,validation_split=0.2,batch_size=512,verbose=1,activation='sigmoid', layers=[256,256], dropout=[0.1,0.1],loss='mse') # best
 
     #model  = KerasNN(dims=Xtrain.shape[1],nb_classes=1,nb_epoch=20,learning_rate=0.0001,validation_split=0.0,batch_size=512,verbose=1,activation='sigmoid', layers=[256,256], dropout=[0.1,0.0],loss='mse')

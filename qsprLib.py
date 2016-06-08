@@ -21,6 +21,7 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=DeprecationWarning)
     from sklearn.utils import shuffle
     from sklearn import cross_validation, grid_search
+    from sklearn.model_selection import cross_val_score
     from sklearn.cross_validation import StratifiedKFold, KFold, LabelKFold, LabelShuffleSplit,  StratifiedShuffleSplit, ShuffleSplit, train_test_split, \
         LeavePLabelOut
     from sklearn.metrics import roc_auc_score, classification_report, make_scorer, f1_score, precision_score, \
@@ -273,7 +274,9 @@ def buildModel(clf, lX, ly, cv=None, scoring=None, n_jobs=1, trainFull=False, ve
     if isinstance(lX, pd.DataFrame): lX = lX.values
     if isinstance(ly, pd.DataFrame) or isinstance(ly, pd.Series): ly = ly.values
 
-    score = cross_validation.cross_val_score(clf, lX, ly, fit_params=None, scoring=scoring, cv=cv, n_jobs=n_jobs)
+    score = cross_validation.cross_val_score(clf, lX, ly, fit_params=None, scoring=scoring, cv=cv, n_jobs=n_jobs, verbose=2)
+    #score = cross_val_score(clf, lX, ly, fit_params=None, scoring=scoring, cv=cv, n_jobs=n_jobs)
+
     if verbose:
         print "cv-score: %6.3f +/- %6.3f" % (score.mean(), score.std())
         print "all scores: %r" % (score)
