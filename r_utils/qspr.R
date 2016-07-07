@@ -219,30 +219,7 @@ prepareData_ons<-function(ldata,lowT,highT,testSet) {
   #return(ldata)
 }
 
-prepareData_cdk<-function(ldata,lowT,highT,testSet) {
-  ldata<-ldata[ldata$mpK<highT,]
-  ldata<-ldata[ldata$mpK>lowT,]
-  cat(nrow(ldata))
-  if (testSet==T) {
-    ldata<-ldata[ldata$Alkane>0,]
-    #ldata<-ldata[ldata$Fragments<2,]
-  } 
-  smiles<-ldata[,3:4]
-  ldata<-ldata[,7:length(ldata)]
-  print(summary(ldata))
-  if (testSet==F) { 
-    cs<-colSums(abs(ldata)==0)
-    if (0 %in% cs) {
-      ldata<-ldata[,which(colSums((ldata))!=0)]
-    }    
-  } 
-  #ldata<-subset(ldata,select=-Tmult)
-  #ldata<-subset(ldata,select=-shape) 
-  
-  #normalize
-  return(list(ldata,smiles))
-  
-}
+
 
 oinfo<-function(O) {
   cat("#class:",class(O))
@@ -677,8 +654,23 @@ sigmoidal<-function(x,a=1.0,b=0.0) {
   return(value)
 }
 
+computeEF2<-function(predicted,truth,top=0.1,decreasing=T,verbose=F,invert=F) {
+  require(enrichvs)
+  if(is.factor(truth)) truth<-as.numeric(as.character(truth))
+  if(invert) {
+    truth<-(-1*truth+1)
+    predicted<--1*predicted
+  }
+  EF5<-enrichment_factor(predicted, truth, top=top, decreasing=decreasing)
+  if (verbose) {
+    cat(sprintf("Enrichment (%2.2f %%): %5.2f\n",top*100,EF5))
+  }
+  return(EF5)
+}
+
+
 #computes enrichment factor
-computeEF<-function(predicted,truth,returnMax=FALSE,top=1.0,invert=T,verbose=F) {
+computeEF<-function(predicted,truth,returnMax=FALSE,invert=F,verbose=F) {
   if(is.factor(truth)) truth<-as.numeric(as.character(truth))
   if(invert) {
     truth<-(-1*truth+1)
@@ -693,7 +685,7 @@ computeEF<-function(predicted,truth,returnMax=FALSE,top=1.0,invert=T,verbose=F) 
   if (returnMax) {
     EF<-N/nh
   } else {
-    EF<-(1.0/Nfh)/(nh/N)
+    EF<-(N/Nfh)/(nh)
   }
   if (verbose) {
     cat(sprintf("Number to first hit(Nfh): %4d\n",Nfh))
@@ -753,6 +745,19 @@ computeF1score<-function(predicted,truth) {
   return(f1score)
 }
 
+computeRecall<-function(predicted,truth) {
+  recall <- sum(predicted & truth) / sum(truth)
+  return(recall)
+}
+
+computePrecision<-function(predicted,truth) {
+  retrieved <- sum(predicted)
+  prec <- sum(predicted & truth) / retrieved
+  return(prec)
+}
+
+
+
 computeAccuracy<-function(predicted,truth,threshold=0.5,metric='Accuracy',verbose=F) {
   #Computes accuracy from probabilities
   predicted<-as.numeric(predicted)#for GAM model
@@ -773,10 +778,10 @@ computeAUC<-function(predicted,truth,titlename=NULL,verbose=F,predicted2=NULL) {
   auc<-performance(pred,"auc")
   auc<-unlist(slot(auc, "y.values"))
   if (verbose) {
-    if (auc<0.70)  {
+    if (auc<0.3)  {
       color<-"orange"
       lty<-2
-    } else if (auc<0.55)  {
+    } else if (auc<0.3)  {
         color<-"red"
         lty<-1
     } else {
@@ -790,7 +795,7 @@ computeAUC<-function(predicted,truth,titlename=NULL,verbose=F,predicted2=NULL) {
       auc2<-performance(pred2,"auc")
       auc2<-unlist(slot(auc2, "y.values"))    
       lines(perf2@x.values[[1]],perf2@y.values[[1]],col=color,lty=3, lwd=3,xlim=c(0,1),xlab="FPR",ylab="TPR")
-      legend("bottomright", legend=c("fit","hex"), col='blue',lty=c(1,3))
+      legend("bottomright", legend=c(expression(f[solvate]),expression(Delta~H[mix])), col='blue',lty=c(1,3))
     }
     #abline(0.0,1.0, col = "black",lwd=3,xlim=c(0,1))
     lines(seq(0.0,1.0,0.1),seq(0.0,1.0,0.1),col = "black",lwd=2)
@@ -1061,9 +1066,8 @@ trainRF<-function(lX,ly,iter=500,mtry=if (!is.null(ly) && !is.factor(ly)) max(fl
   require(randomForest)
   cat("Training random forest...") 
   mydata.rf <- randomForest(lX,ly,ntree=iter,mtry=mtry,importance = fimportance,nodesize =node.size)
-  
-  print(mydata.rf)
-  print(summary(mydata.rf))
+  #print(mydata.rf)
+  #print(summary(mydata.rf))
   if (fimportance) {
     imp<-importance(mydata.rf,type=1)
     varImpPlot(mydata.rf,type=1,main="")
@@ -1449,39 +1453,41 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",parameters=list(iter=
 }
 
 run_xgboost<-function(Xtrain,ytrain,analysis=F) {
-  #current optimized parameters: ntree=2000, max.depth=10, eta=0.005, subsample=0.5 nsamples=12491 nvariables=30 RMSE(CV)=33.
+  
   require(xgboost)
   require(methods)
   # Set necessary parameter
-#   xgb_par_mp <- list(objective = "reg:linear",
-#                   eval_metric = "rmse",
-#                   max.depth=10,
-#                   eta=0.005,
-#                   silent=1, 
-#                   subsample=0.5,
-#                   nthread = 4)
+  #   xgb_par_mp <- list(objective = "reg:linear",
+  #                   eval_metric = "rmse",
+  #                   max.depth=10,
+  #                   eta=0.005,
+  #                   silent=1, 
+  #                   subsample=0.5,
+  #                   nthread = 4)
   
-  xgb_par <- list(objective = "reg:linear",
-                     #eval_metric = "rmse",
-                     max.depth=10,
-                     eta=0.005,
-                     silent=1, 
-                     subsample=0.5,
-                     nthread = 4,
-                     verbose = 0)
+  # Melting point model parameters
+  xgb_par <- list(objective = "reg:linear",iter=2000,max.depth=10,eta=0.005,silent=1, subsample=0.5,nthread = 4,verbose = 0)
+
   #gbm_parameters<-list(depth=c(10),shseq=c(0.005),iterations=c(200),minobsinnode=c(5,1))
   #gbm_grid(Xtrain,ytrain,repeatcv=2,lossfn="rmse",treemethod='xgboost',parameters=gbm_parameters) 
-  n.tree<-2000
+  
   #xval_oob(Xtrain,ytrain,Xtest=Xtrain,iterations=n.tree,nrfolds=8,repeatcv=2,lossfn="rmse",method="xgboost",intdepth=xgb_par$max.depth,sh=xgb_par$eta,oobfile='oob_res.csv',folds_from_file=NULL)
-  xvalid(X,ytrain,nrfolds=8,modname="xgboost",loss="rmse",parameters=list(iter=n.tree,depth=xgb_par$max.depth,shseq=xgb_par$eta,subsample=xgb_par$subsample,nthread=xgb_par$nthread))
-  #bst.cv = xgb.cv(param=parameters, data =as.matrix(Xtrain), label= ytrain, nfold = 8, nrounds=n.tree)
+  
+  xvalid(X,ytrain,nrfolds=8,modname="xgboost",loss="rmse",parameters=list(iter=xgb_par$iter,depth=xgb_par$max.depth,shseq=xgb_par$eta,subsample=xgb_par$subsample,nthread=xgb_par$nthread))
+  
+  ##########################################################
+  #XGBOOST internal stuff
+  #bst.cv <- xgb.cv(data = as.matrix(Xtrain),label= ytrain, nround=400, nthread = 2, nfold = 5, metrics=list("rmse"),
+  #                  max.depth =10, eta = 0.05, subsample=0.5, objective = "reg:linear")
+  #print(bst.cv)  
   #print(summary(bst.cv))
-  model = xgboost(param=xgb_par, data =as.matrix(Xtrain), label= ytrain,nrounds=n.tree,missing = NA)
+  #model = xgboost(param=xgb_par, data =as.matrix(Xtrain), label= ytrain,nrounds=xgb_par$n.tree,missing = NA)
   #xgb.dump(model, 'xgb.model.dump', with.stats = FALSE)
-
+  ##########################################################
+  
   #trees<-xgb.model.dt.tree(feature_names = colnames(Xtrain),model = model,n_first_tree=n.tree)
   #saveXGB(model,"Tm[K]",colnames(Xtrain),filename="T(melting).propx")
-  saveXGB(model,"density[g/cm3]",colnames(Xtrain),filename="density(crystal).propx")
+  #saveXGB(model,"density[g/cm3]",colnames(Xtrain),filename="density(crystal).propx")
   #test_data(model,Xtrain)
   if (analysis) {
     print(summary(trees))
