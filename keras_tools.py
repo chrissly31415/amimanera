@@ -4,9 +4,10 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import numpy as np
-from keras.models import Sequential
+from keras.models import Sequential, load_model
 from keras.optimizers import SGD,Adagrad,RMSprop
 from keras.layers.core import Dense, Dropout, Activation, MaxoutDense
+
 
 from keras.layers.normalization import BatchNormalization
 from keras.layers.advanced_activations import PReLU,LeakyReLU
@@ -42,6 +43,8 @@ sgd = SGD(lr=0.004, decay=1e-7, momentum=0.99, nesterov=True)
 
 Rossmann 3d place: https://github.com/entron/category-embedding-rossmann/blob/master/models.py "categorical embedding"
 
+avito challenge https://www.kaggle.com/rightfit/avito-duplicate-ads-detection/get-hash-from-images/code
+
 '''
 
 def RMSE(y_true, y_pred):
@@ -66,6 +69,7 @@ class KerasNN(BaseEstimator):
         self.activation = activation
         self.dropout = dropout
         self.verbose = verbose
+        self.hist = ""
 
         self.model = Sequential()
         # Keras model
@@ -121,17 +125,33 @@ class KerasNN(BaseEstimator):
         if self.nb_classes>1:
             y = np_utils.to_categorical(y)
             self.classes_ = np.unique(y)
-        self.model.fit(X, y, nb_epoch=self.nb_epoch, batch_size=self.batch_size,
-                       validation_split=self.validation_split,verbose=self.verbose)
+            y = np.reshape(y,(y.shape[0],-1))
 
-    def predict_proba(self, Xtest):
-        ypred = self.model.predict_proba(Xtest, batch_size=self.batch_size, verbose=self.verbose)
+        #pandas hack
+        if not isinstance(X,np.ndarray):
+            X = X.values
+
+        self.model.fit(X, y,batch_size=self.batch_size, nb_epoch=self.nb_epoch, verbose=self.verbose,callbacks=[],
+                       validation_split=self.validation_split,validation_data=None,shuffle=True,class_weight=None,sample_weight=sample_weight)
+
+    def predict_proba(self, X):
+        if not isinstance(X,np.ndarray):
+            X = X.values
+        ypred = self.model.predict_proba(X, batch_size=self.batch_size, verbose=self.verbose)
         return ypred
 
-    def predict(self, Xtest):
-        ypred = self.model.predict(Xtest, batch_size=self.batch_size, verbose=self.verbose)
+    def predict(self, X):
+        if not isinstance(X,np.ndarray):
+            X = X.values
+        ypred = self.model.predict(X, batch_size=self.batch_size, verbose=self.verbose)
         if self.nb_classes>1:
             ypred = np_utils.probas_to_classes(ypred)
         else:
             ypred = ypred.flatten()
         return ypred
+
+    def save_model(self,filename):
+        self.model.save(filename)
+
+    def load_model(self,filename):
+        self.model = load_model(filename)

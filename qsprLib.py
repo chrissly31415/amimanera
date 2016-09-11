@@ -4,6 +4,8 @@
 Code fragment collection for QPSR. Using sklearn, pandas and numpy
 """
 
+import resource
+
 from time import time
 import itertools
 from random import choice
@@ -15,8 +17,10 @@ from scipy import sparse
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import pylab as pl
+from sklearn.cluster import DBSCAN
 # import tools
 import warnings
+
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=DeprecationWarning)
     from sklearn.utils import shuffle
@@ -29,11 +33,11 @@ with warnings.catch_warnings():
     from sklearn.preprocessing import StandardScaler, PolynomialFeatures, OneHotEncoder, RobustScaler
     from sklearn.pipeline import Pipeline
     from sklearn.feature_selection import SelectKBest, SelectPercentile, chi2, f_classif, f_regression, \
-        GenericUnivariateSelect, VarianceThreshold
+        GenericUnivariateSelect, VarianceThreshold, RFECV
     from sklearn.learning_curve import learning_curve
     # import models
     from sklearn.base import BaseEstimator, TransformerMixin, clone
-    from sklearn.dummy import DummyRegressor
+    from sklearn.dummy import DummyRegressor,DummyClassifier
     from sklearn.naive_bayes import BernoulliNB, MultinomialNB, GaussianNB
     from sklearn.cluster import k_means
     from sklearn.isotonic import IsotonicRegression
@@ -45,7 +49,7 @@ with warnings.catch_warnings():
         DictionaryLearning, MiniBatchDictionaryLearning
     from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, ExtraTreesClassifier, \
         AdaBoostClassifier, ExtraTreesRegressor, GradientBoostingRegressor, BaggingRegressor, BaggingClassifier, \
-        RandomForestRegressor, RandomTreesEmbedding
+        RandomForestRegressor, RandomTreesEmbedding, VotingClassifier
     from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
     from sklearn.svm import LinearSVC, SVC, SVR
     from sklearn.kernel_ridge import KernelRidge
@@ -54,7 +58,8 @@ with warnings.catch_warnings():
     from sklearn.multiclass import OneVsRestClassifier, OneVsOneClassifier
     from sklearn.feature_extraction import DictVectorizer, FeatureHasher
     from sklearn.feature_extraction.text import CountVectorizer, HashingVectorizer, TfidfVectorizer
-    # from sklearn.calibration import CalibratedClassifierCV
+    from sklearn.calibration import CalibratedClassifierCV
+    from sklearn.manifold import TSNE,MDS
 
 from xgboost_sklearn import *
 import seaborn as sns
@@ -275,10 +280,9 @@ def buildModel(clf, lX, ly, cv=None, scoring=None, n_jobs=1, trainFull=False, ve
     if isinstance(ly, pd.DataFrame) or isinstance(ly, pd.Series): ly = ly.values
 
     score = cross_validation.cross_val_score(clf, lX, ly, fit_params=None, scoring=scoring, cv=cv, n_jobs=n_jobs, verbose=2)
-    #score = cross_val_score(clf, lX, ly, fit_params=None, scoring=scoring, cv=cv, n_jobs=n_jobs)
 
     if verbose:
-        print "cv-score: %6.3f +/- %6.3f" % (score.mean(), score.std())
+        print "cv-score: %6.4f +/- %6.4f" % (score.mean(), score.std())
         print "all scores: %r" % (score)
     if trainFull:
         print "Train on all data..."
@@ -332,12 +336,12 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
         #ypred[test] = clf.predict_proba(lX[test, :])[:,1]
         #score2[i] = roc_auc_score(ly[test], ypred[test])
 
-        print "train set: %2d samples: %5d/%5d rmse: %4.3f  mean: %4.3f %s " % (
+        print "train set: %2d samples: %5d/%5d rmse: %6.4f  mean: %6.4f %s " % (
         i, lX[train, :].shape[0], lX[test, :].shape[0], score2[i], score2[:i + 1].mean(), sw)
         #showMisclass(ly[test],ypred[test],lX[test,:],index=lX_df.search_term[test],t=2.0)
 
-    print("MAE       :%6.3f +/-%6.3f" % (score1.mean(), score1.std()))
-    print("RMSE      :%6.3f +/-%6.3f" % (score2.mean(), score2.std()))
+    print("MAE       :%6.4f +/-%6.4f" % (score1.mean(), score1.std()))
+    print("RMSE      :%6.4f +/-%6.4f" % (score2.mean(), score2.std()))
 
     # training on all data
     if refit:
@@ -775,6 +779,24 @@ def iterativeFeatureSelection(lmodel, Xold, Xold_test, ly, iterations=5, nrfeats
     return (Xold, Xold_test)
 
 
+def recursive_featureselection(model,X,y,cv=5, step=1,scoring='roc_auc_score'):
+    rfecv = RFECV(estimator=model, step=step, cv=cv,
+              scoring=scoring,n_jobs=4,verbose=1)
+    rfecv.fit(X, y)
+
+    print("Optimal number of features : %d" % rfecv.n_features_)
+    # Plot number of features VS. cross-validation scores
+    plt.figure()
+    plt.xlabel("Number of features selected")
+    plt.ylabel("Cross validation score")
+    print(rfecv.grid_scores_)
+    print(rfecv.support_)
+    rfecv.grid_scores_ = (-1.0 * rfecv.grid_scores_)
+    plt.plot(range(1, len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
+
+    return rfecv.support_
+    #return rfecv.transform(X)
+
 def removeInstances(lXs, ly, preds, t, returnSD=True):
     """
     Removes examples from train set either due to prediction error or due to standard deviation
@@ -853,13 +875,17 @@ def removeLowVar(X_all, threshhold=1E-5):
     return (X_all)
 
 
-def pcAnalysis(X, Xtest, y=None, w=None, ncomp=2, transform=False, classification=False):
+def pcAnalysis(X, Xtest, y=None, w=None, ncomp=2, transform=False, classification=False,reducer=None):
     """
     PCA 
     """
-    pca = PCA(n_components=ncomp)
+    if reducer is None:
+        pca = PCA(n_components=ncomp)
+    else:
+        pca = reducer
+    print pca
     if transform:
-        print "PC reduction"
+        print "PCA reduction"
         X_all = pd.concat([Xtest, X])
 
         X_r = pca.fit_transform(np.asarray(X_all))
@@ -890,13 +916,14 @@ def pcAnalysis(X, Xtest, y=None, w=None, ncomp=2, transform=False, classificatio
         plt.legend()
         # plt.xlim(-3500,2000)
         # plt.ylim(-1000,2000)
-        plt.draw()
+        plt.show()
     else:
         print "PC analysis for train/test"
         X_all = pd.concat([Xtest, X])
-        X_r = pca.fit_transform(np.asarray(X_all))
+        X_r = pca.fit_transform(X_all.values)
         plt.scatter(X_r[len(Xtest.index):, 0], X_r[len(Xtest.index):, 1], c='r', label="train", alpha=0.5)
         plt.scatter(X_r[:len(Xtest.index), 0], X_r[:len(Xtest.index), 1], c='g', label="test", alpha=0.5)
+        print("Total variance:", np.sum(pca.explained_variance_ratio_))
         print("Explained variance:", pca.explained_variance_ratio_)
         plt.legend()
         plt.show()
@@ -1187,7 +1214,7 @@ def data_binning(X, binning):
         # print Xall[col]
         tmp = pd.cut(X[col].values, binning, labels=False)
         X[col] = np.asarray(tmp)
-        # print Xall[col]
+        #print X[col]
         # raw_input()
         # groups = Xall.groupby(tmp)
         # print groups
@@ -1244,29 +1271,10 @@ def report(grid_scores, n_top=3):
         print("")
 
 
-def makeGridSearch(lmodel, lX, ly, n_jobs=1, refit=True, cv=5, scoring='roc_auc', random_iter=-1, parameters={}):
+def makeGridSearch(lmodel, lX, ly, n_jobs=1, refit=True, cv=5, scoring='roc_auc', random_iter=-1, parameters={},score_sign = -1.0):
     print "Start GridSearch..."
     if parameters is None:
-        # parameters = {'C':[10],'gamma':np.logspace(-5.0,-1.0,num=5)}
-        parameters = {'C': [5, 10, 20], 'gamma': [0.004]}
-        # parameters = {'filter__param': [30,50],'model__C':[1]}
-        # parameters = {'pca__n_components':[30],'model__C':[1]}
-        # parameters = {'model__C':[1,0.1,0.01,0.001]}#Linear SVC+LOGREG
-        # parameters = {'C':[10]}#Linear SVC+LOGREG
-        # parameters = {'C':[1.0],'penalty':['l2']}#Linear SVC+LOGREG
-        # parameters = {'n_estimators':[50],'alpha_L1':[1E-1],'lambda_L2':[1E-1]}#XGBOOST GBLINEAR
-        # parameters = {'alpha':[1E-6,1E-8],'n_iter':[100],'penalty':['l2']}#SGD
-        # parameters = {'alpha':[1,1E-2,1E-4],'n_iter':[250],'penalty':['l2']}#SGD
-        # parameters = {'hidden1_num_units': [600],'dropout1_p':[0.0,0.1,0.2,0.3,0.4,0.5],'maxout1_ds':[2,3,4],'hidden2_num_units': [600],'dropout2_p':[0.0],'maxout2_ds':[2,3,4],'hidden3_num_units': [600],'dropout3_p':[0.0],'maxout3_ds':[2,3,4],'max_epochs':[50,100,150],'update_learning_rate':[0.001,0.002,0.004]}#Lasagne
-        # parameters = {'hidden1_num_units': [300],'dropout1_p':[0.25,0.5],'hidden2_num_units': [300],'dropout2_p':[0.5,0.25],'update_learning_rate':[0.01,0.008],'objective_alpha':[1E-10]}#Lasagne
-        # parameters = {'hidden1_num_units': [500],'dropout1_p':[0.5],'hidden2_num_units': [500],'dropout2_p':[0.5,0.0],'hidden3_num_units': [500],'dropout3_p':[0.5,0.0],'max_epochs':[150,100],'objective_alpha':[1E-3,1E-6,1E-9],'update_learning_rate':[0.004,0.003,0.002]}#Lasagne
-        # parameters = {'hidden1_num_units': [500,1000],'update_learning_rate':[0.0001,0.0005],'max_epochs':[500],'dropout1_p':[0.0,.2]}#Lasagne
-        # parameters = {'hidden1_num_units': [500,500],'update_learning_rate':[0.0001,0.0005],'max_epochs':[500],'dropout1_p':[0.0,.2]}#Lasagne
-        # parameters = {'hidden1_num_units': [200,300],'max_epochs':[1000],'dropout1_p':[0.1,0.2,0.3]}#Lasagne
-        # parameters = {'n_estimators':[600], 'max_features':[16,20,24],'max_depth':[None],'max_leaf_nodes':[None],'min_samples_leaf':[1],'min_samples_split':[2,10],'criterion':['gini']}#xrf+xrf
-        # parameters = {'class_weight': [{0: 1.,1: 1., 2: 1.,3: 1.,4: 1.,5: 1.,6: 1.,7: 1.,8: 1.,9: 1.},{0: 2.,1: 1., 2: 2.,3: 1.,4: 1.,5: 1.,6: 1.,7: 1.,8: 1.,9: 1.}]}
-        # parameters = {'n_estimators':[300,400],'max_depth':[8,9,10],'learning_rate':[0.015,0.02,0.025,0.03],'subsample':[0.5,1.0]}#XGB+GBC
-        # parameters = {'n_estimators':[400],'max_depth':[10],'learning_rate':[0.1,0.05,0.01],'subsample':[0.5]}#XGB+GBC
+        parameters = {}
 
     if random_iter < 0:
         search = grid_search.GridSearchCV(lmodel, parameters, n_jobs=n_jobs, verbose=2, scoring=scoring, cv=cv,
@@ -1279,15 +1287,10 @@ def makeGridSearch(lmodel, lX, ly, n_jobs=1, refit=True, cv=5, scoring='roc_auc'
     best_score = 1.0E5
     print("%6s %6s %6s %r" % ("OOB", "MEAN", "SDEV", "PARAMS"))
     for params, mean_score, cvscores in search.grid_scores_:
-        oob_score = mean_score
-        cvscores = cvscores
-        mean_score = cvscores.mean()
-        print("%6.3f %6.3f %6.3f %r" % (oob_score, mean_score, cvscores.std(), params))
-    # if mean_score < best_score:
-    #    best_score = mean_score
-    #    scores[i,:] = cvscores
-
-    # report(search.grid_scores_)
+        oob_score = score_sign*mean_score
+        cvscores = score_sign*cvscores
+        mean_score = score_sign*cvscores.mean()
+        print("%6.4f %6.4f %6.4f %r" % (oob_score, mean_score, cvscores.std(), params))
 
     if refit:
         return search.best_estimator_
@@ -1565,6 +1568,15 @@ class ScaleContinuousOnly(BaseEstimator, TransformerMixin):
                                  columns=self.continuous_features)
         scaled_df = pd.concat([scaled_df, X[self.binary_features]], axis=1)[self.columns]
         return scaled_df
+
+
+def showMemUsageGB():
+    to_gb = 1024.0*1024
+    mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    print("Memory usage: %6.2f GB"%(float(mem)/to_gb))
+
+
+
 
 
 # some global vars
