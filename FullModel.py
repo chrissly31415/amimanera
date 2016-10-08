@@ -211,8 +211,12 @@ class ConstrainedLinearRegressor(BaseEstimator):
         return ypred.flatten()
 
     def predict_proba(self, lX):
-        print "proba not implemented yet..."
-        pass
+        yt = self.predict(lX)
+        ypred = np.zeros((yt.shape[0],2))
+        ypred[:,0] = 1.0-yt
+        ypred[:,1] = yt
+        return ypred
+
 
     def fopt(self, params, X, y):
         # nxm  * m*1 ->n*1

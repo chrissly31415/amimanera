@@ -54,12 +54,13 @@ with warnings.catch_warnings():
     from sklearn.svm import LinearSVC, SVC, SVR
     from sklearn.kernel_ridge import KernelRidge
     from sklearn.tree import DecisionTreeClassifier
-    from sklearn.cluster import KMeans, MiniBatchKMeans
+    from sklearn.cluster import KMeans, MiniBatchKMeans,DBSCAN
     from sklearn.multiclass import OneVsRestClassifier, OneVsOneClassifier
     from sklearn.feature_extraction import DictVectorizer, FeatureHasher
     from sklearn.feature_extraction.text import CountVectorizer, HashingVectorizer, TfidfVectorizer
     from sklearn.calibration import CalibratedClassifierCV
     from sklearn.manifold import TSNE,MDS
+    from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis,LinearDiscriminantAnalysis
 
 from xgboost_sklearn import *
 import seaborn as sns
@@ -1303,15 +1304,15 @@ def df_info(X):
     print "Shape:", X.shape, " size (MB):", float(X.nbytes) / 1.0E6, " dtype:", X.dtype
 
 
-def analyzeLearningCurve(model, X, y, cv=8, score_func='roc_auc'):
+def analyzeLearningCurve(model, X, y, cv=8, score_func='log_loss',train_sizes=np.linspace(.1, 1.0, 10),ylim=None):
     """
     make a learning curve according to http://scikit-learn.org/dev/auto_examples/plot_learning_curve.html
     """
-    plot_learning_curve(model, "learning curve", X, y, ylim=(0.1, 1.01), cv=cv, n_jobs=1, scoring=score_func)
+    plot_learning_curve(model, "learning curve", X, y, ylim=ylim, cv=cv, n_jobs=1, scoring=score_func,train_sizes=train_sizes)
 
 
-def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, scoring=f1_score,
-                        train_sizes=np.linspace(.01, 1.0, 5)):
+def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, scoring='log_loss',
+                        train_sizes=np.linspace(.1, 1.0, 10)):
     """
     Generate a simple plot of the test and traning learning curve.
 
@@ -1351,6 +1352,8 @@ def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, sc
     train_sizes, train_scores, test_scores = learning_curve(estimator, X, y, cv=cv, n_jobs=n_jobs, scoring=scoring,
                                                             train_sizes=train_sizes)
 
+    train_scores = -1* train_scores
+    test_scores = -1* test_scores
     print "train_scores:",train_scores
     print "test_scores:",test_scores
     train_scores_mean = np.mean(train_scores, axis=1)
