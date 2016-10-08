@@ -14,10 +14,10 @@ http://mlwave.com/kaggle-ensembling-guide/
 
 """
 
-from home_depot import *
+from numerai import *
 from FullModel import *
 
-import sys,os
+import sys
 import itertools
 from random import randint
 
@@ -27,336 +27,204 @@ from sklearn.externals.joblib import Parallel, delayed, logger
 from sklearn.base import clone
 from sklearn import preprocessing
 
-
 def createModels():
 
     global idx
+    global data_id
+    numericals = ['feature1', 'feature2', 'feature3', 'feature4', 'feature5', 'feature6', 'feature7', 'feature8', 'feature9', 'feature10', 'feature11', 'feature12', 'feature13', 'feature14', 'feature15','feature16','feature17', 'feature18','feature19','feature20','feature21']
+
+
     ensemble = []
-    """
-     #creating best DF -> './data/store_db1b.h5'
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_db1b.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1,
-                                                                           #holdout='holdout_chrisslz.csv',
-                                                                           holdout=False,#use holdout=False for full Xtrain
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=['product_title','product_description','product_info'],
-                                                                           labelEncode=['search_term']+[u'MFG Brand Name'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           useAttributes=[u'MFG Brand Name'],
-                                                                           createVerticalFeatures=True,
-                                                                           computeSim={'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=['search_term','product_title'],
-                                                                           n_components=[50,50],
-                                                                           cleanData=True,
-                                                                           merge_product_infos = True,
-                                                                           spellchecker = True,
-                                                                           word2vecFeates= True,
-                                                                           computeAddFeates=True)
 
-    os.rename('./data/store.h5','./data/store_db1b.h5')
-    Xtrain.to_csv("Xtrain_chrisslz_db1b.csv",index=False)
-    Xtest.to_csv("Xtest_chrisslz_db1b.csv",index=False)
+    #XGB1
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle')
+    #model = XgboostClassifier(n_estimators=200,learning_rate=0.01,max_depth=2, NA=0,subsample=.5,colsample_bytree=1.0,min_child_weight=5,n_jobs=2,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
+    #xmodel = XModel("xgb1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
 
+    #XGB2
+    #greedy_fw18b = ['feature14xfeature19', 'feature11xfeature20', 'feature1xfeature9', 'feature8xfeature20', 'feature1xfeature12', 'feature18xfeature21', 'feature11xfeature12', 'feature14xfeature17', 'feature2xfeature21', 'feature5xfeature21', 'feature11xfeature14', 'feature7xfeature10', 'feature12xfeature21']
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,polynomialFeatures='all',keepFeatures=greedy_fw18b)
+    #model = XgboostClassifier(n_estimators=1000,learning_rate=0.01,max_depth=1, NA=0,subsample=.75,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
+    #xmodel = XModel("xgb2",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
 
-     #creating best DF -> './data/store_db1c.h5'
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_db1c.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1,
-                                                                           use_new_spellchecker=True,
-                                                                           holdout='holdout_chrisslz.csv',
-                                                                           #holdout=False,#use holdout=False for full Xtrain
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=['product_title','product_description','product_info'],
-                                                                           labelEncode=['search_term']+[u'MFG Brand Name'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           useAttributes=[u'MFG Brand Name'],
-                                                                           createVerticalFeatures=True,
-                                                                           computeSim={'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=['search_term','product_title'],
-                                                                           n_components=[50,50],
-                                                                           cleanData=True,
-                                                                           merge_product_infos = True,
-                                                                           spellchecker = True,
-                                                                           word2vecFeates= True,
-                                                                           computeAddFeates=True)
+    #XGB3
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle')
+    #model = XgboostClassifier(n_estimators=200,learning_rate=0.01,max_depth=2, NA=0,subsample=.5,colsample_bytree=1.0,min_child_weight=5,n_jobs=4,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
+    #model = BaggingClassifier(base_estimator=model,n_estimators=20,n_jobs=1,verbose=2,random_state=None,bootstrap=True)
+    #xmodel = XModel("xgb3",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
 
-    os.rename('./data/store.h5','./data/store_db1c.h5')
-    #Xtrain.to_csv("Xtrain_chrisslz_spellcheck.csv",index=False)
-    #Xtest.to_csv("Xtest_chrisslz_spellcheck.csv",index=False)
+    #LR1 LL=0.6916
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle')
+    #model = LogisticRegression(C=100.0,penalty='l1')
+    #xmodel = XModel("lr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
+
+    #LR2 LL=0.6916
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',renameFeatures=True)
+    #model = LogisticRegression(C=1.0,penalty='l2')
+    #xmodel = XModel("lr2",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
 
 
+    #LR3
+    #tsnelib= {'numDims': 2, 'perplexity': 30, 'theta':0.5, 'pcaDims':21}
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE = tsnelib,renameFeatures = True)
+    #model = LogisticRegression(C=1.0,penalty='l2')
+    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
+    #xmodel = XModel("lr3",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
 
-    #XGB1b RMSE = 0.457 EVAL = ? PL = 0.4548 !
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1b.h5')
-    model = XgboostRegressor(n_estimators=2000,learning_rate=0.005,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    xmodel = XModel("xgb1b_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
+
+    #LR3b
+    tsnelib= {'numDims': 3, 'perplexity': 30, 'theta':0.5, 'pcaDims':21}
+    Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE = tsnelib,renameFeatures = True)
+    model = LogisticRegression(C=1.0,penalty='l2')
+    model = Pipeline([('scaler', StandardScaler()), ('m',model)])
+    xmodel = XModel("lr3b",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
     ensemble.append(xmodel)
 
-    #XGB1c RMSE = 0.457 EVAL = ? PL = 0.4548 !
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1c.h5')
-    model = XgboostRegressor(n_estimators=2000,learning_rate=0.005,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    xmodel = XModel("xgb1c_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
+    #LR3c
+    tsnelib= {'numDims': 2, 'perplexity': 50, 'theta':0.5, 'pcaDims':21}
+    Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE = tsnelib,renameFeatures = True)
+    model = LogisticRegression(C=1.0,penalty='l2')
+    model = Pipeline([('scaler', StandardScaler()), ('m',model)])
+    xmodel = XModel("lr3c",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
     ensemble.append(xmodel)
 
-    #XRF3 RMSE = 0.459 EVAL=0.461
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1b.h5')
-    model =  ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=2, max_features=3*Xtrain.shape[1]/4)
-    xmodel = XModel("xrf3_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
+    #LR3d
+    tsnelib= {'numDims': 3, 'perplexity': 50, 'theta':0.5, 'pcaDims':21}
+    Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE = tsnelib,renameFeatures = True)
+    model = LogisticRegression(C=1.0,penalty='l2')
+    model = Pipeline([('scaler', StandardScaler()), ('m',model)])
+    xmodel = XModel("lr3d",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
     ensemble.append(xmodel)
 
+    #LR3e
+    #tsnelib= {'numDims': 4, 'perplexity': 30, 'theta':0.5, 'pcaDims':21}
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE = tsnelib)
+    #model = LogisticRegression(C=1.0,penalty='l2')
+    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
+    #xmodel = XModel("lr3e",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
 
-    #XRF4 RMSE = 0.459 EVAL=0.462
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1c.h5')
-    model =  ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=2, max_features=3*Xtrain.shape[1]/4)
-    xmodel = XModel("xrf4_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
+    #LR3f ~ 5h
+    #tsnelib= {'numDims': 5, 'perplexity': 30, 'theta':0.5, 'pcaDims':21}
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE = tsnelib)
+    #model = LogisticRegression(C=1.0,penalty='l2')
+    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
+    #xmodel = XModel("lr3f",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
+
+    #LR3g ~>24h
+    #tsnelib= {'numDims': 6, 'perplexity': 30, 'theta':0.5, 'pcaDims':21}
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE = tsnelib)
+    #model = LogisticRegression(C=1.0,penalty='l2')
+    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
+    #xmodel = XModel("lr3g",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
+
+
+    #LR4 LL=0.6916
+    #greedy_fw18b = ['feature14xfeature19', 'feature11xfeature20', 'feature1xfeature9', 'feature8xfeature20', 'feature1xfeature12', 'feature18xfeature21', 'feature11xfeature12', 'feature14xfeature17', 'feature2xfeature21', 'feature5xfeature21', 'feature11xfeature14', 'feature7xfeature10', 'feature12xfeature21']
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,polynomialFeatures='all',keepFeatures=greedy_fw18b)
+    #model = LogisticRegression(C=1.0,penalty='l2')
+    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
+    #xmodel = XModel("lr4",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
+
+    #LR5 LL=0.6923
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,polynomialFeatures='all',renameFeatures = True)
+    #model = LogisticRegression(C=100.0,penalty='l1')
+    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
+    #xmodel = XModel("lr5",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
+
+
+    #LR6 LL=
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,find_clusters=True,polynomialFeatures='all',dropFeatures=numericals,dimReduce=TruncatedSVD(n_components=5))
+    #model = LogisticRegression(C=1.0,penalty='l1')
+    #model = Pipeline([('svd', RobustScaler()),('m',model)])
+    #xmodel = XModel("lr6",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
+
+    #LR7 LL=
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,polynomialFeatures='all',dimReduce=TruncatedSVD(n_components=5),renameFeatures = True)
+    #model = LogisticRegression(C=1.0,penalty='l2')
+    #model = Pipeline([('scaler', StandardScaler()),('m',model)])
+    #xmodel = XModel("lr7",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
+
+    #LR8 LL=
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE={'uselib': 'bh_sne'})
+    #model = LogisticRegression(C=1.0,penalty='l2')
+    #model = Pipeline([('scaler', StandardScaler()),('m',model)])
+    #xmodel = XModel("lr8",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
+
+    #LR9 LL=0.6916
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,renameFeatures = True,find_clusters=True)
+    #model = LogisticRegression(C=1.0,penalty='l2')
+    #model = Pipeline([('scaler', StandardScaler()),('m',model)])
+    #xmodel = XModel("lr9",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
+
+    #lr10
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,renameFeatures = True,makeBins=5,oneHotenc=True)
+    #model = LogisticRegression(C=1.0,penalty='l2')
+    #model = Pipeline([('scaler', StandardScaler()),('m',model)])
+    #xmodel = XModel("lr10",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
+
+
+    #LDA LL=0.6916
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,renameFeatures = True)
+    #model = LinearDiscriminantAnalysis(solver='svd', shrinkage=None, priors=None, n_components=None, store_covariance=False, tol=0.0001)
+    #xmodel = XModel("lda1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
+
+
+    #NN1 LLPV=0.6915 LLPL=0.6919 LLPL=0.6916
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,renameFeatures = True)
+    #model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=40,learning_rate=0.05,validation_split=0.0,batch_size=64,verbose=1,activation='sigmoid', layers=[20,20], dropout=[0.0,0.1],loss='categorical_crossentropy')
+    #model = BaggingClassifier(base_estimator=model,n_estimators=20,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=1.0,bootstrap=False)
+    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
+    #xmodel = XModel("nn1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
+
+    #NN1b
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,renameFeatures = True)
+    #model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=40,learning_rate=0.05,validation_split=0.0,batch_size=64,verbose=1,activation='sigmoid', layers=[20,20], dropout=[0.0,0.1],loss='categorical_crossentropy')
+    #model = BaggingClassifier(base_estimator=model,n_estimators=20,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=1.0,bootstrap=True)
+    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
+    #xmodel = XModel("nn1b",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
+
+    #NN2 LLPV=  LLPL=0.69287
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,renameFeatures = True, append_old = [19])
+    #model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=50,learning_rate=0.05,validation_split=0.0,batch_size=64,verbose=1,activation='sigmoid', layers=[20,20], dropout=[0.0,0.1],loss='categorical_crossentropy')
+    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
+    #model = BaggingClassifier(base_estimator=model,n_estimators=20,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=1.0,bootstrap=False)
+    #xmodel = XModel("nn2",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
+
+    #NN3 LL=6919
+    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,renameFeatures = True,makeBins=5,oneHotenc=True)
+    #model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=30,learning_rate=0.0001,validation_split=0.0,batch_size=512,verbose=1,activation='sigmoid', layers=[20], dropout=[0.5],loss='categorical_crossentropy')
+    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
+    #xmodel = XModel("nn3",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
+    #ensemble.append(xmodel)
+
+    #NN4 LLPV=0.6915 LLPL=0.6919 LLPL=0.6916
+    tsnelib= {'numDims': 3, 'perplexity': 30, 'theta':0.5, 'pcaDims':21}
+    Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE = tsnelib,renameFeatures = True)
+    model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=40,learning_rate=0.05,validation_split=0.0,batch_size=64,verbose=1,activation='sigmoid', layers=[20,20], dropout=[0.5,0.5],loss='categorical_crossentropy')
+    #model = BaggingClassifier(base_estimator=model,n_estimators=20,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=1.0,bootstrap=False)
+    model = Pipeline([('scaler', StandardScaler()), ('m',model)])
+    xmodel = XModel("nn4",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
     ensemble.append(xmodel)
-
-
-    #XGB0 RMSE = 0.4645
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1b.h5')
-    model = XgboostRegressor(n_estimators=200,learning_rate=0.05,max_depth=10, NA=0,subsample=.75,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    xmodel = XModel("xgb0_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-
-
-    #bagxgb1 RMSE = 0.456 EVAL = 0.457  time for n_est = 10 ->
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1b.h5')
-    model = XgboostRegressor(n_estimators=800,learning_rate=0.01,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    model = BaggingRegressor(model,n_estimators=10, max_samples=1.0, max_features=0.9, bootstrap=True,verbose=1)
-    xmodel = XModel("bagxgb1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-
-
-    #NN1
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1b.h5')
-    model  = KerasNN(dims=Xtrain.shape[1],nb_classes=1,nb_epoch=35,learning_rate=1E-4,validation_split=0.0,batch_size=128,verbose=1,activation='sigmoid', layers=[260,480], dropout=[0.17,0.16],loss='mse')
-    model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
-    #model = BaggingRegressor(model,n_estimators=10, max_samples=1.0, max_features=1.0)
-    xmodel = XModel("nn1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-
-    #NN2
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1b.h5')
-    model  = KerasNN(dims=Xtrain.shape[1],nb_classes=1,nb_epoch=20,learning_rate=1E-4,validation_split=0.0,batch_size=512,verbose=1,activation='sigmoid', layers=[256,256], dropout=[0.1,0.0],loss='mse') # best
-    model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
-    #model = BaggingRegressor(model,n_estimators=10, max_samples=1.0, max_features=1.0)
-    xmodel = XModel("nn2_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-
-    #NN1 bag
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset('./data/store_db1b.h5')
-    model  = KerasNN(dims=Xtrain.shape[1],nb_classes=1,nb_epoch=35,learning_rate=1E-4,validation_split=0.0,batch_size=128,verbose=1,activation='sigmoid', layers=[260,480], dropout=[0.17,0.16],loss='mse')
-    model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
-    model = BaggingRegressor(model,n_estimators=10, max_samples=1.0, max_features=1.0)
-    xmodel = XModel("bagnn1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-
-    #XGB2b RMSE =   EVAL= PL=
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout='holdout_chrisslz.csv',
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=['product_title','product_description','product_info'],
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           useAttributes=None,
-                                                                           computeSim={'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': CountVectorizer(binary=False, min_df=3,  max_features=None, lowercase=True,analyzer="word",ngram_range=(1,2),stop_words=stop_words,strip_accents='unicode') },
-                                                                           doTFIDF=['search_term','product_title'],
-                                                                           n_components=[50,50],
-                                                                           cleanData=True,
-                                                                           merge_product_infos = True,
-                                                                           computeAddFeates=True,
-                                                                           spellchecker=False)
-
-    model = XgboostRegressor(n_estimators=800,learning_rate=0.01,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    xmodel = XModel("xgb2b_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-
-
-
-    #XGB3 RMSE = 0.467
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_db2.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout='holdout_chrisslz.csv',
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=['product_title','product_description','product_info'],
-                                                                           labelEncode=['search_term','MFG Brand Name','Material'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=False,
-                                                                           computeSim={'columns': ['product_description','search_term'],'doSVD': 300, 'vectorizer': CountVectorizer(binary=False, min_df=3,  max_features=None, lowercase=True,analyzer="word",ngram_range=(1,2),stop_words=stop_words,strip_accents='unicode')},
-                                                                           doTFIDF= None,#['search_term','product_description'],
-                                                                           n_components=None,#[75,75],
-                                                                           cleanData=False,
-                                                                           merge_product_infos = False,
-                                                                           computeAddFeates=False,
-                                                                           spellchecker = True,
-                                                                           useAttributes = ['MFG Brand Name','Material'],
-                                                                           word2vecFeates = True,
-                                                                           removeCorr = True)
-
-    model = XgboostRegressor(n_estimators=800,learning_rate=0.01,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    xmodel = XModel("xgb3_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-
-
-    #XGB4 RMSE = 0.47
-    attribute_list = [u'MFG Brand Name']
-    #attribute_list = [u'MFG Brand Name',u'Material',u'Product Width (in.)',u'Color Family',u'Product Height (in.)',u'Product Depth (in.)',u'Product Weight (lb.)',u'Color/Finish',u'Certifications and Listings']
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_large.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout='holdout_chrisslz.csv',
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=[u'product_title',u'product_description',u'product_info']+ attribute_list,
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           computeSim = None,#{'columns': ['product_info','search_term'],'doSVD': 200, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=['search_term','product_info'],
-                                                                           n_components=[200,400],
-                                                                           cleanData=True,
-                                                                           merge_product_infos = [u'product_title',u'product_description'] +attribute_list,
-                                                                           spellchecker = True,
-                                                                           useAttributes = attribute_list,
-                                                                           word2vecFeates = True,
-                                                                           removeCorr = True,
-                                                                           computeAddFeates = False,
-                                                                           computeAddFeates_new=False,
-                                                                           query_correction=False)
-
-    model = XgboostRegressor(n_estimators=800,learning_rate=0.01,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    xmodel = XModel("xgb4_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-
-
-
-    #XGB5 RMSE = ? somehow is doe not run through??
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout='holdout_chrisslz.csv',
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=[u'product_title',u'product_description',u'product_info'],
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=True,
-                                                                           createCommonWords=True,
-                                                                           oneHotenc = None,
-                                                                           computeSim = None,#{'columns': ['product_info','search_term'],'doSVD': 500, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF={'columns': ['search_term','product_title'],'vectorizer': TfidfVectorizer(min_df=100,  max_features=None, strip_accents='unicode', analyzer='char',ngram_range=(1, 2), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = None,token_pattern=r'\w{1,}')},
-                                                                           n_components=[75,300],
-                                                                           cleanData=True,
-                                                                           spellchecker = True,
-                                                                           useAttributes = None,
-                                                                           removeCorr = False,
-                                                                           computeAddFeates = False,
-                                                                           computeAddFeates_new=False,
-                                                                           query_correction=False)
-
-    model = XgboostRegressor(n_estimators=800,learning_rate=0.01,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    xmodel = XModel("xgb5_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-
-
-    #XGB6 RMSE =
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_db5.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout='holdout_chrisslz.csv',
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=[u'product_title',u'product_description',u'product_info'],
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=True,
-                                                                           createCommonWords=True,
-                                                                           oneHotenc = None,
-                                                                           computeSim = {'columns': ['product_title','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=None,#['search_term','product_info'],
-                                                                           n_components=None,#[75,200],
-                                                                           cleanData=True,
-                                                                           merge_product_infos = False,
-                                                                           spellchecker = True,
-                                                                           useAttributes = None,
-                                                                           word2vecFeates = False,
-                                                                           removeCorr = False,
-                                                                           computeAddFeates = True,
-                                                                           computeAddFeates_new=False,
-                                                                           query_correction=False)
-
-    model = XgboostRegressor(n_estimators=800,learning_rate=0.01,max_depth=10, NA=0,subsample=.5,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    xmodel = XModel("xgb6_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-
-
-
-    #XRF2
-    attribute_list = [u'MFG Brand Name',u'Material']
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload=False,#'./data/store_db3.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout='holdout_chrisslz.csv',
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=[u'product_title',u'product_description',u'product_info']+ attribute_list,
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           computeSim = {'columns': ['product_info','search_term'],'doSVD': 200, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=['search_term','product_info'],
-                                                                           n_components=[75,200],
-                                                                           cleanData=True,
-                                                                           merge_product_infos = [u'product_title',u'product_description'] +attribute_list,
-                                                                           spellchecker = True,
-                                                                           useAttributes = attribute_list,
-                                                                           word2vecFeates = True,
-                                                                           removeCorr = True,
-                                                                           computeAddFeates = False,
-                                                                           computeAddFeates_new=True,
-                                                                           query_correction=False)
-    model =  ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=2, max_features=3*Xtrain.shape[1]/3)
-    xmodel = XModel("xrf2_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-
-
-    #XSVR2 RMSE =
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload='./data/store_db1.h5',
-                                                                           seed=42,
-                                                                           nsamples=-1, holdout='holdout_chrisslz.csv',
-                                                                           keepFeatures=None,
-                                                                           dropFeatures=['product_title','product_description','product_info'],
-                                                                           labelEncode=['search_term'],
-                                                                           stemmData=None,
-                                                                           createCommonWords=True,
-                                                                           useAttributes=None,
-                                                                           computeSim={'columns': ['product_info','search_term'],'doSVD': 250, 'vectorizer': TfidfVectorizer(min_df=10,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 3), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')},
-                                                                           doTFIDF=['search_term','product_title'],
-                                                                           n_components=[50,50],
-                                                                           cleanData='load',
-                                                                           merge_product_infos = True,
-                                                                           computeAddFeates=True)
-
-    model = KernelRidge(kernel='linear')
-    model = Pipeline([('scaler', StandardScaler()), ('model',model)])
-    xmodel = XModel("svr1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-
-
-    #LR1 RMSE=4735
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload='./data/store_db1b.h5')
-    model = Pipeline([('scaler', StandardScaler()), ('nn', RidgeCV())])
-    xmodel = XModel("lr1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-
-    #RF1
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload='./data/store_db1b.h5')
-    model = RandomForestRegressor(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=2, max_features=Xtrain.shape[1]/3,oob_score=False)
-    xmodel = XModel("rf1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-
-
-    #KNN1
-    Xtest, Xtrain, ytrain, idx, sample_weight, Xval, yval = prepareDataset(quickload='./data/store_db1b.h5')
-    model = KNeighborsRegressor(n_neighbors=30)
-    xmodel = XModel("knn1_f8r1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=cv_labels,bag_mode=False)
-    ensemble.append(xmodel)
-    """
 
 
 
@@ -370,6 +238,11 @@ def finalizeModel(m, use_proba=True):
     Make predictions and save them
     """
     print "Make predictions and save them..."
+    # oob from crossvalidation
+    yoob = m.oob_preds
+    # final prediction
+    ypred = m.preds
+
     m.summary()
 
     # put data to data.frame and save
@@ -435,7 +308,7 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
             n_classes = len(m.class_names)
         else:
             n_classes = 1
-        print "n_classes", n_classes
+        print "n_classes:", n_classes
 
         oob_preds = np.zeros((m.ytrain.shape[0], n_classes, repeats),dtype=np.float32)
         preds = np.zeros((m.Xtest.shape[0], n_classes, repeats))
@@ -449,12 +322,11 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
         # outer loop
         for j in xrange(repeats):
             if m.cv_labels is not None:
-                print "Using cv-labels..."
-                cv = LabelKFold(m.cv_labels, n_folds=n_folds)
-                #cv = LabelShuffleSplit(m.cv_labels,n_iter=2,test_size=0.2)
+                print "ForwardDateCV ..."
+                #cv = ForwardDateCV(m.Xtrain.Month,m.Xtrain.Year,n_iter=8,useAll=True,verbose=True)
 
             else:
-                print "Normal random split for cv..."
+                print "KFOLD  ..."
                 cv = StratifiedKFold(m.ytrain, n_folds=n_folds, shuffle=True, random_state=None)
 
             scores = np.zeros(len(cv))
@@ -558,6 +430,7 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
                 print "Predicting on test set..."
                 if use_proba:
                     print m.Xtest.describe()
+                    raw_input()
                     m.preds = m.classifier.predict_proba(m.Xtest)[:,1]
                 else:
                     m.preds = m.classifier.predict(m.Xtest)
@@ -582,12 +455,8 @@ def fit_and_score(xmodel, X, y, train, valid, sample_weight=None, scale_wt=None,
     """
     Score function for parallel oob creation
     """
-
     if isinstance(X, pd.DataFrame):
         X = X.values
-
-    if isinstance(y, pd.DataFrame):
-        y = y.values
 
     Xtrain = X[train]
     Xvalid = X[valid]
@@ -598,7 +467,6 @@ def fit_and_score(xmodel, X, y, train, valid, sample_weight=None, scale_wt=None,
         print "Using sample weight...", sample_weight[train]
         xmodel.fit(Xtrain, ytrain, sample_weight=sample_weight[train])
     else:
-
         xmodel.fit(Xtrain, ytrain)
 
     if use_proba:
@@ -619,9 +487,6 @@ def trainEnsemble(ensemble, mode='linear', score_func='log_loss', useCols=None, 
     """
     Train the ensemble
     """
-
-    #TODO keep models in memory
-
     basedir = "./data/"
 
     for i, model in enumerate(ensemble):
@@ -793,34 +658,31 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
         print oobpreds.shape
 
 
-    blender=Ridge(alpha=1.0)#0.4546/0.4552
-    #blender = LinearRegression()
-    #blender = Pipeline([('pca', PCA(n_components=19,whiten=False)), ('model', LinearRegression())])
+    #blender=Ridge(alpha=10.0)#0.212644
+    blender = LogisticRegression(C=0.5)
+    # blender = Pipeline([('pca', PCA(n_components=19,whiten=False)), ('model', LinearRegression())])
     # blender = Pipeline([('scaler', StandardScaler()), ('model', Ridge(alpha=1.0))])
-    #blender = ConstrainedLinearRegressor(lowerbound=0, upperbound=.2, n_classes=1, alpha=None, corr_penalty=None,normalize=False, loss='rmse', greater_is_better=False)  # 0.216467
-
-    #blender=ExtraTreesRegressor(n_estimators=250,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='mse', max_features=4*oobpreds.shape[1]/5,oob_score=False)#0.215702
-    #blender = Pipeline([('ohc', OneHotEncoder(sparse=False)), ('model',ExtraTreesClassifier(n_estimators=300,max_depth=None,min_samples_leaf=7,n_jobs=4,criterion='gini', max_features=3,oob_score=False))])
+    #blender = ConstrainedLinearRegressor(lowerbound=0, upperbound=.2, n_classes=1, alpha=None, corr_penalty=None,normalize=False, loss='log_loss', greater_is_better=False)  # 0.216467
+    #blender=ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4, max_features=4*oobpreds.shape[1]/5,oob_score=False)#0.215702
+    # blender = Pipeline([('ohc', OneHotEncoder(sparse=False)), ('model',ExtraTreesClassifier(n_estimators=300,max_depth=None,min_samples_leaf=7,n_jobs=4,criterion='gini', max_features=3,oob_score=False))])
     # blender=RandomForestRegressor(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
-    #blender = XgboostRegressor(n_estimators=200,learning_rate=0.03,max_depth=2,subsample=.5,n_jobs=4,min_child_weight=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1)#0.4547 / 0.4560
-    #print oobpreds.shape
-    model = KerasNN(dims=oobpreds.shape[1],nb_classes=1,nb_epoch=30,learning_rate=0.001,validation_split=0.0,batch_size=256,verbose=1,activation='sigmoid', layers=[32]*2, dropout=[0.0]*2,loss='mse')
-    blender = Pipeline([('scaler', StandardScaler()), ('model',model)])#0.206
-    blender = BaggingRegressor(base_estimator=blender, n_estimators=20, n_jobs=1, verbose=2, random_state=None,max_samples=1.0, max_features=1.0, bootstrap=False)# + 0.454
+    #model = KerasNN(dims=oobpreds.shape[1],nb_classes=2,nb_epoch=30,learning_rate=0.1,validation_split=0.0,batch_size=512,verbose=1,activation='relu', layers=[20,20], dropout=[0.2,0.2],loss='categorical_crossentropy')
+    #blender = XgboostClassifier(n_estimators=200,learning_rate=0.03,max_depth=2,subsample=.5,n_jobs=4,min_child_weight=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1)#0.216854
+    #blender = CalibratedClassifierCV(blender, method='sigmoid', cv=3)
+    #blender = Pipeline([('scaler', StandardScaler()), ('model',blender)])#0.206
+    #blender = BaggingClassifier(base_estimator=blender, n_estimators=20, n_jobs=4, verbose=2, random_state=None,max_samples=0.7, max_features=1.0, bootstrap=False)
 
     if not skipCV:
-        # blender = CalibratedClassifierCV(baseblender, method='sigmoid', cv=3)
-        #cv = StratifiedKFold(ly, n_folds=8,shuffle=True)
-        pd.Series.from_csv('./data/labels_for_cv.csv')
-        cv = LabelKFold(cv_labels, n_folds=8)
+        #
+        cv = StratifiedKFold(ly, n_folds=8,shuffle=True)
         #ForwardDateCV(m.Xtrain.Month,m.Xtrain.Year,n_iter=8,useAll=False,verbose=True)
         #score_func = make_scorer(funcdict[score_func], greater_is_better = False)
-        #parameters = {'n_estimators':[200,400],'max_depth':[3],'learning_rate':[0.03],'subsample':[0.5],'colsample_bytree':[0.5],'min_child_weight':[5]}#XGB
-        parameters = {'n_estimators':[500],'max_features':[8,10,12],'min_samples_leaf':[5],'criterion':['mse']}#RF
+        # parameters = {'n_estimators':[300],'max_depth':[3],'learning_rate':[0.03],'subsample':[0.5],'colsample_bytree':[0.5],'min_child_weight':[1]}#XGB
+        # parameters = {'n_estimators':[200,300],'max_features':[5,7],'min_samples_leaf':[1,5,10],'criterion':['mse']}#XGB
         # parameters = {'max_features':[0.9,0.95,1.0],'max_samples':[0.9,0.95,1.0],'bootstrap':[False,True]}#XGB
         # parameters = {'model__hidden1_num_units': [128],'model__dropout1_p':[0.0],'model__hidden2_num_units': [128],'model__dropout2_p':[0.0],'model__max_epochs':[75],'model__objective_alpha':[0.002]}
-        #parameters = {'model__max_epochs':[5,10,15]}
-        blender=makeGridSearch(blender,oobpreds,ly,n_jobs=1,refit=False,cv=cv,scoring=score_func,parameters=parameters,random_iter=-1)
+        parameters = {'model__max_epochs':[5,10,15]}
+        #blender=makeGridSearch(blender,oobpreds,ly,n_jobs=1,refit=False,cv=cv,scoring=score_func,parameters=parameters,random_iter=-1)
         #buildXvalModel(blender,oobpreds,ly,sample_weight=None,class_names=None,refit=True,cv=cv)
         blend_scores = np.zeros(len(cv))
         n_classes = 1
@@ -840,10 +702,10 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
             print "Fold: %3d <%s>: %0.6f ~mean: %6.4f std: %6.4f" % (
                 i, score_func, blend_scores[i], blend_scores[:i + 1].mean(), blend_scores[:i + 1].std())
 
-        print " <" + score_func + ">: %0.6f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()),
+        print " <" + score_func + ">: %0.5f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()),
         oob_auc = funcdict[score_func](ly, blend_oob)
         # showMisclass(ly,blend_oob,oobpreds,index=kwargs['cv_labels'])
-        print " " + score_func + ": %0.6f" % (oob_auc)
+        print " " + score_func + ": %0.5f" % (oob_auc)
 
         if subfile is not None:
             print "Make model fit on oob data..."
@@ -855,7 +717,7 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
                 else:
                     y_val_pred = blender.predict(valpreds)
                 score = funcdict[score_func](yval, y_val_pred)
-                print " " + score_func + ": %0.6f" % (score)
+                print " " + score_func + ": %0.5f" % (score)
 
                 print "Make model fit on oob & validation data..."
                 oobpreds = pd.concat([oobpreds, valpreds], axis=0)
@@ -892,6 +754,100 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
     return (blend_scores.mean())
 
 
+# def classicalBlend_old(ensemble, oobpreds, testset, ly, use_proba=True, score_func='log_loss', subfile=None, cv=5,
+# 								   skipCV=False, **kwargs):
+# 	"""
+# 	Blending using sklearn classifier
+# 	"""
+# 	oobpreds, testset = preprocess(oobpreds, testset)
+# 	showAVGCorrelations(oobpreds, testset)
+#
+# 	if kwargs['dropCorrelated']:
+# 		# showCorrelations(oobpreds)
+# 		oobpreds, testset = removeCorrelations(oobpreds, testset, 0.994)
+# 		print oobpreds.shape
+#
+# 	#blender=Ridge(alpha=10.0)#0.212644
+# 	# blender = Pipeline([('pca', PCA(n_components=19,whiten=False)), ('model', LinearRegression())])
+# 	# blender = Pipeline([('scaler', StandardScaler()), ('model', Ridge(alpha=1.0))])
+# 	#blender = ConstrainedLinearRegressor(lowerbound=0, upperbound=.2, n_classes=1, alpha=None, corr_penalty=None,normalize=False, loss='rmse', greater_is_better=False)  # 0.216467
+# 	# blender=ExtraTreesRegressor(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='mse', max_features=4*oobpreds.shape[1]/5,oob_score=False)#0.215702
+# 	# blender = Pipeline([('ohc', OneHotEncoder(sparse=False)), ('model',ExtraTreesClassifier(n_estimators=300,max_depth=None,min_samples_leaf=7,n_jobs=4,criterion='gini', max_features=3,oob_score=False))])
+# 	# blender=RandomForestRegressor(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
+# 	# blender = XgboostRegressor(n_estimators=200,learning_rate=0.03,max_depth=2,subsample=.5,n_jobs=4,min_child_weight=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1)#0.216854
+#
+# 	#blender = Pipeline([('scaler', StandardScaler()), ('model',nnet_ensembler1)])#0.206
+# 	#blender = Pipeline([('scaler', StandardScaler()), ('model',nnet_ensembler2)])
+# 	blender = Pipeline([('scaler', StandardScaler()), ('model', nnet_ensembler3)])
+#
+# 	blender = BaggingRegressor(base_estimator=blender,n_estimators=20,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=.9,bootstrap=False)
+#
+# 	if not skipCV:
+# 		# blender = CalibratedClassifierCV(baseblender, method='sigmoid', cv=3)
+# 		# cv = KFold(ly.shape[0], n_folds=10,shuffle=True)
+# 		print kwargs['cv_labels']
+# 		cv = KLabelFolds(pd.Series(kwargs['cv_labels']), n_folds=2, repeats=10)
+# 		# cv = LeavePLabelOutWrapper(ta,n_folds=8,p=1)
+# 		# score_func = make_scorer(funcdict[score_func], greater_is_better = False)
+# 		# parameters = {'n_estimators':[300],'max_depth':[3],'learning_rate':[0.03],'subsample':[0.5],'colsample_bytree':[0.5],'min_child_weight':[1]}#XGB
+# 		# parameters = {'n_estimators':[200,300],'max_features':[5,7],'min_samples_leaf':[1,5,10],'criterion':['mse']}#XGB
+# 		# parameters = {'max_features':[0.9,0.95,1.0],'max_samples':[0.9,0.95,1.0],'bootstrap':[False,True]}#XGB
+# 		# parameters = {'model__hidden1_num_units': [128],'model__dropout1_p':[0.0],'model__hidden2_num_units': [128],'model__dropout2_p':[0.0],'model__max_epochs':[75],'model__objective_alpha':[0.002]}
+# 		# blender=makeGridSearch(blender,oobpreds,ly,n_jobs=1,refit=False,cv=cv,scoring=score_func,parameters=parameters,random_iter=-1)
+# 		blend_scores = np.zeros(len(cv))
+# 		n_classes = 1
+# 		blend_oob = np.zeros((oobpreds.shape[0], n_classes))
+# 		print blender
+# 		for i, (train, test) in enumerate(cv):
+# 			clf = clone(blender)
+# 			Xtrain = oobpreds.iloc[train]
+# 			Xtest = oobpreds.iloc[test]
+# 			clf.fit(Xtrain.values, ly[train])
+# 			if use_proba:
+# 				blend_oob[test] = clf.predict_proba(Xtest)
+# 			else:
+# 				blend_oob[test] = clf.predict(Xtest).reshape(blend_oob[test].shape)
+# 			blend_scores[i] = funcdict[score_func](ly[test], blend_oob[test])
+# 			print "Fold: %3d <%s>: %0.6f ~mean: %6.4f std: %6.4f" % (
+# 			i, score_func, blend_scores[i], blend_scores[:i + 1].mean(), blend_scores[:i + 1].std())
+#
+# 		print " <" + score_func + ">: %0.6f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()),
+# 		oob_auc = funcdict[score_func](ly, blend_oob)
+# 		# showMisclass(ly,blend_oob,oobpreds,index=kwargs['cv_labels'])
+# 		print " " + score_func + ": %0.6f" % (oob_auc)
+#
+# 		if subfile is not None:
+# 			print "Make full model fit..."
+# 			blender.fit(oobpreds, ly)
+#
+# 		if hasattr(blender, 'coef_'):
+# 			print "%-3s %-24s %10s %10s" % ("nr", "model", score_func, "coef")
+# 			for i, model in enumerate(oobpreds.columns):
+# 				coldata = np.asarray(oobpreds.iloc[:, i])
+# 				score = funcdict[score_func](ly, coldata)
+# 				print "%-3d %-24s %10.4f%10.4f" % (i + 1, model.replace("_Class", ""), score, blender.coef_[i])
+# 			print "sum coef: %4.4f" % (np.sum(blender.coef_))
+#
+# 		if subfile is not None:
+# 			info_dist(ly, "orig")
+# 			info_dist(blender.predict(oobpreds), "fit")
+#
+# 	if subfile is not None:
+# 		print "Make final ensemble prediction..."
+# 		# blend results
+# 		if use_proba:
+# 			preds = blender.predict_proba(testset)
+# 		else:
+# 			preds = blender.predict(testset)
+# 			preds = preds.flatten()
+#
+# 		# print preds
+# 		info_dist(preds, "preds")
+# 		makePredictions(None, preds, filename=subfile)
+# 		analyze_predictions(blend_oob, preds)
+#
+# 	return (blend_scores.mean())
+
 def multiclass_mult(Xtrain, params, n_classes):
     """
     Multiplication rule for multiclass models
@@ -912,7 +868,7 @@ def blend_mult(Xtrain, params, n_classes=None):
         return multiclass_mult(Xtrain, params, n_classes)
 
 
-def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='log_loss', greater_is_better=False,
+def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='log_loss', greater_is_better=True,
                 use_proba=False,
                 normalize=False, removeZeroModels=-1, takeMean=False, alpha=None, subfile=None, plotting=False,
                 **kwargs):
@@ -943,7 +899,7 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
     n_models = len(ensemble)
     n_classes = Xtrain.shape[1] / len(ensemble)
 
-    lowerbound = 0.0
+    lowerbound = -100
     upperbound = 0.5
     #constr = None
     constr = [lambda x, z=i: x[z] - lowerbound for i in range(n_models)]
@@ -1011,7 +967,7 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
         idx_end = n_classes * (i + 1)
         coldata = np.asarray(Xtrain.iloc[:, idx_start:idx_end])
         score = funcdict[score_func](y, coldata)
-        print "%4d %-48s %6.3f %6.3f" % (i + 1, model, score, xopt[i]),
+        print "%4d %-48s %6.4f %6.3f" % (i + 1, model, score, xopt[i]),
         if xopt[i] < removeZeroModels:
             zero_models.append(model)
         if Xval is not None:
@@ -1092,7 +1048,7 @@ def selectModels(ensemble, startensemble=[], niter=10, mode='linear', useCols=No
 
 
 def selectModelsGreedy(ensemble, startensemble=[], niter=2, mode='mean', useCols=None, dropCorrelated=False,
-                       greater_is_better=False,score_func='rmse', replacement=False):
+                       greater_is_better=False,score_func='log_loss', replacement=False):
     """
     Select best models in a greedy forward selection
     """
@@ -1121,7 +1077,7 @@ def selectModelsGreedy(ensemble, startensemble=[], niter=2, mode='mean', useCols
             # score=trainEnsemble(actensemble,mode=mode,useCols=useCols,addMetaFeatures=False,dropCorrelated=dropCorrelated)
             # score=trainEnsemble(actensemble,mode=mode,useCols=None,use_proba=False)
             # score = trainEnsemble(actensemble,mode=mode,score_func='quadratic_weighted_kappa',use_proba=False,subfile=None)
-            score = trainEnsemble(actensemble, mode=mode, score_func=score_func, use_proba=False, useCols=None,
+            score = trainEnsemble(actensemble, mode=mode, score_func=score_func, use_proba=True, useCols=None,
                                   subfile=None, dropCorrelated=dropCorrelated)
             print "##(Current top score: %4.4f | overall best score: %4.4f) current score: %4.4f  - " % (
                 maxscore, bestscore, score)
@@ -1168,21 +1124,16 @@ def blendSubmissions(fileList, coefList):
 
 if __name__ == "__main__":
     np.random.seed(123)
-    USE_PROBA = False
-    OBJECTIVE = 'rmse'
-
     plt.interactive(False)
-    global idx,cv_lables
-    #store = pd.HDFStore('./data/store_db1.h5')
-    #idx = store['test_id']
-    idx = pd.read_csv('./data/test.csv', encoding="ISO-8859-1")['id']
-    cv_labels = pd.Series.from_csv('./data/labels_for_cv.csv')
+    idx = pd.HDFStore('./data_numerai/store.h5')['test_id']
+    data_id = 21
+    #print idx
 
     """
     # 1nd LEVEL MODEL BUILDING
     """
     #ensemble = createModels()
-    #ensemble = createOOBdata(ensemble, repeats=1, n_folds=8, n_jobs=1, use_proba=USE_PROBA,score_func=OBJECTIVE)  # oob data averaging leads to significant variance reduction
+    #ensemble = createOOBdata(ensemble, repeats=1, n_folds=8, n_jobs=1, use_proba=True,score_func='log_loss')  # oob data averaging leads to significant variance reduction
 
     # createDataSets()
     # saveTrainData(ensemble)
@@ -1190,11 +1141,11 @@ if __name__ == "__main__":
     """
     # 1nd LEVEL ENSEMBLING
     """
-
-    all_models_old = ['xgb0_f8r1','xgb1_f8r1','xgb2_f8r1','xgb2b_f8r1','xgb2c_f8r1','xgb3_f8r1','xgb4_f8r1','xrf1_f8r1','rf1_f8r1','nn1_f8r1','nn1b_f8r1','nn2_f8r1','knn1_f8r1','svr1_f8r1','lr1_f8r1']
-    all_models = ['bagxgb1_f8r1','xgb1b_f8r1','xgb0_f8r1','xrf3_f8r1','nn1_f8r1','nn2_f8r1','bagnn1_f8r1','xgb2b_f8r1','xgb3_f8r1','xgb4_f8r1','xgb5_f8r1','xgb6_f8r1','xrf2_f8r1','lr1_f8r1','knn1_f8r1','rf1_f8r1']
-    best = ['xgb1b_f8r1', 'bagxgb1_f8r1', 'xgb1b_f8r1', 'xrf2_f8r1']
-    models = all_models
-    #trainEnsemble(models, mode='classical', score_func=OBJECTIVE, useCols=None, addMetaFeatures=False, use_proba=USE_PROBA,dropCorrelated=False, subfile='./submissions/sub150416a.csv')
-    selectModelsGreedy(all_models,startensemble=['xgb1b_f8r1'],niter=10,mode='mean',greater_is_better=False,score_func=OBJECTIVE, replacement = True)
+    old_models = ['nn1','lda1','lr1','lr2','lr3','lr3b','lr3c','lr3d','lr3e','lr3f','lr3g','lr5','lr6','lr7','lr8','xgb1','xgb2','xgb3']
+    new_models = ['nn1','lr3','lr5','nn3','lr3b','lr3c','lr3d','nn4']
+    best_models = ['nn1','lr3b','lr5']
+    models = best_models
+    trainEnsemble(models, mode='mean', score_func='log_loss', useCols=None, addMetaFeatures=False, use_proba=True,
+                dropCorrelated=False, subfile='./submissions/num_ens031016a.csv')
+    #selectModelsGreedy(new_models,startensemble=['nn1'],niter=10,mode='mean',greater_is_better=False, replacement = True)
 
