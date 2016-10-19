@@ -1,3 +1,4 @@
+#!/usr/bin/python
 '''
            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
                    Version 2, December 2004
@@ -14,39 +15,13 @@ as the name is changed.
  0. You just DO WHAT THE FUCK YOU WANT TO.
 '''
 
-
+import sys
 from datetime import datetime
 from csv import DictReader
 from math import exp, log, sqrt
 
 
-# TL; DR, the main training process starts on line: 250,
-# you may want to start reading the code from there
 
-
-##############################################################################
-# parameters #################################################################
-##############################################################################
-
-# A, paths
-train = 'train_rev2'               # path to training file
-test = 'test_rev2'                 # path to testing file
-submission = 'submission1234.csv'  # path of to be outputted submission file
-
-# B, model
-alpha = .1  # learning rate
-beta = 1.   # smoothing parameter for adaptive learning rate
-L1 = 1.     # L1 regularization, larger value means more regularized
-L2 = 1.     # L2 regularization, larger value means more regularized
-
-# C, feature/hash trick
-D = 2 ** 20             # number of weights to use
-interaction = False     # whether to enable poly2 feature interactions
-
-# D, training/validation
-epoch = 1       # learn training data for N passes
-holdafter = 9   # data after date N (exclusive) are used as validation
-holdout = None  # use every N training instance for holdout validation
 
 
 ##############################################################################
@@ -64,7 +39,7 @@ class ftrl_proximal(object):
         http://www.eecs.tufts.edu/~dsculley/papers/ad-click-prediction.pdf
     '''
 
-    def __init__(self, alpha, beta, L1, L2, D, interaction):
+    def __init__(self, alpha, beta, L1, L2, D=2**10, interaction=False, maxiter=10, holdout=5, roundp=5):
         # parameters
         self.alpha = alpha
         self.beta = beta
@@ -74,6 +49,11 @@ class ftrl_proximal(object):
         # feature related parameters
         self.D = D
         self.interaction = interaction
+
+        # iterations
+        self.maxiter = maxiter
+        self.holdout = holdout
+        self.roundp = roundp
 
         # model
         # n: squared sum of past gradients
@@ -175,12 +155,57 @@ class ftrl_proximal(object):
 
         # gradient under logloss
         g = p - y
+        #print("g:%5.2f p:%5.2f y:%5.2f"%(g,p,y))
 
-        # update z and n
+        #print "x:",x
+        # update z and n for each feature i
         for i in self._indices(x):
+            #print("i: %r:"%i)
             sigma = (sqrt(n[i] + g * g) - sqrt(n[i])) / alpha
-            z[i] += g - sigma * w[i]
-            n[i] += g * g
+            z[i] += g - sigma * w[i]   # weights for each feature i
+            n[i] += g * g   #  sum of gradient squared, save for each feature i
+            #print "n:",n
+
+
+    def fit(self,train):
+        """
+        Fit data via sklearn train function
+
+        """
+        # start training
+        for e in xrange(self.maxiter):
+            loss = 0.
+            count = 1
+
+            for t, ID, x, y in data(train, self.D, self.roundp):  # data is a generator
+                #    t: just a instance counter
+                # date: you know what this is
+                #   ID: id provided in original data
+                #    x: features
+                #    y: label (click)
+
+                # step 1, get prediction from learner
+                p = learner.predict(x)
+                #print p
+                #raw_input()
+
+                if self.holdout and t % self.holdout == 0:
+                    # step 2-1, calculate validation loss
+                    #           we do not train with the validation data so that our
+                    #           validation loss is an accurate estimation
+                    #
+                    # holdout: validate with every N instance, train with others
+                    loss += logloss(p, y)
+                    count += 1
+
+                else:
+                    # step 2-2, update learner with label (click) information
+                    learner.update(x, p, y)
+
+            print('Iteration %d finished, validation logloss: %f, elapsed time: %s' % (
+                e, loss/count, str(datetime.now() - start)))
+            sys.stdout.flush()
+
 
 
 def logloss(p, y):
@@ -198,7 +223,7 @@ def logloss(p, y):
     return -log(p) if y == 1. else -log(1. - p)
 
 
-def data(path, D):
+def data(path, D, roundp):
     ''' GENERATOR: Apply hash-trick to the original csv row
                    and for simplicity, we one-hot-encode everything
 
@@ -213,85 +238,85 @@ def data(path, D):
             y: y = 1 if we have a click, else we have y = 0
     '''
 
+    # iterate over file
     for t, row in enumerate(DictReader(open(path))):
         # process id
-        ID = row['id']
-        del row['id']
+
+        if 't_id' in row.keys():
+            ID = row['t_id']
+        else:
+            ID = t
 
         # process clicks
         y = 0.
-        if 'click' in row:
-            if row['click'] == '1':
+        target = 'target'
+        if target in row:
+            if row[target] == '1':
                 y = 1.
-            del row['click']
+            del row[target]
 
         # extract date
-        date = int(row['hour'][4:6])
-
         # turn hour really into hour, it was originally YYMMDDHH
-        row['hour'] = row['hour'][6:]
+        #row['hour'] = row['hour'][6:]
 
         # build x
         x = []
         for key in row:
             value = row[key]
-
+            value = str(round(float(value),roundp))
+            # round here ??
             # one-hot encode everything with hash trick
             index = abs(hash(key + '_' + value)) % D
             x.append(index)
-
-        yield t, date, ID, x, y
-
-
-##############################################################################
-# start training #############################################################
-##############################################################################
-
-start = datetime.now()
-
-# initialize ourselves a learner
-learner = ftrl_proximal(alpha, beta, L1, L2, D, interaction)
-
-# start training
-for e in xrange(epoch):
-    loss = 0.
-    count = 0
-
-    for t, date, ID, x, y in data(train, D):  # data is a generator
-        #    t: just a instance counter
-        # date: you know what this is
-        #   ID: id provided in original data
-        #    x: features
-        #    y: label (click)
-
-        # step 1, get prediction from learner
-        p = learner.predict(x)
-
-        if (holdafter and date > holdafter) or (holdout and t % holdout == 0):
-            # step 2-1, calculate validation loss
-            #           we do not train with the validation data so that our
-            #           validation loss is an accurate estimation
-            #
-            # holdafter: train instances from day 1 to day N
-            #            validate with instances from day N + 1 and after
-            #
-            # holdout: validate with every N instance, train with others
-            loss += logloss(p, y)
-            count += 1
-        else:
-            # step 2-2, update learner with label (click) information
-            learner.update(x, p, y)
-
-    print('Epoch %d finished, validation logloss: %f, elapsed time: %s' % (
-        e, loss/count, str(datetime.now() - start)))
+        yield t, ID, x, y
 
 
-##############################################################################
-# start testing, and build Kaggle's submission file ##########################
-##############################################################################
+if __name__ == "__main__":
+    """
+    MAIN PART
+    """
+    ##############################################################################
+    # parameters #################################################################
+    ##############################################################################
 
-with open(submission, 'w') as outfile:
-    outfile.write('id,click\n')
-    for t, date, ID, x, y in data(test, D):
-        p = learner.predict(x)
-        outfile.write('%s,%s\n' % (ID, str(p)))
+    # plot with gnuplot -noraise ftrl.plt
+
+    # A, paths
+    train = '/home/loschen/Desktop/datamining-kaggle/numerai/data/numerai_training_data.csv'               # path to training file
+    test = '/home/loschen/Desktop/datamining-kaggle/numerai/data/numerai_tournament_data.csv'                 # path to testing file
+    submission = 'submissions/numerai_ftrl_29072016.csv'  # path of to be outputted submission file
+
+    # B, model
+    alpha = .0001  # learning rate
+    beta = alpha   # smoothing parameter for adaptive learning rate
+    L1 = 100.     # L1 regularization, larger value means more regularized
+    L2 = 10.     # iL2 regularization, larger value means more regularized
+
+    # C, feature/hash trick
+    D = 4000     # number of hashed features to use # 20000
+    interaction = True     # whether to enable poly2 feature interactions
+    roundp = 1
+
+    # D, training/validation
+    maxiter = 60       # learn training data for N passes
+    holdout = 5  # use every N training instance for holdout validation
+
+    ##############################################################################
+    # start training #############################################################
+    ##############################################################################
+
+    start = datetime.now()
+
+    # initialize ourselves a learner
+    learner = ftrl_proximal(alpha, beta, L1, L2, D, interaction, maxiter, holdout, roundp)
+    learner.fit(train)
+
+    ##############################################################################
+    # start testing, and build Kaggle's submission file ##########################
+    ##############################################################################
+
+    with open(submission, 'w') as outfile:
+        outfile.write('t_id,probability\n')
+        for t, ID, x, y in data(test, D, roundp):
+            p = learner.predict(x)
+            outfile.write('%s,%s\n' % (ID, str(p)))

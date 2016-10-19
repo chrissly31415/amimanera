@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # coding: utf-8
+from keras.utils.np_utils import probas_to_classes
 
 from qsprLib import *
 
@@ -12,46 +13,97 @@ import os
 pd.options.display.mpl_style = 'default'
 
 
-def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFeatures=None, dropFeatures = None,dummy_encoding=None,labelEncode=None, oneHotenc=None,removeRare_freq=None, createVerticalFeatures=False, logtransform = None, polynomialFeatures=False,makeDiff=False):
+from subprocess import call
+from tsne import bh_sne
+
+
+sys.path.append('/home/loschen/calc/smuRF/python_wrapper')
+import smurf as sf
+
+def prepareDataset(quickload=False,data_id = 0,store_data = True, append_old=None, seed=123, nsamples=-1, holdout=False, keepFeatures=None, dropFeatures = None,dummy_encoding=None,labelEncode=None, oneHotenc=None,removeRare_freq=None, createVerticalFeatures=None, logtransform = None, polynomialFeatures=None,poly3rdOrder=None, makeDiff=None, makeBins=None, makeTSNE=None,find_clusters=None,removeCor=None,adversarial=None,useDBSCAN=None,dimReduce=None,renameFeatures=None):
     np.random.seed(seed)
 
     store = pd.HDFStore('./data_numerai/store.h5')
 
+    if not quickload:
 
-    Xtrain = pd.read_csv('./data_numerai/numerai_training_data.csv')
-
-    print Xtrain.info()
-    print Xtrain.describe(include='all')
-    print "Xtrain.shape:",Xtrain.shape
-
-    Xtest = pd.read_csv('./data_numerai/numerai_tournament_data.csv')
-    test_id = Xtest['t_id']
-    Xtest.drop(['t_id'],axis=1,inplace=True)
-    Xtest['validation']=-1
-    print "Xtest.shape:",Xtest.shape
-
-
-    if nsamples != -1:
-        if isinstance(nsamples, str) and 'shuffle' in nsamples:
-            print "Shuffle train data..."
-            rows = np.random.choice(len(Xtrain.index), size=len(Xtrain.index), replace=False)
-        else:
-            rows = np.random.choice(len(Xtrain.index), size=nsamples, replace=False)
-
-        print "unique rows: %6.2f" % (float(np.unique(rows).shape[0]) / float(rows.shape[0]))
-        Xtrain = Xtrain.iloc[rows, :]
-    print Xtrain.shape
+        Xtrain = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/numerai/data/numerai_datasets_'+str(data_id)+'/numerai_training_data.csv')
+        Xtest =  pd.read_csv('/home/loschen/Desktop/datamining-kaggle/numerai/data/numerai_datasets_'+str(data_id)+'/numerai_tournament_data.csv')
 
 
 
-    ytrain = Xtrain['target']
-    Xtrain.drop(['target'],axis=1,inplace=True)
+        print Xtrain.info()
+        print "Xtrain.shape:",Xtrain.shape
 
-    print "Xtrain - ISNULL:",Xtrain.isnull().any(axis=0)
-    print "Xtest - ISNULL:",Xtest.isnull().any(axis=0)
+        test_id = Xtest['t_id']
+        Xtest.drop(['t_id'],axis=1,inplace=True)
+        #Xtest['validation']=-1
+        print "Xtest.shape:",Xtest.shape
+
+        if nsamples != -1:
+            if isinstance(nsamples, str) and 'shuffle' in nsamples:
+                print "Shuffle train data..."
+                rows = np.random.choice(len(Xtrain.index), size=len(Xtrain.index), replace=False)
+            else:
+                rows = np.random.choice(len(Xtrain.index), size=nsamples, replace=False)
+
+            print "unique rows: %6.2f" % (float(np.unique(rows).shape[0]) / float(rows.shape[0]))
+            Xtrain = Xtrain.iloc[rows, :]
+
+
+        ytrain = Xtrain['target']
+        Xtrain.drop(['target'],axis=1,inplace=True)
+
+
+
+
+
+
+    else:
+        print "Loading previous dataset..."
+        Xtrain = store['Xtrain']
+        ytrain= store['ytrain']
+        Xtest = store['Xtest']
+        test_id = store['test_id']
+        return Xtest, Xtrain, ytrain.values, test_id, None, None, None
+
+    #print "Xtrain - ISNULL:",Xtrain.isnull().any(axis=0)
+    #print "Xtest - ISNULL:",Xtest.isnull().any(axis=0)
 
 
     Xall = pd.concat([Xtest, Xtrain], ignore_index=True)
+
+    if renameFeatures is not None:
+        print "Renaming features!"
+        corr_train = pd.DataFrame(Xall).corr()
+        sns.set(context="paper", font="monospace")
+        m = sns.clustermap(corr_train)
+        new_cols = m.data2d.columns
+        Xall = Xall[new_cols]
+        print "New feature order:",Xall.columns
+        print "Renaming..."
+        Xall.columns = ['feature'+str(x+1) for x in xrange(Xall.shape[1])]
+
+    if append_old is not None:
+            for dset in append_old:
+                print "Adding old data:"+str(dset)
+                #Xtrain2 = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/numerai/data/'+dset+'/numerai_training_data.csv')
+                _, Xtrain_old, ytrain_old, _,  _ , _ , _ = prepareDataset(data_id=dset,renameFeatures=True,adversarial=None,store_data=False)
+
+                print type(ytrain)
+                print type(ytrain_old)
+
+                Xtrain = Xall[len(Xtest.index):]
+                Xtest = Xall[:len(Xtest.index)]
+
+                Xtrain = pd.concat([Xtrain, Xtrain_old], ignore_index=True)
+                ytrain = pd.concat([ytrain,pd.Series(ytrain_old)],ignore_index=True)
+                #ytrain =np.concatenate((ytrain.values,ytrain_old))
+                print Xtrain.shape
+                print ytrain.shape
+
+                Xall = pd.concat([Xtest, Xtrain], ignore_index=True)
+
 
 
     if dummy_encoding is not None:
@@ -87,49 +139,127 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
             counts = ser.value_counts().keys()
             print "%s has %d different values after" % (col, len(counts))
 
+    if useDBSCAN is not None:
+        print "DBSCan..."
+        db = DBSCAN(eps=0.7, min_samples=5)
+        db.fit(Xall.values)
+        core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
+        core_samples_mask[db.core_sample_indices_] = True
+        labels = db.labels_
+        noise_labels = labels == -1
+        print "n noise:",noise_labels.sum()
+        n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+        print "n clusters:",n_clusters_
+        print noise_labels
+        print noise_labels.shape
+        #Xall['noise'] = noise_labels
+        Xall['clusters'] = labels
+        grouped = Xall.groupby('clusters')
 
-    if createVerticalFeatures:
+
+    if find_clusters is not None:
+        Xf1 = Xall.values.T
+        est1 = KMeans(n_clusters=7, n_jobs=4)
+        est1.fit(Xf1)
+        labels1 = est1.labels_
+        clustered1 = []
+        for i in xrange(7):
+            clustered1.append(list(Xall.columns[labels1==i].values))
+        print clustered1
+        createVerticalFeatures = clustered1
+
+
+    if makeBins is not None:
+        Xall = data_binning(Xall, makeBins)
+        print Xall.head(10)
+
+    if createVerticalFeatures is not None:
         print "Creating vert features..."
-        #colnames = ['f1', 'f2', 'f3']
-        colnames = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12', 'f13', 'f14']
-        print Xall.columns
-        gr = Xall.groupby('c1')
-        for col in colnames:
-                Xall['median_'+col] = 0.0
-                Xall['sdev_'+col] = 0.0
-                Xall['sum_'+col] = 0.0
-                Xall['count_'+col] = 0.0
+        for i,fgroup in enumerate(createVerticalFeatures):
+            print fgroup
+            m = Xall[fgroup].mean(axis=1)
+            Xall['fgroup_'+str(i)+'_mean'] = m
+            sd = Xall[fgroup].std(axis=1)
+            Xall['fgroup_'+str(i)+'_std'] = sd
+            #md = Xall[fgroup].median(axis=1)
+            #Xall['fgroup_'+str(i)+'_median'] = md
 
-        for id,indices in gr.groups.items():
-            for col in colnames:
-                total_mean = Xall.loc[indices,[col]].median()
-                variance = Xall.loc[indices,[col]].std()
-                count = Xall.loc[indices,[col]].shape[0]
-                sum = Xall.loc[indices,[col]].sum()
-                Xall.loc[indices,['median_'+col]]= total_mean.values
-                Xall.loc[indices,['sdev_'+col]]= variance.values
-                Xall.loc[indices,['count_'+col]]= count
-                Xall.loc[indices,['sum_'+col]]= sum.values
+            #k = Xall[fgroup].kurtosis(axis=1)
+            #Xall['fgroup_'+str(i)+'_kurt'] = k
+
+            #Xall.drop(fgroup,axis=1,inplace=True)
 
 
-        print Xall.head()
+    if adversarial is not None:
+        print "Selecting training instances..."
+        #train for train / test similarity
 
-    if polynomialFeatures:
+        Xtrain = Xall[len(Xtest.index):]
+        Xtest = Xall[:len(Xtest.index)]
+
+        Xtest['test'] = 1
+        Xtrain['test'] = 0
+        Xall = pd.concat([Xtest, Xtrain], ignore_index=True)
+        ytemp = Xall['test']
+        Xall.drop(['test'],axis=1,inplace=True)
+
+        #model = LogisticRegression(C=1.0,penalty='l2')
+        model = RandomForestClassifier(n_estimators=100)
+        #model = XgboostClassifier(n_estimators=100,learning_rate=0.01,max_depth=2, NA=0,subsample=.5,colsample_bytree=1.0,min_child_weight=5,n_jobs=4,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
+        #Xall_train = Xall.iloc[ np.random.permutation(len( Xall )) ]
+        #buildModel(model,Xall,ytemp,cv=StratifiedShuffleSplit(ytemp,n_iter=5,test_size=0.2), scoring='accuracy', n_jobs=1,trainFull=False,verbose=True)
+
+        model.fit(Xall,ytemp)
+        Xall['sim'] = model.predict_proba(Xall)[:,1]
+
+        Xtrain = Xall[len(Xtest.index):]
+        Xtest = Xall[:len(Xtest.index)]
+
+        Xtrain['sim'].hist(bins=30)
+        Xtest['sim'].hist(bins=30)
+        plt.draw()
+        train_mask = (Xtrain['sim']>0.1).values # PBLL = 0.69579  # 26000 samples
+        #train_mask = (Xtrain['sim']<0.5).values # PBLL = 0.69175 # 70136 samples
+
+        Xtrain = Xtrain.loc[train_mask,:]
+        ytrain = ytrain[train_mask]
+
+        print "New shape:",Xtrain.shape
+
+        Xall = pd.concat([Xtest, Xtrain], ignore_index=True)
+        Xall.drop(['sim'],axis=1,inplace=True)
+
+    if polynomialFeatures is not None:
+        quadratic = True
+        if isinstance(polynomialFeatures, str) and 'all' in polynomialFeatures:
+            polynomialFeatures = Xall.columns
+        elif isinstance(polynomialFeatures, str) and 'fgroup' in polynomialFeatures:
+            polynomialFeatures = [ x for x in Xall.columns if x.startswith('fgroup')]
+
         print "Polynomial feature of degree:", polynomialFeatures
         if isinstance(polynomialFeatures, str) and 'load' in polynomialFeatures:
             print "Loading polynomials..."
             X_poly = pd.read_csv('poly.csv').reset_index(drop=True)
             print X_poly.describe()
-        else:
-            X_poly = make_polynomials(Xall[polynomialFeatures],degree=2,cutoff=100,quadratic=True)
-            X_poly.to_csv('poly.csv')
 
-        print X_poly.head()
-        Xall = pd.concat([Xall, X_poly], axis=1)
+        #grouped
+        else:
+            if isinstance(polynomialFeatures[0], list):
+                for el in polynomialFeatures:
+                    X_poly = make_polynomials(Xall[el],degree=2,cutoff=100,quadratic=quadratic)
+                    print X_poly.head()
+                    Xall = pd.concat([Xall, X_poly], axis=1)
+
+            else:
+                X_poly = make_polynomials(Xall[polynomialFeatures],degree=2,cutoff=100,quadratic=quadratic)
+                X_poly.to_csv('poly.csv')
+
+                Xall = pd.concat([Xall, X_poly], axis=1)
 
 
     if oneHotenc is not None:
         print "1-0 Encoding categoricals...", oneHotenc
+        if oneHotenc: oneHotenc = Xall.columns
         for col in oneHotenc:
             #print "Unique values for col:", col, " -", np.unique(Xall[col].values)
             encoder = OneHotEncoder()
@@ -142,7 +272,7 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
             # raw_input()
 
     if makeDiff is not None:
-        X_diff = differentiateFeatures(Xall.iloc[:,:14])
+        X_diff = differentiateFeatures(Xall.iloc[:,:])
         if '2nd' in makeDiff:
             X_diff = differentiateFeatures(X_diff)
         Xall = pd.concat([Xall, X_diff],axis=1)
@@ -159,7 +289,7 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
     if keepFeatures is not None:
         dropcols = [col for col in Xall.columns if col not in keepFeatures]
         for col in dropcols:
-            if col in Xall.columns and not 'validation' in col:
+            #if col in Xall.columns and not 'validation' in col:
                 print "Dropping: ", col
                 Xall.drop([col], axis=1, inplace=True)
 
@@ -169,13 +299,73 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
                 print "Dropping: ", col
                 Xall.drop([col], axis=1, inplace=True)
 
+    if makeTSNE is not None:
+        print "Making tsne ..."
+        if makeTSNE.has_key('uselib') and 'bh_sne' in makeTSNE['uselib']:
+            print "Using bh_sne..."
+            Xall = bh_sne(Xall)
+            plt.scatter(Xall[:, 0], Xall[:, 1])
+            Xall = pd.DataFrame(Xall)
+
+        else:
+            Xall.to_csv('pure.csv',header=False,index=False,sep='\t')
+            numDims = makeTSNE['numDims']
+            pcaDims = makeTSNE['pcaDims']
+            perplexity = makeTSNE['perplexity']
+            theta = makeTSNE['theta']
+            #alg = 'svd'
+            if numDims<4:
+                call(("/home/loschen/programs/bhtsne/bhtsne.py -r 42 -v -d "+str(numDims)+" -p "+str(perplexity)+" -t "+str(theta)+" -n "+str(pcaDims)+" -i pure.csv -o tsne.csv").split())
+            else:
+                call(("/home/loschen/programs/bhtsne_serial/bhtsne.py -r 42 -v -d "+str(numDims)+" -p "+str(perplexity)+" -t "+str(theta)+" -n "+str(pcaDims)+" -i pure.csv -o tsne.csv").split())
+
+            Xall = pd.read_csv('tsne.csv',sep='\t',header=None)
+
+        Xall.columns = ['d'+str(i) for i in xrange(Xall.shape[1])]
+
+        #print Xall.info()
+        #print Xall.head()
 
 
-    print "Columns used",list(Xall.columns)
+    if poly3rdOrder is not None:
+        print "Again: Polynomial feature of degree:", poly3rdOrder
+        if isinstance(poly3rdOrder, str) and 'load' in poly3rdOrder:
+            print "Loading polynomials..."
+            X_poly = pd.read_csv('poly2.csv').reset_index(drop=True)
+            print X_poly.describe()
+        else:
+            X_poly = make_polynomials(Xall[poly3rdOrder],degree=2,cutoff=100,quadratic=False)
+            X_poly.to_csv('poly2.csv')
+
+        print X_poly.head()
+        #drop duplicates
+        #Xall.drop(['feature16xfeature16'],inplace=True)
+        duplicates = list(set(Xall.columns) & set(X_poly.columns))
+        print "Duplicates:",duplicates
+        X_poly.drop(duplicates,axis=1,inplace=True)
+        Xall = pd.concat([Xall, X_poly], axis=1)
+        print Xall.shape
+
+        #Xall = Xall.T.drop_duplicates().T
+
+    if removeCor is not None:
+        print "Removing correlations..."
+        Xall = removeCorrelations(Xall, threshhold=0.95)
+
+
+    if dimReduce is not None:
+        print "Reducing dimensions!"
+        if isinstance(dimReduce,int):
+            reducer = TruncatedSVD(n_components=dimReduce)
+        else:
+            reducer = dimReduce
+        print reducer
+        Xall = pd.DataFrame(reducer.fit_transform(Xall))
+        Xall.columns = ["d_" + str(column) for column in xrange(Xall.shape[1])]
 
 
     #split data
-    Xall = Xall.astype(np.float64)
+    Xall = Xall.astype(np.float32)
     Xtrain = Xall[len(Xtest.index):]
     Xtest = Xall[:len(Xtest.index)]
     Xval = None
@@ -192,32 +382,36 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
 
 
         Xval = Xtrain.loc[val_mask,:]
-        yval = ytrain[val_mask]
+        yval = ytrain[val_mask].values
 
         Xtrain = Xtrain.loc[train_mask,:]
         ytrain = ytrain[train_mask]
 
+        Xval.drop(['validation'],axis=1,inplace=True)
+        store['Xval'] = Xval
+        store['yval'] = yval
         print "Shape Xtrain:",Xtrain.shape
         print "Shape Xval  :",Xval.shape
 
-    Xtrain.drop(['validation'],axis=1,inplace=True)
-    Xval.drop(['validation'],axis=1,inplace=True)
-    Xtest.drop(['validation'],axis=1,inplace=True)
+    #Xtrain.drop(['validation'],axis=1,inplace=True)
+    #Xtest.drop(['validation'],axis=1,inplace=True)
 
-    print "Training data:",Xtrain.info()
+    #print "Training data:",Xtrain.info()
+    #print "Test data:",Xtest.info()
 
-    store['Xtest'] = Xtest
-    store['Xtrain'] = Xtrain
-    store['ytrain'] = ytrain
-    store['Xval'] = Xval
-    store['yval'] = yval
-    store['test_id'] = test_id
-    print store
-    store.close()
+    if store_data:
+        store['Xtest'] = Xtest
+        store['Xtrain'] = Xtrain
+        store['ytrain'] = ytrain
+
+        store['test_id'] = test_id
+        print store
+
+        store.close()
 
 
 
-    return Xtest, Xtrain, ytrain.values, test_id, None, Xval, yval.values
+    return Xtest, Xtrain, ytrain.values, test_id, None, Xval, yval
 
 
 def mergeWithXval(Xtrain,Xval,ytrain,yval):
@@ -242,6 +436,25 @@ def makePredictions(model=None,Xtest=None,idx=None,filename='submission.csv'):
     result.to_csv(filename, index=False)
 
 
+def train_alldata():
+    # http://tiny.cc/numerai_datasets
+    datasets = [16]
+    model = KerasNN(dims=21,nb_classes=2,nb_epoch=60,learning_rate=0.1,validation_split=0.0,batch_size=1024,verbose=1,activation='relu', layers=[20,20], dropout=[0.2],loss='categorical_crossentropy')
+    for ds in datasets:
+        Xtest, Xtrain, ytrain, idx,  sample_weight, Xval, yval = prepareDataset(data_id=ds)
+        model.fit(Xtrain,ytrain)
+        model.save_model('nn_model_ds'+str(ds)+'.h5')
+        #Xtest, Xtrain, ytrain, idx,  sample_weight, Xval, yval = prepareDataset(data_id=ds)
+        #model.fit(Xtrain,ytrain)
+        model.load_model('nn_model_ds'+str(ds)+'.h5')
+
+    Xtest, Xtrain, ytrain, idx,  sample_weight, Xval, yval = prepareDataset(data_id=17)
+    #model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=40,learning_rate=0.1,validation_split=0.0,batch_size=1024,verbose=1,activation='relu', layers=[20,20], dropout=[0.2],loss='categorical_crossentropy')
+    model.fit(Xtrain,ytrain)
+    makePredictions(model,Xtest,idx=idx, filename='./submissions/numerai_01sept_cascacde.csv')
+    sys.exit(0)
+
+
 if __name__ == "__main__":
     """
     MAIN PART
@@ -255,104 +468,204 @@ if __name__ == "__main__":
     print "pandas:", pd.__version__
     print "scipy:", sp.__version__
 
-    numericals = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12', 'f13', 'f14']
-    interactions = ['f1xf2', 'f1xf3', 'f1xf4', 'f1xf5', 'f1xf6', 'f1xf7', 'f1xf8', 'f1xf9', 'f1xf10', 'f1xf11', 'f1xf12', 'f1xf13', 'f1xf14', 'f2xf3', 'f2xf4', 'f2xf5', 'f2xf6', 'f2xf7', 'f2xf8', 'f2xf9', 'f2xf10', 'f2xf11', 'f2xf12', 'f2xf13', 'f2xf14', 'f3xf4', 'f3xf5', 'f3xf6', 'f3xf7', 'f3xf8', 'f3xf9', 'f3xf10', 'f3xf11', 'f3xf12', 'f3xf13', 'f3xf14', 'f4xf5', 'f4xf6', 'f4xf7', 'f4xf8', 'f4xf9', 'f4xf10', 'f4xf11', 'f4xf12', 'f4xf13', 'f4xf14', 'f5xf6', 'f5xf7', 'f5xf8', 'f5xf9', 'f5xf10', 'f5xf11', 'f5xf12', 'f5xf13', 'f5xf14', 'f6xf7', 'f6xf8', 'f6xf9', 'f6xf10', 'f6xf11', 'f6xf12', 'f6xf13', 'f6xf14', 'f7xf8', 'f7xf9', 'f7xf10', 'f7xf11', 'f7xf12', 'f7xf13', 'f7xf14', 'f8xf9', 'f8xf10', 'f8xf11', 'f8xf12', 'f8xf13', 'f8xf14', 'f9xf10', 'f9xf11', 'f9xf12', 'f9xf13', 'f9xf14', 'f10xf11', 'f10xf12', 'f10xf13', 'f10xf14', 'f11xf12', 'f11xf13', 'f11xf14', 'f12xf13', 'f12xf14', 'f13xf14']
-    categories=['c1_0', 'c1_1', 'c1_2', 'c1_3', 'c1_4', 'c1_5', 'c1_6', 'c1_7', 'c1_8', 'c1_9', 'c1_10', 'c1_11', 'c1_12', 'c1_13', 'c1_14', 'c1_15', 'c1_16', 'c1_17', 'c1_18', 'c1_19', 'c1_20', 'c1_21', 'c1_22']
-    verticals=['median_f1', 'sdev_f1', 'sum_f1', 'count_f1', 'median_f2', 'sdev_f2', 'sum_f2', 'count_f2', 'median_f3', 'sdev_f3', 'sum_f3', 'count_f3', 'median_f4', 'sdev_f4', 'sum_f4', 'count_f4', 'median_f5', 'sdev_f5', 'sum_f5', 'count_f5', 'median_f6', 'sdev_f6', 'sum_f6', 'count_f6', 'median_f7', 'sdev_f7', 'sum_f7', 'count_f7', 'median_f8', 'sdev_f8', 'sum_f8', 'count_f8', 'median_f9', 'sdev_f9', 'sum_f9', 'count_f9', 'median_f10', 'sdev_f10', 'sum_f10', 'count_f10', 'median_f11', 'sdev_f11', 'sum_f11', 'count_f11', 'median_f12', 'sdev_f12', 'sum_f12', 'count_f12', 'median_f13', 'sdev_f13', 'sum_f13', 'count_f13', 'median_f14', 'sdev_f14', 'sum_f14', 'count_f14']
-    greedy2 = ['f9', 'f6', 'c1_8', 'c1_14', 'c1_2', 'c1_12', 'f7', 'c1_5', 'c1_6', 'c1_1', 'f1', 'c1_21', 'f2xf10', 'f11', 'f11xf13']#via linear! regression AUC=0.5356
-    greedy1 = ['f1', 'f6', 'c1_c1_10', 'f3', 'f5', 'c1_c1_12', 'c1_c1_3', 'c1_c1_16', 'c1_c1_5', 'c1_c1_11', 'f11', 'f7', 'f4', 'c1_c1_7', 'c1_c1_9', 'c1_c1_20', 'f13', 'c1_c1_24', 'f14']
-    greedy3 = ['f9', 'f6', 'c1_8', 'c1_14', 'c1_2', 'c1_12', 'f7', 'c1_5', 'c1_6', 'c1_1', 'f1', 'c1_21', 'count_f4', 'c1_17', 'count_f6']#via logistic regression AUC=0.5333
-    greedy4 = ['count_f5', 'f1', 'f11', 'f3', 'f6', 'sdev_f9', 'f14', 'sdev_f10', 'count_f4']#via XGboost
-    greedy5 = ['count_f5', 'f1', 'f11', 'f3', 'f6', 'sdev_f9', 'f14', 'sdev_f10', 'count_f4', 'f7xf13', 'f1xf4']#via XGboost AUC=0.5363
-    greedy6 = ['f1', 'f3xf6', 'sdev_f7', 'f1xf12', 'median_f2', 'diff1', 'c1_21', 'f6xf7', 'f7xf7', 'f7xf8', 'f1xf11', 'f2xf14', 'c1_1', 'f12', 'diff0', 'diff8', 'count_f1', 'f12xf13', 'f5xf8', 'c1_16', 'sdev_f10', 'median_f9', 'f13']
+    numericals = ['feature1', 'feature2', 'feature3', 'feature4', 'feature5', 'feature6', 'feature7', 'feature8', 'feature9', 'feature10', 'feature11', 'feature12', 'feature13', 'feature14', 'feature15','feature16','feature17', 'feature18','feature19','feature20','feature21']
+    #rfecv_fetures =
+
+    #rfecv_fetures2 =
+
+    #rfecv_vertical =
+
+
+    #LR C=100 penalty='l1' same as l2 LL=0.69168
+    #greedy_fw18 = ['fgroup_3_medianxfgroup_6_median', 'fgroup_1_meanxfgroup_2_median', 'fgroup_0_meanxfgroup_1_std', 'fgroup_0_stdxfgroup_2_std', 'fgroup_2_meanxfgroup_6_std', 'fgroup_0_stdxfgroup_2_mean', 'fgroup_4_medianxfgroup_4_median', 'fgroup_2_stdxfgroup_2_std', 'fgroup_0_stdxfgroup_5_mean', 'fgroup_2_stdxfgroup_4_mean', 'fgroup_2_stdxfgroup_6_std', 'fgroup_0_meanxfgroup_6_median', 'fgroup_3_medianxfgroup_4_mean', 'fgroup_2_stdxfgroup_3_std']
+
+    #LR C=1 penalty='l2' LL=0.6914
+    #greedy_fw18b = ['feature14xfeature19', 'feature11xfeature20', 'feature1xfeature9', 'feature8xfeature20', 'feature1xfeature12', 'feature18xfeature21', 'feature11xfeature12', 'feature14xfeature17', 'feature2xfeature21', 'feature5xfeature21', 'feature11xfeature14', 'feature7xfeature10', 'feature12xfeature21']
+
+    greedy_fw18 = ['feature2xfeature21', 'feature10xfeature17', 'feature7xfeature20', 'feature14xfeature18', 'feature2xfeature6', 'feature2xfeature5', 'feature6xfeature14', 'feature2xfeature4', 'feature1xfeature10', 'feature1xfeature4', 'feature10xfeature10']
+    greedy_fw19 = ['feature10xfeature18', 'feature2xfeature20', 'feature4xfeature5', 'feature10xfeature17', 'feature14xfeature18', 'feature4xfeature10', 'feature18xfeature18', 'feature1xfeature13', 'feature2xfeature7', 'feature1xfeature8', 'feature15xfeature18']
+    greedy_fw20 = ['feature18', 'feature3', 'feature21', 'feature10', 'feature7', 'feature2', 'feature5', 'feature14', 'feature1', 'feature17', 'feature11', 'feature4', 'feature12', 'feature6', 'feature16', 'feature8', 'feature15']
+
+    #before: 14 & 15:  19 1 8, 13 15 16, 5,7,20, 6,4,14, 12,7,9, 2,3,18 21,10,11
+
+    #since round 16
+    #cluster1 = []
+    #cluster2 = []
+    #cluster3 = []
+    #cluster4 = []
+    #cluster5 = []
+    #cluster6 = []
+    #cluster7 = []
+
+    #clustered = [cluster1,cluster2,cluster3,cluster4,cluster5,cluster6,cluster7]
+
+    #cluster_stat2 =
+
+    #cluster_stat =
+
+    clustered_mean = [u'fgroup_0_mean', u'fgroup_1_mean', u'fgroup_2_mean', u'fgroup_3_mean', u'fgroup_4_mean', u'fgroup_5_mean', u'fgroup_6_mean']
 
     quickload = False
-    seed = 51176
+    data_id = 21
+    append_old = [20]#['August3']
+    seed = 421
     nsamples = -1
-    holdout = True
-    makeDiff = '1st'
+    renameFeatures = True
+    holdout = False
+    makeDiff = None #'1st'
+    makeBins = None
+    makeTSNE = None #{'uselib': 'bh_sne'} #None #tsnelib= {'numDims': 2, 'perplexity': 50, 'theta':0.5, 'pcaDims':21}
     dummy_encoding = None# ['c1']
-    labelEncode = ['c1']
-    oneHotenc = ['c1']
+    adversarial = None
+    useDBSCAN = None
+    dimReduce= None #TruncatedSVD(n_components=30)
+    labelEncode = None#['c1']
+    oneHotenc = None#['c1']
+    removeCor = True
     removeRare_freq = None
-    createVerticalFeatures = True
-    logtransform = numericals
-    polynomialFeatures = numericals#numericals
-    keepFeatures = None# greedy6
-    dropFeatures = None# ['c1_0', 'c1_1', 'c1_2', 'c1_3', 'c1_4', 'c1_5', 'c1_6', 'c1_7', 'c1_8', 'c1_9', 'c1_10', 'c1_11', 'c1_12', 'c1_13', 'c1_14', 'c1_15', 'c1_16', 'c1_17', 'c1_18', 'c1_19', 'c1_20', 'c1_21', 'c1_22']
-    Xtest, Xtrain, ytrain, idx,  sample_weight, Xval, yval = prepareDataset(quickload=quickload,seed=seed, nsamples=nsamples, holdout=holdout,keepFeatures = keepFeatures, dropFeatures= dropFeatures, dummy_encoding=dummy_encoding, labelEncode=labelEncode, oneHotenc= oneHotenc, removeRare_freq=removeRare_freq,  logtransform=logtransform, createVerticalFeatures=createVerticalFeatures,polynomialFeatures=polynomialFeatures,makeDiff=makeDiff)
+    find_clusters = None
+    createVerticalFeatures = None #clustered#True
+    logtransform = None#numericals
+    polynomialFeatures = None #'all' #'fgroup' # [,cluster_stat]#None#clustered_mean#clustered_mean#None #numericals#numericals
+    keepFeatures = None #greedy_fw20 #greedy_fw18b # rfecv_fetures2 + rfecv_vertical #clustered #rfecv_fetures2 # # greedy6
+    dropFeatures = None
+    poly3rdOrder = None
+    evaluate_old = None
+
+    #train_alldata()
+
+    Xtest, Xtrain, ytrain, idx,  sample_weight, Xval, yval = prepareDataset(quickload=quickload,data_id=data_id,append_old = append_old, seed=seed, nsamples=nsamples, holdout=holdout,keepFeatures = keepFeatures, dropFeatures= dropFeatures, dummy_encoding=dummy_encoding, labelEncode=labelEncode, oneHotenc= oneHotenc, removeRare_freq=removeRare_freq,  logtransform=logtransform, createVerticalFeatures=createVerticalFeatures,polynomialFeatures=polynomialFeatures,poly3rdOrder=poly3rdOrder, makeDiff=makeDiff, makeBins=makeBins, makeTSNE=makeTSNE, find_clusters=find_clusters,removeCor=removeCor,adversarial=adversarial,useDBSCAN=useDBSCAN,dimReduce=dimReduce,renameFeatures=renameFeatures)
     print list(Xtrain.columns)
     #Xtrain.iloc[:10,:-1].plot(kind='area',stacked=False)
     #Xtrain.hist(bins=100)
     plt.show()
     #interact_analysis(Xtrain)
 
-    #model = sf.RandomForest(n_estimators=120,mtry=5,node_size=5,max_depth=6,n_jobs=2,verbose_level=0)
-    #model = Pipeline([('scaler', StandardScaler()), ('model',ross1)])
-    #model = RandomForestClassifier(n_estimators=100,max_depth=None,min_samples_leaf=5,n_jobs=2, max_features=Xtrain.shape[1]/3,oob_score=False)
-    #model = XgboostClassifier(n_estimators=250,learning_rate=0.01,max_depth=3, NA=0,subsample=.75,colsample_bytree=1.0,min_child_weight=5,n_jobs=2,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
-    #model = XgboostClassifier(n_estimators=250,learning_rate=0.01,max_depth=4, NA=0,subsample=.75,colsample_bytree=1.0,min_child_weight=5,n_jobs=4,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
-    #model = XgboostRegressor(n_estimators=200,learning_rate=0.3,max_depth=10, NA=0,subsample=.9,colsample_bytree=1.0,min_child_weight=5,n_jobs=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1,eval_size=0.0)
-    #model = ExtraTreesClassifier(n_estimators=250,max_depth=None,min_samples_leaf=1,n_jobs=2, max_features=3*Xtrain.shape[1]/3)
-    #model = KNeighborsClassifier(n_neighbors=20)
-    #model = LinearRegression()
-    #model = Ridge()
-    model = LogisticRegression(C=10,penalty='l2')
-    #model = LogisticRegression(C=1,penalty='l1')
-    #model = SVC(C=1,kernel='linear',probability=True)
-    model = Pipeline([('scaler', StandardScaler()),('filter', GenericUnivariateSelect(f_regression, param=60,mode='percentile')), ('model', model)])
-    #model = BaggingRegressor(base_estimator=model,n_estimators=20,n_jobs=1,verbose=0,random_state=None,max_samples=0.9,max_features=0.9,bootstrap=False)
-    model = BaggingClassifier(base_estimator=model,n_estimators=10,n_jobs=1,verbose=0,random_state=None,max_samples=0.8,max_features=0.8,bootstrap=False)
-    #model = Pipeline([('scaler', StandardScler()),('filter', GenericUnivariateSelect(f_regression, param=95,mode='percentile')), ('model', SVC(C=1))])
-    #model = Pipeline([('pca', PCA(n_components=10)),('model', Ridge())])
-    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')),('model', ElasticNet(alpha=.01,l1_ratio=0.001,max_iter=1000)) ])
-    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', PLSRegression(n_components=20))])
-    #model = RidgeClassifier()
+    #TODO check different lossfunctions, classweight
+    #sklearn.linear_model.HuberRegressor -> SVM -Ensemble
+    # Calibration ofprobs!!!
+    # make diff with older set
+    # automatically cluster dataset
+    # make training set more similar to test set!!!
+    #http://scikit-learn.org/stable/auto_examples/cluster/plot_dbscan.html#example-cluster-plot-dbscan-py
+    #https://github.com/danielfrg/tsne
 
-
-    #model = LinearSVC(C=1)
-    #model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=25,learning_rate=0.001,validation_split=0.2,batch_size=32,verbose=1,layers=[32], dropout=[0.1])
-    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
-    #model = LinearSVC()
-    #model = GaussianNB()
-    #model = KerasNN(dims=Xtrain.shape[1]*0.9,nb_classes=2,nb_epoch=3,validation_split=0.0,batch_size=64,verbose=1,loss='categorical_crossentropy')
-    #model = BaggingClassifier(base_estimator=model,n_estimators=10,n_jobs=1,verbose=2,random_state=None,max_samples=0.9,max_features=0.9,bootstrap=True)
+    ###########################################################
+    #class prior: [ 0.49482973  0.50517027] log_loss = 0.693
+    ###########################################################
 
     #cv = StratifiedKFold(ytrain,8,shuffle=True)
-    # cv = KFold(X.shape[0], n_folds=folds,shuffle=True)
-    cv = StratifiedShuffleSplit(ytrain,n_iter=32,test_size=0.2)
+    cv = StratifiedShuffleSplit(ytrain,n_iter=20,test_size=0.2)
 
-    #parameters = {'n_estimators':[250,300],'max_depth':[3,4],'learning_rate':[0.01],'subsample':[0.5,0.75],'colsample_bytree':[1.0,0.75],'min_child_weight':[5]}
+    #model = RandomForestClassifier(n_estimators=100,max_depth=None,min_samples_leaf=5,n_jobs=2, max_features=Xtrain.shape[1]/3,oob_score=False)
+    #model = SVC(C=1,kernel='rbf',probability=True) #cv 8fold ~ 80 min on 4 procs!!! 20000 samples ~ 2min. per fold 40000 12 min.
+    #model = LogisticRegression(C=1.0,penalty='l2')
+    #model = LogisticRegression(C=100,penalty='l1')
+    #model = KernelRidge()
+    #model = XgboostClassifier(n_estimators=200,learning_rate=0.01,max_depth=2, NA=0,subsample=.5,colsample_bytree=1.0,min_child_weight=5,n_jobs=4,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
+    model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=40,learning_rate=0.1,validation_split=0.0,batch_size=1024,verbose=1,activation='relu', layers=[20,20], dropout=[0.2,0.2],loss='categorical_crossentropy')
+    #model = VotingClassifier(estimators=[('lr', model1),('xgb', model2) ,('nn', model3)], voting='soft',weights=[1,1,1])
+    #model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=40,learning_rate=0.05,validation_split=0.0,batch_size=64,verbose=1,activation='sigmoid', layers=[20,20], dropout=[0.0,0.1],loss='categorical_crossentropy')
+    #model = CalibratedClassifierCV(model,cv=8,method='sigmoid')
+    model = Pipeline([('scaler', StandardScaler()), ('m',model)])
+    #model = Pipeline([('pca', PCA(n_components=5,whiten=True)),('m', model)])
+    #model = Pipeline([('kmeans', MiniBatchKMeans(n_clusters=7)),('m', model)]) #->nothing
+    #model = Pipeline([('pca', TruncatedSVD(n_components=5)),('m', model)])
+
+    #model = KNeighborsClassifier(n_neighbors=5) # NO
+    #model = BernoulliNB()
+
+    #model = LinearRegression()
+    #model = DummyClassifier(strategy='prior')
+    #model = SVC(C=1,kernel='linear',probability=True)
+    #model = Pipeline([('scaler', StandardScaler()),('filter', GenericUnivariateSelect(f_regression, param=60,mode='percentile')), ('model', model)])
+    #model = BaggingRegressor(base_estimator=model,n_estimators=20,n_jobs=1,verbose=0,random_state=None,max_samples=0.9,max_features=0.9,bootstrap=False)
+    #model = BaggingClassifier(base_estimator=model,n_estimators=5,n_jobs=4,verbose=0,random_state=None,max_samples=0.5,max_features=1.0,bootstrap=False)
+
+    #model = Pipeline([('scaler', StandardScaler()),('filter', GenericUnivariateSelect(f_regression, param=95,mode='percentile')), ('model', SVC(C=1))])
+    #model = Pipeline([('pca', PCA(n_components=10)),('model', Ridge())])
+
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=99,mode='percentile')),('model', ElasticNet(alpha=.01,l1_ratio=0.001,max_iter=1000)) ])
+    #model = Pipeline([('filter', GenericUnivariateSelect(f_regression, param=100,mode='percentile')), ('model', PLSRegression(n_components=20))])
+
+
+    #model = LinearSVC()
+    #model = GaussianNB()
+    #model = BaggingClassifier(base_estimator=model,n_estimators=10,n_jobs=1,verbose=2,random_state=None,max_samples=0.9,max_features=0.9,bootstrap=True)
+    #
+    parameters = {}
+    #parameters = {'weights':[[2,1]],'voting':['soft'],'xgb__n_estimators':[100,150,200],'lr__C':[10,1.0,0.1]}
+    #parameters = {'n_estimators':[500,1000],'max_depth':[1,2],'learning_rate':[0.01],'subsample':[0.75],'colsample_bytree':[0.75],'min_child_weight':[5]}
     #parameters = {'n_estimators':[150],'min_samples_leaf':[5,10,15],'max_features':[100],'criterion':['entropy']}
     #parameters = {'m__nb_epoch':[10,20,30,40],'m__learning_rate':[0.2,0.02]}
-    #parameters = {'m__n_neighbors':[5,10,15]}
-    #parameters = {'filter__param':[65,70,75,80,85,90],'model__C':[10,1],'model__penalty':['l2','l1']}
-    #parameters = {'m__C':[10,1],'m__penalty':['l2','l1']}
-    #parameters = {'m__C':[100],'m__gamma':[1.0/Xtrain.shape[1]]}
-    #model = makeGridSearch(model, Xtrain, ytrain, n_jobs=4, refit=True, cv=cv, scoring='roc_auc',parameters=parameters, random_iter=-1)
-    print model
-    #greedyFeatureSelection(model, Xtrain, ytrain, itermax=30, itermin=20, pool_features=None, start_features=['f1'],verbose=True, cv=cv, n_jobs=4, scoring_func='roc_auc')
-
+    #parameters = {'m__n_neighbors':[5]}
+    #parameters = {'filter__param':[99,100],'model__C':[1,1E-3,1E-5,1E-7],'model__penalty':['l2']}
+    #parameters = {'m__learning_rate':[0.05,0.01],'m__layers':[[500,500],[100,100]],'m__dropout':[[0.5,0.5]],'m__batch_size':[512,256]}
+    #parameters = {'m__C':[100,10,1,0.1],'m__penalty':['l2','l1']}
+    #parameters = {'m__C':[0.01,0.001],'m__gamma':['auto']}
+    #parameters = {'pca__n_components':[10,15,19,20],'m__C':[1.0,10.0]}
+    #parameters = {'kmeans__n_clusters':[4,6,7,10,15,20],'m__C':[1.0,10,0.1]}
+    #mask = recursive_featureselection(model,Xtrain,ytrain,cv=cv,step=1,scoring='log_loss')
+    #Xtrain = Xtrain.loc[:,mask]
+    #Xtest = Xtest.loc[:,mask]
+    print Xtrain.columns
+    #model = makeGridSearch(model, Xtrain, ytrain, n_jobs=1, refit=True, cv=cv, scoring='log_loss',parameters=parameters, random_iter=-1)
+    #greedyFeatureSelection(model, Xtrain, ytrain, itermax=30, itermin=20, pool_features=None, start_features=[],verbose=True, cv=cv, n_jobs=4, scoring_func='log_loss')
+    #model.load_model("August3.h5")
     #Xtrain, ytrain = mergeWithXval(Xtrain,Xval,ytrain,yval)
-    print Xtrain.shape
-    #model = buildModel(model,Xtrain,ytrain,cv=StratifiedKFold(ytrain,8,shuffle=True), scoring='roc_auc', n_jobs=1,trainFull=True,verbose=True)
-    #analyzeLearningCurve(model, Xtrain, ytrain, cv=cv, score_func='roc_auc')
+    model = buildModel(model,Xtrain,ytrain,cv=cv, scoring='log_loss', n_jobs=1,trainFull=True,verbose=True)
     #model = buildXvalModel(model,Xtrain,ytrain,sample_weight=None,class_names=None,refit=True,cv=cv)
+    #model.save_model("August3.h5")
 
-    model.fit(Xtrain,ytrain)
+    #analyzeLearningCurve(model, Xtrain, ytrain, cv=cv, score_func='log_loss',train_sizes=np.linspace(.1, 1.0, 10),ylim=(0.68, 0.7))
+    print type(Xtrain)
+    print type(ytrain)
+    model.fit(Xtrain.values,ytrain)
 
-    if not hasattr(model,'predict_proba'):
-        yval_pred = model.predict(Xval)
-    else:
-        yval_pred = model.predict_proba(Xval)[:,1]
+    if holdout:
+        if not hasattr(model,'predict_proba'):
+            yval_pred = model.predict(Xval)
+        else:
+            yval_pred = model.predict_proba(Xval)[:,1]
 
-    print "Eval-score: %5.3f"%(roc_auc_score(yval,yval_pred))
+        print "Eval-score: %6.4f"%(roc_auc_score(yval,yval_pred))
+        Xtrain, ytrain = mergeWithXval(Xtrain,Xval,ytrain,yval)
 
-    print "Training the final model (incl. Xval.)"
-    Xtrain, ytrain = mergeWithXval(Xtrain,Xval,ytrain,yval)
-    model.fit(Xtrain,ytrain)
+        print "Training the final model (incl. Xval.)"
 
-    makePredictions(model,Xtest,idx=idx, filename='./submissions/numFeb21a.csv')
+        #ytrain_pred = model.fit(Xtrain,ytrain)
+
+    #print model.class_prior_
+
+    ytrain_pred = model.predict_proba(Xtrain.values)[:,1]
+    print "Training-score: %6.4f"%(log_loss(ytrain,ytrain_pred))
+
+
+    makePredictions(model,Xtest,idx=idx, filename='./submissions/numerai_14septa.csv')
 
     plt.show()
     print("Model building done in %fs" % (time() - t0))
+
+    if evaluate_old is not None:
+        _, Xval, yval, idx,  sample_weight, _, _ = prepareDataset(quickload=quickload,data_id=evaluate_old,append_old = append_old, seed=seed, nsamples=nsamples, holdout=holdout,keepFeatures = keepFeatures, dropFeatures= dropFeatures, dummy_encoding=dummy_encoding, labelEncode=labelEncode, oneHotenc= oneHotenc, removeRare_freq=removeRare_freq,  logtransform=logtransform, createVerticalFeatures=createVerticalFeatures,polynomialFeatures=polynomialFeatures,poly3rdOrder=poly3rdOrder, makeDiff=makeDiff, makeBins=makeBins, makeTSNE=makeTSNE, find_clusters=find_clusters,removeCor=removeCor,adversarial=adversarial,useDBSCAN=useDBSCAN,dimReduce=dimReduce,renameFeatures=renameFeatures)
+        yval_pred = model.predict_proba(Xval)[:,1]
+        print "Eval-score: %6.4f"%(log_loss(yval,yval_pred))
+
+
+
+    """
+     RoundAvg. Private LoglossAvg. Public/Private Difference  Public     LocalCV     Model         Features
+     Round 10   0.69183                              0.00054
+     Round 11   0.69183                              0.00035
+     Round 12   0.69328                              0.00030
+     Round 13   0.69230                                        0.69084    0.6918      LogLoss(C=10) greedyfeatureselection,polynomial,1stdiff
+     Round 14   0.69182                                        0.69121    0.6915      xgboost / LR with 1st derivative voting classifier with 2:1 weight
+     Roubd 15   $0.35                                          0.69131    0.6917      xgboost / LR with 1st derivative voting classifier with 2:1 weight + rfcev2
+     Round 16   $0.05                                          0.69050    0.6917      xgboost / LR with 1st derivative voting classifier with 2:1 weight + rfcev2 - retuned
+     Round 17   $0.46                                          0.69123    0.6915      Simple NNet - trained with R16 and R17 dataset
+     Round 18   $1.31                                          0.69168    0.6911      Ensemble ['nn1', 'lr3', 'lr5']
+     Round 19   $0.00                                          0.69177    0.6913      Ensemble ['nn1', 'lr3g']
+     Round 20   $0.01                                          0.69274    0.6912      Simple NN with renameFeatures and old datasets 19
+     Round 211  $0.00                                          0.69223    0.6912      Ensemble ['nn1', 'lr3', 'lr5','nn3'] with Logistic regression
+
+    """
