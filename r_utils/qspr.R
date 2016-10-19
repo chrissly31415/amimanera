@@ -254,15 +254,13 @@ removeZeroVars<-function(ldata) {
 }
 
 
-removeColVar<-function(ldata,cvalue) {
+removeColVar<-function(ldata,cvalue,verbose = FALSE) {
   library(caret)
   cormat<-cor(ldata)
-  #print(cormat)
-  c<-findCorrelation(cormat, cutoff = cvalue, verbose = TRUE)
+  c<-findCorrelation(cormat, cutoff = cvalue, verbose = verbose)
   removed<-colnames(ldata[,c])
-  cat("Removed variables according to cutoff: ",cvalue," :")
+  cat("Removed variables according to cutoff ",cvalue," : ")
   cat(removed,"\n")
-  #ldata<-subset(ldata,select=-(removed))
   ldata<-ldata[,!(names(ldata) %in% removed)]
   return(ldata)
 }
@@ -1327,7 +1325,7 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",parameters=list(iter=
       for (j in 1:gbm_steps) {     
         if (j==1) {
           if (lossfn=="rmse") {
-            cat("REGRESSION...\n")
+            cat(" REGRESSION...\n")
             fits[[j]]<-gbm.fit(Xtrain,ytrain,distribution="gaussian",n.trees=iter_local,interaction.depth=parameters$depth,n.minobsinnode=parameters$minobsinnode,shrinkage=parameters$shseq,verbose=F)         
             } else {
             cat("0-1 distribution...\n")
@@ -1358,19 +1356,18 @@ xvalid<-function(lX,ly,nrfolds=5,modname="rf",lossfn="auc",parameters=list(iter=
       X = as.matrix(Xtrain)
       if (lossfn=="rmse") {
       xgb_params <- list(objective = "reg:linear",
-                    #eval_metric = "rmse",
+                    eval_metric = "rmse",
                     max.depth=parameters$depth,
                     eta=parameters$shseq,
                     subsample=parameters$subsample,
                     verbose=0,
                     nthread = parameters$nthread)
-      #str(xgb_params)  
+      str(xgb_params)  
       n.tree <- parameters$iter
       fit = xgboost(param=xgb_params, data =X, label= ytrain,nrounds=n.tree,missing = NA,verbose=xgb_params$verbose)
 
       #oinfo(Xtrain)
       #oinfo(ytrain)
-      #fit = xgboost(param=xgb_params, data =X, label= ytrain,nrounds=n.tree,missing = NA)
       
       }
       
@@ -1466,21 +1463,20 @@ run_xgboost<-function(Xtrain,ytrain,analysis=F) {
   #                   nthread = 4)
   
   # Melting point model parameters
-  xgb_par <- list(objective = "reg:linear",iter=2000,max.depth=10,eta=0.005,silent=1, subsample=0.5,nthread = 4,verbose = 0)
+  #xgb_par <- list(objective = "reg:linear",iter=2000,max.depth=10,eta=0.005,silent=1, subsample=0.5,nthread = 4,verbose = 0)
 
   #gbm_parameters<-list(depth=c(10),shseq=c(0.005),iterations=c(200),minobsinnode=c(5,1))
   #gbm_grid(Xtrain,ytrain,repeatcv=2,lossfn="rmse",treemethod='xgboost',parameters=gbm_parameters) 
   
   #xval_oob(Xtrain,ytrain,Xtest=Xtrain,iterations=n.tree,nrfolds=8,repeatcv=2,lossfn="rmse",method="xgboost",intdepth=xgb_par$max.depth,sh=xgb_par$eta,oobfile='oob_res.csv',folds_from_file=NULL)
   
-  xvalid(X,ytrain,nrfolds=8,modname="xgboost",loss="rmse",parameters=list(iter=xgb_par$iter,depth=xgb_par$max.depth,shseq=xgb_par$eta,subsample=xgb_par$subsample,nthread=xgb_par$nthread))
+  #xvalid(X,ytrain,nrfolds=8,modname="xgboost",loss="rmse",parameters=list(iter=xgb_par$iter,depth=xgb_par$max.depth,shseq=xgb_par$eta,subsample=xgb_par$subsample,nthread=xgb_par$nthread))
   
   ##########################################################
   #XGBOOST internal stuff
-  #bst.cv <- xgb.cv(data = as.matrix(Xtrain),label= ytrain, nround=400, nthread = 2, nfold = 5, metrics=list("rmse"),
-  #                  max.depth =10, eta = 0.05, subsample=0.5, objective = "reg:linear")
-  #print(bst.cv)  
-  #print(summary(bst.cv))
+  bst.cv <- xgb.cv(data = as.matrix(Xtrain),label= ytrain, nround=2000, nthread = 8, nfold = 5, metrics=list("rmse"),max.depth =15, eta = 0.01, subsample=0.5, objective = "reg:linear", verbose=1)
+  print(bst.cv)  
+  print(summary(bst.cv))
   #model = xgboost(param=xgb_par, data =as.matrix(Xtrain), label= ytrain,nrounds=xgb_par$n.tree,missing = NA)
   #xgb.dump(model, 'xgb.model.dump', with.stats = FALSE)
   ##########################################################
