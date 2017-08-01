@@ -6,15 +6,24 @@ Version: 1.0
 Authors: Christoph Loschen
 """
 # add path of python module
-import sys
+import sys,os
 import pandas as pd
+
+print os.environ['PATH']
 
 from qsprLib import *
 from keras_tools import *
 
+
+
 sys.path.append('/home/loschen/calc/smuRF/python_wrapper')
 import smurf as sf
 
+from keras.wrappers.scikit_learn import KerasRegressor
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import KFold
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
 
 
 def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None,
@@ -85,23 +94,26 @@ if __name__ == "__main__":
     # X = pd.read_csv('../data/katritzky_n_small.csv',sep=',')
     X = pd.read_csv('/home/loschen/calc/smuRF//data/mp_cdk.csv', sep=',')
     X = X._get_numeric_data()
-    #X = X.iloc[:5000,:]
+    X = X.iloc[:5000,:]
     #print X.describe()
     y = X['Ave °C']
+    print y.shape
+    print y
+    raw_input()
     # y = X['n_exp']
     X.drop(['train', 'Ave °C'], axis=1, inplace=True)
     X.info()
-    #print X.head(30)
+    print X.head(30)
     # X.drop(['train','n_exp'],axis=1,inplace=True)
     #print X.describe()
 
     scoring_func = make_scorer(root_mean_squared_error, greater_is_better=False)
     #model = sf.RandomForest(n_estimators=200, mtry=30, node_size=5, max_depth=20, n_jobs=4, verbose_level=0)
     showMemUsageGB()
-    #model = LinearRegression()
-    #model  = KerasNN(dims=X.shape[1],nb_classes=1,nb_epoch=50,learning_rate=0.005,validation_split=0.0,batch_size=256,verbose=1,activation='tanh', layers=[1024,1024], dropout=[0.5,0.0],loss='mse') # best
-    #model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
-    model = RandomForestRegressor(n_estimators=200,max_depth=None,min_samples_leaf=5,n_jobs=4, max_features=X.shape[1]/3,oob_score=False)
+    model = LinearRegression()
+    #model  = KerasNN(dims=X.shape[1],nb_classes=1,nb_epoch=50,learning_rate=0.01,validation_split=0.0,batch_size=1024,verbose=1,activation='relu', layers=[124], dropout=[0.0],loss='mean_squared_error') # best
+    model = Pipeline([('scaler', StandardScaler()), ('nn',model)])
+    #model = RandomForestRegressor(n_estimators=200,max_depth=None,min_samples_leaf=5,n_jobs=4, max_features=X.shape[1]/3,oob_score=False)
     # rf.setDataFrame(df)
     #model.printInfo()
     cv = KFold(y.shape[0], 5, shuffle=True)
@@ -109,10 +121,10 @@ if __name__ == "__main__":
     #predict is not thread safe?????
     #print "Final score: ",-1*res.mean()
     #parameters = {'n_estimators': [300], 'mtry': [30], 'max_depth': [20], 'node_size': [5]}
-    parameters = {'n_estimators': [300], 'max_features': [20,30], 'max_depth': [20,None], 'min_samples_leaf': [5]}
+    #parameters = {'n_estimators': [300], 'max_features': [20], 'max_depth': [20], 'min_samples_leaf': [5]}
     #parameters = {'nn__nb_epoch':[50,60,70]}
-    #parameters = {}
-    model = makeGridSearch(model, X, y, n_jobs=2, refit=False, cv=cv, scoring=scoring_func, parameters=parameters, random_iter=-1)
+    parameters = {}
+    model = makeGridSearch(model, X, y, n_jobs=1, refit=False, cv=cv, scoring=scoring_func, parameters=parameters, random_iter=-1)
     #cv = ShuffleSplit(X.shape[0], n_iter=5,test_size=0.25, random_state=0)
 
     #plot_learning_curve(model, "learning curve", X, y, ylim=(70.0, 15.0), cv=cv, n_jobs=1,scoring=scoring_func,train_sizes=np.linspace(.2, 1.0, 5))

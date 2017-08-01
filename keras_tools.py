@@ -6,8 +6,8 @@ from __future__ import print_function
 import numpy as np
 from keras.models import Sequential, load_model
 from keras.optimizers import SGD,Adagrad,RMSprop
-from keras.layers.core import Dense, Dropout, Activation, MaxoutDense
-
+from keras.layers.core import Dense, Dropout, Activation
+from keras import optimizers
 
 from keras.layers.normalization import BatchNormalization
 from keras.layers.advanced_activations import PReLU,LeakyReLU
@@ -52,6 +52,23 @@ def RMSE(y_true, y_pred):
     #print(loss)
     return loss
 
+def create_regression_model(input_dim=64,learning_rate=0.001,activation='sigmoid',layers=[256,256],dropouts=[0.0,0.0]):
+    # create model
+    model = Sequential()
+    for i,(layer,dropout) in enumerate(zip(layers,dropouts)):
+        if i==0:
+            #model.add(Dropout(dropout))
+            model.add(Dense(layer, input_dim=input_dim, kernel_initializer='normal', activation=activation))
+        else:
+            #model.add(Dropout(dropout))
+            model.add(Dense(layer, kernel_initializer='normal', activation=activation))
+
+    model.add(Dense(1, kernel_initializer='normal',activation='linear'))
+    # Compile model
+    #model.compile(loss='mean_squared_error', optimizer=optimizers.Adadelta(lr=1.0, rho=0.95, epsilon=1e-08, decay=0.0))
+    #model.compile(loss='mean_squared_error', optimizer=Adagrad(lr=self.learning_rate) # 0.01
+    model.compile(loss='mean_squared_error',optimizer=optimizers.RMSprop(lr=learning_rate))
+    return model
 
 class KerasNN(BaseEstimator):
     def __init__(self, dims=66, nb_classes=1, nb_epoch=30, learning_rate=0.5, validation_split=0.0, batch_size=64,
@@ -78,7 +95,8 @@ class KerasNN(BaseEstimator):
                 dims = self.layers[i-1]
 
             if 'maxout' in self.activation:
-                self.model.add(MaxoutDense(output_dim=layers[i], nb_feature=4, input_dim=dims))
+                print("Currently not implemented...")
+                #self.model.add(MaxoutDense(output_dim=layers[i], nb_feature=4, input_dim=dims))
             else:
                 self.model.add(Dense(output_dim=layers[i], input_dim=dims, init='glorot_uniform'))
                 #https://www.reddit.com/r/MachineLearning/comments/22u1yt/is_deep_learning_basically_just_neural_networks/
@@ -155,3 +173,5 @@ class KerasNN(BaseEstimator):
 
     def load_model(self,filename):
         self.model = load_model(filename)
+
+

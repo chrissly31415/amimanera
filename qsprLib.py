@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import pylab as pl
 from sklearn.cluster import DBSCAN
-# import tools
+
 import warnings
 
 with warnings.catch_warnings():
@@ -314,6 +314,7 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
     ypred = np.zeros((len(ly),))
     score1 = np.zeros((len(cv), 1))
     score2 = np.zeros((len(cv), 1))
+    #score3 = np.zeros((len(cv), 1))
     for i, (train, test) in enumerate(cv):
         clf = clone(clf_orig)
         ytrain, ytest = ly[train], ly[test]
@@ -328,21 +329,30 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
 
 
 
-        ypred[test] = clf.predict(lX[test, :])
-        #score1[i] = accuracy_score(ly[test], ypred[test])
-        #score1[i] = mean_abs_percentage_error(np.expm1(ly[test]), np.expm1(ypred[test]))
-        score1[i] = mean_absolute_error(ly[test], ypred[test])
-        score2[i] = root_mean_squared_error(ly[test], ypred[test])
-        #score2[i] = root_mean_squared_percentage_error_mod(ly[test], ypred[test])
-        #ypred[test] = clf.predict_proba(lX[test, :])[:,1]
-        #score2[i] = roc_auc_score(ly[test], ypred[test])
+        #ypred[test] = clf.predict(lX[test, :])
 
-        print "train set: %2d samples: %5d/%5d rmse: %6.4f  mean: %6.4f %s " % (
-        i, lX[train, :].shape[0], lX[test, :].shape[0], score2[i], score2[:i + 1].mean(), sw)
+        #score1[i] = mean_abs_percentage_error(np.expm1(ly[test]), np.expm1(ypred[test]))
+        #score1[i] = mean_absolute_error(ly[test], ypred[test])
+        #score2[i] = root_mean_squared_error(ly[test], ypred[test])
+        #score2[i] = root_mean_squared_percentage_error_mod(ly[test], ypred[test])
+        ypred[test] = clf.predict_proba(lX[test, :])[:,1]
+        #print "mean:",ypred[test].mean()
+        #print "max :",ypred[test].max()
+        #print "min :",ypred[test].min()
+        score1[i] = log_loss(ly[test], ypred[test],eps=1e-15)
+        score2[i] = accuracy_score(ly[test], clf.predict(lX[test, :]))
+        #score3[i] = roc_auc_score(ly[test], ypred[test])
+
+        #print "train set: %2d samples: %5d/%5d rmse: %6.4f  mean: %6.4f %s " % (
+        #i, lX[train, :].shape[0], lX[test, :].shape[0], score2[i], score2[:i + 1].mean(), sw)
+        print "train set: %2d samples: %5d/%5d logloss: %6.4f  mean: %6.4f accuracy: %6.4f " % (
+            i, lX[train, :].shape[0], lX[test, :].shape[0], score1[i], score1[:i + 1].mean(), score2[i])
         #showMisclass(ly[test],ypred[test],lX[test,:],index=lX_df.search_term[test],t=2.0)
 
-    print("MAE       :%6.4f +/-%6.4f" % (score1.mean(), score1.std()))
-    print("RMSE      :%6.4f +/-%6.4f" % (score2.mean(), score2.std()))
+    #print("MAE       :%6.4f +/-%6.4f" % (score1.mean(), score1.std()))
+    #print("RMSE      :%6.4f +/-%6.4f" % (score2.mean(), score2.std()))
+    print("LOGLOSS   :%6.4f +/-%6.4f" % (score1.mean(), score1.std()))
+    print("ACC       :%6.4f +/-%6.4f" % (score2.mean(), score2.std()))
 
     # training on all data
     if refit:
@@ -409,20 +419,32 @@ def buildWeightedModel(lmodel, lXs, ly, lw=None, fitWithWeights=True, n_folds=8,
     return (lmodel)
 
 
-def compareList(uniq_train, uniq_test, verbose=True):
+def compareList(X1, X2,col='question1',verbose=True, plotting=True):
     """
     Comparing to lists
     """
-    # uniq_train = Xtrain[col].unique()
-    if verbose: print "In Train - unique values: %d %r:" % (uniq_train.shape[0], uniq_train)
-    # uniq_test = Xtest[col].unique()
-    if verbose: print "In Test - unique values: %d %r:" % (uniq_test.shape[0], uniq_test)
+    uniq_train = X1[col].unique()
+    uniq_test = X2[col].unique()
+    if verbose: print "In Train - total: %d unique values: %d %r:" % (X1.shape[0],uniq_train.shape[0], uniq_train[0])
+    if verbose: print "In Test - total: %d unique values: %d %r:" % (X2.shape[0],uniq_test.shape[0], uniq_test[0])
     isect = np.intersect1d(uniq_train, uniq_test)
-    if verbose: print "In Test/Train - intersect of unique values: %d (%4.2f of train) %r:" % (isect.shape[0], isect.shape[0]/float(uniq_train.shape[0])*100, isect)
+    if verbose: print "In Test/Train - intersect of unique values: %d (%4.2f of train) %r:" % (isect.shape[0], isect.shape[0]/float(uniq_train.shape[0])*100, isect[0])
     only_train = np.in1d(uniq_train, isect, assume_unique=True, invert=True)
-    if verbose: print "In Train only : %d %r:" % (uniq_train[only_train].shape[0], uniq_train[only_train])
+    if verbose: print "In unique Train only : %d %r:" % (uniq_train[only_train].shape[0], uniq_train[only_train][0])
     only_test = np.in1d(uniq_test, isect, assume_unique=True, invert=True)
-    if verbose: print "In Test only : %d %r:" % (uniq_test[only_test].shape[0], uniq_test[only_test])
+    if verbose: print "In unique Test only : %d %r:" % (uniq_test[only_test].shape[0], uniq_test[only_test][0])
+
+    if plotting:
+        labels = 'Xtrain,only', 'Xtest,only', 'common'
+        sizes = [uniq_train[only_train].shape[0], uniq_test[only_test].shape[0], isect.shape[0]]
+        fig1, ax1 = plt.subplots()
+        ax1.pie(sizes, labels=labels, autopct='%1.1f%%',
+                shadow=True, startangle=90)
+        ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+        plt.show()
+
+
     return np.hstack((uniq_train[only_train], uniq_test[only_test]))
 
 

@@ -11,6 +11,7 @@ import difflib
 from scipy.spatial.distance import cdist
 from sklearn.metrics.pairwise import pairwise_distances
 
+from collections import Counter
 import itertools
 import math
 
@@ -19,14 +20,87 @@ from nltk.corpus import wordnet as wn
 from nltk import bigrams
 from nltk.corpus import brown
 from nltk import Text
+from nltk.stem.porter import PorterStemmer
+from sklearn.feature_extraction import text
+from nltk import corpus
 
 import pickle
+
+
 
 #TODO: right after tfidf, input 2 sparse matrics: def computeSimilarityFeatures(Xs_all,Xs_all_new)
 #chwck http://research.microsoft.com/en-us/projects/mslr/feature.aspx
 #and for dense def computeSimilarityFeatures(Xall,Xall_new,nsplit)
 #2nd place solution home depot: https://www.kaggle.com/c/home-depot-product-search-relevance/forums/t/20427/congrats-to-the-winners
 #http://stackoverflow.com/questions/16597265/appending-to-an-empty-data-frame-in-pandas
+
+stemmer = PorterStemmer() # faster
+
+stop_words = text.ENGLISH_STOP_WORDS.union(corpus.stopwords.words('english'))
+
+def str_stemmer(s):
+    liste = [stemmer.stem(word) for word in s.lower().split()]
+    liste = " ".join(liste)
+    return(liste)
+
+
+def str_common_word(str1, str2):
+	return sum(int(str2.find(word)>=0) for word in str1.split())
+
+def word_match_share(row):
+    q1words = {}
+    q2words = {}
+    for word in str(row[0]).lower().split():
+        if word not in stop_words:
+            q1words[word] = 1.0
+    for word in str(row[1]).lower().split():
+        if word not in stop_words:
+            q2words[word] = 1.0
+    if len(q1words) == 0 or len(q2words) == 0:
+        # The computer-generated chaff includes a few questions that are nothing but stopwords
+        return 0
+    shared_words_in_q1 = [w for w in q1words.keys() if w in q2words]
+    shared_words_in_q2 = [w for w in q2words.keys() if w in q1words]
+    R = (len(shared_words_in_q1) + len(shared_words_in_q2))/float(len(q1words) + len(q2words))
+    return R
+
+# If a word appears only once, we ignore it completely (likely a typo)
+# Epsilon defines a smoothing constant, which makes the effect of extremely rare words smaller
+def get_weight(count, eps=10000.0, min_count=2):
+    if count < min_count:
+        return 0.0
+    else:
+        return 1.0 / float(count + eps)
+
+def tfidf_word_match_share(row):
+    q1words = {}
+    q2words = {}
+    for word in str(row[0]).lower().split():
+        if word not in stop_words:
+            q1words[word] = 1
+    for word in str(row[1]).lower().split():
+        if word not in stop_words:
+            q2words[word] = 1
+    if len(q1words) == 0 or len(q2words) == 0:
+        # The computer-generated chaff includes a few questions that are nothing but stopwords
+        return 0
+
+    shared_weights = [weights.get(w, 0) for w in q1words.keys() if w in q2words] + [weights.get(w, 0) for w in
+                                                                                    q2words.keys() if w in q1words]
+    total_weights = [weights.get(w, 0) for w in q1words] + [weights.get(w, 0) for w in q2words]
+
+    R = np.sum(shared_weights) / float(np.sum(total_weights))
+    return R
+
+weights=0
+def get_tfidf_share(X):
+    global weights
+    eps = 5000.0
+    train_qs = pd.Series(X['question1'].tolist() + X['question2'].tolist()).astype(str)
+    words = (" ".join(train_qs)).lower().split()
+    counts = Counter(words)
+    weights = {word: get_weight(count) for word, count in counts.items()}
+    return X.apply(tfidf_word_match_share, axis=1, raw=True)
 
 
 def information_entropy(text):
@@ -45,8 +119,8 @@ def information_entropy(text):
     infoc*=-1
     return infoc
 
-def computeSimilarityFeatures(Xall,columns=['query','product_title'],verbose=False,useOnlyTrain=False,startidx=0,stop_words=None,doSVD=261,vectorizer=None,reducer=None):
-    print "Compute scipy similarity..."
+def computeSimilarityFeatures(Xall,columns=['question1','question2'],verbose=False,useOnlyTrain=False,startidx=0,stop_words=None,doSVD=261,vectorizer=None,reducer=None):
+    print "Compute scipy similarity...for :",columns
     if vectorizer is None:
         vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')
     print vectorizer
@@ -108,9 +182,9 @@ def computeScipySimilarity(Xs1,Xs2,sparse=False):
         #Xall_new[i,4] = dist
     Xall_new = pd.DataFrame(Xall_new,columns=['cosine','cityblock','hamming','euclidean'])
 
-    print "NA:",Xall_new.isnull().values.sum()
+    print "NA,before:",Xall_new.isnull().values.sum()
     Xall_new = Xall_new.fillna(0.0)
-    print "NA:",Xall_new.isnull().values.sum()
+    print "NA,after:",Xall_new.isnull().values.sum()
     print Xall_new.corr(method='spearman')
     return Xall_new
 

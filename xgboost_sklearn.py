@@ -4,6 +4,7 @@
 import sys
 import numpy as np
 import pandas as pd
+import operator
 
 # add path of xgboost python module
 sys.path.append('/home/loschen/programs/xgboost/wrapper')
@@ -53,6 +54,8 @@ class XgboostClassifier(BaseEstimator):
         self.classes_ = -1
         self.xgboost_model = None
         self.encoder = None
+        self.feature_importances_ = None
+
 
     # self.param['scale_pos_weight'] = 1.0 #scaling can be done also externally| for AMS metric
 
@@ -94,6 +97,7 @@ class XgboostClassifier(BaseEstimator):
             dtrain = xgb.DMatrix(lX, label=ly, missing=self.NA)  # NA=0 as regulariziation->gives rubbish
 
         # set up parameters
+        # see also https: // github.com / dmlc / xgboost / blob / master / doc / parameter.md
         param = {}
         param['objective'] = self.objective  # 'binary:logitraw', 'binary:logistic', 'multi:softprob'
         param['eval_metric'] = self.eval_metric  # 'auc','mlogloss'
@@ -103,8 +107,8 @@ class XgboostClassifier(BaseEstimator):
         param['min_child_weight'] = self.min_child_weight
         param['colsample_bytree'] = self.colsample_bytree
         param['gamma'] = self.gamma
-        param['bst:eta'] = self.learning_rate
-        param['bst:max_depth'] = self.max_depth
+        param['learning_rate'] = self.learning_rate
+        param['max_depth'] = self.max_depth
         param['nthread'] = self.n_jobs
         param['silent'] = self.silent
         #if not self.isRegressor: param['num_class'] = np.unique(ly).shape[0]
@@ -122,6 +126,16 @@ class XgboostClassifier(BaseEstimator):
             watchlist = [(dtrain, 'train')]
             # self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators,evals=watchlist)
             self.xgboost_model = xgb.train(plst, dtrain, num_boost_round=self.n_estimators)
+
+        #deal with feature importance
+        df = pd.DataFrame.from_dict(self.xgboost_model.get_fscore(),orient='index')
+        df.reset_index(level=0, inplace=True)
+        df.columns = ['feature', 'fscore']
+        df['fscore'] = df['fscore'] / df['fscore'].sum()
+        df.feature = df.feature.str.replace('f','')
+        df.feature = pd.to_numeric(df.feature)
+        df.sort_values(['feature'],inplace=True,ascending=False)
+        self.feature_importances_ = df
 
         return self
 
