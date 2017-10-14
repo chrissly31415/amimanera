@@ -62,6 +62,8 @@ with warnings.catch_warnings():
     from sklearn.manifold import TSNE,MDS
     from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis,LinearDiscriminantAnalysis
 
+    from statsmodels.stats.outliers_influence import variance_inflation_factor
+
 from xgboost_sklearn import *
 import seaborn as sns
 
@@ -124,6 +126,36 @@ def showAVGCorrelations(X_all, X_test=None):
     for row in range(len(c.index)):
         av1 = c.iloc[row, :].mean()  # row mean
         print "model: %20s mean correl: %5.3f" % (c.index[row], av1)
+
+def calculate_vif(X,Xtest=None, thresh=10.0):
+    """
+    Remove correlations according to variance inflation factor
+    """
+    variables = range(X.shape[1])
+
+    dropped=True
+    while dropped:
+        dropped=False
+
+        vif = []
+        for ix in range(X.iloc[:,variables].shape[1]):
+            tmp = variance_inflation_factor(X.iloc[:,variables].values, ix)
+            print "idx:%5d  Variable: %32s  vif=%16.2f"%(ix,X.iloc[:,variables].columns[ix],tmp)
+            vif.append(tmp)
+
+        maxloc = vif.index(max(vif))
+        if max(vif) > thresh:
+            print('dropping \'' + X.iloc[:,variables].columns[maxloc] + '\' at index: ' + str(maxloc))
+            del variables[maxloc]
+            dropped=True
+
+    print('Remaining variables:')
+    print(X.iloc[:,variables].columns)
+    X = X.iloc[:,variables]
+    if Xtest is not None:
+        Xtest = Xtest.iloc[:,variables]
+        return X,Xtest
+    return X
 
 
 def removeCorrelations(X_all, X_test=None, X_valid=None, threshhold=0.99):

@@ -52,7 +52,7 @@ def RMSE(y_true, y_pred):
     #print(loss)
     return loss
 
-def create_regression_model(input_dim=64,learning_rate=0.001,activation='sigmoid',layers=[256,256],dropouts=[0.0,0.0]):
+def create_regression_model(input_dim=64,learning_rate=0.001,activation='sigmoid',layers=[256,256],dropouts=[0.0,0.0],optimizer=None):
     # create model
     model = Sequential()
     for i,(layer,dropout) in enumerate(zip(layers,dropouts)):
@@ -67,7 +67,9 @@ def create_regression_model(input_dim=64,learning_rate=0.001,activation='sigmoid
     # Compile model
     #model.compile(loss='mean_squared_error', optimizer=optimizers.Adadelta(lr=1.0, rho=0.95, epsilon=1e-08, decay=0.0))
     #model.compile(loss='mean_squared_error', optimizer=Adagrad(lr=self.learning_rate) # 0.01
-    model.compile(loss='mean_squared_error',optimizer=optimizers.RMSprop(lr=learning_rate))
+    if optimizer is None:
+        optimizer = optimizers.RMSprop(lr=learning_rate)
+    model.compile(loss='mean_squared_error',optimizer=optimizer)
     return model
 
 class KerasNN(BaseEstimator):
