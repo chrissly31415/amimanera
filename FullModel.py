@@ -23,40 +23,70 @@ class XModel:
     """
     modelcount = 0
 
-    def __init__(self, name, classifier, Xtrain, Xtest, ytrain=None, sample_weight=None, Xval=None, yval=None,
-                 cutoff=None, class_names=None, cv_labels=None, bag_mode=False):
+    def __init__(self, name, classifier, Xtrain=None, Xtest=None, ytrain=None, sample_weight=None, Xval=None, yval=None,
+                 cutoff=None, class_names=None, cv_labels=None, bag_mode=False, fit_on_validation=True, params=None,generators=None):
+        """
+        Old constructor
+
+        :param name:
+        :param classifier:
+        :param Xtrain:
+        :param Xtest:
+        :param ytrain:
+        :param sample_weight:
+        :param Xval:
+        :param yval:
+        :param cutoff:
+        :param class_names:
+        :param cv_labels:
+        :param bag_mode:
+        :param fit_on_validation:
+        :param params:
+
+        """
         self.name = name
         self.classifier = classifier
         self.Xtrain = Xtrain
         self.Xtest = Xtest
         self.ytrain = ytrain
+        self.sample_weight = sample_weight
         self.Xval = Xval
         self.yval = yval
-        self.class_names = class_names
-        self.cv_labels = cv_labels  # for special cv like leave pout
-        self.bag_mode = bag_mode  # bagging i.e. cross-validated models for prediction
 
-        if isinstance(Xtrain, sp.sparse.csr.csr_matrix) or isinstance(Xtrain, sp.sparse.csc.csc_matrix):
-            self.sparse = True
-        else:
-            self.sparse = False
-        self.sample_weight = sample_weight
-
-        self.oob_preds = np.zeros((Xtrain.shape[0], 1))
-        self.preds = np.zeros((Xtest.shape[0], 1))
-        if Xval is not None:
-            self.val_preds = np.zeros((Xval.shape[0], 1))
-
-        if Xval is not None and sample_weight is not None:
-            raise Exception("Holdout and sampleweight currently not supported!")
         self.cutoff = cutoff
         if cutoff is not None:
             self.use_proba = True
 
+        self.class_names = class_names
+        self.cv_labels = cv_labels  # for special cv like leave pout
+        self.bag_mode = bag_mode  # bagging i.e. cross-validated models for prediction
+        self.fit_on_validation = fit_on_validation
+        self.params = params
+        self.generators = generators
+
+        if params is None:
+            self.initialize()
+
+
+
+    def initialize(self):
+        if isinstance(self.Xtrain, sp.sparse.csr.csr_matrix) or isinstance(self.Xtrain, sp.sparse.csc.csc_matrix):
+            self.sparse = True
+        else:
+            self.sparse = False
+
+        self.oob_preds = np.zeros((self.Xtrain.shape[0], 1))
+        self.preds = np.zeros((self.Xtest.shape[0], 1))
+        if self.Xval is not None:
+            self.val_preds = np.zeros((self.Xval.shape[0], 1))
+
+        if self.Xval is not None and self.sample_weight is not None:
+            raise Exception("Holdout and sampleweight currently not supported!")
+
         XModel.modelcount += 1
 
     def summary(self):
-        print ">>Name<<     :", self.name
+        print "\n>>Name<<     :", self.name
         print "classifier   :", type(self.classifier)
         print "Train data   :", self.Xtrain.shape,
         print " type         :", type(self.Xtrain)
@@ -82,6 +112,27 @@ class XModel:
 
     def __repr__(self):
         self.summary()
+
+    def set_feature_params(self,params_dict,generator_dict):
+        self.params = params_dict
+        self.generator_dict = generator_dict
+
+    def generate_features(self):
+        print("Generating features for model: "+self.name)
+        Xtest, Xtrain, ytrain, ytest, cv_labels, idx, sample_weight, Xval, yval, val_labels = self.generators['prepareDataset'](**self.params)
+
+        self.Xtrain = Xtrain
+        self.Xtest = Xtest
+        self.ytrain = ytrain
+        self.ytest = ytest
+        self.sample_weight = sample_weight
+        self.Xval = Xval
+        self.yval = yval
+        self.cv_labels = cv_labels
+        #self.idx = idx
+        #self.validation_labels = val_labels
+        self.initialize()
+        print("Feature generation finished: " + self.name)
 
     # static function for saving
     @staticmethod

@@ -5,7 +5,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 import numpy as np
 from keras.models import Sequential, load_model
-from keras.optimizers import SGD,Adagrad,RMSprop
+from keras.optimizers import SGD,Adagrad,RMSprop,Adam
 from keras.layers.core import Dense, Dropout, Activation
 from keras import optimizers
 
@@ -14,6 +14,9 @@ from keras.layers.advanced_activations import PReLU,LeakyReLU
 from keras.utils import np_utils, generic_utils
 from sklearn.base import BaseEstimator
 import theano.tensor as T
+
+from keras import callbacks
+
 
 '''
 	This demonstrates how to reach a score of 0.4890 (local validation)
@@ -40,7 +43,6 @@ NN is the average of 30 neural networks with the same parameters fed by x^(2/3) 
 Dropout(.15) -> Dense(n_in, l1, activation='tanh') -> BatchNormalization((l1,)) -> Dropout(.5) -> Dense(l1, l2) -> PReLU((l2,)) -> BatchNormalization((l2,)) -> Dropout(.3) -> Dense(l2, l3) -> PReLU((l3,)) -> BatchNormalization((l3,)) -> Dropout(.1) -> Dense(l3, n_out) -> Activation('softmax')
 sgd = SGD(lr=0.004, decay=1e-7, momentum=0.99, nesterov=True)
 
-
 Rossmann 3d place: https://github.com/entron/category-embedding-rossmann/blob/master/models.py "categorical embedding"
 
 avito challenge https://www.kaggle.com/rightfit/avito-duplicate-ads-detection/get-hash-from-images/code
@@ -52,15 +54,52 @@ def RMSE(y_true, y_pred):
     #print(loss)
     return loss
 
+
+#https://gist.github.com/MaxHalford/9bfaa8daf8b4bc17a7fb7ba58c880675#file-fit-py
+early_stopping = callbacks.EarlyStopping(monitor='val_loss', patience=1, verbose=0, mode='auto')
+
+def create_classification_model(input_dim=64,learning_rate=0.001,activation='relu',batchnorm=False,layers=[256,256],dropouts=[0.0,0.0],optimizer=None):
+    # create model
+    model = Sequential()
+    for i,(layer,dropout) in enumerate(zip(layers,dropouts)):
+        if i==0:
+            model.add(Dense(layer, input_dim=input_dim, kernel_initializer='uniform'))
+            if batchnorm: model.add(BatchNormalization())  # problem with CUDA?
+            model.add(Activation(activation))
+            model.add(Dropout(dropout))
+
+        else:
+            model.add(Dense(layer, kernel_initializer='uniform'))
+            if batchnorm: model.add(BatchNormalization())
+            model.add(Activation(activation))
+            model.add(Dropout(dropout))
+
+    if batchnorm: model.add(BatchNormalization())
+    model.add(Dense(1, kernel_initializer='uniform',activation='sigmoid'))
+    # Compile model
+    if optimizer is None:
+        optimizer = optimizers.SGD(lr=learning_rate, momentum=0.0, decay=0.0, nesterov=False)  # normal
+    elif 'adam' in optimizer:
+        optimizer = optimizers.Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0) # deep nets
+    elif 'adadelta' in optimizer:
+        optimizer = optimizers.Adadelta(lr=learning_rate, rho=0.95, epsilon=1e-08, decay=0.0)
+    elif 'adagrad' in optimizer:
+        optimizer = Adagrad(lr=self.learning_rate)
+    else:
+        optimizer = optimizers.SGD(lr=learning_rate, momentum=0.0, decay=0.0, nesterov=False)  # normal
+
+    model.compile(loss='binary_crossentropy',optimizer=optimizer,metrics=['accuracy'])
+    return model
+
 def create_regression_model(input_dim=64,learning_rate=0.001,activation='sigmoid',layers=[256,256],dropouts=[0.0,0.0],optimizer=None):
     # create model
     model = Sequential()
     for i,(layer,dropout) in enumerate(zip(layers,dropouts)):
         if i==0:
-            #model.add(Dropout(dropout))
+            model.add(Dropout(dropout))
             model.add(Dense(layer, input_dim=input_dim, kernel_initializer='normal', activation=activation))
         else:
-            #model.add(Dropout(dropout))
+            model.add(Dropout(dropout))
             model.add(Dense(layer, kernel_initializer='normal', activation=activation))
 
     model.add(Dense(1, kernel_initializer='normal',activation='linear'))

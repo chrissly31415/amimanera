@@ -14,8 +14,10 @@ import numpy.random as nprnd
 import pandas as pd
 import scipy as sp
 from scipy import sparse
+
+
 import matplotlib.pyplot as plt
-import matplotlib as mpl
+
 import pylab as pl
 from sklearn.cluster import DBSCAN
 
@@ -29,7 +31,7 @@ with warnings.catch_warnings():
     from sklearn.cross_validation import StratifiedKFold, KFold, LabelKFold, LabelShuffleSplit,  StratifiedShuffleSplit, ShuffleSplit, train_test_split, \
         LeavePLabelOut
     from sklearn.metrics import roc_auc_score, classification_report, make_scorer, f1_score, precision_score, \
-        mean_squared_error, accuracy_score, log_loss
+        mean_squared_error, accuracy_score, log_loss, cohen_kappa_score
     from sklearn.preprocessing import StandardScaler, PolynomialFeatures, OneHotEncoder, RobustScaler
     from sklearn.pipeline import Pipeline
     from sklearn.feature_selection import SelectKBest, SelectPercentile, chi2, f_classif, f_regression, \
@@ -41,7 +43,7 @@ with warnings.catch_warnings():
     from sklearn.naive_bayes import BernoulliNB, MultinomialNB, GaussianNB
     from sklearn.cluster import k_means
     from sklearn.isotonic import IsotonicRegression
-    from sklearn.linear_model import LogisticRegression, RandomizedLogisticRegression, SGDClassifier, Perceptron, \
+    from sklearn.linear_model import LogisticRegression,LogisticRegressionCV, RandomizedLogisticRegression, SGDClassifier, Perceptron, \
         SGDRegressor, RidgeClassifier, LinearRegression, Ridge, BayesianRidge, ElasticNet, RidgeCV, LassoLarsCV, Lasso, \
         LassoCV, LassoLars, LarsCV, ElasticNetCV
     from sklearn.cross_decomposition import PLSRegression, PLSSVD
@@ -49,7 +51,7 @@ with warnings.catch_warnings():
         DictionaryLearning, MiniBatchDictionaryLearning
     from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, ExtraTreesClassifier, \
         AdaBoostClassifier, ExtraTreesRegressor, GradientBoostingRegressor, BaggingRegressor, BaggingClassifier, \
-        RandomForestRegressor, RandomTreesEmbedding, VotingClassifier
+        RandomForestRegressor, RandomTreesEmbedding, VotingClassifier, RandomTreesEmbedding
     from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
     from sklearn.svm import LinearSVC, SVC, SVR
     from sklearn.kernel_ridge import KernelRidge
@@ -61,8 +63,12 @@ with warnings.catch_warnings():
     from sklearn.calibration import CalibratedClassifierCV
     from sklearn.manifold import TSNE,MDS
     from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis,LinearDiscriminantAnalysis
+    from sklearn.neighbors import LocalOutlierFactor
+
+    from sklearn.utils.class_weight import compute_sample_weight
 
     from statsmodels.stats.outliers_influence import variance_inflation_factor
+
 
 from xgboost_sklearn import *
 import seaborn as sns
@@ -134,6 +140,7 @@ def calculate_vif(X,Xtest=None, thresh=10.0):
     variables = range(X.shape[1])
 
     dropped=True
+    dropList=[]
     while dropped:
         dropped=False
 
@@ -145,13 +152,16 @@ def calculate_vif(X,Xtest=None, thresh=10.0):
 
         maxloc = vif.index(max(vif))
         if max(vif) > thresh:
-            print('dropping \'' + X.iloc[:,variables].columns[maxloc] + '\' at index: ' + str(maxloc))
+            var = X.iloc[:,variables].columns[maxloc]
+            print('dropping \'' + var + '\' at index: ' + str(maxloc))
+            dropList.append(var)
             del variables[maxloc]
             dropped=True
 
     print('Remaining variables:')
     print(X.iloc[:,variables].columns)
     X = X.iloc[:,variables]
+    print('Dropped variables (highest VIF first) %r'%(dropList))
     if Xtest is not None:
         Xtest = Xtest.iloc[:,variables]
         return X,Xtest
@@ -333,7 +343,7 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
     """
   Final model building part
   """
-    print "Training the model..."
+    print "Cross-validate the model ..."
 
     if isinstance(lX_df, pd.DataFrame):
         #lX = lX_df
@@ -359,8 +369,6 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
         else:
             clf.fit(lX[train, :], ytrain)
 
-
-
         #ypred[test] = clf.predict(lX[test, :])
 
         #score1[i] = mean_abs_percentage_error(np.expm1(ly[test]), np.expm1(ypred[test]))
@@ -368,9 +376,6 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
         #score2[i] = root_mean_squared_error(ly[test], ypred[test])
         #score2[i] = root_mean_squared_percentage_error_mod(ly[test], ypred[test])
         ypred[test] = clf.predict_proba(lX[test, :])[:,1]
-        #print "mean:",ypred[test].mean()
-        #print "max :",ypred[test].max()
-        #print "min :",ypred[test].min()
         score1[i] = log_loss(ly[test], ypred[test],eps=1e-15)
         score2[i] = accuracy_score(ly[test], clf.predict(lX[test, :]))
         #score3[i] = roc_auc_score(ly[test], ypred[test])
@@ -755,7 +760,7 @@ def genetic_feature_selection(model, Xtrain, ytrain, Xtest, pool_features=None, 
 
 
 def greedyFeatureSelection(lmodel, lX, ly, itermax=10, itermin=5, pool_features=None, start_features=None,
-                           verbose=False, cv=5, n_jobs=4, scoring_func='mean_squared_error'):
+                           verbose=False, cv=5, n_jobs=4, scoring_func='mean_squared_error',plotting=False):
     features = []
 
     if pool_features is None:
@@ -769,7 +774,7 @@ def greedyFeatureSelection(lmodel, lX, ly, itermax=10, itermin=5, pool_features=
     scores = []
     score_opt = 1E10
     for i in xrange(itermax):
-        print "Round %4d" % (i)
+        print "Round %4d" % (i+1)
         score_best = 1E9
         for a, k in enumerate(xrange(len(pool_features))):
             act_feature = pool_features[k]
@@ -815,9 +820,10 @@ def greedyFeatureSelection(lmodel, lX, ly, itermax=10, itermin=5, pool_features=
     print "Scores:", scores
 
     print "Best score: %6.4f with %5d features:\n%r" % (score_opt, len(opt_list), opt_list)
-    plt.plot(scores)
-    plt.show()
-
+    if plotting:
+        plt.plot(scores)
+        plt.show()
+    return opt_list
 
 def iterativeFeatureSelection(lmodel, Xold, Xold_test, ly, iterations=5, nrfeats=1, scoring=None, cv=None, n_jobs=8):
     """
@@ -829,12 +835,10 @@ def iterativeFeatureSelection(lmodel, Xold, Xold_test, ly, iterations=5, nrfeats
         lmodel = buildModel(lmodel, Xold, ly, cv=cv, scoring=scoring, n_jobs=n_jobs, trainFull=True, verbose=True)
         # lmodel.fit(Xold,ly)
         (Xold, Xold_test) = rfFeatureImportance(lmodel, Xold, Xold_test, nrfeats)
-        # Xold.to_csv("../stumbled_upon/data/Xlarge_"+str(i)+".csv")
-        # Xold_test.to_csv("../stumbled_upon/data/XXlarge_test_"+str(i)+".csv")
     return (Xold, Xold_test)
 
 
-def recursive_featureselection(model,X,y,cv=5, step=1,scoring='roc_auc_score'):
+def recursive_featureselection(model,X,y,Xtest=None,Xval=None,cv=5, step=1,scoring='roc_auc_score',return_idx=True):
     rfecv = RFECV(estimator=model, step=step, cv=cv,
               scoring=scoring,n_jobs=4,verbose=1)
     rfecv.fit(X, y)
@@ -842,15 +846,24 @@ def recursive_featureselection(model,X,y,cv=5, step=1,scoring='roc_auc_score'):
     print("Optimal number of features : %d" % rfecv.n_features_)
     # Plot number of features VS. cross-validation scores
     plt.figure()
-    plt.xlabel("Number of features selected")
+    plt.xlabel("step")
     plt.ylabel("Cross validation score")
     print(rfecv.grid_scores_)
     print(rfecv.support_)
     rfecv.grid_scores_ = (-1.0 * rfecv.grid_scores_)
-    plt.plot(range(1, len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
 
-    return rfecv.support_
-    #return rfecv.transform(X)
+    plt.plot(np.asarray(range(0, (len(rfecv.grid_scores_))))*step, rfecv.grid_scores_)
+    plt.show()
+    if return_idx:
+        print rfecv.support_
+        return rfecv.support_
+
+    if Xval is not None:
+        return rfecv.transform(X),rfecv.transform(Xtest),rfecv.transform(Xval)
+    elif Xtest is not None:
+        return rfecv.transform(X), rfecv.transform(Xtest)
+    else:
+        return rfecv.transform(X)
 
 def removeInstances(lXs, ly, preds, t, returnSD=True):
     """
@@ -930,7 +943,18 @@ def removeLowVar(X_all, threshhold=1E-5):
     return (X_all)
 
 
-def pcAnalysis(X, Xtest, y=None, w=None, ncomp=2, transform=False, classification=False,reducer=None):
+def get_local_outliers(Xref,Xtest):
+    X_all = pd.concat([Xtest, Xref])
+    clf = LocalOutlierFactor(n_neighbors=20)
+    outliers = clf.fit_predict(X_all) # no predict for local outliers
+    outliers_test = outliers[len(Xtest.index):]
+    outliers_ref = outliers[:len(Xtest.index)]
+    #print('outliers,ref: %d outliers,test: %d'%(np.sum(outliers_ref),np.sum(outliers_test)))
+    return outliers_ref,outliers_test
+
+
+
+def pcAnalysis(X, Xtest, w=None, ncomp=2, transform=False, classification=False,reducer=None, fit_all=False):
     """
     PCA 
     """
@@ -954,13 +978,25 @@ def pcAnalysis(X, Xtest, y=None, w=None, ncomp=2, transform=False, classificatio
         print "PC analysis for classification"
         X_all = pd.concat([Xtest, X])
         # this is transformation is necessary otherwise PCA gives rubbish!!
-        ytrain = np.asarray(y)
+        ytest = np.ones((Xtest.shape[0]),)
+        y = np.zeros((X.shape[0]),)
+        ytrain = np.hstack((ytest, y))
 
-        X_r = pca.fit_transform(np.asarray(X_all))
+        print ytest.shape
+        print y.shape
+        print ytrain.shape
+
+        if fit_all:
+            print('PCA fit on complete data train & test...')
+            X_r = pca.fit_transform(np.asarray(X_all))
+        else:
+            print('PCA fit on train data only...')
+            pca.fit(np.asarray(X))
+            X_r = pca.transform(np.asarray(X_all))
 
         if w is None:
-            plt.scatter(X_r[ytrain == 0, 0], X_r[ytrain == 0, 1], c='r', label="1", alpha=0.1)
-            plt.scatter(X_r[ytrain == 1, 0], X_r[ytrain == 1, 1], c='g', label="0", alpha=0.1)
+            plt.scatter(X_r[ytrain == 0, 0], X_r[ytrain == 0, 1], c='r', label="test", alpha=0.1)
+            plt.scatter(X_r[ytrain == 1, 0], X_r[ytrain == 1, 1], c='g', label="train", alpha=0.1)
         else:
             plt.scatter(X_r[ytrain == 0, 0], X_r[ytrain == 0, 1], c='r', label="background", s=w[ytrain == 0] * 25.0,
                         alpha=0.1)
@@ -1043,6 +1079,9 @@ def mean_absolute_error(x, y):
 
 def multiclass_log_loss(y_true, y_pred, eps=1e-15):
     return log_loss(y_true, y_pred, eps=eps, normalize=True)
+
+def neg_log_loss(y_true, y_pred, eps=1e-15):
+    return -1.0*log_loss(y_true, y_pred, eps=eps)
 
 
 def getOOBCVPredictions(lmodel, lXs, ly, repeats=1, cv=5, returnSD=True, score_func='rmse'):
@@ -1362,8 +1401,9 @@ def analyzeLearningCurve(model, X, y, cv=8, score_func='log_loss',train_sizes=np
     """
     make a learning curve according to http://scikit-learn.org/dev/auto_examples/plot_learning_curve.html
     """
-    plot_learning_curve(model, "learning curve", X, y, ylim=ylim, cv=cv, n_jobs=1, scoring=score_func,train_sizes=train_sizes)
-
+    print("Construct learning curve...")
+    plt = plot_learning_curve(model, "learning curve", X, y, ylim=ylim, cv=cv, n_jobs=1, scoring=score_func,train_sizes=train_sizes)
+    plt.show()
 
 def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, scoring='log_loss',
                         train_sizes=np.linspace(.1, 1.0, 10)):
@@ -1578,6 +1618,9 @@ def label_train_test_plit(X,y,labels=None,test_size=0.25, random_state=None):
 
 
 class KLabelFolds():
+    '''
+    Provides repeated group based cross-validation
+    '''
     def __init__(self, labels, n_folds=3, repeats=5):
 
         self.n_folds = n_folds
@@ -1592,17 +1635,18 @@ class KLabelFolds():
     def __iter__(self):
 
         unique_labels = np.unique(self.labels)
+        #print unique_labels
         for i in range(self.repeats):
             cv = cross_validation.KFold(len(unique_labels), self.n_folds)
-            unique_labels = shuffle(unique_labels)  # reproducible?
+            #unique_labels = shuffle(unique_labels)  # reproducible?
             for train, test in cv:
                 test_labels = unique_labels[test]
+                #print "test:",test_labels
+                #print "train:",unique_labels[train]
+                #raw_input()
                 test_mask = np.in1d(self.labels, test_labels)
                 train_mask = np.logical_not(test_mask)
                 tr = np.where(train_mask)[0]
-                # print tr
-                # tr = shuffle(tr)
-                # print tr
                 yield (tr, np.where(test_mask)[0])
 
 
@@ -1646,6 +1690,7 @@ funcdict['auc'] = roc_auc_score
 funcdict['mae'] = mean_absolute_error
 funcdict['msq'] = mean_squared_error
 funcdict['log_loss'] = multiclass_log_loss
+funcdict['neg_log_loss'] = neg_log_loss
 funcdict['accuracy_score'] = accuracy_score
 funcdict['quadratic_weighted_kappa'] = quadratic_weighted_kappa
 funcdict['roc_auc'] = roc_auc_score
