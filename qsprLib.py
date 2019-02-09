@@ -124,14 +124,14 @@ def showCorrelations(X, steps=3):
         idx_b = idx_b + n / steps
 
 
-def showAVGCorrelations(X_all, X_test=None):
+def showAVGCorrelations(X_all):
     print "Showing correlated columns"
     c = X_all.corr().abs()
 
-    corcols = {}
     for row in range(len(c.index)):
         av1 = c.iloc[row, :].mean()  # row mean
         print "model: %20s mean correl: %5.3f" % (c.index[row], av1)
+
 
 def calculate_vif(X,Xtest=None, thresh=10.0):
     """
@@ -377,12 +377,12 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
         #score2[i] = root_mean_squared_percentage_error_mod(ly[test], ypred[test])
         ypred[test] = clf.predict_proba(lX[test, :])[:,1]
         score1[i] = log_loss(ly[test], ypred[test],eps=1e-15)
-        score2[i] = accuracy_score(ly[test], clf.predict(lX[test, :]))
-        #score3[i] = roc_auc_score(ly[test], ypred[test])
+        #score2[i] = accuracy_score(ly[test], clf.predict(lX[test, :]))
+        score2[i] = roc_auc_score(ly[test], ypred[test])
 
         #print "train set: %2d samples: %5d/%5d rmse: %6.4f  mean: %6.4f %s " % (
         #i, lX[train, :].shape[0], lX[test, :].shape[0], score2[i], score2[:i + 1].mean(), sw)
-        print "train set: %2d samples: %5d/%5d logloss: %6.4f  mean: %6.4f accuracy: %6.4f " % (
+        print "train set: %2d samples: %5d/%5d logloss: %6.4f  mean: %6.4f auc: %6.4f " % (
             i, lX[train, :].shape[0], lX[test, :].shape[0], score1[i], score1[:i + 1].mean(), score2[i])
         #showMisclass(ly[test],ypred[test],lX[test,:],index=lX_df.search_term[test],t=2.0)
 

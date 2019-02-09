@@ -13,8 +13,8 @@ from qsprLib import funcdict, save_sparse_csr, load_sparse_csr
 import scipy as sp
 import numpy as np
 import pandas as pd
-import pickle
-
+import cPickle as pickle
+#import dill as pickle
 
 class XModel:
     """
@@ -67,8 +67,6 @@ class XModel:
         if params is None:
             self.initialize()
 
-
-
     def initialize(self):
         if isinstance(self.Xtrain, sp.sparse.csr.csr_matrix) or isinstance(self.Xtrain, sp.sparse.csc.csc_matrix):
             self.sparse = True
@@ -87,11 +85,15 @@ class XModel:
 
     def summary(self):
         print "\n>>Name<<     :", self.name
-        print "classifier   :", type(self.classifier)
-        print "Train data   :", self.Xtrain.shape,
-        print " type         :", type(self.Xtrain)
-        print "Test data    :", self.Xtest.shape,
-        print " type         :", type(self.Xtest)
+        print "classifier   :", self.classifier
+
+        if self.Xtrain is not None:
+            print "Train data   :", self.Xtrain.shape,
+            print " type         :", type(self.Xtrain)
+
+        if self.Xtest is not None:
+            print "Test data    :", self.Xtest.shape,
+            print " type         :", type(self.Xtest)
 
         if self.Xval is not None:
             print "Valid. data   : ", self.Xval.shape
@@ -100,13 +102,15 @@ class XModel:
             print " type        :", type(self.sample_weight)
 
         if self.ytrain is not None:
-            print "y <-  target :", self.ytrain.shape
+            print "y <- target   :", self.ytrain.shape
         # print "sparse data  :" , self.sparse
         if self.cutoff is not None: print "proba cutoff  :", self.cutoff
         if self.class_names is not None: print "class names  :", self.class_names
 
-        print "<predictions> : %6.3f" % (np.mean(self.preds)),
-        print " Dim:", self.preds.shape
+        if self.preds is not None:
+            print "<predictions> : %6.3f" % (np.mean(self.preds)),
+            print " Dim:", self.preds.shape
+
         print "<oob preds>   : %6.3f" % (np.mean(self.oob_preds)),
         print " Dim:", self.oob_preds.shape
 
@@ -129,19 +133,9 @@ class XModel:
         self.Xval = Xval
         self.yval = yval
         self.cv_labels = cv_labels
-        #self.idx = idx
-        #self.validation_labels = val_labels
+
         self.initialize()
         print("Feature generation finished: " + self.name)
-
-    # static function for saving
-    @staticmethod
-    def saveModel(xmodel, filename):
-        if not hasattr(xmodel, 'xgboost_model'):
-            # if not isinstance(xmodel,XgboostRegressor):
-            pickle_out = open(filename.replace('.csv', ''), 'wb')
-            pickle.dump(xmodel, pickle_out)
-            pickle_out.close()
 
     @staticmethod
     def saveDataSet(xmodel, restoreOrder=True, basedir='./share/'):
@@ -167,14 +161,26 @@ class XModel:
 
         return (xmodel.Xtrain, xmodel.Xtest)
 
-    # static function for saving only the important parameters
+    # static function for saving
+    @staticmethod
+    def saveModel(xmodel, filename):
+            pickle_out = open(filename.replace('.csv', ''), 'wb')
+            pickle.dump(xmodel, pickle_out)
+            pickle_out.close()
+
+    # static function for saving only the important data
     @staticmethod
     def saveCoreData(xmodel, filename):
-        if not hasattr(xmodel, 'xgboost_model'):
-            # reset not needed stuff
-            xmodel.classifier = str(xmodel.classifier)
+        if 'm__epochs' in xmodel.classifier.get_params():
+            print(type(xmodel.classifier.get_params()))
+
         xmodel.Xtrain = None
+        #xmodel.ytrain = None
+        xmodel.Xval = None
+        #xmodel.yval = None
         xmodel.Xtest = None
+        #xmodel.ytest = None
+
         xmodel.sample_weight = None
         # keep only parameters and predictions
         pickle_out = open(filename.replace('.csv', ''), 'wb')
@@ -184,6 +190,14 @@ class XModel:
     # static function for loading
     @staticmethod
     def loadModel(filename):
+        my_object_file = open(filename + '.pkl', 'rb')
+        xmodel = pickle.load(my_object_file)
+        my_object_file.close()
+        return xmodel
+
+    # static function for loading
+    @staticmethod
+    def loadCoreData(filename):
         my_object_file = open(filename + '.pkl', 'rb')
         xmodel = pickle.load(my_object_file)
         my_object_file.close()

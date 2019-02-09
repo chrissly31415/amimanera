@@ -13,7 +13,9 @@ from keras.layers.normalization import BatchNormalization
 from keras.layers.advanced_activations import PReLU,LeakyReLU
 from keras.utils import np_utils, generic_utils
 from sklearn.base import BaseEstimator
-import theano.tensor as T
+import types
+import tempfile
+import keras.models
 
 from keras import callbacks
 
@@ -53,6 +55,29 @@ def RMSE(y_true, y_pred):
     loss = T.sqrt(T.sqr(y_true - y_pred).mean(axis=-1))
     #print(loss)
     return loss
+
+
+
+def make_keras_picklable():
+    def __getstate__(self):
+        model_str = ""
+        with tempfile.NamedTemporaryFile(suffix='.hdf5', delete=True) as fd:
+            keras.models.save_model(self, fd.name, overwrite=True)
+            model_str = fd.read()
+        d = { 'model_str': model_str }
+        return d
+
+    def __setstate__(self, state):
+        with tempfile.NamedTemporaryFile(suffix='.hdf5', delete=True) as fd:
+            fd.write(state['model_str'])
+            fd.flush()
+            model = keras.models.load_model(fd.name)
+        self.__dict__ = model.__dict__
+
+
+    cls = keras.models.Model
+    cls.__getstate__ = __getstate__
+    cls.__setstate__ = __setstate__
 
 
 #https://gist.github.com/MaxHalford/9bfaa8daf8b4bc17a7fb7ba58c880675#file-fit-py
