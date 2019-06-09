@@ -27,7 +27,7 @@ def createFeatures(X_all,keepAll=True,createNAFeats='all'):
         else:
             return 0.0    
 
-    print "NA Feature creation..."
+    print("NA Feature creation...")
     X_NA=pd.DataFrame(index=X_all.index)
 
     for colname in X_all.columns:
@@ -46,8 +46,8 @@ def createFeatures(X_all,keepAll=True,createNAFeats='all'):
         X_NA['NA_sum'] = X_NA.sum(axis=1)  
 	X_all = pd.concat([X_all, X_NA['NA_sum']],axis=1)
 	
-    print X_all.columns
-    print "End of feature creation..."    
+    print(X_all.columns)
+    print("End of feature creation...")    
     
     return (X_all)
 
@@ -56,19 +56,19 @@ def massImputer(X_orig,y_tmp,massmodel,doSVD=None,nsamples=250000,newfeature=Tru
     """
     try to learn missing DER_mass_MMC from other data
     """
-    print "Imputing mass..."
-    print X_orig['DER_mass_MMC'].describe()
+    print("Imputing mass...")
+    print(X_orig['DER_mass_MMC'].describe())
     if loadData or 'load' in massmodel:
 	X_orig['DER_mass_EST'] = pd.read_csv('../datamining-kaggle/higgs/mass_est.csv', sep=",", na_values=['?'], header=None, index_col=0)
-	print X_orig['DER_mass_EST'].describe()
+	print(X_orig['DER_mass_EST'].describe())
 	return(X_orig)
    
     y_tmp=pd.DataFrame({'y' : pd.Series(y_tmp)})
     
-    print massmodel
+    print(massmodel)
     
     idx_NA = np.asarray(X_orig['DER_mass_MMC']) < -998.0
-    print type(idx_NA)
+    print(type(idx_NA))
     y_mass = np.asarray(X_orig.ix[-idx_NA,'DER_mass_MMC'])
     X_tmp = X_orig.drop(['DER_mass_MMC'], axis=1)
     #here we should impute other values
@@ -85,23 +85,23 @@ def massImputer(X_orig,y_tmp,massmodel,doSVD=None,nsamples=250000,newfeature=Tru
     X_mass = X_tmp[-idx_NA]
     X_mass_test = X_tmp[idx_NA]
       
-    print "Fitting mass model with subset of length:",nsamples
+    print("Fitting mass model with subset of length:",nsamples)
     if nsamples != -1: 
 	rows = random.sample(np.arange(X_mass.shape[0]), nsamples)
 	X_mass = X_mass[rows]
 	y_mass = y_mass[rows]
 	
-    print "Dim X_mass:",X_mass.shape
+    print("Dim X_mass:",X_mass.shape)
     #print "Dim X_test:",X_mass_test.shape
-    print "Dim y:",y_mass.shape
+    print("Dim y:",y_mass.shape)
     
     massmodel.fit(X_mass,y_mass)
-    print "Prediction..."
+    print("Prediction...")
     mass_pred = massmodel.predict(X_mass)
-    print mass_pred
-    print y_mass
+    print(mass_pred)
+    print(y_mass)
     mse = mean_squared_error(y_mass, mass_pred)
-    print "MSE=%6.3f RMSE=%6.3f"%(mse,np.sqrt(mse))
+    print("MSE=%6.3f RMSE=%6.3f"%(mse,np.sqrt(mse)))
     sct = plt.scatter(mass_pred, y_mass, c=y_tmp['y'],s=50,linewidths=2, edgecolor='black')
     #plt.plot(mass_pred, y_mass,'ro')
     sct.set_alpha(0.75)
@@ -112,7 +112,7 @@ def massImputer(X_orig,y_tmp,massmodel,doSVD=None,nsamples=250000,newfeature=Tru
     if doSVD is not None:
 	X_mass=tsvd.fit_transform(X_mass)
     
-    print "Dim X_mass:",X_mass.shape
+    print("Dim X_mass:",X_mass.shape)
     
     if newfeature:
 	X_orig['DER_mass_EST']=massmodel.predict(X_mass)
@@ -120,13 +120,13 @@ def massImputer(X_orig,y_tmp,massmodel,doSVD=None,nsamples=250000,newfeature=Tru
     else:
 	X_orig.ix[idx_NA,'DER_mass_MMC']=massmodel.predict(X_mass_test)
     
-    print "Dim y:",y_mass.shape
-    print "Dim X:",X_mass.shape
-    print "Dim X_test:",X_mass_test.shape
-    print "Dim X_orig:",X_orig.shape
+    print("Dim y:",y_mass.shape)
+    print("Dim X:",X_mass.shape)
+    print("Dim X_test:",X_mass_test.shape)
+    print("Dim X_orig:",X_orig.shape)
     
-    print X_orig['DER_mass_EST'].describe()
-    print X_orig['DER_mass_MMC'].describe()
+    print(X_orig['DER_mass_EST'].describe())
+    print(X_orig['DER_mass_MMC'].describe())
     
     return(X_orig)
     
@@ -139,7 +139,7 @@ def massEstimator(X_all,createPsq=True,normalize=True,invertEta=True):
 
     Eq. 2 in Elagin et al.
     """
-    print "Mass estimator & feature creation..."
+    print("Mass estimator & feature creation...")
     
     if createPsq:
 	tmp = X_all['PRI_tau_phi'].map(np.cos)
@@ -245,18 +245,18 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
     #b = np.sum(weights[bSelector])
     
     sumWeights = np.sum(weights)
-    print "Sum weights: %8.2f"%(sumWeights)
+    print("Sum weights: %8.2f"%(sumWeights))
     sumSWeights = np.sum(weights[sSelector])
     sumBWeights = np.sum(weights[bSelector])
-    print "Sum (w_s): %8.2f n(s): %6d"%(sumSWeights,np.sum(sSelector==True))
-    print "Sum (w_b): %8.2f n(b): %6d"%(sumBWeights,np.sum(bSelector==True))
+    print("Sum (w_s): %8.2f n(s): %6d"%(sumSWeights,np.sum(sSelector==True)))
+    print("Sum (w_b): %8.2f n(b): %6d"%(sumBWeights,np.sum(bSelector==True)))
     
-    print "Unique weights for signal    :",np.unique(weights[sSelector])
-    print "Unique weights for background:",np.unique(weights[bSelector])
+    print("Unique weights for signal    :",np.unique(weights[sSelector]))
+    print("Unique weights for background:",np.unique(weights[bSelector]))
     
     ntotal=250000
     wFactor = 1.* ntotal / X.shape[0]
-    print "AMS,max: %4.3f (wfactor=%4.3f)" % (AMS(s*wFactor, 0.0),wFactor)
+    print("AMS,max: %4.3f (wfactor=%4.3f)" % (AMS(s*wFactor, 0.0),wFactor))
     
     y = X['Label'].str.replace(r's','1').str.replace(r'b','0')
     y = np.asarray(y.astype(float))   	  
@@ -268,7 +268,7 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
     X_all = pd.concat([X_test, X])    
     
     if onehotenc is not None:
-	print "One hot encoding of: ",onehotenc
+	print("One hot encoding of: ",onehotenc)
 	for col in onehotenc:
 	    X_new = pd.get_dummies(X_all.loc[:,col],prefix=col)
 	    X_all = X_all.drop([col], axis=1)
@@ -276,11 +276,11 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
     
     if dropFeatures is not None:
 	for col in dropFeatures:
-            print "Dropping features: ",col
+            print("Dropping features: ",col)
             X_all = X_all.drop([col], axis=1)
     
     if quadraticFeatures is not None:
-        print "Creating squared features"
+        print("Creating squared features")
         X_pri = X_all.copy()
 	cols = X_pri.columns
 	for col in cols:
@@ -298,12 +298,12 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
 		#delete due to correlations
 		del X_all[col1]
 	    
-	print X_all.columns
-	print "New dim:",X_all.shape
+	print(X_all.columns)
+	print("New dim:",X_all.shape)
         
     
     if polyFeatures is not None:
-	print "Creating feature interaction for primary features"
+	print("Creating feature interaction for primary features")
 	
 	#removing derived features
 	X_pri = X_all.copy()
@@ -325,8 +325,8 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
 		    X_new.columns=[new_name]
 		    X_all = pd.concat([X_all, X_new],axis=1)
 
-	print X_all.columns
-	print "New dim:",X_all.shape
+	print(X_all.columns)
+	print("New dim:",X_all.shape)
 	
     if imputeMassModel is not None:
 	#X_all=massImputer(X_all[len(X_test.index):],y,imputeMassModel)
@@ -340,7 +340,7 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
 	cols = X_all.columns
 	for col in cols:
 	    if col.startswith(onlyPRI):
-             print "Dropping column: ",col
+             print("Dropping column: ",col)
              X_all = X_all.drop([col], axis=1)
 
     if createNAFeats is not None:
@@ -358,7 +358,7 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
     if transform:
         for col in transcols_PRI:
             if col in X_all.columns:
-                print "log transformation of ",col
+                print("log transformation of ",col)
                 X_all[col]=X_all[col]-X_all[col].min()+1.0
                 X_all[col]=X_all[col].apply(np.log)
     
@@ -373,22 +373,22 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
         X_all=removeCorrelations(X_all,0.995)
     
     if featureFilter is not None:
-	print "Using featurefilter..."
+	print("Using featurefilter...")
 	X_all=X_all[featureFilter]
     
     if stats:
         for col in X_all.columns:
-            print col
-            print X_all[col].describe()
-        print X_all.corr()
+            print(col)
+            print(X_all[col].describe())
+        print(X_all.corr())
         #scatter_matrix(X_all, alpha=0.2, figsize=(6, 6), diagonal='hist')
         #plt.show()
 	    
-	print "idx max observations:" 
-	print X_all.apply(lambda x: x.idxmax())
+	print("idx max observations:") 
+	print(X_all.apply(lambda x: x.idxmax()))
 	
-	print "idx min observations:"
-	print X_all.apply(lambda x: x.idxmin())
+	print("idx min observations:")
+	print(X_all.apply(lambda x: x.idxmin()))
     
     
     if plotting:
@@ -410,8 +410,8 @@ def prepareDatasets(nsamples=-1,onlyPRI=False,replaceNA=True,plotting=True,stats
 	X,y,X_test,weights=clustering(X,y,X_test,weights,n_clusters=4,returnCluster=None,plotting=True)
     
     
-    print "Dim train set:",X.shape    
-    print "Dim test set :",X_test.shape
+    print("Dim train set:",X.shape)    
+    print("Dim test set :",X_test.shape)
     return (X,y,X_test,weights)
 
 
@@ -479,12 +479,12 @@ def modTrainWeights(wtrain,lytrain,scale_wt=None,verbose=False,normalizeWeights=
         
     if normalizeWeights:
 	wtrain_fit= wtrain_fit*wtrain.shape[0]/np.sum(wtrain_fit)
-	print "Normalizing weights, total sum:",np.sum(wtrain_fit)
+	print("Normalizing weights, total sum:",np.sum(wtrain_fit))
     
     if smoothWeights is not None:
-	print "Smoothing weights by 1/%6.3f"%(smoothWeights)
+	print("Smoothing weights by 1/%6.3f"%(smoothWeights))
 	wtrain_fit=np.power(wtrain_fit,1/smoothWeights)
-	print "w_max: %4.3f w_min: %4.3f mean: %4.3f sdev: %4.3f"%(np.max(wtrain_fit),np.min(wtrain_fit),wtrain_fit.mean(),wtrain_fit.std())
+	print("w_max: %4.3f w_min: %4.3f mean: %4.3f sdev: %4.3f"%(np.max(wtrain_fit),np.min(wtrain_fit),wtrain_fit.mean(),wtrain_fit.std()))
     
     wsum_s_new = np.sum(wtrain_fit[sSelector])
     #wtrain_fit = wtrain*scale_wt
@@ -494,7 +494,7 @@ def modTrainWeights(wtrain,lytrain,scale_wt=None,verbose=False,normalizeWeights=
 	plt.legend()
 	plt.show()
 
-    if verbose: print "Modified train weights: wsum,s: %4.2f wsum,s new: %4.2f ratio,orig: %4.2f ratio,new: %4.2f scale_factor: %8.3f\n"%(wsum_s,wsum_s_new,wsum_b/wsum_s,wsum_b/wsum_s_new,scale_wt)
+    if verbose: print("Modified train weights: wsum,s: %4.2f wsum,s new: %4.2f ratio,orig: %4.2f ratio,new: %4.2f scale_factor: %8.3f\n"%(wsum_s,wsum_s_new,wsum_b/wsum_s,wsum_b/wsum_s_new,scale_wt))
     return wtrain_fit
   
 
@@ -520,7 +520,7 @@ def amsXvalidation(lmodel,lX,ly,lw,nfolds=5,cutoff=0.5,useProba=True,fitWithWeig
 	lytrain = ly[train]
 	wtrain= lw[train]
 	if fitWithWeights is False:
-	    print "Ignoring weights for fit."
+	    print("Ignoring weights for fit.")
 	    lmodel.fit(lX[train],lytrain)
 	else:
 	 #scale wtrain
@@ -544,7 +544,7 @@ def amsXvalidation(lmodel,lX,ly,lw,nfolds=5,cutoff=0.5,useProba=True,fitWithWeig
 		cutoff = computeCutoff(yinbag[:,1])
 	    
 	ams_scores_train[i]=ams_score(lytrain,yinbag,sample_weight=wtrain,use_proba=useProba,cutoff=cutoff)
-	print "Training %8s=%6.3f AMS=%6.3f" % (sc_string,scores_train[i],ams_scores_train[i])
+	print("Training %8s=%6.3f AMS=%6.3f" % (sc_string,scores_train[i],ams_scores_train[i]))
 	
 	#test
 	truth=ly[test]
@@ -567,17 +567,17 @@ def amsXvalidation(lmodel,lX,ly,lw,nfolds=5,cutoff=0.5,useProba=True,fitWithWeig
 		cutoff = computeCutoff(yoob[:,1])
 	    
 	ams_scores[i]=ams_score(truth,yoob,sample_weight=weightsTest,use_proba=useProba,cutoff=cutoff)
-	print "Iteration=%d %d/%d %-8s=%6.3f AMS=%6.3f\n" % (i+1,train.shape[0], test.shape[0],sc_string,scores[i],ams_scores[i])
+	print("Iteration=%d %d/%d %-8s=%6.3f AMS=%6.3f\n" % (i+1,train.shape[0], test.shape[0],sc_string,scores[i],ams_scores[i]))
 	
 	
-    print "\n##XV SUMMARY##"
-    print " <%-8s>: %0.3f (+/- %0.3f)" % (sc_string,scores.mean(), scores.std())
-    print " <AMS>: %0.3f (+/- %0.3f)" % (ams_scores.mean(), ams_scores.std())
-    print " <%-8s,train>: %0.3f (+/- %0.3f)" % (sc_string,scores_train.mean(), scores_train.std())
-    print " <AMS,train>: %0.3f (+/- %0.3f)" % (ams_scores_train.mean(), ams_scores_train.std())
+    print("\n##XV SUMMARY##")
+    print(" <%-8s>: %0.3f (+/- %0.3f)" % (sc_string,scores.mean(), scores.std()))
+    print(" <AMS>: %0.3f (+/- %0.3f)" % (ams_scores.mean(), ams_scores.std()))
+    print(" <%-8s,train>: %0.3f (+/- %0.3f)" % (sc_string,scores_train.mean(), scores_train.std()))
+    print(" <AMS,train>: %0.3f (+/- %0.3f)" % (ams_scores_train.mean(), ams_scores_train.std()))
     
     if buildModel:
-	print "\n##Building final model##"
+	print("\n##Building final model##")
 	if fitWithWeights:
 	    w_fit=modTrainWeights(lw,ly,scale_wt)
 	    lmodel.fit(lX,ly,sample_weight=w_fit)
@@ -615,7 +615,7 @@ def ams_score(y_true,y_pred,**kwargs):
     elif 'sample_weight' in kwargs:
 	sample_weight=kwargs['sample_weight']
     else:
-	print "We need sample weights for sensible evaluation!"
+	print("We need sample weights for sensible evaluation!")
 	return
 	
     verbose=True
@@ -675,10 +675,10 @@ def ams_score(y_true,y_pred,**kwargs):
 	    ams_best=ams
 	    cutoff_opt=cutoff
 	if opt_cutoff:
-	    print "cutoff=%6.3f AMS= %6.3f"%(cutoff,ams)
+	    print("cutoff=%6.3f AMS= %6.3f"%(cutoff,ams))
 
     if opt_cutoff:
-	print "Optimized cutoff=%6.3f AMS= %6.3f"%(cutoff_opt,ams_best)
+	print("Optimized cutoff=%6.3f AMS= %6.3f"%(cutoff_opt,ams_best))
 	ams = ams_best
 	cutoff = cutoff_opt
 	
@@ -688,14 +688,14 @@ def ams_score(y_true,y_pred,**kwargs):
 	wsum_truth=np.sum(sSelector)
 	
 	#print '*Sum,weights_s = %8.2f, Sum,weights_b=%8.2f ratio=%8.2f wfactor=%8.2f'%(ssum,bsum,bsum/ssum,wfactor)
-	print 'AMS = %6.3f [AMS_max = %6.3f] [AMS,approx = %6.3f] %-32s  ---  ratio(pred): %6.4f ratio(truth): %6.4f wfactor=%8.2f'%(ams,ams_max,ams_approx,info,wsum/(float(y_pred.shape[0])),wsum_truth/(float(y_pred.shape[0])),wfactor)
+	print('AMS = %6.3f [AMS_max = %6.3f] [AMS,approx = %6.3f] %-32s  ---  ratio(pred): %6.4f ratio(truth): %6.4f wfactor=%8.2f'%(ams,ams_max,ams_approx,info,wsum/(float(y_pred.shape[0])),wsum_truth/(float(y_pred.shape[0])),wfactor))
 	
 	
 	
     return ams   
     
 def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,cutoff=0.5,scale_wt='auto',n_jobs=1,smoothWeights=False):
-    print 
+    print() 
     if not 'sample_weight' in inspect.getargspec(lmodel.fit).args:
 	  print("WARNING: Fit function ignores sample_weight!")
 	  
@@ -731,22 +731,22 @@ def amsGridsearch(lmodel,lX,ly,lw,fitWithWeights=False,nfolds=5,useProba=False,c
     clf_opt.fit(lX,ly)
     #dir(clf_opt)
     for params, mean_score, scores in clf_opt.grid_scores_:       
-        print("%0.3f (+/- %0.3f) for %r" % (mean_score, scores.std(), params))
+        print(("%0.3f (+/- %0.3f) for %r" % (mean_score, scores.std(), params)))
     
     scores = cross_validation.cross_val_score(lmodel, lX, ly, fit_params=fit_params,scoring=ams_scorer,cv=nfolds)
-    print "AMS: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
+    print("AMS: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std()))
     return(clf_opt.best_estimator_)
 	
 def makePredictions(finalmodel,lXs_test,filename,useProba=True,cutoff=None,printProba=False):
     """
     Uses priorily fit model to make predictions
     """
-    print "Preparation of prediction, using test dataframe:",lXs_test.shape
-    print finalmodel
+    print("Preparation of prediction, using test dataframe:",lXs_test.shape)
+    print(finalmodel)
     if isinstance(finalmodel,np.ndarray):
 	probs = finalmodel
     elif useProba:
-	print "Predicting probalities...."
+	print("Predicting probalities....")
         probs = finalmodel.predict_proba(lXs_test)[:,1]
         #plot it
         plt.hist(probs,label='predictions',bins=50,color='r',alpha=0.3)
@@ -754,27 +754,27 @@ def makePredictions(finalmodel,lXs_test,filename,useProba=True,cutoff=None,print
         plt.show()
         
     else:
-        print "Predicting classes...."
+        print("Predicting classes....")
 	probs = finalmodel.predict(lXs_test)
     
     if not isinstance(cutoff,float):
 	cutoff=computeCutoff(probs)
-    print "Binarize probabilities with cutoff:",cutoff," and create the labels s+b"
+    print("Binarize probabilities with cutoff:",cutoff," and create the labels s+b")
     
     vfunc = np.vectorize(makeLabels)
     labels = vfunc(probs,cutoff)
 	
     
-    print "Class predictions..."
+    print("Class predictions...")
 
-    print "Rank order..."
+    print("Rank order...")
     idx_sorted = np.argsort(probs)
     #print idx_sorted
     ro = np.arange(lXs_test.shape[0])+1
 
     d = {'EventId': lXs_test.index[idx_sorted], 'RankOrder': ro, 'class': labels[idx_sorted]}
     
-    print "Saving predictions to: ",filename
+    print("Saving predictions to: ",filename)
     pred_df = pd.DataFrame(data=d)
     #print pred_df
     pred_df.to_csv(filename,index=False) 
@@ -825,14 +825,14 @@ def buildAMSModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,nfolds=8,useProba=Tr
     ams_scorer = make_scorer(score_func=ams_score,use_proba=useProba,needs_proba=useProba,cutoff=cutoff)
     
     #how can we avoid that samples are used for fitting
-    print "Xvalidation..."
+    print("Xvalidation...")
     scores = cross_validation.cross_val_score(lmodel,lXs,ly,fit_params=fit_params, scoring=ams_scorer,cv=nfolds,n_jobs=n_jobs)
-    print "<AMS>= %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
-    print "Building model with all instances..."
+    print("<AMS>= %0.4f (+/- %0.4f)" % (scores.mean(), scores.std()))
+    print("Building model with all instances...")
     
     if fitWithWeights:
 	    #just to go sure
-	    print "Use sample weights for final model..."
+	    print("Use sample weights for final model...")
 	    final_w=modTrainWeights(lw,ly,scale_wt,normalizeWeights=normalizeWeights,smoothWeights=smoothWeights)
 	    lmodel.fit(lXs,ly,sample_weight=final_w)
     else:
@@ -840,7 +840,7 @@ def buildAMSModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,nfolds=8,useProba=Tr
     
     #analysis of final predictions
     if useProba:
-	print "Using predic_proba for final model..."
+	print("Using predic_proba for final model...")
 	probs = lmodel.predict_proba(lXs)[:,1]
         #plot it
         plt.hist(probs,label='final model',bins=50,color='b')
@@ -854,15 +854,15 @@ def buildAMSModel(lmodel,lXs,ly,lw=None,fitWithWeights=True,nfolds=8,useProba=Tr
 
 def checksubmission(filename):
     X = pd.read_csv(filename, sep=",", na_values=['?'], index_col=None)
-    print X
-    print X.describe()
+    print(X)
+    print(X.describe())
     
     sums=np.sum(X['class']=='s')
     sumb=np.sum(X['class']=='b')
-    print "Signal/Background: %8.5f"%(sums/float(sums+sumb))
+    print("Signal/Background: %8.5f"%(sums/float(sums+sumb)))
   
-    print "Unique IDs:",np.unique(X.EventId).shape[0]
-    print "Unique ranks:",np.unique(X.RankOrder).shape[0]
+    print("Unique IDs:",np.unique(X.EventId).shape[0])
+    print("Unique ranks:",np.unique(X.RankOrder).shape[0])
 
 
 def pcAnalysis(X,Xtest,y,w=None,ncomp=2,transform=False):
@@ -872,17 +872,17 @@ def pcAnalysis(X,Xtest,y,w=None,ncomp=2,transform=False):
     
     pca = PCA(n_components=ncomp)
     if transform:
-        print "PC reduction"
+        print("PC reduction")
         X_all = pd.concat([Xtest, X])
         
         X_r = pca.fit_transform(np.asarray(X_all)) 
-        print(pca.explained_variance_ratio_)
+        print((pca.explained_variance_ratio_))
         #split
         X_r_train = X_r[len(Xtest.index):]
         X_r_test = X_r[:len(Xtest.index)]
         return (X_r_train,X_r_test)
     else:
-        print "PC analysis"
+        print("PC analysis")
         #X_all = pd.concat([Xtest, X])
         X_all = X
         #Uwaga! this is transformation is necessary otherwise PCA gives rubbish!!
@@ -896,7 +896,7 @@ def pcAnalysis(X,Xtest,y,w=None,ncomp=2,transform=False):
             plt.scatter(X_r[ytrain == 0,0], X_r[ytrain == 0,1], c='r', label="background",s=w[ytrain==0]*25.0,alpha=0.1)
             plt.scatter(X_r[ytrain == 1,0], X_r[ytrain == 1,1], c='g',label="signal",s=w[ytrain==1]*1000.0,alpha=0.1)
 
-        print(pca.explained_variance_ratio_) 
+        print((pca.explained_variance_ratio_)) 
         plt.legend()
         #plt.xlim(-3500,2000)
         #plt.ylim(-1000,2000)
@@ -909,7 +909,7 @@ def clustering(Xtrain,ytrain,Xtest,wtrain=None,n_clusters=3,returnCluster=0,plot
         Cluster data set
         """
         if returnCluster is not None and returnCluster+1>n_clusters:
-            print "Error: returnCluster can not exceed number of clusters!"
+            print("Error: returnCluster can not exceed number of clusters!")
                     
         X_all = pd.concat([Xtest, Xtrain])
 
@@ -920,12 +920,12 @@ def clustering(Xtrain,ytrain,Xtest,wtrain=None,n_clusters=3,returnCluster=0,plot
         
         #plt.hist(label,bins=40)
     
-        print range(n_clusters)
+        print(list(range(n_clusters)))
         cluster_names=['cluster0','cluster1','cluster2','cluster3','cluster4','cluster5']
-        for c, i, target_name in zip("rgbkcy", range(n_clusters), cluster_names):
+        for c, i, target_name in zip("rgbkcy", list(range(n_clusters)), cluster_names):
             if plotting:
                 plt.scatter(X_r[label == i, 0], X_r[label == i, 1], c=c, label=target_name,alpha=0.1)
-            print "Cluster %4d n: %4d"%(i,np.sum(label==i))
+            print("Cluster %4d n: %4d"%(i,np.sum(label==i)))
         
 	train_labels = label[len(Xtest.index):] 
 	test_labels = label[:len(Xtest.index)]
@@ -980,11 +980,11 @@ def divideAndConquer(model,Xtrain,ytrain,Xtest,wtrain=None,n_clusters=3):
 	lXtest = Xtest.iloc[idx_test]
 	
 	#print lXtrain.describe()
-	print "Dim X,before:",lXtrain.shape
-	print "Dim Xtest,before:",lXtest.shape
+	print("Dim X,before:",lXtrain.shape)
+	print("Dim Xtest,before:",lXtest.shape)
 	lXtrain,lXtest = removeZeroVariance(lXtrain,lXtest)
-	print "Dim X:",lXtrain.shape
-	print "Dim Xtest:",lXtest.shape
+	print("Dim X:",lXtrain.shape)
+	print("Dim Xtest:",lXtest.shape)
 	
 	#need to rescale weights
 	model=buildAMSModel(model,lXtrain,lytrain,lwtrain,nfolds=4,fitWithWeights=fitWithWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt,n_jobs=1) 
@@ -1015,9 +1015,9 @@ if __name__=="__main__":
     # we need training weights and scoring weights
     t0 = time()
     
-    print "numpy:",np.__version__
-    print "pandas:",pd.__version__
-    print "sklearn:",sl.__version__
+    print("numpy:",np.__version__)
+    print("pandas:",pd.__version__)
+    print("sklearn:",sl.__version__)
     #pd.set_option('display.height', 5)
     pd.set_option('display.max_columns', 14)
     pd.set_option('display.max_rows', 40)
@@ -1096,7 +1096,7 @@ if __name__=="__main__":
     #model = pyGridSearch(model,Xtrain,ytrain)
     #model = Pipeline([('filter', SelectPercentile(f_classif, percentile=15)), ('model', GaussianNB())])
     #model = KNeighborsClassifier(n_neighbors=5,weights='distance',algorithm='ball_tree')#AMS~2.245
-    print Xtrain.columns
+    print(Xtrain.columns)
     #model = KNeighborsClassifier(n_neighbors=10)
     #model = AdaBoostClassifier(n_estimators=200,learning_rate=0.1)
     #model=GaussianNB()
@@ -1131,8 +1131,8 @@ if __name__=="__main__":
 	  #model=amsXvalidation(model,Xtrain,ytrain,wtrain,nfolds=nfolds,cutoff=cutoff,useProba=useProba,fitWithWeights=fitWithWeights,useRegressor=useRegressor,scale_wt=scale_wt,buildModel=False)
 	  #model=buildAMSModel(model,Xtrain,ytrain,wtrain,nfolds=nfolds,fitWithWeights=fitWithWeights,useProba=useProba,cutoff=cutoff,scale_wt=scale_wt)
     #model = amsGridsearch(model,Xtrain,ytrain,wtrain,fitWithWeights=fitWithWeights,nfolds=nfolds,useProba=useProba,smoothWeights=smoothWeights,cutoff=cutoff,scale_wt=scale_wt,n_jobs=8)
-    print model
+    print(model)
     #makePredictions(model,Xtest,subfile,useProba=useProba,cutoff=cutoff)
     #checksubmission(subfile)
-    print("Model building done on %d samples in %fs" % (Xtrain.shape[0],time() - t0))
+    print(("Model building done on %d samples in %fs" % (Xtrain.shape[0],time() - t0)))
     plt.show()

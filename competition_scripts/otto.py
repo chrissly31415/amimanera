@@ -55,7 +55,7 @@ def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,p
 	  rows = np.random.choice(len(Xtrain.index), size=len(Xtrain.index),replace=False)
       else:
 	  rows = np.random.randint(0,len(Xtrain.index), nsamples,replace=False)
-      print "unique: %6.2f"%(float(np.unique(rows).shape[0])/float(rows.shape[0]))
+      print("unique: %6.2f"%(float(np.unique(rows).shape[0])/float(rows.shape[0])))
       Xtrain = Xtrain.iloc[rows,:]
       ytrain = ytrain[rows]
       
@@ -65,11 +65,11 @@ def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,p
   # encode labels 
   
   if separateClass is not None and separateClass is not False:
-     print "Separating class",separateClass
-     print ytrain
+     print("Separating class",separateClass)
+     print(ytrain)
      ytrain = (ytrain==separateClass)
-     print separateClass
-     print ytrain
+     print(separateClass)
+     print(ytrain)
   
   if analyzeIt:
     analyzeDataset(Xtrain,Xtest,ytrain)
@@ -80,28 +80,28 @@ def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,p
   Xall = pd.concat([Xtest, Xtrain],ignore_index=True)
   
   if featureFilter is not None:
-	print "Using featurefilter..."
+	print("Using featurefilter...")
 	Xall=Xall[featureFilter]
   
   if binning is not None and binning is not False:
-	print "Binning data..."
+	print("Binning data...")
 	Xall = data_binning(Xall,binning) 
 
   if call_group_data:
-	print "Group data...",
-	print density(Xall)	
+	print("Group data...", end=' ')
+	print(density(Xall))	
 	#Xall=pd.DataFrame(group_data2(Xall.values))
 	Xall=pd.DataFrame(group_data(Xall))
 	#Xall=sparse.csc_matrix(Xall.values)
-	print "...new shape:",Xall.shape
-	print Xall.describe()
-	print density(Xall)
+	print("...new shape:",Xall.shape)
+	print(Xall.describe())
+	print(density(Xall))
 
   if polynomialFeatures is not None and polynomialFeatures is not False:
-      print "Polynomial feature of degree:",polynomialFeatures
+      print("Polynomial feature of degree:",polynomialFeatures)
       if  isinstance(polynomialFeatures,str) and 'load' in polynomialFeatures:
 	  X_poly = pd.read_csv('poly.csv').reset_index(drop=True)
-	  print X_poly.describe()
+	  print(X_poly.describe())
       else:
 	  X_poly = make_polynomials(Xall)
 	  X_poly.to_csv('poly.csv')
@@ -111,12 +111,12 @@ def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,p
       
       Xall = pd.concat([Xall, X_poly],axis=1)
       #print Xall.describe()
-      print "...",Xall.shape
+      print("...",Xall.shape)
       
 
   
   if addNoiseColumns is False or addNoiseColumns is not None:
-	print "Adding %d random noise columns"%(addNoiseColumns)
+	print("Adding %d random noise columns"%(addNoiseColumns))
 	Xrnd = pd.DataFrame(np.random.randn(Xall.shape[0],addNoiseColumns))
 	#print "Xrnd:",Xrnd.shape
 	#print Xrnd
@@ -127,7 +127,7 @@ def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,p
   
   if addFeatures:
     #mad,rank
-      print "Additional columns"
+      print("Additional columns")
       Xall_orig = Xall.copy()
       Xall['row_sum'] = Xall_orig.sum(axis=1)
       Xall['row_median'] = Xall_orig.median(axis=1)
@@ -148,7 +148,7 @@ def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,p
       #Xall['feat_11xfeat_60'] = (Xall['feat_11'] *Xall['feat_60'])/2
 
       #print Xall.loc[:,['non-null']].describe()
-      print Xall.iloc[:,-10:].describe()
+      print(Xall.iloc[:,-10:].describe())
       #print Xall.loc[1:5,['sum_counts']]
       #raw_input()
 
@@ -156,10 +156,10 @@ def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,p
   if isinstance(loadFeatures,list):
       for name in loadFeatures:
 	X_temp = pd.read_csv(X_temp).reset_index(drop=True)
-	print X_temp.describe()
+	print(X_temp.describe())
       
   if final_filter is not None or final_filter is not None:
-      print "Using final_filter..."
+      print("Using final_filter...")
       Xall=Xall[final_filter]
   
   if OneHotEncoding:
@@ -169,20 +169,20 @@ def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,p
       Xall_sparse = encoder.fit_transform(Xall)
       Xall = Xall_sparse
 
-      print "One-hot-encoding...new shape:",Xall.shape
-      print type(Xall)
+      print("One-hot-encoding...new shape:",Xall.shape)
+      print(type(Xall))
       Xall = Xall.tocsr()
-      print density(Xall)
+      print(density(Xall))
   
   if featureHashing:
       #Xtrain = Xall[len(Xtest.index):]
       #Xtest = Xall[:len(Xtest.index)]
-      print "Feature hashing...",#Feature hashing not necessary
+      print("Feature hashing...", end=' ')#Feature hashing not necessary
       encoder = FeatureHasher(n_features=2**10,dtype=np.int32)
-      print encoder
+      print(encoder)
       #encoder = DictVectorizer()#basically one-hot-encoding
       #encoder = OneHotEncoder()
-      all_as_dicts = [dict(row.iteritems()) for _, row in Xall.iterrows()]
+      all_as_dicts = [dict(iter(row.items())) for _, row in Xall.iterrows()]
       #all_as_dicts = [dict(row.iteritems()) for row in Xall.values]
       #print train_as_dicts
       #train_as_dicts = [dict(r.iteritems()) for _, r in Xtrain.iterrows()]  #feature hasher
@@ -190,35 +190,35 @@ def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,p
       #test_as_dicts = [dict(r.iteritems()) for _, r in Xtest.applymap(str).iterrows()]
       #test_as_dicts = [dict(r.iteritems()) for _, r in Xtest.iterrows()]#feature hasher
       #Xtest_sparse = encoder.transform(test_as_dicts)
-      print type(Xall_sparse)
+      print(type(Xall_sparse))
       Xall = Xall_sparse
       #Xtest = Xtest_sparse
       
       #Xall = np.vstack((Xtest,Xtrain))
-      print "...new shape:",Xall.shape
-      print density(Xall)
+      print("...new shape:",Xall.shape)
+      print(density(Xall))
   
   
   if log_transform:
-	print "log_transform"
+	print("log_transform")
 	Xall = Xall + 1.0
 	Xall=Xall.apply(np.log)
-	print Xall.describe()
+	print(Xall.describe())
   
   if sqrt_transform:
-        print "sqrt transform"
+        print("sqrt transform")
         Xall = Xall + 3.0/8.0
         Xall=Xall.apply(np.sqrt)
-        print Xall.describe()
+        print(Xall.describe())
         
   if doSVD is not None and doSVD is not False:
-      print "SVD...components:",doSVD
+      print("SVD...components:",doSVD)
       #tsvd=TruncatedSVD(n_components=doSVD, algorithm='randomized', n_iter=5, tol=0.0)
       tsvd = RandomizedPCA(n_components=doSVD, whiten=True)
-      print tsvd
+      print(tsvd)
       Xall=tsvd.fit_transform(Xall.values)
       Xall = pd.DataFrame(Xall)
-      print Xall.describe()
+      print(Xall.describe())
       #df_info(Xall)
   
   if standardize:
@@ -235,7 +235,7 @@ def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,p
   
   #analyzeDataset(Xtrain,Xtest,ytrain)
   
-  print "#Xtrain:",Xtrain.shape
+  print("#Xtrain:",Xtrain.shape)
     
   
   #if isinstance(Xtest,pd.DataFrame): print Xtest.describe()
@@ -243,10 +243,10 @@ def prepareDataset(seed=123,nsamples=-1,standardize=False,featureHashing=False,p
   if isinstance(Xtrain,pd.DataFrame):
     df_info(Xtrain)
     df_info(ytrain)
-    print Xtrain.describe()
-    print Xtrain.columns
+    print(Xtrain.describe())
+    print(Xtrain.columns)
   
-  print "\n#Xtest:",Xtest.shape
+  print("\n#Xtest:",Xtest.shape)
   
   return (Xtrain,ytrain,Xtest,labels)
 
@@ -256,7 +256,7 @@ def group_data(data, degree=2):
   """
   new_data = []
   m,n = data.shape
-  for indices in itertools.combinations(range(n), degree):
+  for indices in itertools.combinations(list(range(n)), degree):
     tmp=list(data.columns[list(indices)])
     #print tmp
     tmp2 = data.groupby(tmp)
@@ -292,11 +292,11 @@ def group_data2(data, degree=2, min_occurs=2):
     """
     m, n = data.shape
     encoding = dict()
-    for indexes in itertools.combinations(range(n), degree):
+    for indexes in itertools.combinations(list(range(n)), degree):
         for v in data[:, indexes]:
             dict_encode(encoding, tuple(v))
     new_data = []
-    for indexes in itertools.combinations(range(n), degree):
+    for indexes in itertools.combinations(list(range(n)), degree):
         new_data.append([dict_decode(encoding, tuple(v), min_occurs) for v in data[:, indexes]])
     return np.array(new_data).T
 
@@ -311,7 +311,7 @@ def group_data3(data, degree=3, cutoff = 1, hash=hash):
     
     new_data = []
     m,n = data.shape
-    for indexes in combinations(range(n), degree):
+    for indexes in combinations(list(range(n)), degree):
         new_data.append([hash(tuple(v)) for v in data[:,indexes]])
     for z in range(len(new_data)):
         counts = dict()
@@ -391,20 +391,20 @@ if __name__=="__main__":
     #pd.set_option('display.max_rows', 500)
     #pd.set_option('display.max_columns', 500)
     #pd.set_option('display.width', 1000)
-    print "numpy:",np.__version__
-    print "pandas:",pd.__version__
-    print "scipy:",sp.__version__
+    print("numpy:",np.__version__)
+    print("pandas:",pd.__version__)
+    print("scipy:",sp.__version__)
     #import sklearn
     #print "sklearn:",sklearn.__version__
     #after linear feature selection, features are orderd according to their effect
     ordered92=['feat_11', 'feat_60', 'feat_34', 'feat_14', 'feat_90', 'feat_15', 'feat_62', 'feat_42', 'feat_39', 'feat_36', 'feat_75', 'feat_68', 'feat_9', 'feat_43', 'feat_40', 'feat_76', 'feat_86', 'feat_26', 'feat_35', 'feat_59', 'feat_47', 'feat_17', 'feat_48', 'feat_69', 'feat_50', 'feat_91', 'feat_92', 'feat_56', 'feat_53', 'feat_25', 'feat_84', 'feat_57', 'feat_78', 'feat_58', 'feat_41', 'feat_32', 'feat_67', 'feat_72', 'feat_77', 'feat_64', 'feat_20', 'feat_71', 'feat_83', 'feat_19', 'feat_23', 'feat_88', 'feat_33', 'feat_73', 'feat_93', 'feat_3', 'feat_81', 'feat_13', 'feat_6', 'feat_31', 'feat_52', 'feat_4', 'feat_82', 'feat_51', 'feat_28', 'feat_2', 'feat_12', 'feat_21', 'feat_80', 'feat_49', 'feat_54', 'feat_65', 'feat_5', 'feat_63', 'feat_46', 'feat_27', 'feat_44', 'feat_55', 'feat_7', 'feat_61', 'feat_70', 'feat_10', 'feat_18', 'feat_22', 'feat_38', 'feat_8', 'feat_89', 'feat_16', 'feat_66', 'feat_45', 'feat_30', 'feat_79', 'feat_1', 'feat_24', 'feat_74', 'feat_87', 'feat_37', 'feat_29']
-    all_features=[u'feat_1', u'feat_2', u'feat_3', u'feat_4', u'feat_5', u'feat_6', u'feat_7', u'feat_8', u'feat_9', u'feat_10', u'feat_11', u'feat_12', u'feat_13', u'feat_14', u'feat_15', u'feat_16', u'feat_17', u'feat_18', u'feat_19', u'feat_20', u'feat_21', u'feat_22', u'feat_23', u'feat_24', u'feat_25', u'feat_26', u'feat_27', u'feat_28', u'feat_29', u'feat_30', u'feat_31', u'feat_32', u'feat_33', u'feat_34', u'feat_35', u'feat_36', u'feat_37', u'feat_38', u'feat_39', u'feat_40', u'feat_41', u'feat_42', u'feat_43', u'feat_44', u'feat_45', u'feat_46', u'feat_47', u'feat_48', u'feat_49', u'feat_50', u'feat_51', u'feat_52', u'feat_53', u'feat_54', u'feat_55', u'feat_56', u'feat_57', u'feat_58', u'feat_59', u'feat_60', u'feat_61', u'feat_62', u'feat_63', u'feat_64', u'feat_65', u'feat_66', u'feat_67', u'feat_68', u'feat_69', u'feat_70', u'feat_71', u'feat_72', u'feat_73', u'feat_74', u'feat_75', u'feat_76', u'feat_77', u'feat_78', u'feat_79', u'feat_80', u'feat_81', u'feat_82', u'feat_83', u'feat_84', u'feat_85', u'feat_86', u'feat_87', u'feat_88', u'feat_89', u'feat_90', u'feat_91', u'feat_92', u'feat_93']
+    all_features=['feat_1', 'feat_2', 'feat_3', 'feat_4', 'feat_5', 'feat_6', 'feat_7', 'feat_8', 'feat_9', 'feat_10', 'feat_11', 'feat_12', 'feat_13', 'feat_14', 'feat_15', 'feat_16', 'feat_17', 'feat_18', 'feat_19', 'feat_20', 'feat_21', 'feat_22', 'feat_23', 'feat_24', 'feat_25', 'feat_26', 'feat_27', 'feat_28', 'feat_29', 'feat_30', 'feat_31', 'feat_32', 'feat_33', 'feat_34', 'feat_35', 'feat_36', 'feat_37', 'feat_38', 'feat_39', 'feat_40', 'feat_41', 'feat_42', 'feat_43', 'feat_44', 'feat_45', 'feat_46', 'feat_47', 'feat_48', 'feat_49', 'feat_50', 'feat_51', 'feat_52', 'feat_53', 'feat_54', 'feat_55', 'feat_56', 'feat_57', 'feat_58', 'feat_59', 'feat_60', 'feat_61', 'feat_62', 'feat_63', 'feat_64', 'feat_65', 'feat_66', 'feat_67', 'feat_68', 'feat_69', 'feat_70', 'feat_71', 'feat_72', 'feat_73', 'feat_74', 'feat_75', 'feat_76', 'feat_77', 'feat_78', 'feat_79', 'feat_80', 'feat_81', 'feat_82', 'feat_83', 'feat_84', 'feat_85', 'feat_86', 'feat_87', 'feat_88', 'feat_89', 'feat_90', 'feat_91', 'feat_92', 'feat_93']
     start_set = ['feat_11', 'feat_60', 'feat_34', 'feat_14', 'feat_90', 'feat_15', 'feat_62', 'feat_42', 'feat_39', 'feat_36', 'feat_75', 'feat_68', 'feat_9', 'feat_43', 'feat_40', 'feat_76', 'feat_86', 'feat_26', 'feat_35', 'feat_59', 'feat_47', 'feat_17', 'feat_48', 'feat_69', 'feat_50', 'feat_91', 'feat_92', 'feat_56', 'feat_53', 'feat_25', 'feat_84', 'feat_57', 'feat_78', 'feat_58', 'feat_41', 'feat_32', 'feat_67', 'feat_72', 'feat_77', 'feat_64', 'feat_20', 'feat_71', 'feat_83', 'feat_19', 'feat_23', 'feat_88', 'feat_33', 'feat_73', 'feat_93', 'feat_3', 'feat_81', 'feat_13']
-    ga_set=[u'feat_1', u'feat_3', u'feat_9', u'feat_10', u'feat_11', u'feat_12', u'feat_13', u'feat_14', u'feat_15', u'feat_16', u'feat_18', u'feat_23', u'feat_24', u'feat_25', u'feat_26', u'feat_27', u'feat_28', u'feat_32', u'feat_33', u'feat_34', u'feat_35', u'feat_36', u'feat_39', u'feat_40', u'feat_41', u'feat_42', u'feat_43', u'feat_45', u'feat_47', u'feat_48', u'feat_49', u'feat_53', u'feat_56', u'feat_57', u'feat_59', u'feat_60', u'feat_62', u'feat_63', u'feat_64', u'feat_67', u'feat_68', u'feat_69', u'feat_71', u'feat_72', u'feat_73', u'feat_77', u'feat_79', u'feat_80', u'feat_81', u'feat_84', u'feat_86', u'feat_88', u'feat_90', u'feat_92', u'rnd2', u'arg_max', u'row_sd']    
+    ga_set=['feat_1', 'feat_3', 'feat_9', 'feat_10', 'feat_11', 'feat_12', 'feat_13', 'feat_14', 'feat_15', 'feat_16', 'feat_18', 'feat_23', 'feat_24', 'feat_25', 'feat_26', 'feat_27', 'feat_28', 'feat_32', 'feat_33', 'feat_34', 'feat_35', 'feat_36', 'feat_39', 'feat_40', 'feat_41', 'feat_42', 'feat_43', 'feat_45', 'feat_47', 'feat_48', 'feat_49', 'feat_53', 'feat_56', 'feat_57', 'feat_59', 'feat_60', 'feat_62', 'feat_63', 'feat_64', 'feat_67', 'feat_68', 'feat_69', 'feat_71', 'feat_72', 'feat_73', 'feat_77', 'feat_79', 'feat_80', 'feat_81', 'feat_84', 'feat_86', 'feat_88', 'feat_90', 'feat_92', 'rnd2', 'arg_max', 'row_sd']    
     interactions=['feat_34xfeat_83','feat_42xfeat_26', 'feat_34xfeat_48', 'feat_9xfeat_67','feat_60xfeat_43','feat_34xfeat_43','feat_11xfeat_64','feat_34xfeat_25','feat_60xfeat_15']   
-    addedFeatures=[u'row_sum', u'row_median', u'row_max', u'row_mad', u'arg_max', u'arg_min', u'non_null', u'row_sd']
-    addedFeatures_short=[u'arg_max', u'row_sd']
-    addedFeatures_best=[u'row_median',u'arg_max',u'row_max',u'non_null',u'arg_min']
+    addedFeatures=['row_sum', 'row_median', 'row_max', 'row_mad', 'arg_max', 'arg_min', 'non_null', 'row_sd']
+    addedFeatures_short=['arg_max', 'row_sd']
+    addedFeatures_best=['row_median','arg_max','row_max','non_null','arg_min']
     
     #NNsetting
     #"""
@@ -450,7 +450,7 @@ if __name__=="__main__":
     Xtrain, ytrain, Xtest, labels  = prepareDataset(nsamples=nsamples,standardize=standardize,featureHashing=featureHashing,OneHotEncoding=OneHotEncoding,polynomialFeatures=polynomialFeatures,featureFilter=featureFilter,final_filter=final_filter, call_group_data=call_group_data,log_transform=log_transform,addNoiseColumns=addNoiseColumns,addFeatures=addFeatures,doSVD=doSVD,binning=binning,sqrt_transform=sqrt_transform,analyzeIt=analyzeIt,separateClass=separateClass)
     
     #Xtrain = sparse.csr_matrix(Xtrain)
-    print type(Xtrain)
+    print(type(Xtrain))
     Xtrain = Xtrain.astype(np.float32)
     #ytrain = ytrain.astype(np.float32)
     #df_info(Xtrain)
@@ -538,5 +538,5 @@ if __name__=="__main__":
     #model = makeGridSearch(model,Xtrain,ytrain,n_jobs=8,refit=False,cv=StratifiedKFold(ytrain,5,shuffle=True),scoring=scoring_func,parameters=None,random_iter=-1)
     #makePredictions(model,Xtest,filename='/home/loschen/Desktop/datamining-kaggle/otto/submissions/submission24042015a.csv')
     plt.show()
-    print("Model building done in %fs" % (time() - t0))
+    print(("Model building done in %fs" % (time() - t0)))
 

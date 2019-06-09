@@ -9,7 +9,7 @@ Authors: Christoph Loschen
 import sys,os
 import pandas as pd
 
-print os.environ['PATH']
+print(os.environ['PATH'])
 
 from qsprLib import *
 from keras_tools import *
@@ -66,14 +66,14 @@ def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None,
     plt.ylabel("Score")
     train_sizes, train_scores, test_scores = learning_curve(
         estimator, X, y, cv=cv, n_jobs=n_jobs, train_sizes=train_sizes,scoring=scoring)
-    print train_sizes
+    print(train_sizes)
     train_scores = -1.* train_scores
     test_scores = -1 * test_scores
     train_scores_mean = np.mean(train_scores, axis=1)
-    print train_scores_mean
+    print(train_scores_mean)
     train_scores_std = np.std(train_scores, axis=1)
     test_scores_mean = np.mean(test_scores, axis=1)
-    print test_scores_mean
+    print(test_scores_mean)
     test_scores_std = np.std(test_scores, axis=1)
     plt.grid()
 
@@ -97,13 +97,13 @@ if __name__ == "__main__":
     X = X.iloc[:5000,:]
     #print X.describe()
     y = X['Ave °C']
-    print y.shape
-    print y
-    raw_input()
+    print(y.shape)
+    print(y)
+    input()
     # y = X['n_exp']
     X.drop(['train', 'Ave °C'], axis=1, inplace=True)
     X.info()
-    print X.head(30)
+    print(X.head(30))
     # X.drop(['train','n_exp'],axis=1,inplace=True)
     #print X.describe()
 
@@ -132,7 +132,7 @@ if __name__ == "__main__":
     showMemUsageGB()
     #X,X_test,y,y_test = train_test_split(X, y, test_size=0.50, random_state=123)
     #print X_test.shape
-    print X.shape
+    print(X.shape)
 
     #buildXvalModel(model, X, y, sample_weight=None, class_names=None, refit=False, cv= cv)
     #model.fit(X,y)

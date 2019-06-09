@@ -28,7 +28,7 @@ def function2(p):
 # fnc: function which takes vector as argument 
 
 def simplex(p0=None, fnc=None, maxiter=5000,delta=0.5,ftol=1e-5,lowerbound=None,upperbound=None,verbose=True):
-    if verbose: print "Starting Downhill-Simplex Optimization"
+    if verbose: print("Starting Downhill-Simplex Optimization")
     #setup
     ndim=p0.shape[0]   
     ilow=0;ihigh=0;inhigh=0
@@ -44,7 +44,7 @@ def simplex(p0=None, fnc=None, maxiter=5000,delta=0.5,ftol=1e-5,lowerbound=None,
   
     #start iteration
     for k in range(maxiter):
-        if verbose: print "Iteration: %2d y=f(x): %8.4f " %(k,y[ilow]),   
+        if verbose: print("Iteration: %2d y=f(x): %8.4f " %(k,y[ilow]), end=' ')   
         #determine highest and lowest point index
         for i in range(np.size(y)):
             if y.min() == y[i]:#dangerous
@@ -59,21 +59,21 @@ def simplex(p0=None, fnc=None, maxiter=5000,delta=0.5,ftol=1e-5,lowerbound=None,
                 inhigh=i
         #double tolerance
         if ftol>abs(y[ilow]-y[ihigh]):  
-	    print "\nSimplex optimization CONVERGED after %d iterations. [ftol: %8.3e]" %(k,ftol)      
+	    print("\nSimplex optimization CONVERGED after %d iterations. [ftol: %8.3e]" %(k,ftol))      
             break
         else:
-            if verbose: print " - diff: %8.3e" %(abs(y[ilow]-y[ihigh])),
+            if verbose: print(" - diff: %8.3e" %(abs(y[ilow]-y[ihigh])), end=' ')
         
         ytry=amoebamove(p,p0,y,ihigh,-1.0, fnc,lowerbound,upperbound)
         if ytry<y[ilow]:
-            if verbose: print " -> EXTRAPOLATION"
+            if verbose: print(" -> EXTRAPOLATION")
             ytry=amoebamove(p,p0,y,ihigh,2.0,  fnc,lowerbound,upperbound)
         elif ytry>y[inhigh]:
-            if verbose: print " -> CONTRACTION"
+            if verbose: print(" -> CONTRACTION")
             ysave=ytry
             ytry=amoebamove(p,p0,y,ihigh,0.5,  fnc,lowerbound,upperbound)
         else:
-	    print ""
+	    print("")
     return p[ilow],ytry    
 
 def amoebamove(p,p0,y,ihigh,factor,fnc,lowerbound,upperbound):
@@ -108,7 +108,7 @@ if __name__=="__main__":
     g = lambda x: np.power(x-2,2)+5*x
     p0=np.zeros(7)
     p_opt,y_opt=simplex(p0=p0,fnc=function3,lowerbound=p0-10,upperbound=p0+2,verbose=True)
-    print p_opt
-    print y_opt
+    print(p_opt)
+    print(y_opt)
     
     

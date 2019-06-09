@@ -19,7 +19,7 @@ train_folder = '/home/loschen/programs/cxxnet/example/kaggle_bowl/data/test_last
 predict_model='pred_model6.conf'
 
 #endings = ['_orig','_mod180','_modfliptb','_modfliplr']
-print "Suffices:",endings
+print("Suffices:",endings)
 
 def createTestList():  
     for suffix in endings:
@@ -35,7 +35,7 @@ def createTestList():
       fo = csv.writer(open(outfile, "w"), delimiter='\t', lineterminator='\n')
 
       # make class map
-      head = fc.next()
+      head = next(fc)
       head = head[1:]
 
       # make image list
@@ -65,7 +65,7 @@ def createBinaries():
 	  call_str = "/home/loschen/programs/cxxnet/tools/im2bin "+lst_file+" \"\" "+bin_file
 	  call_str = "/home/loschen/programs/cxxnet/tools/im2bin"
 	  options = " "+lst_file+" \"\" "+bin_file
-	  print call_str
+	  print(call_str)
 	  subprocess.call(call_str+options,shell=True)
 
 
@@ -96,7 +96,7 @@ def format_predictions():
 	fi = csv.reader(file(pred_file), delimiter=' ', lineterminator='\n')
 	fo = csv.writer(open(sub_file, "w"), lineterminator='\n')
 	
-	head = fc.next()
+	head = next(fc)
 	fo.writerow(head)
 
 	#head = head[1:]
@@ -118,13 +118,13 @@ def format_predictions():
 	    fo.writerow(row)
 
 def average_predictions(basename='cxx_',lendings=endings,weights=None):
-    print weights
+    print(weights)
     if weights is not None:
-	if len(weights) <> len(lendings):
-	  print "Weights and ending do not match."
+	if len(weights) != len(lendings):
+	  print("Weights and ending do not match.")
 	  sys.exit(1)
 	weights = weights/np.sum(weights)
-	print "Weights:", weights
+	print("Weights:", weights)
 	
       
     sample = basename+lendings[0]+'.csv'
@@ -139,7 +139,7 @@ def average_predictions(basename='cxx_',lendings=endings,weights=None):
 	tmp.sort_index(inplace=True)
 	#print tmp.describe()
 	if weights is not None:
-	  print "Suffix:",suffix," weight:",weights[i]
+	  print("Suffix:",suffix," weight:",weights[i])
 	  preds_all[i] = weights[i]*tmp.values
 	else:
 	  preds_all[i] = tmp.values
@@ -152,7 +152,7 @@ def average_predictions(basename='cxx_',lendings=endings,weights=None):
       preds = np.sum(preds_all,axis=0)
     else:
       preds = np.mean(preds_all,axis=0)
-    print "Final shape:",preds.shape
+    print("Final shape:",preds.shape)
     
     preds = pd.DataFrame(preds,index=tmp.index,columns=tmp.columns)
     #clip it
@@ -180,7 +180,7 @@ def test_submissions(clip=True):
     filename = 'sampleSubmission.csv'
     filename = '/home/loschen/calc/amimanera/competition_data/submissions/'+filename
     tmp = pd.read_csv(filename, sep=",", na_values=['?'],index_col=0)
-    print tmp.describe().iloc[:,1:5]
+    print(tmp.describe().iloc[:,1:5])
     if clip:
 	tmp = tmp.clip(1E-15,1.0-1E-15)
 	tmp.to_csv(filename,index_label='image')	

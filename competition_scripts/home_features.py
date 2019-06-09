@@ -35,19 +35,19 @@ def information_entropy(text):
         except:
             exr[each]=1
     textlen=len(text)
-    for k,v in exr.items():
+    for k,v in list(exr.items()):
         freq  =  1.0*v/textlen
         infoc+=freq*log2(freq)
     infoc*=-1
     return infoc
 
 def computeSimilarityFeatures(Xall,columns=['query','product_title'],verbose=False,useOnlyTrain=False,startidx=0,stop_words=None,doSVD=261,vectorizer=None):
-    print "Compute scipy similarity..."
+    print("Compute scipy similarity...")
     if vectorizer is None:
         vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')
-    print vectorizer
+    print(vectorizer)
     if useOnlyTrain:
-        print "Using train only for TFIDF..."
+        print("Using train only for TFIDF...")
         Xtrain = Xall[startidx:]
         Xs1 = vectorizer.fit(Xtrain[columns[0]])
     else:
@@ -57,10 +57,10 @@ def computeSimilarityFeatures(Xall,columns=['query','product_title'],verbose=Fal
     Xs2 = vectorizer.transform(Xall[columns[1]])
     sparse=True
     if doSVD is not None:
-        print "Similiarity with SVD, n_components:",doSVD
+        print("Similiarity with SVD, n_components:",doSVD)
         reducer=TruncatedSVD(n_components=doSVD, algorithm='randomized', n_iter=5)
         Xs1 = reducer.fit_transform(Xs1)
-        print "Variance explaind:",np.sum(reducer.explained_variance_ratio_)
+        print("Variance explaind:",np.sum(reducer.explained_variance_ratio_))
         Xs2 = reducer.transform(Xs2)
         sparse=False
 
@@ -71,8 +71,8 @@ def computeScipySimilarity(Xs1,Xs2,sparse=False):
     Xall_new = np.zeros((Xs1.shape[0],4))
 
     if sparse:
-        print Xs1.shape
-        print Xs2.shape
+        print(Xs1.shape)
+        print(Xs2.shape)
         Xs1 = np.asarray(Xs1.todense())
         Xs2 = np.asarray(Xs2.todense())
 
@@ -93,10 +93,10 @@ def computeScipySimilarity(Xs1,Xs2,sparse=False):
 
     Xall_new = pd.DataFrame(Xall_new,columns=['cosine','cityblock','hamming','euclidean'])
 
-    print "NA:",Xall_new.isnull().values.sum()
+    print("NA:",Xall_new.isnull().values.sum())
     Xall_new = Xall_new.fillna(0.0)
-    print "NA:",Xall_new.isnull().values.sum()
-    print Xall_new.corr(method='spearman')
+    print("NA:",Xall_new.isnull().values.sum())
+    print(Xall_new.corr(method='spearman'))
     return Xall_new
 
 
@@ -113,7 +113,7 @@ def getSynonyms(word,stemmer):
     return(synonyms)
 
 def additionalFeatures(Xall,verbose=False,dropList=['bestmatch']):
-    print "Computing additional features..."
+    print("Computing additional features...")
     stemmer = PorterStemmer()
     Xall_new = np.zeros((Xall.shape[0],13))
     for i in range(Xall.shape[0]):
@@ -191,21 +191,21 @@ def additionalFeatures(Xall,verbose=False,dropList=['bestmatch']):
         Xall_new[i,12] = checksynonyma / float(nquery)
 
         if i%5000==0:
-            print "i:",i
+            print("i:",i)
 
         if verbose:
-            print query
-            print nquery
-            print title
-            print ntitle
-            print "ratio:",Xall_new[i,2]
-            print "difflib ratio:",s
-            print "matches:",nmatches
-            raw_input()
+            print(query)
+            print(nquery)
+            print(title)
+            print(ntitle)
+            print("ratio:",Xall_new[i,2])
+            print("difflib ratio:",s)
+            print("matches:",nmatches)
+            input()
 
     Xall_new = pd.DataFrame(Xall_new,columns=['query_length','title_length','query_title_ratio','desc_length','query_desc_ratio','difflibratio','bestmatch','averagematch','S_query','S_title','last_sim','first_sim','checksynonyma',])
     Xall_new = Xall_new.drop(dropList, axis=1)
-    print Xall_new.corr(method='spearman')
+    print(Xall_new.corr(method='spearman'))
     return Xall_new
 
 
@@ -214,7 +214,7 @@ def cleanse_text(s):
     https://www.kaggle.com/vabatista/home-depot-product-search-relevance/test-script-1/code
     """
 
-    if isinstance(s, str) or isinstance(s, unicode):
+    if isinstance(s, str) or isinstance(s, str):
         #print "before:",s
         s = s.lower()
         s = re.sub(r"(\w)\.([A-Z])", r"\1 \2", s) ##'desgruda' palavras que estão juntas
@@ -294,7 +294,7 @@ def createCommonWords(Xall):
         See https://www.kaggle.com/wenxuanchen/home-depot-product-search-relevance/sklearn-random-forest/code
         also: https://www.kaggle.com/the1owl/home-depot-product-search-relevance/rf-mean-squared-error/code
         """
-        print "Create common words..."
+        print("Create common words...")
         Xall['len_of_query'] = Xall['search_term'].map(lambda x:len(x.split())).astype(np.int64)
         Xall['len_of_title'] = Xall['product_title'].map(lambda x:len(x.split())).astype(np.int64)
         Xall['len_of_description'] = Xall['product_description'].map(lambda x:len(x.split())).astype(np.int64)
@@ -304,5 +304,5 @@ def createCommonWords(Xall):
         Xall['word_in_title'] = Xall['product_info'].map(lambda x:str_common_word(x.split('\t')[0],x.split('\t')[1]))
         Xall['word_in_description'] = Xall['product_info'].map(lambda x:str_common_word(x.split('\t')[0],x.split('\t')[2]))
 
-        print Xall.head(10)
+        print(Xall.head(10))
         return Xall

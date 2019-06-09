@@ -34,10 +34,10 @@ import json
 
 
 def computeSimilarityFeatures(Xall,columns=['query','product_title'],verbose=False,useOnlyTrain=False,startidx=0,stop_words=None,doSVD=261):
-    print "Compute scipy similarity..."
+    print("Compute scipy similarity...")
     vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}')
     if useOnlyTrain:
-        print "Using train only for TFIDF..."
+        print("Using train only for TFIDF...")
         Xtrain = Xall[startidx:]
         Xs1 = vectorizer.fit(Xtrain[columns[0]])
     else:
@@ -51,7 +51,7 @@ def computeSimilarityFeatures(Xall,columns=['query','product_title'],verbose=Fal
     #print Xall['product_title'].iloc[:5]
     sparse=True
     if doSVD is not None:
-        print "Similiarity with SVD, n_components:",doSVD
+        print("Similiarity with SVD, n_components:",doSVD)
         reducer=TruncatedSVD(n_components=doSVD, algorithm='randomized', n_iter=5, tol=0.0)
         Xs1 = reducer.fit_transform(Xs1)
         Xs2 = reducer.transform(Xs2)
@@ -90,10 +90,10 @@ def computeScipySimilarity(Xs1,Xs2,sparse=False):
         #Xall_new[i,3] = dist
 
     Xall_new = pd.DataFrame(Xall_new,columns=['cosine','cityblock'])
-    print "NA:",Xall_new.isnull().values.sum()
+    print("NA:",Xall_new.isnull().values.sum())
     Xall_new = Xall_new.fillna(0.0)
-    print "NA:",Xall_new.isnull().values.sum()
-    print Xall_new.corr(method='spearman')
+    print("NA:",Xall_new.isnull().values.sum())
+    print(Xall_new.corr(method='spearman'))
     return Xall_new
 
 
@@ -112,10 +112,10 @@ def getSynonyms(word,stemmer):
 def makeQuerySynonyms(Xall,construct_map=False):
     query_map={}
     if construct_map:
-        print "Creating synonyma for query..."
+        print("Creating synonyma for query...")
         model = gensim.models.Word2Vec.load_word2vec_format('/home/loschen/Downloads/GoogleNews-vectors-negative300.bin.gz', binary=True)
         X_temp = Xall.drop_duplicates('query')
-        print X_temp.describe()
+        print(X_temp.describe())
 
         for i in range(X_temp.shape[0]):
             query = X_temp["query"].iloc[i].lower()
@@ -141,21 +141,21 @@ def makeQuerySynonyms(Xall,construct_map=False):
             query_map[query]=qsynonyms
             #raw_input()
             if i%20==0:
-                print "i:",i
+                print("i:",i)
 
         with open("w2v_querymap.pkl", "w") as f: pickle.dump(query_map, f)
 
     with open("w2v_querymap.pkl", "r") as f: query_map = pickle.load(f)
 
 
-    print "Mapping synonyma to query..."
+    print("Mapping synonyma to query...")
     for i in range(Xall.shape[0]):
         query = Xall["query"].iloc[i].lower()
         Xall["query"].iloc[i]=query_map[query]
         if i%5000==0:
-            print "i:",i
+            print("i:",i)
 
-    print Xall['query'].iloc[:10]
+    print(Xall['query'].iloc[:10])
     return Xall
 
 
@@ -169,7 +169,7 @@ def information_entropy(text):
         except:
             exr[each]=1
     textlen=len(text)
-    for k,v in exr.items():
+    for k,v in list(exr.items()):
         freq  =  1.0*v/textlen
         infoc+=freq*log2(freq)
     infoc*=-1
@@ -183,7 +183,7 @@ def information_entropy(text):
 #text.similar('woman')
 def additionalFeatures(Xall,verbose=False,dropList=['bestmatch']):
     #dropList=['bestmatch','S_title','S_query','checksynonyma']
-    print "Computing additional features..."
+    print("Computing additional features...")
     #text = Text(word.lower() for word in brown.words())
     stemmer = PorterStemmer()
     Xall_new = np.zeros((Xall.shape[0],13))
@@ -263,25 +263,25 @@ def additionalFeatures(Xall,verbose=False,dropList=['bestmatch']):
         Xall_new[i,12] = checksynonyma / float(nquery)
 
         if i%5000==0:
-            print "i:",i
+            print("i:",i)
 
         if verbose:
-            print query
-            print nquery
-            print title
-            print ntitle
-            print "ratio:",Xall_new[i,2]
-            print "difflib ratio:",s
-            print "matches:",nmatches
-            raw_input()
+            print(query)
+            print(nquery)
+            print(title)
+            print(ntitle)
+            print("ratio:",Xall_new[i,2])
+            print("difflib ratio:",s)
+            print("matches:",nmatches)
+            input()
 
     Xall_new = pd.DataFrame(Xall_new,columns=['query_length','title_length','query_title_ratio','desc_length','query_desc_ratio','difflibratio','bestmatch','averagematch','S_query','S_title','last_sim','first_sim','checksynonyma',])
     Xall_new = Xall_new.drop(dropList, axis=1)
-    print Xall_new.corr(method='spearman')
+    print(Xall_new.corr(method='spearman'))
     return Xall_new
 
 def cleanse_data(Xall):
-    print "Cleansing the data..."
+    print("Cleansing the data...")
     with open("query_map.pkl", "r") as f: query_map = pickle.load(f)#key query value corrected value
 
     ablist=[]
@@ -298,7 +298,7 @@ def cleanse_data(Xall):
         query = Xall["query"].iloc[i].lower()
 
         #correct typos
-        if query in query_map.keys():
+        if query in list(query_map.keys()):
             query = query_map[query]
 
         #correct abbreviations query
@@ -326,15 +326,15 @@ def cleanse_data(Xall):
 
 
         if i%5000==0:
-            print "i:",i
+            print("i:",i)
 
-    print "Finished"
+    print("Finished")
     return Xall
 
 
 #make top 5 most similar in query and check again...
 def genWord2VecFeatures(Xall,verbose=True,dropList=[]):
-    print "Compute word2vec features..."
+    print("Compute word2vec features...")
     #print Xall['query'].tolist()
     #print brown.sents()
     #b = gensim.models.Word2Vec(brown.sents())
@@ -388,7 +388,7 @@ def genWord2VecFeatures(Xall,verbose=True,dropList=[]):
                     firstsim = bestvalue
 
         if i%5000==0:
-            print "i:",i
+            print("i:",i)
 
         Xall_new[i,0] = bestsim / float(nquery)
         Xall_new[i,1] = lastsim
@@ -399,11 +399,11 @@ def genWord2VecFeatures(Xall,verbose=True,dropList=[]):
         #raw_input()
     Xall_new = pd.DataFrame(Xall_new,columns=['w2v_bestsim','w2v_lastsim','w2v_firstsim','w2v_avgsim','w2v_totalsim'])
     Xall_new = Xall_new.drop(dropList, axis=1)
-    print Xall_new.corr(method='spearman')
+    print(Xall_new.corr(method='spearman'))
     return Xall_new
 
 def createKaggleDist(Xall,general_topics=["notebook","computer","movie","clothes","media","shoe","kitchen","car","bike","toy","phone","food","sport"], verbose=True):
-    print "Kaggle distance..."
+    print("Kaggle distance...")
     #dic = index_corpus()
     #with open("dic2.pkl", "w") as f: pickle.dump(dic, f) #dic2 encoded without median relevance
     #with open("dic3.pkl", "w") as f: pickle.dump(dic, f) #only train dic2 encoded without median relevance
@@ -457,16 +457,16 @@ def createKaggleDist(Xall,general_topics=["notebook","computer","movie","clothes
         Xall_new = pd.DataFrame(Xall_new,columns=['avg_nkd'])
     else:
         Xall_new = pd.DataFrame(Xall_new,columns=['avg_nkd']+general_topics)
-    print Xall_new.describe()
+    print(Xall_new.describe())
     #print topic_modeling(dic,topics)
     #raw_input()
 
-    print "finished"
+    print("finished")
     return Xall_new
 
 
 def useBenchmarkMethod(X,returnList=True,verbose=False):
-    print "Create benchmark features..."
+    print("Create benchmark features...")
     X = X.fillna("")
     stemmer = PorterStemmer()
     s_data=[]
@@ -476,7 +476,7 @@ def useBenchmarkMethod(X,returnList=True,verbose=False):
         s= (" ").join([stemmer.stem(z) for z in s.split()])
         s_data.append(s.lower())
         if i%5000==0:
-            print "i:",i
+            print("i:",i)
     if returnList:
         X = s_data
         X = pd.DataFrame(X,columns=['query'])
@@ -485,7 +485,7 @@ def useBenchmarkMethod(X,returnList=True,verbose=False):
         X = X.reshape((X.shape[0],-1))
         X = pd.DataFrame(X,columns=['concate_all'])
 
-    print "Finished.."
+    print("Finished..")
     #print X
     #print type(X[0])
 
@@ -502,11 +502,11 @@ def build_query_correction_map(print_different=True):
     queries = set(train['query'].values)
     correct_map = {}
     if print_different:
-        print("%30s \t %30s"%('original query','corrected query'))
+        print(("%30s \t %30s"%('original query','corrected query')))
     for q in queries:
         corrected_q = autocorrect_query(q,train=train,test=test,warning_on=False)
         if print_different and q != corrected_q:
-            print ("%30s \t %30s"%(q,corrected_q))
+            print(("%30s \t %30s"%(q,corrected_q)))
         correct_map[q] = corrected_q
     return correct_map
 
@@ -548,7 +548,7 @@ def autocorrect_query(query,train=None,test=None,cutoff=0.8,warning_on=True):
             corrected_query.append(corrected_word[0])
         else :
             if warning_on:
-                print ("WARNING: cannot find matched word for '%s' -> used the original word"%(q))
+                print(("WARNING: cannot find matched word for '%s' -> used the original word"%(q)))
             corrected_query.append(q)
         #print "corrected_query:",corrected_query
         #raw_input()

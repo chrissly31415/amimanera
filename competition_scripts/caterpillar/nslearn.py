@@ -54,7 +54,7 @@ class NeuralNet(nolearn.lasagne.NeuralNet):
 
     def _check_good_input(self, X, y=None):
         if isinstance(X, dict):
-            lengths = [len(X1) for X1 in X.values()]
+            lengths = [len(X1) for X1 in list(X.values())]
             if len(set(lengths)) > 1:
                 raise ValueError("Not all values of X are of equal length.")
             x_len = lengths[0]
@@ -267,8 +267,8 @@ class EarlyStopping(object):
             self.best_weights = [w.get_value() for w in nn.get_all_params()]
         elif self.best_valid_epoch + self.patience < current_epoch:
             print("Early stopping.")
-            print("Best valid loss was {:.6f} at epoch {}.".format(
-                self.best_valid, self.best_valid_epoch))
+            print(("Best valid loss was {:.6f} at epoch {}.".format(
+                self.best_valid, self.best_valid_epoch)))
             nn.load_weights_from(self.best_weights)
             raise StopIteration()
 
@@ -287,8 +287,8 @@ class SaveBest(object):
             self.best_valid_epoch = current_epoch
             self.best_weights = [w.get_value() for w in nn.get_all_params()]
         if current_epoch == nn.max_epochs:
-            print("Best valid loss was {:.6f} at epoch {}.".format(
-                self.best_valid, self.best_valid_epoch))
+            print(("Best valid loss was {:.6f} at epoch {}.".format(
+                self.best_valid, self.best_valid_epoch)))
             nn.load_weights_from(self.best_weights)
 
 
@@ -302,10 +302,10 @@ class SavePredictions(object):
         current_epoch = train_history[-1]['epoch']
         if current_epoch in self.epochs:
             filename = self.filename_str.replace("_final_",str(current_epoch))
-            print "Saving to filename:",filename
+            print("Saving to filename:",filename)
             try:
                 os.makedirs(os.path.dirname(filename))
-            except OSError, e:
+            except OSError as e:
                 if e.errno != errno.EEXIST:
                     raise
             pred = np.expm1(nn.predict( self.X ))

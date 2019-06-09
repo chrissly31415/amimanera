@@ -46,7 +46,7 @@ def func_nn(params):
       global ta
 
       counter += 1
-      print "Iteration:        %d"%(counter)
+      print("Iteration:        %d"%(counter))
       s = time()
 
       #hidden1_num_units,hidden2_num_units,hidden3_num_units,dropout0_p,dropout1_p,dropout2_p,dropout3_p,max_epochs,learning_rate,L2_alpha = params
@@ -59,23 +59,23 @@ def func_nn(params):
       #dropout2_p=0.25
       #dropout3_p=0.25
 
-      print "hidden1_num_units:    %6d"% (hidden1_num_units)
-      print "hidden2_num_units:    %6d"% (hidden2_num_units)
-      print "hidden3_num_units:    %6d"% (hidden3_num_units)
+      print("hidden1_num_units:    %6d"% (hidden1_num_units))
+      print("hidden2_num_units:    %6d"% (hidden2_num_units))
+      print("hidden3_num_units:    %6d"% (hidden3_num_units))
       #print "dropout0_p:          %6.2f"%(dropout0_p)
-      print "dropout1_p:          %6.2f"%(dropout1_p)
-      print "dropout2_p:          %6.2f"%(dropout2_p)
-      print "dropout3_p:          %6.2f"%(dropout3_p)
-      print "max_epochs:          %6d"% (max_epochs)
-      print "learning_rate:       %6.2e"%(learning_rate)
-      print "L2_alpha:            %6.2e"%(L2_alpha)
+      print("dropout1_p:          %6.2f"%(dropout1_p))
+      print("dropout2_p:          %6.2f"%(dropout2_p))
+      print("dropout3_p:          %6.2f"%(dropout3_p))
+      print("max_epochs:          %6d"% (max_epochs))
+      print("learning_rate:       %6.2e"%(learning_rate))
+      print("L2_alpha:            %6.2e"%(L2_alpha))
       #print "leakiness:            %6.2e"%(leakiness)
       input_shape =X.shape[1]
       #input_shape = int(math.floor(X.shape[1]*max_features))
       #print "max_features: 	 %6.4f (%6d)"%(max_features,input_shape)
       #print "max_samples: 	 %6.4f"%(max_samples)
 
-      print input_shape
+      print(input_shape)
       #input_shape = 271
 
 
@@ -133,8 +133,8 @@ def func_nn(params):
       #score =  buildXvalModel(model,X,y,refit=False,cv=KLabelFolds(pd.Series(ta), n_folds=5, repeats =1))
 
 
-      print ">>score: %6.3f (+/- %6.3f)"%(-1*score.mean(),score.std())
-      print "elapsed: {}s \n".format( int( round( time() - s )))
+      print(">>score: %6.3f (+/- %6.3f)"%(-1*score.mean(),score.std()))
+      print("elapsed: {}s \n".format( int( round( time() - s ))))
       return -1*score.mean()
 
 def func_xgb(params):
@@ -142,17 +142,17 @@ def func_xgb(params):
       global ta
 
       counter += 1
-      print "Iteration:        %d"%(counter)
+      print("Iteration:        %d"%(counter))
       s = time()
 
       learning_rate, max_depth, subsample,colsample_bytree,gamma,min_child_weight = params
       #learning_rate, max_depth, subsample,colsample_bytree,max_features,max_samples,bootstrap = params
-      print "learning_rate:    %6.4f"% (learning_rate)
-      print "max_depth:        %6.4f" %(max_depth)
-      print "subsample:        %6.4f"%(subsample)
-      print "colsample_bytree: %6.4f"%(colsample_bytree)
-      print "gamma: 		 %6.4f"%(gamma)
-      print "min_child_weight: %6.4f"%(min_child_weight)
+      print("learning_rate:    %6.4f"% (learning_rate))
+      print("max_depth:        %6.4f" %(max_depth))
+      print("subsample:        %6.4f"%(subsample))
+      print("colsample_bytree: %6.4f"%(colsample_bytree))
+      print("gamma: 		 %6.4f"%(gamma))
+      print("min_child_weight: %6.4f"%(min_child_weight))
       #print "max_features: 	 %6.4f"%(max_features)
       #print "max_samples: 	 %6.4f"%(max_samples)
       #print "bootstrap: 	 %6d"%(bootstrap)
@@ -167,8 +167,8 @@ def func_xgb(params):
       #p = model.predict_proba( Xtest )
 
       #score = multiclass_log_loss(ytest, p)
-      print ">>score: %6.3f (+/- %6.3f)"%(-1*score.mean(),score.std()),
-      print " elapsed: {}s \n".format( int( round( time() - s )))
+      print(">>score: %6.3f (+/- %6.3f)"%(-1*score.mean(),score.std()), end=' ')
+      print(" elapsed: {}s \n".format( int( round( time() - s ))))
       return -1*score.mean()
 
 space_keras  = (
@@ -203,9 +203,9 @@ def func_keras(params):
 	#hl1,hl2,hl3,hl4,do1,do2,do3,do4,max_epochs, bs,learning_rate, act = params
 	model  = KerasNN(dims=int(X.shape[1]*maxf),nb_classes=1,nb_epoch=int(max_epochs),learning_rate=learning_rate,validation_split=0.0,batch_size=bs,verbose=0,activation=act, layers=[hl1,hl2], dropout=[do1,do2],loss='mse')
 	basemodel = Pipeline([('scaler', StandardScaler()), ('nn',model)])
-	print int(X.shape[1]*maxf)
+	print(int(X.shape[1]*maxf))
 	basemodel = BaggingRegressor(basemodel,n_estimators=5, max_samples=1.0, max_features=int(X.shape[1]*maxf), bootstrap=boot)
-	print basemodel
+	print(basemodel)
 	#cv_labels = pd.Series.from_csv('./data/labels_for_cv.csv')
 	#cv = LabelKFold(cv_labels, n_folds=8)
 	#score = buildModel(basemodel,X,y,cv=cv, scoring=scoring_func, n_jobs=1,trainFull=False,verbose=True)
@@ -213,25 +213,25 @@ def func_keras(params):
 	basemodel.fit(X,y)
 	yval_pred = basemodel.predict(Xval)
 	score = root_mean_squared_error(yval,np.clip(yval_pred,1.0,3.0))
-	print " Eval-score: %5.4f"%(score)
+	print(" Eval-score: %5.4f"%(score))
 
-	print "Iteration: %d >>score: %6.3f (+/- %6.3f)"%(counter,score.mean(),score.std())
-	print "hidden1_num_units:    %6d"% (hl1)
-	print "hidden2_num_units:    %6d"% (hl2)
+	print("Iteration: %d >>score: %6.3f (+/- %6.3f)"%(counter,score.mean(),score.std()))
+	print("hidden1_num_units:    %6d"% (hl1))
+	print("hidden2_num_units:    %6d"% (hl2))
 	#print "hidden3_num_units:    %6d"% (hl3)
 	#print "hidden4_num_units:    %6d"% (hl4)
-	print "dropout1_p:          %6.2f"%(do1)
-	print "dropout2_p:          %6.2f"%(do2)
+	print("dropout1_p:          %6.2f"%(do1))
+	print("dropout2_p:          %6.2f"%(do2))
 	#print "dropout3_p:          %6.2f"%(do3)
 	#print "dropout4_p:          %6.2f"%(do4)
-	print "max_epochs:          %6d"% (max_epochs)
-	print "batch_size:          %6d"% (bs)
-	print "learning_rate:       %6.2e"%(learning_rate)
-	print "activation:       %s"%(act)
-	print "bootstrap:       %s"%(boot)
-	print "max_features:          %6.2f"%(maxf)
-	print "elapsed: {}s \n".format( int( round( time() - s )))
-	print ''.join(['-'] * 60)
+	print("max_epochs:          %6d"% (max_epochs))
+	print("batch_size:          %6d"% (bs))
+	print("learning_rate:       %6.2e"%(learning_rate))
+	print("activation:       %s"%(act))
+	print("bootstrap:       %s"%(boot))
+	print("max_features:          %6.2f"%(maxf))
+	print("elapsed: {}s \n".format( int( round( time() - s ))))
+	print(''.join(['-'] * 60))
 
 	if greater_is_better:
 		return -1*score.mean()
@@ -258,7 +258,7 @@ for col in X.columns:
 			X[col] = X[col].map(np.log1p)
 			Xval[col] = Xval[col].map(np.log1p)
 
-print X.describe()
+print(X.describe())
 #showCorrelations(X)
 
 best = fmin(fn=func_keras,space=space_keras,algo=tpe.suggest,max_evals=50,rseed=123)

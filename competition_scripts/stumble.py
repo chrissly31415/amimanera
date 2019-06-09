@@ -79,16 +79,16 @@ class NLTKTokenizer(object):
       return words
     
 def dfinfo(X_all):
-    print "##Basic data##\n",X_all
-    print "##Details##\n",X_all.ix[:,0:2].describe()
-    print "##Details##\n",X_all.ix[:,2:3].describe()
-    print "##Details##\n",X_all.ix[:,3:7].describe()
+    print("##Basic data##\n",X_all)
+    print("##Details##\n",X_all.ix[:,0:2].describe())
+    print("##Details##\n",X_all.ix[:,2:3].describe())
+    print("##Details##\n",X_all.ix[:,3:7].describe())
 
 def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=False,useGreedyFilter=False,char_ngram=5,loadTemp=False,usewordtagSmoothing=False,usetagwordSmoothing=False,usePosTagNew=False,useNLTKprob=False):
     """
     Load Data into pandas and preprocess features
     """
-    print "loading dataset..."
+    print("loading dataset...")
     X = pd.read_csv('../stumbled_upon/data/train.tsv', sep="\t", na_values=['?'], index_col=1)
     X_test = pd.read_csv('../stumbled_upon/data/test.tsv', sep="\t", na_values=['?'], index_col=1)
     y = X['label']
@@ -96,7 +96,7 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
     X = X.drop(['label'], axis=1)
     # Combine test and train while we do our preprocessing
     X_all = pd.concat([X_test, X])
-    print "Original shape:",X_all.shape
+    print("Original shape:",X_all.shape)
     
     if loadTemp:
 	Xs = pd.read_csv('../stumbled_upon/data/Xtemp.csv', sep=",", index_col=0)
@@ -108,11 +108,11 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
     #vectorizer = HashingVectorizer(ngram_range=(1,2), non_negative=True)
     if vecType=='hV':
 	warnings.filterwarnings("ignore", category=UserWarning)
-	print "Using hashing vectorizer..."
+	print("Using hashing vectorizer...")
 	#vectorizer = HashingVectorizer(stop_words='english',ngram_range=(1,2),analyzer="word", non_negative=True, norm='l2', n_features=2**19)
 	vectorizer = HashingVectorizer(stop_words=None,ngram_range=(char_ngram,char_ngram),analyzer="char", non_negative=True, norm='l2', n_features=2**18)
     elif vecType=='tfidfV':
-	print "Using tfidfV..."
+	print("Using tfidfV...")
 	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=4,strip_accents='unicode',tokenizer=NLTKTokenizer())
 	#vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=True,min_df=5,strip_accents='unicode')
 	#vectorizer = TfidfVectorizer(ngram_range=(1,1),max_features=2**14,sublinear_tf=True,min_df=3,tokenizer=NLTKTokenizer(),stop_words=None)
@@ -124,13 +124,13 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=2,strip_accents='unicode',tokenizer=NLTKTokenizer())
 	#vectorizer = TfidfVectorizer(min_df=2,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True, norm=u'l2')#opt
     elif vecType=='test':
-       print "Test mode..."
+       print("Test mode...")
        #vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**14,min_df=3,tokenizer=NLTKTokenizer(),stop_words=None)
        vectorizer = HashingVectorizer(binary=False,stop_words=None,ngram_range=(char_ngram,char_ngram),analyzer="char", non_negative=True, norm='l2', n_features=2**14)
        #vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 1), sublinear_tf=True, norm=u'l2')
        #vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range=(1,2),stop_words=None,max_features=None,binary=False,min_df=2,strip_accents='unicode',tokenizer=NLTKTokenizer())
     else:
-	print "Using count vectorizer..."
+	print("Using count vectorizer...")
 	#vectorizer = CountVectorizer(ngram_range=(1,2),analyzer='word',max_features=2**18)
 	#vectorizer = CountVectorizer(lowercase=False,analyzer="char_wb",ngram_range=(4,4),max_features=2**14,stop_words='english')#AUC = 0.781
 	#vectorizer = CountVectorizer(lowercase=False,analyzer="char",ngram_range=(4,4),max_features=2**14,stop_words='english')#AUC= 0.786
@@ -143,41 +143,41 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
     
     #transform data using json
     if useJson:
-	print "Xtracting data using json..."
+	print("Xtracting data using json...")
 	#take only boilerplate data
 	X_all['boilerplate'] = X_all['boilerplate'].apply(json.loads)
 	
 	#print X_all['boilerplate']
 	#print X_all['boilerplate'][2]
 	# Initialize the data as a unicode string
-	X_all['body'] = u'empty'
-	extractBody = lambda x: x['body'] if x.has_key('body') and x['body'] is not None else u'empty'
+	X_all['body'] = 'empty'
+	extractBody = lambda x: x['body'] if 'body' in x and x['body'] is not None else 'empty'
 	X_all['body'] = X_all['boilerplate'].map(extractBody)
 	
-	X_all['title'] = u'empty'
-	extractBody = lambda x: x['title'] if x.has_key('title') and x['title'] is not None else u'empty'
+	X_all['title'] = 'empty'
+	extractBody = lambda x: x['title'] if 'title' in x and x['title'] is not None else 'empty'
 	X_all['title'] = X_all['boilerplate'].map(extractBody)
 	
-	X_all['url2'] = u'empty'
-	extractBody = lambda x: x['url'] if x.has_key('url') and x['url'] is not None else u'empty'
+	X_all['url2'] = 'empty'
+	extractBody = lambda x: x['url'] if 'url' in x and x['url'] is not None else 'empty'
 	X_all['url2'] = X_all['boilerplate'].map(extractBody)
 	
-	X_all['body'] = X_all.body+u' '+X_all.url2
-	X_all['body'] = X_all.body+u' '+X_all.title
+	X_all['body'] = X_all.body+' '+X_all.url2
+	X_all['body'] = X_all.body+' '+X_all.title
 	#print X_all['body'].head(30).to_string()
 	#print X_all['body'].tail(30).to_string()		
 	body_counts = vectorizer.fit_transform(X_all['body'])
 	
 	#body_counts = body_counts.tocsr()
-	print "body,title+url, dim:",body_counts.shape
-	print "density:",density(body_counts)		
+	print("body,title+url, dim:",body_counts.shape)
+	print("density:",density(body_counts))		
 
     #simple transform
     else:
-        print "Creating dataset by simple method..."
+        print("Creating dataset by simple method...")
         body_counts=list(X_all['boilerplate'])
 	body_counts = vectorizer.fit_transform(body_counts)
-	print "Final dim:",body_counts.shape	
+	print("Final dim:",body_counts.shape)	
     #feature_names = None
     #if hasattr(vectorizer, 'get_feature_names'):
     	#feature_names = np.asarray(vectorizer.get_feature_names())
@@ -197,9 +197,9 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	    X_all=pd.concat([X_all,X_raw], axis=1)
 	    X_all = featureEngineering(X_all)
 	
-	print "Actual shape:",X_all.shape
+	print("Actual shape:",X_all.shape)
 	#SVD of text data (LSA)
-	print "SVD of sparse data with n=",useSVD
+	print("SVD of sparse data with n=",useSVD)
 	tsvd=TruncatedSVD(n_components=useSVD, algorithm='randomized', n_iterations=5, tol=0.0)
 	X_svd=tsvd.fit_transform(body_counts)
 	X_svd=pd.DataFrame(np.asarray(X_svd),index=X_all.index)
@@ -211,14 +211,14 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	    char_vectorizer=CountVectorizer(lowercase=True,analyzer="char",ngram_range=(5,5),max_features=2**14,stop_words=None)
 	    char_ngrams = char_vectorizer.fit_transform(X_raw['htmltag'])
 	    #char_ngrams = char_vectorizer.fit_transform(X_all['body'])
-	    print "char ngrams, dim:",char_ngrams.shape
-	    print "density:",density(char_ngrams)
+	    print("char ngrams, dim:",char_ngrams.shape)
+	    print("density:",density(char_ngrams))
 	    useSVD2=10
-	    print "SVD of char ngrams data with n=",useSVD2
+	    print("SVD of char ngrams data with n=",useSVD2)
 	    tsvd=TruncatedSVD(n_components=useSVD2, algorithm='randomized', n_iterations=5, tol=0.0)
 	    X_char=tsvd.fit_transform(char_ngrams)
-	    X_char=pd.DataFrame(np.asarray(X_char),index=X_all.index,columns=["char"+str(x) for x in xrange(useSVD2)])
-	    print "X_char",X_char
+	    X_char=pd.DataFrame(np.asarray(X_char),index=X_all.index,columns=["char"+str(x) for x in range(useSVD2)])
+	    print("X_char",X_char)
 	    X_svd=pd.concat([X_svd,X_char], axis=1)
 	
 	if usePosTag:
@@ -252,20 +252,20 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	   
 	
 	if useGreedyFilter:
-	    print X_svd
+	    print(X_svd)
 	    #print X_svd.columns
 	    #X_svd=X_svd.loc[:,[1,4,3,8,5,'linkwordscore',6,'char2',9,'url_contains_foodstuff',22,26,'MOD',33,'alchemy_category_score',24,45,'spelling_errors_ratio',43]]#Rgreedy
 	    #X_svd=X_svd.loc[:,[1,4,3,8,5,'linkwordscore',6,'char2',9,'url_contains_foodstuff',22,26,'MOD',33,'alchemy_category_score',24,45,'spelling_errors_ratio',43,'frameTagRatio',19,21,25,0,'url_length',48,'TO','char5','url_contains_news','compression_ratio',37,'VD','twitter_ratio',49,'is_news','url_contains_sweetstuff',42,17,'url_contains_health',20,'char4',16,'DET',23,'commonlinkratio_2',41,'image_ratio',7,'wwwfacebook_ratio','char0']]
-	    X_svd=X_svd.loc[:,[1, 2, 4, u'url_contains_foodstuff', 9, 0, 8, u'CNJ', u'url_contains_recipe', 33, 6, u'non_markup_alphanum_characters', 10, u'body_length', 15, 5, 3, u'char2', 12, 11, 14, 21, 31, u'frameTagRatio', 7, 25, u'N', 22, 17, 16, 23, 19, 47, 18, u'linkwordscore', 29, 46, 30, u'V', 39, 32]]#rf feature importance sklearn
+	    X_svd=X_svd.loc[:,[1, 2, 4, 'url_contains_foodstuff', 9, 0, 8, 'CNJ', 'url_contains_recipe', 33, 6, 'non_markup_alphanum_characters', 10, 'body_length', 15, 5, 3, 'char2', 12, 11, 14, 21, 31, 'frameTagRatio', 7, 25, 'N', 22, 17, 16, 23, 19, 47, 18, 'linkwordscore', 29, 46, 30, 'V', 39, 32]]#rf feature importance sklearn
 	    #X_svd=X_svd.loc[:,[1, 4, 9, 8, 0, u'url_contains_foodstuff', 2, 58, 67, 75, 71, u'CNJ', 44, 21, u'non_markup_alphanum_characters', 15, 42, u'linkwordscore', u'frameTagRatio', 36, u'logn_newline', 65, 47, 29, 33, 64, u'body_length', u'DET', 73, 56, 12, u'P', 14, 6, u'char0', 97, 37, 52, 83, 79, 17, u'avglinksize', u'char8', 22, 39, u'char4', u'wwwfacebook_ratio', u'url_length', u'ADJ', u'char1', 85, 30, 72, 62, 49, 28, 11, 59, 89, u'n_comment', 78, 55, 53, u'MOD', u'compression_ratio', 54, u'spelling_errors_ratio', u'commonlinkratio_1']]#GBM feature selection
 	    #X_svd=X_svd.loc[:,[1, 4, 9, 8, 0, 2, u'url_contains_foodstuff', 58, 67, 75, u'CNJ', u'linkwordscore', 21, 64, 15, u'non_markup_alphanum_characters', u'frameTagRatio', 44, 47, 42, u'P', 29, 36, 33, 73, u'DET', 97, 12, 56, 71, 52, 65, 59, 37, u'logn_newline', 6, 85, u'char0', 22, 83, u'url_length', u'body_length', 14, 17, 30, u'avglinksize', 62, u'compression_ratio', 39, u'ADJ', u'char1', 53, 78, 49, 11, 54, 79, 89, u'char4', u'char8']]#GBM feature selection
 	    #X_svd=X_svd.loc[:,[1,4,3,8,5,u'linkwordscore']]
-	    print X_svd
+	    print(X_svd)
 	
 	
-	print "##X_svd,final##\n",X_svd
+	print("##X_svd,final##\n",X_svd)
 	#X_rest=X_svd
-	print "Dim: X_svd:",X_svd.shape    
+	print("Dim: X_svd:",X_svd.shape)    
 	X_svd_train = X_svd[len(X_test.index):]
 	X_svd_test = X_svd[:len(X_test.index)]
 	return(X_svd_train,y,X_svd_test,X_test.index,X.index)
@@ -279,10 +279,10 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	    #vectorize data
 	    #vectorizer = CountVectorizer(ngram_range=(1,1),analyzer='word',max_features=2**14)
 	    #vectorizer = HashingVectorizer(ngram_range=(1,1),analyzer='word',token_pattern=r'\w{1,}')
-	    vectorizer =TfidfVectorizer(min_df=4,  max_features=2**18, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 7), sublinear_tf=True, norm=u'l2')
+	    vectorizer =TfidfVectorizer(min_df=4,  max_features=2**18, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 7), sublinear_tf=True, norm='l2')
 	    poscounts=vectorizer.fit_transform(X_pos['postagfeats'])  
 	    #print vectorizer.get_feature_names()
-	    print poscounts.shape
+	    print(poscounts.shape)
 	    #print body_counts.shape
 	    body_counts = sparse.hstack((body_counts,poscounts),format="csr")
 	    #body_counts=poscounts
@@ -294,33 +294,33 @@ def prepareDatasets(vecType='hV',useSVD=0,useJson=True,useHTMLtag=True,useAddFea
 	    #create tag-words and word-tag
 	    #postagSmoothing(X_all)
 	    X_smoothed=pd.read_csv('../stumbled_upon/data/postagsmoothed2.csv', sep=",", na_values=['?'], index_col=0,encoding='utf-8')
-	    print X_smoothed
+	    print(X_smoothed)
 	    
 	    #word-tags
 	    #vectorizer = CountVectorizer(ngram_range=(1,1),analyzer='word',max_features=2**10,token_pattern=r'\w{1,}')
 	    #vectorizer = HashingVectorizer(ngram_range=(1,1),analyzer='word',max_features=2**18,token_pattern=r'\w{1,}')
-	    vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True, norm=u'l2')
+	    vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode',analyzer='word',token_pattern=r'\w{1,}',ngram_range=(1, 2), sublinear_tf=True, norm='l2')
 	    if usewordtagSmoothing:
-		print "Using word-tag smoothing..." 
+		print("Using word-tag smoothing...") 
 		col='wordtag'
 		wordtagcounts=vectorizer.fit_transform(X_smoothed[col])
-		print wordtagcounts.shape
+		print(wordtagcounts.shape)
 		body_counts=wordtagcounts
 		#body_counts = sparse.hstack((body_counts,wordtagcounts),format="csr")
 		
 	    if usetagwordSmoothing:
-		print "Using tag-word smoothing..."
+		print("Using tag-word smoothing...")
 		col='tagword'
 		tagwordcounts=vectorizer.fit_transform(X_smoothed[col])
-		print tagwordcounts.shape
+		print(tagwordcounts.shape)
 		body_counts=tagwordcounts
 		#body_counts = sparse.hstack((body_counts,tagwordcounts),format="csr")	
 		
 	    #print "Feature names:",vectorizer.get_feature_names()
-	    print type(body_counts)
-	    print body_counts.shape
+	    print(type(body_counts))
+	    print(body_counts.shape)
 	    
-	    print "density:",density(body_counts)
+	    print("density:",density(body_counts))
             
 	Xs = body_counts[len(X_test.index):]
 	Xs_test = body_counts[:len(X_test.index)]
@@ -341,24 +341,24 @@ def splitModel(lmodel,lXs,lXs_test,ly):
     lXall_food = pd.DataFrame(lXall[lXall['url_contains_recipe']> 0.5])
     ly = lXall_food.ix[:,-1]
     lXall_food=lXall_food.ix[:,:-1] 
-    print "Food data set: ",lXall_food.shape   
+    print("Food data set: ",lXall_food.shape)   
     parameters = {'n_estimators':[200,500], 'max_features':['auto']}#rf
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXall_food,ly)
     for params, mean_score, scores in clf_opt.grid_scores_:
-        print("%0.3f (+/- %0.3f) for %r"
-              % (mean_score.mean(), scores.std(), params))
+        print(("%0.3f (+/- %0.3f) for %r"
+              % (mean_score.mean(), scores.std(), params)))
     
     #NON-FOOD DATA
     lXall_rest = pd.DataFrame(lXall[lXall['url_contains_foodstuff']<= 0.5])
     ly = lXall_rest.ix[:,-1]
     lXall_rest=lXall_rest.ix[:,:-1]
-    print "Non food data: ",lXall_rest.shape
+    print("Non food data: ",lXall_rest.shape)
     clf_opt = grid_search.GridSearchCV(lmodel, parameters,cv=8,scoring='roc_auc',n_jobs=4,verbose=1)
     clf_opt.fit(lXall_rest,ly)
     for params, mean_score, scores in clf_opt.grid_scores_:
-        print("%0.3f (+/- %0.3f) for %r"
-              % (mean_score.mean(), scores.std(), params))
+        print(("%0.3f (+/- %0.3f) for %r"
+              % (mean_score.mean(), scores.std(), params)))
     
 if __name__=="__main__":
     """   
@@ -367,12 +367,12 @@ if __name__=="__main__":
     # Set a seed for consistant results
     t0 = time()
     np.random.seed(123)
-    print "numpy:",np.__version__
-    print "pandas:",pd.__version__
+    print("numpy:",np.__version__)
+    print("pandas:",pd.__version__)
     #print pd.util.terminal.get_terminal_size()
     pd.set_printoptions(max_rows=300, max_columns=8)
-    print "scipy:",sp.__version__
-    print "nltk:",nltk.__version__
+    print("scipy:",sp.__version__)
+    print("nltk:",nltk.__version__)
     #variables
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('hV',useSVD=500,useJson=True,useHTMLtag=True,useAddFeatures=True,usePosTag=True,useAlcat=True,useGreedyFilter=False)#opt SVD=50
     #(Xs,y,Xs_test,test_indices,train_indices) = prepareDatasets('tfidfV_small',useSVD=50,useJson=True,useHTMLtag=False,useAddFeatures=True,usePosTag=False,useAlcat=False,useGreedyFilter=False)
@@ -390,9 +390,9 @@ if __name__=="__main__":
     #Xs_test.to_csv("../stumbled_upon/data/Xlarge_test.csv")
 
     #(Xs,y,Xs_test,test_indices) = prepareSimpleData()
-    print "Dim X (training):",Xs.shape
-    print "Type X:",type(Xs)
-    print "Dim X (test):",Xs_test.shape
+    print("Dim X (training):",Xs.shape)
+    print("Type X:",type(Xs))
+    print("Dim X (test):",Xs_test.shape)
     # Fit a model and predict
     #model = SGDClassifier(alpha=.0001, n_iter=50,penalty='elasticnet',l1_ratio=0.2,shuffle=True,loss='log')
     #model = SGDClassifier(alpha=0.0005, n_iter=50,shuffle=True,loss='log',penalty='l2',n_jobs=4)#opt  
@@ -445,5 +445,5 @@ if __name__=="__main__":
     #(Xs,Xs_test) = group_sparse(Xs,Xs_test)
     #print "Dim X (after grouping):",Xs.shape
     #makePredictions(model,Xs_test,test_indices,'../stumbled_upon/submissions/sub0410b.csv')	            
-    print("Model building done in %fs" % (time() - t0))
+    print(("Model building done in %fs" % (time() - t0)))
     plt.show()

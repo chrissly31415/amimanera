@@ -98,24 +98,24 @@ def train_all():
   #cv = LabelShuffleSplit(cv_labels, n_iter=2)
   scoring_func = make_scorer(root_mean_squared_error, greater_is_better=False)
 
-  print "Evaluation data set..."
+  print("Evaluation data set...")
   model.fit(Xtrain,ytrain)
   yval_pred = model.predict(Xval)
-  print " Eval-score: %5.4f"%(root_mean_squared_error(yval,np.clip(yval_pred,1.0,3.0)))
+  print(" Eval-score: %5.4f"%(root_mean_squared_error(yval,np.clip(yval_pred,1.0,3.0))))
   df_val = {'id': val_idx, 'pred': yval_pred, 'relevance': yval}
   df_val = pd.DataFrame(df_val)
   df_val.to_csv('bn_val.csv',index=False)
 
   #Extract hidden layer
   w = model.named_steps['nn'].model.layers[0].get_weights()
-  print w[0].shape
-  print type(w[0])
+  print(w[0].shape)
+  print(type(w[0]))
 
   model_best = model.named_steps['nn'].model
   get_feature = theano.function([model_best.layers[0].input],model_best.layers[3].get_output(train=False),allow_input_downcast=True)
   feature = get_feature(Xtrain.values)
-  print feature
-  print feature.shape
+  print(feature)
+  print(feature.shape)
 
   #model2 = Sequential()
   #model2.add(Dense(632, 1000, weights=w))
@@ -124,7 +124,7 @@ def train_all():
   #print act
   #print type(act)
 
-  print "Training the final model (incl. Xval.)"
+  print("Training the final model (incl. Xval.)")
   Xtrain, ytrain = mergeWithXval(Xtrain,Xval,ytrain,yval)
   model.fit(Xtrain,ytrain)
   df_test = {'id': test_idx, 'relevance': model.predict(Xtest)}
@@ -565,7 +565,7 @@ typo_pairs = {
  'zwave': 'z wave'
 }
 
-for k, v in typo_pairs.iteritems():
+for k, v in typo_pairs.items():
     if k not in spell_check_machine:
         spell_check_machine[k] = v
 
@@ -937,26 +937,26 @@ another_replacement_dict={"undercabinet": "under cabinet",
 "ounce": "oz"
 }
 
-for k, v in another_replacement_dict.iteritems():
+for k, v in another_replacement_dict.items():
     if k not in spell_check_machine:
         spell_check_machine[k] = v
 
-print "Spell_check_dict:",len(spell_check_machine.keys())
+print("Spell_check_dict:",len(list(spell_check_machine.keys())))
 
 with open("query_map.pkl", "r") as f: query_map = pickle.load(f)#key query value corrected value
 
 def spell_checking(s):
-    if s.lower() in spell_check_dict.keys():
+    if s.lower() in list(spell_check_dict.keys()):
         s = spell_check_dict[s]
     return s
 
 def new_spell_checking(s):
-    if s in spell_check_machine.keys():
+    if s in list(spell_check_machine.keys()):
         s = spell_check_machine[s]
     return s
 
 def query_correct(s):
-    if s.lower() in query_map.keys():
+    if s.lower() in list(query_map.keys()):
         s = query_map[s]
     return s
 
@@ -966,7 +966,7 @@ def cleanse_text(s):
     https://www.kaggle.com/vabatista/home-depot-product-search-relevance/test-script-1/code
     """
 
-    if isinstance(s, str) or isinstance(s, unicode):
+    if isinstance(s, str) or isinstance(s, str):
         #print "before:",s
         s = s.lower()
         s = re.sub(r"(\w)\.([A-Z])", r"\1 \2", s) ##'desgruda' palavras que estão juntas
@@ -1038,7 +1038,7 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
 
     if isinstance(quickload,str):
         store = pd.HDFStore(quickload)
-        print store
+        print(store)
         Xtest = store['Xtest']
         Xtrain = store['Xtrain']
         ytrain = store['ytrain']
@@ -1054,24 +1054,24 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
     Xtrain = pd.read_csv('./data/train.csv', encoding="ISO-8859-1")
 
 
-    print Xtrain.describe(include='all')
-    print "Xtrain.shape:",Xtrain.shape
+    print(Xtrain.describe(include='all'))
+    print("Xtrain.shape:",Xtrain.shape)
 
     Xtest = pd.read_csv('./data/test.csv', encoding="ISO-8859-1")
-    print "Xtest.shape:",Xtest.shape
+    print("Xtest.shape:",Xtest.shape)
 
 
-    print "Xtrain - ISNULL:",Xtrain.isnull().any(axis=0)
-    print "Xtest - ISNULL:",Xtest.isnull().any(axis=0)
+    print("Xtrain - ISNULL:",Xtrain.isnull().any(axis=0))
+    print("Xtest - ISNULL:",Xtest.isnull().any(axis=0))
 
     if nsamples != -1:
         if isinstance(nsamples, str) and 'shuffle' in nsamples:
-            print "Shuffle train data..."
+            print("Shuffle train data...")
             rows = np.random.choice(len(Xtrain.index), size=len(Xtrain.index), replace=False)
         else:
             rows = np.random.choice(len(Xtrain.index), size=nsamples, replace=False)
 
-        print "unique rows: %6.2f" % (float(np.unique(rows).shape[0]) / float(rows.shape[0]))
+        print("unique rows: %6.2f" % (float(np.unique(rows).shape[0]) / float(rows.shape[0])))
         Xtrain = Xtrain.iloc[rows, :]
 
     #Xtrain.groupby([Xtrain.Date.dt.year,Xtrain.Date.dt.month])['Sales'].mean().plot(kind="bar")
@@ -1086,10 +1086,10 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
     Xtest.drop(['id'],axis=1,inplace=True)
 
     #check
-    print Xtrain.shape
-    print Xtest.shape
+    print(Xtrain.shape)
+    print(Xtest.shape)
 
-    print "Analyzing search terms"
+    print("Analyzing search terms")
     uniq_train = Xtrain['search_term'].unique()
     uniq_test = Xtest['search_term'].unique()
     compareList(uniq_train, uniq_test, verbose=True)
@@ -1108,8 +1108,8 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
 
     if useAttributes is not None:
         Xattr = pd.read_csv('./data/attributes.csv',encoding="ISO-8859-1")
-        print Xattr.head(100)
-        print Xattr['name'].value_counts()
+        print(Xattr.head(100))
+        print(Xattr['name'].value_counts())
         #raw_input()
         # merge bullet02 bullet03 bullet04 bullet01 product width, bullet04,
         # color is multiple fields
@@ -1133,51 +1133,51 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
 
 
     if use_new_spellchecker:
-        print "New spell checker for search term..."
+        print("New spell checker for search term...")
         Xall['search_term'] = Xall['search_term'].map(lambda x:new_spell_checking(x))
 
     if query_correction:
-        print "Query correction..."
+        print("Query correction...")
         #query_map = build_query_correction_map(Xall[len(Xtest.index):],Xall[len(Xtest.index):])
         #with open("query_map.pkl", "w") as f: pickle.dump(query_map, f)
         Xall["search_term"] = Xall["search_term"].map(lambda x:query_correct(x))
 
     if spellchecker:
         #https://www.kaggle.com/steubk/home-depot-product-search-relevance/fixing-typos/discussion
-        print "Google Spellchecker for search term..."
+        print("Google Spellchecker for search term...")
         Xall['search_term'] = Xall['search_term'].map(lambda x:spell_checking(x))
 
 
     if cleanData is not None:
 
         if isinstance(cleanData,str):
-            print "Loading cleaned words..."
+            print("Loading cleaned words...")
             Xall['search_term'] = store['search_term']
             Xall['product_title'] = store['product_title']
             Xall['product_description'] = store['product_description']
         else:
-            print "Cleaning data..."
+            print("Cleaning data...")
             Xall['search_term'] = Xall['search_term'].map(lambda x:cleanse_text(x))
-            print "Cleaning search_term ok"
+            print("Cleaning search_term ok")
             Xall['product_title'] = Xall['product_title'].map(lambda x:cleanse_text(x))
-            print "Cleaning product_title ok"
+            print("Cleaning product_title ok")
             Xall['product_description'] = Xall['product_description'].map(lambda x:cleanse_text(x))
-            print "Cleaning product_description ok"
+            print("Cleaning product_description ok")
             store['search_term'] = Xall['search_term']
             store['product_title'] = Xall['product_title']
             store['product_description'] = Xall['product_description']
-            print "Saving data ok"
+            print("Saving data ok")
 
     if  stemmData is not None:
 
         if isinstance(stemmData,str):
-            print "Loading stemmed words..."
+            print("Loading stemmed words...")
             Xall['search_term'] = store['search_term']
             Xall['product_title'] = store['product_title']
             Xall['product_description'] = store['product_description']
 
         else:
-            print "Stemming words..."
+            print("Stemming words...")
 
             Xall['search_term'] = Xall['search_term'].map(lambda x:str_stemmer(x))
             Xall['product_title'] = Xall['product_title'].map(lambda x:str_stemmer(x))
@@ -1189,19 +1189,19 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
     if merge_product_infos or isinstance(merge_product_infos,list):
 
         if isinstance(merge_product_infos,list):
-            print "Merge Cols:",merge_product_infos
+            print("Merge Cols:",merge_product_infos)
             Xall['product_info'] = ""
             for col in merge_product_infos:
                 Xall['product_info'] += Xall['product_info']+"\t"+Xall[col]
 
         else:
-            print "Merging title and description"
+            print("Merging title and description")
             Xall['product_info'] = Xall['product_title']+"\t"+Xall['product_description']
 
     if createVerticalFeatures:
-        print "Creating vertical features..."
+        print("Creating vertical features...")
         st = Xall['search_term'].unique()
-        print st.shape
+        print(st.shape)
         #Xall['max_quantity'] = 0
         #Xall['mean_quantity'] = 0
         Xall['n_positions'] = 0
@@ -1215,67 +1215,67 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
             #Xall.loc[bool_idx, ['mean_quantity']]
             # raw_input()
             if i % 5000 == 0:
-                print "iteration %d/%d" % (i, len(st))
+                print("iteration %d/%d" % (i, len(st)))
 
     if createVerticalFeatures_new:
-        print "Another set of vertical features..."
+        print("Another set of vertical features...")
         m1 = pd.rolling_mean(ytrain, window=3000, min_periods=1)
         m1.plot()
         sub = pd.read_csv('./submissions/sub150416a.csv')
         m2 = pd.rolling_mean(sub.relevance, window=3000, min_periods=1)
         m = pd.concat([m2,m1],axis=0)
-        print m
-        print m.shape
+        print(m)
+        print(m.shape)
         Xall['rolling_mean'] = m.values
 
 
     if word2vecFeates:
-        print "Add w2vec features"
+        print("Add w2vec features")
         if isinstance(word2vecFeates,str):
-            print "Loading features data..."
+            print("Loading features data...")
             Xfeat = store['Xword2vec']
         else:
             Xfeat = genWord2VecFeatures(Xall,verbose=False)
             store['Xword2vec'] = Xfeat
 
-        print Xfeat.describe()
+        print(Xfeat.describe())
         Xall = pd.concat([Xall,Xfeat], axis=1)
 
     if word2vecFeates_new:
-        print "Add w2vec features 2"
+        print("Add w2vec features 2")
         if isinstance(word2vecFeates_new,str):
-            print "Loading features data..."
+            print("Loading features data...")
             Xfeat = store['Xword2vec_new']
         else:
             Xfeat = genWord2VecFeatures_new(Xall,verbose=False)
             store['Xword2vec_new'] = Xfeat
 
-        print Xfeat.describe()
+        print(Xfeat.describe())
         Xall = pd.concat([Xall,Xfeat], axis=1)
 
     if computeAddFeates:
-        print "Add features"
+        print("Add features")
         if isinstance(computeAddFeates,str):
-            print "Loading features data..."
+            print("Loading features data...")
             Xfeat = store['Xfeat']
         else:
             Xfeat = additionalFeatures(Xall,verbose=False,dropList=['bestmatch'])
             store['Xfeat'] = Xfeat
 
-        print Xfeat.describe()
+        print(Xfeat.describe())
         Xall = pd.concat([Xall,Xfeat], axis=1)
 
 
     if computeAddFeates_new:
-        print "Add features new"
+        print("Add features new")
         if isinstance(computeAddFeates_new,str):
-            print "Loading features data..."
+            print("Loading features data...")
             Xfeat = store['Xfeat2']
         else:
             Xfeat = additionalFeatures_new(Xall,verbose=False,dropList=['bestmatch'])
             store['Xfeat2'] = Xfeat
 
-        print Xfeat.describe()
+        print(Xfeat.describe())
         Xall = pd.concat([Xall,Xfeat], axis=1)
 
 
@@ -1286,32 +1286,32 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
         if 'reducer' in computeSim:
             reducer=computeSim['reducer']
         Xsim = computeSimilarityFeatures(Xall,columns=computeSim['columns'],verbose=False,useOnlyTrain=False,stop_words=stop_words,doSVD=computeSim['doSVD'],vectorizer=computeSim['vectorizer'],reducer=reducer)
-        print Xsim.describe()
+        print(Xsim.describe())
         Xall = pd.concat([Xall,Xsim], axis=1)
 
     if doTFIDF is not None:
-        print "Doing TFIDF:",doTFIDF
+        print("Doing TFIDF:",doTFIDF)
         vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 2), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}',norm='l2')
         if isinstance(doTFIDF,dict):
-            print doTFIDF.keys()
+            print(list(doTFIDF.keys()))
             vectorizer = doTFIDF['vectorizer']
             doTFIDF = doTFIDF['columns']
         for i,(n_comp,col) in enumerate(zip(n_components,doTFIDF)):
-            print Xall.shape
-            print "Xall - ISNULL:",Xall.isnull().any(axis=0)
-            print "Vectorizing: "+col+" n_components:"+str(n_comp)
+            print(Xall.shape)
+            print("Xall - ISNULL:",Xall.isnull().any(axis=0))
+            print("Vectorizing: "+col+" n_components:"+str(n_comp))
             vectorizer.fit(Xall[col])
             Xs_all_new = vectorizer.transform(Xall[col])
             reducer=TruncatedSVD(n_components=n_comp, algorithm='randomized', n_iter=5, tol=0.0)
             Xs_all_new=reducer.fit_transform(Xs_all_new)
-            print "Variance explained:",np.sum(reducer.explained_variance_ratio_)
+            print("Variance explained:",np.sum(reducer.explained_variance_ratio_))
             Xs_all_new = pd.DataFrame(Xs_all_new)
             Xs_all_new.columns = [ col+"_svd_"+str(x) for x in Xs_all_new.columns ]
             #store['Xs_all_new'] = Xs_all_new
 
             Xall = pd.concat([Xall, Xs_all_new], axis=1)
 
-        print "Shape Xs_all after SVD:",Xall.shape
+        print("Shape Xs_all after SVD:",Xall.shape)
 
 
 
@@ -1320,7 +1320,7 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
         See https://www.kaggle.com/wenxuanchen/home-depot-product-search-relevance/sklearn-random-forest/code
         also: https://www.kaggle.com/the1owl/home-depot-product-search-relevance/rf-mean-squared-error/code
         """
-        print "Create common words..."
+        print("Create common words...")
         Xall['len_of_query'] = Xall['search_term'].map(lambda x:len(x.split())).astype(np.int64)
         Xall['len_of_title'] = Xall['product_title'].map(lambda x:len(x.split())).astype(np.int64)
         Xall['len_of_description'] = Xall['product_description'].map(lambda x:len(x.split())).astype(np.int64)
@@ -1330,58 +1330,58 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
         Xall['word_in_title'] = Xall['product_info'].map(lambda x:str_common_word(x.split('\t')[0],x.split('\t')[1]))
         Xall['word_in_description'] = Xall['product_info'].map(lambda x:str_common_word(x.split('\t')[0],x.split('\t')[2]))
 
-        print Xall.head(10)
+        print(Xall.head(10))
 
 
     if dummy_encoding is not None:
-        print "Dummy encoding,skip label encoding"
+        print("Dummy encoding,skip label encoding")
         Xall = pd.get_dummies(Xall,columns=dummy_encoding)
 
     if labelEncode is not None:
-        print "Label encode"
+        print("Label encode")
         for col in labelEncode:
             lbl = preprocessing.LabelEncoder()
             Xall[col] = lbl.fit_transform(Xall[col].values)
             vals = Xall[col].unique()
-            print "Col: %s Vals %r:"%(col,vals)
+            print("Col: %s Vals %r:"%(col,vals))
             #print "Orig:",list(lbl.inverse_transform(Xall[col].unique()))
 
     if removeRare_freq is not None:
-        print "Remove rare features based on frequency..."
+        print("Remove rare features based on frequency...")
         for col in oneHotenc:
             ser = Xall[col]
-            counts = ser.value_counts().keys()
+            counts = list(ser.value_counts().keys())
             idx = ser.value_counts() > removeRare_freq
             threshold = idx.astype(int).sum()
-            print "%s has %d different values before, min freq: %d - threshold %d" % (
-                col, len(counts), removeRare_freq, threshold)
+            print("%s has %d different values before, min freq: %d - threshold %d" % (
+                col, len(counts), removeRare_freq, threshold))
             if len(counts) > threshold:
                 ser[~ser.isin(counts[:threshold])] = 9999
             if len(counts) <= 1:
-                print("Dropping Column %s with %d values" % (col, len(counts)))
+                print(("Dropping Column %s with %d values" % (col, len(counts))))
                 Xall = Xall.drop(col, axis=1)
             else:
                 Xall[col] = ser.astype('category')
-            print ser.value_counts()
-            counts = ser.value_counts().keys()
-            print "%s has %d different values after" % (col, len(counts))
+            print(ser.value_counts())
+            counts = list(ser.value_counts().keys())
+            print("%s has %d different values after" % (col, len(counts)))
 
 
     if oneHotenc is not None:
-        print "1-0 Encoding categoricals...", oneHotenc
+        print("1-0 Encoding categoricals...", oneHotenc)
         for col in oneHotenc:
             #print "Unique values for col:", col, " -", np.unique(Xall[col].values)
             encoder = OneHotEncoder()
             X_onehot = pd.DataFrame(encoder.fit_transform(Xall[[col]].values).todense())
             X_onehot.columns = [col + "_hc_" + str(column) for column in X_onehot.columns]
-            print "One-hot-encoding of %r...new shape: %r" % (col, X_onehot.shape)
+            print("One-hot-encoding of %r...new shape: %r" % (col, X_onehot.shape))
             Xall.drop([col], axis=1, inplace=True)
             Xall = pd.concat([Xall, X_onehot], axis=1)
-            print "One-hot-encoding final shape:", Xall.shape
+            print("One-hot-encoding final shape:", Xall.shape)
             # raw_input()
 
     if logtransform is not None:
-        print "log Transform"
+        print("log Transform")
         for col in logtransform:
             if col in Xall.columns:
                 if Xall[col].min()>-0.99:
@@ -1392,21 +1392,21 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
         dropcols = [col for col in Xall.columns if col not in keepFeatures]
         for col in dropcols:
             if col in Xall.columns:
-                print "Dropping: ", col
+                print("Dropping: ", col)
                 Xall.drop([col], axis=1, inplace=True)
         Xall.sort(columns=keepFeatures,inplace=True)
 
     if dropFeatures is not None:
         for col in dropFeatures:
             if col in Xall.columns:
-                print "Dropping: ", col
+                print("Dropping: ", col)
                 Xall.drop([col], axis=1, inplace=True)
 
     if removeCorr:
         Xall = removeCorrelations(Xall, threshhold=0.99)
 
     #Xall = Xall.astype(np.float32)
-    print "Columns used",list(Xall.columns)
+    print("Columns used",list(Xall.columns))
 
 
     #split data
@@ -1416,7 +1416,7 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
     yval = pd.Series()
 
     if isinstance(holdout,str) or holdout:
-        print "Split holdout..."
+        print("Split holdout...")
         if isinstance(holdout,str):
             #hl = pd.Series.from_csv(holdout,index_col=None)
             hl = pd.read_csv(holdout)['id']
@@ -1436,32 +1436,32 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
 
             Xtrain, Xval, ytrain, yval = label_train_test_plit(Xtrain,ytrain,labels=holdout_labels,test_size=0.3, random_state=5711)
 
-            print ytrain
-            print ytrain.shape
+            print(ytrain)
+            print(ytrain.shape)
 
             #Xtrain['search_term'].to_csv('./data/labels_for_cv.csv')
 
-        print Xtrain.head()
-        print Xval.head()
-        print "Shape Xtrain:",Xtrain.shape
-        print "Shape Xval  :",Xval.shape
-        print ytrain
-        print ytrain.shape
+        print(Xtrain.head())
+        print(Xval.head())
+        print("Shape Xtrain:",Xtrain.shape)
+        print("Shape Xval  :",Xval.shape)
+        print(ytrain)
+        print(ytrain.shape)
         #raw_input()
 
-    print "Training data:",Xtrain.info()
+    print("Training data:",Xtrain.info())
 
     df_list = [Xtest,Xtrain,ytrain,Xval,yval,test_id,Xtrain[['search_term']]]
     name_list = ['Xtest','Xtrain','ytrain','Xval','yval','test_id','cv_labels']
     for label,ldf in zip(name_list,df_list):
         if ldf is not None:
             try:
-                print "Store:",label
+                print("Store:",label)
                 ldf = ldf.reindex(copy = False)
                 store.put(label, ldf, format='table', data_columns=True)
             except:
-                print "Could not save to pytables:"
-                print ldf.apply(lambda x: pd.lib.infer_dtype(x.values))
+                print("Could not save to pytables:")
+                print(ldf.apply(lambda x: pd.lib.infer_dtype(x.values)))
 
     store.close()
 
@@ -1492,7 +1492,7 @@ def mergeWithXval(Xtrain,Xval,ytrain,yval):
 
 
 def makePredictions(model=None,Xtest=None,idx=None,filename='submission.csv'):
-    print "Saving submission: ", filename
+    print("Saving submission: ", filename)
     if model is not None:
         preds = model.predict(Xtest)
     else:
@@ -1527,22 +1527,22 @@ if __name__ == "__main__":
 
     t0 = time()
 
-    print "numpy:", np.__version__
-    print "pandas:", pd.__version__
-    print "scipy:", sp.__version__
+    print("numpy:", np.__version__)
+    print("pandas:", pd.__version__)
+    print("scipy:", sp.__version__)
 
     #TODO
     # use attributes!!
     # cleanse text
     # word2vec
 
-    all_feats = [u'product_uid', u'search_term', 'query_length', 'title_length', 'query_title_ratio', 'desc_length', 'query_desc_ratio', 'difflibratio', 'averagematch', 'S_query', 'S_title', 'last_sim', 'first_sim', 'checksynonyma', 'cosine', 'cityblock', 'hamming', 'euclidean', 'search_term_svd_0', 'search_term_svd_1', 'search_term_svd_2', 'search_term_svd_3', 'search_term_svd_4', 'search_term_svd_5', 'search_term_svd_6', 'search_term_svd_7', 'search_term_svd_8', 'search_term_svd_9', 'search_term_svd_10', 'search_term_svd_11', 'search_term_svd_12', 'search_term_svd_13', 'search_term_svd_14', 'search_term_svd_15', 'search_term_svd_16', 'search_term_svd_17', 'search_term_svd_18', 'search_term_svd_19', 'search_term_svd_20', 'search_term_svd_21', 'search_term_svd_22', 'search_term_svd_23', 'search_term_svd_24', 'search_term_svd_25', 'search_term_svd_26', 'search_term_svd_27', 'search_term_svd_28', 'search_term_svd_29', 'search_term_svd_30', 'search_term_svd_31', 'search_term_svd_32', 'search_term_svd_33', 'search_term_svd_34', 'search_term_svd_35', 'search_term_svd_36', 'search_term_svd_37', 'search_term_svd_38', 'search_term_svd_39', 'search_term_svd_40', 'search_term_svd_41', 'search_term_svd_42', 'search_term_svd_43', 'search_term_svd_44', 'search_term_svd_45', 'search_term_svd_46', 'search_term_svd_47', 'search_term_svd_48', 'search_term_svd_49', 'product_title_svd_0', 'product_title_svd_1', 'product_title_svd_2', 'product_title_svd_3', 'product_title_svd_4', 'product_title_svd_5', 'product_title_svd_6', 'product_title_svd_7', 'product_title_svd_8', 'product_title_svd_9', 'product_title_svd_10', 'product_title_svd_11', 'product_title_svd_12', 'product_title_svd_13', 'product_title_svd_14', 'product_title_svd_15', 'product_title_svd_16', 'product_title_svd_17', 'product_title_svd_18', 'product_title_svd_19', 'product_title_svd_20', 'product_title_svd_21', 'product_title_svd_22', 'product_title_svd_23', 'product_title_svd_24', 'product_title_svd_25', 'product_title_svd_26', 'product_title_svd_27', 'product_title_svd_28', 'product_title_svd_29', 'product_title_svd_30', 'product_title_svd_31', 'product_title_svd_32', 'product_title_svd_33', 'product_title_svd_34', 'product_title_svd_35', 'product_title_svd_36', 'product_title_svd_37', 'product_title_svd_38', 'product_title_svd_39', 'product_title_svd_40', 'product_title_svd_41', 'product_title_svd_42', 'product_title_svd_43', 'product_title_svd_44', 'product_title_svd_45', 'product_title_svd_46', 'product_title_svd_47', 'product_title_svd_48', 'product_title_svd_49', 'len_of_query', 'len_of_title', 'len_of_description', 'word_in_title', 'word_in_description']
+    all_feats = ['product_uid', 'search_term', 'query_length', 'title_length', 'query_title_ratio', 'desc_length', 'query_desc_ratio', 'difflibratio', 'averagematch', 'S_query', 'S_title', 'last_sim', 'first_sim', 'checksynonyma', 'cosine', 'cityblock', 'hamming', 'euclidean', 'search_term_svd_0', 'search_term_svd_1', 'search_term_svd_2', 'search_term_svd_3', 'search_term_svd_4', 'search_term_svd_5', 'search_term_svd_6', 'search_term_svd_7', 'search_term_svd_8', 'search_term_svd_9', 'search_term_svd_10', 'search_term_svd_11', 'search_term_svd_12', 'search_term_svd_13', 'search_term_svd_14', 'search_term_svd_15', 'search_term_svd_16', 'search_term_svd_17', 'search_term_svd_18', 'search_term_svd_19', 'search_term_svd_20', 'search_term_svd_21', 'search_term_svd_22', 'search_term_svd_23', 'search_term_svd_24', 'search_term_svd_25', 'search_term_svd_26', 'search_term_svd_27', 'search_term_svd_28', 'search_term_svd_29', 'search_term_svd_30', 'search_term_svd_31', 'search_term_svd_32', 'search_term_svd_33', 'search_term_svd_34', 'search_term_svd_35', 'search_term_svd_36', 'search_term_svd_37', 'search_term_svd_38', 'search_term_svd_39', 'search_term_svd_40', 'search_term_svd_41', 'search_term_svd_42', 'search_term_svd_43', 'search_term_svd_44', 'search_term_svd_45', 'search_term_svd_46', 'search_term_svd_47', 'search_term_svd_48', 'search_term_svd_49', 'product_title_svd_0', 'product_title_svd_1', 'product_title_svd_2', 'product_title_svd_3', 'product_title_svd_4', 'product_title_svd_5', 'product_title_svd_6', 'product_title_svd_7', 'product_title_svd_8', 'product_title_svd_9', 'product_title_svd_10', 'product_title_svd_11', 'product_title_svd_12', 'product_title_svd_13', 'product_title_svd_14', 'product_title_svd_15', 'product_title_svd_16', 'product_title_svd_17', 'product_title_svd_18', 'product_title_svd_19', 'product_title_svd_20', 'product_title_svd_21', 'product_title_svd_22', 'product_title_svd_23', 'product_title_svd_24', 'product_title_svd_25', 'product_title_svd_26', 'product_title_svd_27', 'product_title_svd_28', 'product_title_svd_29', 'product_title_svd_30', 'product_title_svd_31', 'product_title_svd_32', 'product_title_svd_33', 'product_title_svd_34', 'product_title_svd_35', 'product_title_svd_36', 'product_title_svd_37', 'product_title_svd_38', 'product_title_svd_39', 'product_title_svd_40', 'product_title_svd_41', 'product_title_svd_42', 'product_title_svd_43', 'product_title_svd_44', 'product_title_svd_45', 'product_title_svd_46', 'product_title_svd_47', 'product_title_svd_48', 'product_title_svd_49', 'len_of_query', 'len_of_title', 'len_of_description', 'word_in_title', 'word_in_description']
     best_feats_r = ['averagematch', 'w2v_bestsim', 'cosine', 'product_uid', 'difflibratio', 'w2v_lastsim', 'last_sim', 'S_query', 'checksynonyma', 'S_title', 'query_desc_ratio', 'product_title_svd_0', 'euclidean', 'cityblock', 'w2v_firstsim', 'product_title_svd_46', 'product_title_svd_49', 'product_title_svd_48', 'product_title_svd_45', 'product_title_svd_38', 'product_title_svd_41', 'product_title_svd_31', 'product_title_svd_2', 'product_title_svd_17', 'product_title_svd_30', 'product_title_svd_42', 'product_title_svd_22', 'product_title_svd_34', 'product_title_svd_40', 'product_title_svd_44', 'product_title_svd_39', 'product_title_svd_47', 'product_title_svd_21', 'product_title_svd_43', 'product_title_svd_36', 'search_term', 'product_title_svd_26', 'product_title_svd_28', 'product_title_svd_33', 'w2v_avgsim', 'product_title_svd_8', 'product_title_svd_24', 'product_title_svd_16', 'product_title_svd_32', 'product_title_svd_37', 'product_title_svd_29', 'product_title_svd_13', 'product_title_svd_35', 'len_of_description', 'desc_length', 'product_title_svd_15', 'product_title_svd_20', 'product_title_svd_27', 'product_title_svd_18', 'product_title_svd_23', 'product_title_svd_7', 'product_title_svd_25', 'product_title_svd_19', 'search_term_svd_48', 'search_term_svd_49', 'w2v_totalsim', 'product_title_svd_14', 'product_title_svd_4', 'product_title_svd_11', 'product_title_svd_9', 'product_title_svd_5', 'product_title_svd_12', 'product_title_svd_10', 'product_title_svd_6', 'product_title_svd_1', 'first_sim', 'search_term_svd_44', 'product_title_svd_3', 'search_term_svd_47', 'search_term_svd_0', 'search_term_svd_46', 'search_term_svd_45', 'search_term_svd_42', 'query_title_ratio', 'search_term_svd_40', 'search_term_svd_36', 'search_term_svd_38', 'search_term_svd_31', 'search_term_svd_41', 'search_term_svd_18', 'search_term_svd_23', 'search_term_svd_34', 'search_term_svd_32', 'search_term_svd_37', 'search_term_svd_39', 'search_term_svd_43', 'search_term_svd_2', 'search_term_svd_33', 'search_term_svd_1', 'search_term_svd_30', 'search_term_svd_35', 'search_term_svd_24', 'search_term_svd_4', 'search_term_svd_5', 'search_term_svd_22', 'search_term_svd_15', 'search_term_svd_16', 'search_term_svd_3', 'search_term_svd_19', 'search_term_svd_7', 'search_term_svd_17', 'search_term_svd_29', 'search_term_svd_28', 'search_term_svd_25', 'search_term_svd_8', 'search_term_svd_14', 'search_term_svd_20', 'search_term_svd_12', 'search_term_svd_10', 'search_term_svd_27', 'search_term_svd_26', 'search_term_svd_9', 'search_term_svd_11', 'search_term_svd_21', 'search_term_svd_13', 'query_length', 'search_term_svd_6', 'len_of_title', 'title_length', 'len_of_query', 'word_in_description', 'word_in_title', 'hamming']
     best_feats_r = ['averagematch', 'w2v_bestsim', 'cosine', 'difflibratio', 'n_positions', 'product_uid', 'w2v_lastsim', 'last_sim', 'checksynonyma', 'S_query', 'S_title', 'euclidean', 'search_term', 'product_title_svd_0', 'query_desc_ratio', 'cityblock', 'product_title_svd_45', 'product_title_svd_46', 'product_title_svd_48', 'product_title_svd_31', 'product_title_svd_21', 'product_title_svd_49', 'product_title_svd_39', 'product_title_svd_44', 'product_title_svd_42', 'product_title_svd_35', 'product_title_svd_43', 'product_title_svd_36', 'product_title_svd_22', 'product_title_svd_34', 'product_title_svd_41', 'product_title_svd_47', 'product_title_svd_38', 'product_title_svd_33', 'product_title_svd_16', 'MFG.Brand.Name', 'product_title_svd_17', 'product_title_svd_32', 'product_title_svd_28', 'len_of_description', 'product_title_svd_30', 'product_title_svd_40', 'product_title_svd_29', 'product_title_svd_37', 'w2v_avgsim', 'product_title_svd_15', 'search_term_svd_0', 'product_title_svd_2', 'product_title_svd_24', 'desc_length', 'w2v_totalsim', 'product_title_svd_7', 'product_title_svd_9', 'product_title_svd_27', 'product_title_svd_23', 'product_title_svd_25', 'product_title_svd_11', 'product_title_svd_13', 'product_title_svd_8', 'product_title_svd_26', 'product_title_svd_20', 'product_title_svd_18', 'product_title_svd_12', 'product_title_svd_10', 'product_title_svd_14', 'product_title_svd_19', 'product_title_svd_1', 'product_title_svd_4', 'search_term_svd_1', 'product_title_svd_6', 'product_title_svd_3', 'product_title_svd_5', 'search_term_svd_49', 'search_term_svd_47', 'w2v_firstsim', 'search_term_svd_44', 'search_term_svd_40', 'search_term_svd_45', 'search_term_svd_46', 'query_title_ratio', 'search_term_svd_48', 'search_term_svd_34', 'search_term_svd_37', 'search_term_svd_42', 'search_term_svd_31', 'search_term_svd_43', 'search_term_svd_8', 'search_term_svd_22', 'search_term_svd_41', 'search_term_svd_19', 'search_term_svd_39', 'search_term_svd_36', 'search_term_svd_5', 'search_term_svd_33', 'search_term_svd_18', 'search_term_svd_17', 'search_term_svd_12', 'search_term_svd_38', 'search_term_svd_15', 'search_term_svd_30', 'search_term_svd_7', 'search_term_svd_20', 'search_term_svd_35', 'search_term_svd_14', 'search_term_svd_28', 'search_term_svd_29', 'search_term_svd_2', 'search_term_svd_11', 'search_term_svd_24', 'search_term_svd_25', 'search_term_svd_21', 'search_term_svd_23', 'search_term_svd_32', 'search_term_svd_13', 'search_term_svd_27', 'search_term_svd_16', 'search_term_svd_26', 'search_term_svd_3', 'search_term_svd_10', 'search_term_svd_4', 'word_in_description', 'search_term_svd_9', 'query_length', 'search_term_svd_6', 'first_sim', 'word_in_title', 'len_of_title', 'title_length', 'len_of_query', 'hamming']
 
     #attribute_list = [u'MFG Brand Name',u'Material',u'Product Width (in.)',u'Color Family',u'Product Height (in.)',u'Product Depth (in.)',u'Product Weight (lb.)',u'Color/Finish',u'Certifications and Listings']
     #attribute_list = [u'MFG Brand Name',u'Material',u'Bullet02',u'Bullet03',u'Bullet04',u'Bullet01',u'Bullet05']
-    attribute_list = [u'MFG Brand Name']
+    attribute_list = ['MFG Brand Name']
 
 
     quickload = './data/store_db1b.h5'
@@ -1640,7 +1640,7 @@ if __name__ == "__main__":
                                                                            createVerticalFeatures=createVerticalFeatures,
                                                                            createVerticalFeatures_new=createVerticalFeatures_new,
                                                                            query_correction=query_correction)
-    print list(Xtrain.columns)
+    print(list(Xtrain.columns))
     #interact_analysis(Xtrain)
     #model = sf.RandomForest(n_estimators=120,mtry=Xtrain.shape[1]/2,node_size=5,max_depth=12,n_jobs=2,verbose_level=0)
     #model = Pipeline([('scaler', StandardScaler()), ('model',ross1)])
@@ -1681,24 +1681,24 @@ if __name__ == "__main__":
     #model = makeGridSearch(model, Xtrain, ytrain, n_jobs=2, refit=True, cv=cv, scoring=scoring_func,parameters=parameters, random_iter=-1)
 
     #Xtrain, ytrain = mergeWithXval(Xtrain,Xval,ytrain,yval)
-    print Xtrain.shape
-    print model
+    print(Xtrain.shape)
+    print(model)
     buildModel(model,Xtrain,ytrain,cv=cv, scoring=scoring_func, n_jobs=2,trainFull=False,verbose=True)
     #analyzeLearningCurve(model, Xtrain, ytrain, cv=cv, score_func='roc_auc')
     #buildXvalModel(model,Xtrain,ytrain,sample_weight=None,class_names=None,refit=False,cv=cv)
 
-    print "Evaluation data set..."
+    print("Evaluation data set...")
     model.fit(Xtrain,ytrain)
     yval_pred = model.predict(Xval)
     #yval_pred = post_process(yval_pred,yval,sigma=0.1,k=0.5)
 
-    print " Eval-score: %5.4f"%(root_mean_squared_error(yval,np.clip(yval_pred,1.0,3.0)))
+    print(" Eval-score: %5.4f"%(root_mean_squared_error(yval,np.clip(yval_pred,1.0,3.0))))
 
-    print "Training the final model (incl. Xval.)"
+    print("Training the final model (incl. Xval.)")
     Xtrain, ytrain = mergeWithXval(Xtrain,Xval,ytrain,yval)
     model.fit(Xtrain,ytrain)
 
     makePredictions(model,Xtest,idx=idx, filename='./submissions/sub04032016c.csv')
 
     plt.show()
-    print("Model building done in %fs" % (time() - t0))
+    print(("Model building done in %fs" % (time() - t0)))

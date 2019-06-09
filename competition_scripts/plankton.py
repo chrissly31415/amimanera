@@ -83,7 +83,7 @@ def prepareData(subset=1000,loadTempData=False,extractFeatures=False,maxPixel = 
       
     else:
      #load extracted features 
-      print "Load extracted features from: ",location
+      print("Load extracted features from: ",location)
       df = pd.read_csv('competition_data/'+location+'_'+str(maxPixel)+'.csv', sep=",", na_values=['?'],index_col=0)
       X_test = pd.read_csv('competition_data/'+'test'+'_'+str(maxPixel)+'.csv', sep=",", na_values=['?'],index_col=0)
       #print "Skipping test..."
@@ -109,9 +109,9 @@ def prepareData(subset=1000,loadTempData=False,extractFeatures=False,maxPixel = 
 	X = X.iloc[train]
 	y = y.iloc[train]
   
-    print "Shape X:",X.shape
-    print "Shape X_test:",X_test.shape
-    print "Shape y:",y.shape
+    print("Shape X:",X.shape)
+    print("Shape X_test:",X_test.shape)
+    print("Shape y:",y.shape)
 
     X,X_feat = splitFrame(X,n_features=23)
     X_test,X_test_feat = splitFrame(X_test,n_features=23)
@@ -140,33 +140,33 @@ def prepareData(subset=1000,loadTempData=False,extractFeatures=False,maxPixel = 
 	
     #Do dimension reduction on train and! test
     if doSVD is not None:
-	  print "Singular value decomposition..."
+	  print("Singular value decomposition...")
 	  tsvd=TruncatedSVD(n_components=doSVD, algorithm='randomized', n_iter=5, tol=0.0)
 	  X_all = pd.concat([X_test, X])
-	  print "Shape all data:",X_all.shape
+	  print("Shape all data:",X_all.shape)
 	  
 
 	  X_SVD=tsvd.fit_transform(X_all)
 	  X_all=pd.DataFrame(np.asarray(X_SVD),index=X_all.index)
-	  print "Shape all data, transformed:",X_all.shape
+	  print("Shape all data, transformed:",X_all.shape)
 	  
 	  X = X_all[len(X_test.index):]
 	  X_test = X_all[:len(X_test.index)]
 
 
 	      
-	  print "Shape train data, transformed:",X.shape
-	  print "Shape test data, transformed:",X_test.shape
+	  print("Shape train data, transformed:",X.shape)
+	  print("Shape test data, transformed:",X_test.shape)
     
     if kmeans is not None:
-	  print "Create kmeans features k=",kmeans
+	  print("Create kmeans features k=",kmeans)
 	  #kmeans_job = KMeans(init='k-means++', n_clusters=kmeans, n_init=3,n_jobs=4)
 	  kmeans_job = MiniBatchKMeans(init='k-means++', n_clusters=kmeans, n_init=3,n_jobs=4)
 	  X_all = pd.concat([X_test, X])
-	  print "Shape all data:",X_all.shape
+	  print("Shape all data:",X_all.shape)
 	  kmeans_job.fit(X_all)
 	  ck = kmeans_job.cluster_centers_
-	  print "Cluster centers:",ck.shape
+	  print("Cluster centers:",ck.shape)
 	  
 	  X_kmeans = kmeans_job.transform(X_all)
 	  X_all=pd.DataFrame(np.asarray(X_kmeans),index=X_all.index)
@@ -179,16 +179,16 @@ def prepareData(subset=1000,loadTempData=False,extractFeatures=False,maxPixel = 
 	X_test = attachFeatures(X_test,X_test_feat)
     
     if useOnlyFeats:
-	print "Use only add. features."
+	print("Use only add. features.")
 	X = X_feat
 	X_test = X_test_feat
 	  
     if standardize==True:
-      print "Standardize data..."
+      print("Standardize data...")
       X,X_test = scaleData(X,X_test,normalize=True)
 
     if convolution:
-      print X.shape
+      print(X.shape)
       X = doConvolution(X,maxPixel=maxPixel)
     
 #    if standardize==True:
@@ -200,8 +200,8 @@ def prepareData(subset=1000,loadTempData=False,extractFeatures=False,maxPixel = 
     #X_test.to_csv('test_tmp.csv')
     #y.to_csv('labels_tmp.csv')
     
-  print "Final Shape X:",X.shape, " size (MB):",float(X.values.nbytes)/1.0E6
-  print "Final Shape X_test:",X_test.shape, " size (MB):",float(X_test.values.nbytes)/1.0E6
+  print("Final Shape X:",X.shape, " size (MB):",float(X.values.nbytes)/1.0E6)
+  print("Final Shape X_test:",X_test.shape, " size (MB):",float(X_test.values.nbytes)/1.0E6)
   #print "Shape y:",y.shape
   class_names = getClassNames()
   return X,y,class_names,X_test
@@ -237,18 +237,18 @@ def makeAlignment(lX,lX_orient,lX_centerx,lX_centery,maxPixel,crop=2):
 	#showImage(img_new,maxPixel,fac=10,matrix=True)
 	lX_new[i]=img_new.ravel().astype('float32')
 
-    print("Alignment done in %0.3fs" % (time() - t0))
+    print(("Alignment done in %0.3fs" % (time() - t0)))
     lX_new = pd.DataFrame(lX_new,columns = names,dtype=np.float32)
-    print lX_new.shape
-    print lX_new.describe()
+    print(lX_new.shape)
+    print(lX_new.describe())
     return lX_new
     
 
 def extractBlocks(npatches,blocksize=4):
     side_length = np.sqrt(npatches)
-    print "side_length,patches",side_length
+    print("side_length,patches",side_length)
     if not side_length.is_integer():
-      print "ERROR: no integer side length!"
+      print("ERROR: no integer side length!")
       sys.exit(1)
     else:
       side_length = int(side_length)
@@ -256,7 +256,7 @@ def extractBlocks(npatches,blocksize=4):
     blocks = view_as_blocks(m,(blocksize,blocksize))
     
     blocks = np.reshape(blocks, (blocks.shape[0]*blocks.shape[1],blocksize*blocksize))
-    print "Extracting ",blocks.shape[0]," blocks:",blocksize,"X",blocksize
+    print("Extracting ",blocks.shape[0]," blocks:",blocksize,"X",blocksize)
 
     return blocks
     
@@ -285,21 +285,21 @@ def doConvolution(lX,ly=None,maxPixel=None,patchSize=5,n_components=15,stride=2,
     
     #data_type='float32'
     
-    print "Image width:",maxPixel
-    print "Image height:",maxPixel
-    print "Pad         :",pad
-    print "Patch size  :",patchSize
-    print "Stride      :",stride
-    print "PCA components:",n_components
-    print "Pooling:",pooling
-    print "Pooling patches blocksize:",blocksize
+    print("Image width:",maxPixel)
+    print("Image height:",maxPixel)
+    print("Pad         :",pad)
+    print("Patch size  :",patchSize)
+    print("Stride      :",stride)
+    print("PCA components:",n_components)
+    print("Pooling:",pooling)
+    print("Pooling patches blocksize:",blocksize)
       
     #npatches = (maxPixel - patchSize +1+2*pad)*(maxPixel - patchSize +1+2*pad)/stride
     npatchesx = (maxPixel+2*pad - patchSize)/stride +1
     npatches = npatchesx * npatchesx
-    print "number of patches:",npatches
+    print("number of patches:",npatches)
     
-    print "Original shape:",lX.shape, " size (MB):",float(lX.values.nbytes)/1.0E6, " dtype:",lX.values.dtype
+    print("Original shape:",lX.shape, " size (MB):",float(lX.values.nbytes)/1.0E6, " dtype:",lX.values.dtype)
     tmpy=[]    
     t0 = time()
     #data = np.zeros((lX.shape[0],npatches,patchSize*patchSize),dtype=np.float32)
@@ -320,11 +320,11 @@ def doConvolution(lX,ly=None,maxPixel=None,patchSize=5,n_components=15,stride=2,
 	#data.append(patches)
 
 
-    print("Extract patches done in %0.3fs" % (time() - t0))
+    print(("Extract patches done in %0.3fs" % (time() - t0)))
     
     data = np.reshape(data,(lX.shape[0]*npatches,patchSize*patchSize))
     
-    print "Extract patches, new shape:",data.shape, " size (MB):",float(data.nbytes)/1.0E6, " dtype:",data.dtype
+    print("Extract patches, new shape:",data.shape, " size (MB):",float(data.nbytes)/1.0E6, " dtype:",data.dtype)
     
     #if whiten_pca:
     #  print "Intermediate PCA!"
@@ -342,7 +342,7 @@ def doConvolution(lX,ly=None,maxPixel=None,patchSize=5,n_components=15,stride=2,
     #pca = MiniBatchDictionaryLearning(n_components=n_components,alpha=0.5,n_jobs=4)
     #pca = SparseCoder(dictionary=pca0.cluster_centers_,transform_n_nonzero_coefs=n_components,transform_algorithm='lars',transform_alpha=None,n_jobs=4)
     pca = SparseCoder(dictionary=pca0.cluster_centers_,transform_n_nonzero_coefs=n_components,transform_algorithm='omp',transform_alpha=None,n_jobs=4)
-    print pca
+    print(pca)
     data = pca.fit_transform(data)     
     #transform data to 64bit!!!
     
@@ -351,14 +351,14 @@ def doConvolution(lX,ly=None,maxPixel=None,patchSize=5,n_components=15,stride=2,
     
 
     if isinstance(pca,RandomizedPCA):
-      print "PCA components shape:",pca.components_.shape
-      print("Explained variance",pca.explained_variance_ratio_.sum())
+      print("PCA components shape:",pca.components_.shape)
+      print(("Explained variance",pca.explained_variance_ratio_.sum()))
       plt.plot(pca.explained_variance_ratio_)
       plt.show()
       
     if isinstance(pca,MiniBatchKMeans):
       ck = pca.cluster_centers_
-      print "Cluster centers (aka dictionary D (ncomponents x nfeatures) S aka code (nsamples x ncomponents):  SD=Xi):",ck.shape
+      print("Cluster centers (aka dictionary D (ncomponents x nfeatures) S aka code (nsamples x ncomponents):  SD=Xi):",ck.shape)
     
     if showEigenImages:
       #eigenfaces = pca.components_.reshape((n_components, patchSize, patchSize)) 
@@ -378,14 +378,14 @@ def doConvolution(lX,ly=None,maxPixel=None,patchSize=5,n_components=15,stride=2,
       #	  showImage(img,patchSize,fac=10,matrix=True)
     #  
     #print "Eigen patches shape:",eigenfaces.shape
-    print "Extracted patches, after PCA shape:",data.shape, " size (MB):",float(data.nbytes)/1.0E6, " dtype:",data.dtype
+    print("Extracted patches, after PCA shape:",data.shape, " size (MB):",float(data.nbytes)/1.0E6, " dtype:",data.dtype)
     
     ##pooling
     nsamples = data.shape[0]/npatches
-    print "number of samples",nsamples
+    print("number of samples",nsamples)
     
     data = np.reshape(data, (nsamples,npatches,-1))
-    print "New shape:",data.shape      
+    print("New shape:",data.shape)      
 
     masks = extractBlocks(npatches,blocksize=blocksize)
     #print masks
@@ -412,10 +412,10 @@ def doConvolution(lX,ly=None,maxPixel=None,patchSize=5,n_components=15,stride=2,
       
     #data = np.concatenate(tmp, axis=0) 
     data = np.asarray(tmp)
-    print "New shape after pooling:",data.shape, " size (MB):",float(data.nbytes)/1.0E6
+    print("New shape after pooling:",data.shape, " size (MB):",float(data.nbytes)/1.0E6)
   
     lX = pd.DataFrame(data,dtype=np.float32)
-    print "datatype:",lX.dtypes[0]
+    print("datatype:",lX.dtypes[0])
     if ly is not None:
       return (lX,ly)
     else:
@@ -427,8 +427,8 @@ def makeBriefFeatures(lX,maxPixel):
     #http://stackoverflow.com/questions/7232651/how-does-opencv-orb-feature-detector-work
     #http://stackoverflow.com/questions/7232651/how-does-opencv-orb-feature-detector-work
     #http://stackoverflow.com/questions/10168686/algorithm-improvement-for-coca-cola-can-shape-recognition/10169025#10169025
-    print "Make Brief Descriptors"
-    print cv2.__version__
+    print("Make Brief Descriptors")
+    print(cv2.__version__)
     #orb = cv2.ORB(nfeatures=500)
     surf = cv2.SURF(4000)#http://docs.opencv.org/trunk/doc/py_tutorials/py_feature2d/py_surf_intro/py_surf_intro.html
     #fast = cv2.FastFeatureDetector()
@@ -439,10 +439,10 @@ def makeBriefFeatures(lX,maxPixel):
     for row in lX.values:
       #32bit float grayscale
       img = np.reshape(row, (maxPixel, maxPixel)).astype("float32")#!!!
-      print img.shape
+      print(img.shape)
       showImage(img,maxPixel,fac=10,matrix=True)
       img2 = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-      print img2.shape
+      print(img2.shape)
       showImage(img2,maxPixel,fac=10,matrix=True)
 
       #8bit int grayscale
@@ -458,8 +458,8 @@ def makeBriefFeatures(lX,maxPixel):
       #kp, des = brief.compute(img, kp)
       #kp = fast.detect(img,None)
       
-      print "Keyp",kp
-      print "des",des
+      print("Keyp",kp)
+      print("des",des)
       
       #img2 = cv2.drawKeypoints(img,kp,color=(0,255,0), flags=0)
       img = cv2.drawKeypoints(img, kp, color=(255,0,0))
@@ -471,31 +471,31 @@ def attachFeatures(lX,lX_feat):
     """
     attach and multiply extra features
     """
-    print "Attach extra features."
+    print("Attach extra features.")
     factor = lX.shape[0]/lX_feat.shape[0]-1
-    print "factor:",factor
+    print("factor:",factor)
     
     X_tmp = lX_feat.copy()
-    for i in xrange(factor):
+    for i in range(factor):
 	
 	lX_feat = pd.concat([lX_feat,X_tmp.copy()],axis=0)
     
     
-    print "X FEAT:",lX_feat.shape
+    print("X FEAT:",lX_feat.shape)
     lX_feat.index = lX.index
     
     lX = pd.concat([lX,lX_feat],axis=1)
   
-    print "X SHAPE:",lX.shape
+    print("X SHAPE:",lX.shape)
     return lX
 
 def splitFrame(lX,n_features):
-    print "Remove extra features..."
+    print("Remove extra features...")
     X_pure = lX.iloc[:,:-n_features]
     X_feat = lX.iloc[:,-n_features:] 
-    print "PURE",X_pure.shape
-    print "FEATURES",X_feat.shape
-    print X_feat.columns
+    print("PURE",X_pure.shape)
+    print("FEATURES",X_feat.shape)
+    print(X_feat.columns)
     return X_pure, X_feat
     
 
@@ -546,7 +546,7 @@ def makeRowProps(imageName,imageSize,lX,row,dilation=4):
     
 
 def createFeatures(maxPixel = 25,location="train",dilation=4,appendFeats=True):
-    print "Extracting features for ",location,"  dilation:",dilation," maxpixel:",maxPixel 
+    print("Extracting features for ",location,"  dilation:",dilation," maxpixel:",maxPixel) 
     #get the total training images
     numberofImages = 0
     
@@ -571,7 +571,7 @@ def createFeatures(maxPixel = 25,location="train",dilation=4,appendFeats=True):
 		continue
 	     numberofImages += 1
 
-    print ", number of images:",numberofImages
+    print(", number of images:",numberofImages)
     
     imageSize = maxPixel * maxPixel
     if appendFeats:
@@ -583,7 +583,7 @@ def createFeatures(maxPixel = 25,location="train",dilation=4,appendFeats=True):
     lX = np.zeros((numberofImages, num_features), dtype=float)
 
 
-    print "Reading images"
+    print("Reading images")
     # Navigate through the list of directories
     i = 0
     testFiles=[]
@@ -591,7 +591,7 @@ def createFeatures(maxPixel = 25,location="train",dilation=4,appendFeats=True):
 	# Append the string class name for each class
 	if 'train' in location: 
 	    currentClass = folder.split(os.pathsep)[-1]
-	    print "Label: %4d Class: %-32s"%(label,currentClass)
+	    print("Label: %4d Class: %-32s"%(label,currentClass))
 	  
 	    for fileNameDir in os.walk(folder):
 		for fileName in fileNameDir[2]:
@@ -624,12 +624,12 @@ def createFeatures(maxPixel = 25,location="train",dilation=4,appendFeats=True):
 	  testFiles.append(fileName)
 	  i += 1
 	  if i%5000==0:
-	    print "i: %4d image: %-32s"%(i,folder)
+	    print("i: %4d image: %-32s"%(i,folder))
 	  
-    print "done"
+    print("done")
     #create dataframes
     # Loop through the classes two at a time and compare their distributions of the Width/Length Ratio
-    colnames = [ "p"+str(x+1) for x in xrange(lX.shape[1]-n_addFeats)]
+    colnames = [ "p"+str(x+1) for x in range(lX.shape[1]-n_addFeats)]
     if appendFeats:
       colnames = colnames + ['axisratio','area','euler_number','perimeter','convex_area','eccentricity','equivalent_diameter','extent','filled_area','orientation','solidity','nregions']
       colnames = colnames + ['inertia_te1','inertia_te2','moments_hu1','moments_hu2','moments_hu3','moments_hu4','moments_hu5','moments_hu6','moments_hu7','centroidx','centroidy']
@@ -639,11 +639,11 @@ def createFeatures(maxPixel = 25,location="train",dilation=4,appendFeats=True):
 	colnames.append('label')
 	ly = pd.DataFrame(ly)
 	df = pd.concat([df, ly],axis=1,ignore_index=True)
-    print "Final shape of (incl. labels)",location," :",df.shape
+    print("Final shape of (incl. labels)",location," :",df.shape)
     df.columns = colnames 
     #df.label.hist()
     df.to_csv('competition_data/'+location+'_'+str(maxPixel)+'.csv')
-    print df.describe()
+    print(df.describe())
     return df
     
 
@@ -686,11 +686,11 @@ def getImageFeatures(image,pdilation=4):
     ratio = 0.0
     try:
       if ((not maxregion is None) and  (maxregion.major_axis_length != 0.0)):
-	  if maxregion.minor_axis_length<0: print maxregion.minor_axis_length
-	  if maxregion.major_axis_length<0: print maxregion.major_axis_length
+	  if maxregion.minor_axis_length<0: print(maxregion.minor_axis_length)
+	  if maxregion.major_axis_length<0: print(maxregion.major_axis_length)
 	  ratio = 0.0 if maxregion is None else  maxregion.minor_axis_length*1.0 / maxregion.major_axis_length
     except ValueError:
-	  print "Some internal error with this image..."
+	  print("Some internal error with this image...")
 	  
     area = 0.0
     if hasattr(maxregion,'area'):
@@ -788,13 +788,13 @@ def multiclass_log_loss(y_true, y_pred, eps=1e-15):
 
 def testRBM():
   X = np.array([[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 1]])
-  print X
+  print(X)
   model = BernoulliRBM(n_components=2)
   model.fit(X)
-  print dir(model)
-  print model.transform(X)
-  print model.score_samples(X)
-  print model.gibbs
+  print(dir(model))
+  print(model.transform(X))
+  print(model.score_samples(X))
+  print(model.gibbs)
 
 def calcEntropy(img):
     #hist,_ = np.histogram(img, np.arange(0, 256), normed=True)
@@ -815,8 +815,8 @@ def entropyJob(row,maxPixel):
       result2 = np.zeros(img.shape, dtype=np.float32)
       h, w = img.shape
       subwin_size = 5
-      for y in xrange(subwin_size, h-subwin_size):
-	for x in xrange(subwin_size, w-subwin_size):
+      for y in range(subwin_size, h-subwin_size):
+	for x in range(subwin_size, w-subwin_size):
 	    subwin = img[y-subwin_size:y+subwin_size, x-subwin_size:x+subwin_size]
 	    entropy = calcEntropy(subwin)    # Calculate entropy
 	    result2.itemset(y,x,entropy)
@@ -828,15 +828,15 @@ def entropyJob(row,maxPixel):
 
 #http://stackoverflow.com/questions/16647116/faster-way-to-analyze-each-sub-window-in-an-image
 def makeExtraFeatures(lX,maxPixel):
-    print "Make Extra Descriptors"
+    print("Make Extra Descriptors")
     tmp = np.apply_along_axis(entropyJob, 1, lX,maxPixel)
     tmp = pd.DataFrame(tmp)
-    colnames = [ 'entr'+str(x) for x in xrange(tmp.shape[1]) ]
+    colnames = [ 'entr'+str(x) for x in range(tmp.shape[1]) ]
     tmp.columns = colnames
     tmp = removeLowVariance(tmp)
-    print tmp.describe()
+    print(tmp.describe())
     lX = pd.concat([lX,tmp],axis=1)
-    print "Shape after entropy features:",lX.shape
+    print("Shape after entropy features:",lX.shape)
     return lX
 
 
@@ -877,7 +877,7 @@ def makeRotation(lX, ly=None,maxPixel=25):
     tmp2 = np.asarray([np.apply_along_axis(flipJob, 1, lX, m) for m in mode])
     newn = tmp2.shape[0]*tmp2.shape[1]
     tmp2 = np.reshape(tmp2,(newn,maxPixel*maxPixel))
-    print "Shape tmp2:",tmp2.shape
+    print("Shape tmp2:",tmp2.shape)
     
     #showImage(lX[44],maxPixel,10)
     #showImage(tmp[44],maxPixel,10)
@@ -886,10 +886,10 @@ def makeRotation(lX, ly=None,maxPixel=25):
     lX = pd.DataFrame(lX,columns=names)
     if ly is not None: ly = pd.Series(np.concatenate([ly for _ in range(6)], axis=0))
   
-    print "Shape X after rotation:",lX.shape
+    print("Shape X after rotation:",lX.shape)
     
     if ly is not None:
-      print "Shape y after rotation:",ly.shape
+      print("Shape y after rotation:",ly.shape)
       return lX,ly
     else:
       return lX
@@ -926,8 +926,8 @@ def nudge_dataset(lX, ly,maxPixel=25,dilation=4):
     lX = lX.values[:,0:imageSize]
     
     
-    print "Shape before nudging:"
-    print lX.shape
+    print("Shape before nudging:")
+    print(lX.shape)
     
     direction_vectors = [
         [[0, 1, 0],
@@ -957,8 +957,8 @@ def nudge_dataset(lX, ly,maxPixel=25,dilation=4):
     lX = pd.DataFrame(lX,columns=names)
     
     #recompute other features  
-    print "Shape after nudging:"
-    print X_new.shape
+    print("Shape after nudging:")
+    print(X_new.shape)
     ly = pd.Series(np.concatenate([ly for _ in range(4)], axis=0))
     return X_new, ly
 
@@ -968,7 +968,7 @@ def showClasses(Xtrain, ytrain, shownames=None,class_names=None,maxPixel=25,fac=
   for name in shownames:
     if name in class_names:
       label = class_names.index(name)
-      print name
+      print(name)
       idx = ytrain == label
       Xtmp = Xtrain.loc[idx,:].values
       Xtmp = Xtmp[:,0:imageSize]
@@ -986,8 +986,8 @@ def showClasses(Xtrain, ytrain, shownames=None,class_names=None,maxPixel=25,fac=
 
 #@profile
 def buildModelMLL(clf,lX,ly,class_names,trainFull=True):
-  print "Training the model..."
-  print clf
+  print("Training the model...")
+  print(clf)
   ly = ly.values
   lX = lX.values
   multiplier = 4
@@ -996,8 +996,8 @@ def buildModelMLL(clf,lX,ly,class_names,trainFull=True):
   #we do not want to have leakage in cv
   #labels = np.repeat(numpy.random.shuffle(numpy.arange(lX.shape[0]/4),lX.shape[0]/multiplier)
   labels = np.tile(np.random.randint(0,5,lX.shape[0]/4),4)
-  print labels
-  print "shape labels:",labels.shape
+  print(labels)
+  print("shape labels:",labels.shape)
   
   #cv = LeavePLabelOut(labels,1)
   #cv = StratifiedShuffleSplit(ly, n_iter=10, test_size=0.5)
@@ -1013,11 +1013,11 @@ def buildModelMLL(clf,lX,ly,class_names,trainFull=True):
       ypred[test] = clf.predict(lX[test,:])
       yproba[test] = clf.predict_proba(lX[test,:])
       mll = multiclass_log_loss(ly[test], yproba[test])
-      print "train set: ",i," shape: ",lX[train,:].shape, " mll:",mll
+      print("train set: ",i," shape: ",lX[train,:].shape, " mll:",mll)
       
-  print classification_report(ly, ypred, target_names=class_names)
+  print(classification_report(ly, ypred, target_names=class_names))
   mll = multiclass_log_loss(ly, yproba)
-  print "multiclass logloss: %6.2f" %(mll)
+  print("multiclass logloss: %6.2f" %(mll))
   #training on all data
   if trainFull:
     clf.fit(lX, ly)
@@ -1025,13 +1025,13 @@ def buildModelMLL(clf,lX,ly,class_names,trainFull=True):
 
 
 def makeSubmission(model,Xtest,class_names,filename='subXX.csv',zipping=False):
-  print "Preparing submission..."
+  print("Preparing submission...")
   ref = pd.read_csv('competition_data/submissions/cxx_preds2.csv', sep=",", na_values=['?'],index_col=0)
   nrows = ref.shape[0]
   
   if (Xtest.shape[0]>nrows):
     n_frames = Xtest.shape[0] / nrows
-    print "We have to average prediction results on:", n_frames," replications."   
+    print("We have to average prediction results on:", n_frames," replications.")   
     preds_all = np.zeros((n_frames,nrows,ref.shape[1]))
     #tmp = Xtest.values
     #tmp = np.reshape(tmp, (rows, ref.shape[1]*n_frames), order='F')    
@@ -1039,14 +1039,14 @@ def makeSubmission(model,Xtest,class_names,filename='subXX.csv',zipping=False):
     #print "New frame:",tmp.shape # should be
     idx_s = 0
     idx_end = nrows
-    for i in xrange(n_frames):
+    for i in range(n_frames):
 	Xtest_act = Xtest.iloc[idx_s:idx_end,:]
 	preds_all[i,:,:] = model.predict_proba(Xtest_act)
 	idx_s = idx_end
 	idx_end = idx_end + nrows
     
     preds = np.mean(preds_all,axis=0)
-    print "Final shape:",preds.shape
+    print("Final shape:",preds.shape)
 	
   else:  
     preds = model.predict_proba(Xtest)
@@ -1060,7 +1060,7 @@ def makeSubmission(model,Xtest,class_names,filename='subXX.csv',zipping=False):
 
   preds = pd.DataFrame(preds,index=row_names,columns=class_names)
 
-  print preds.describe()
+  print(preds.describe())
   
   filename = 'competition_data/submissions/'+filename
   preds.to_csv(filename,index_label='image')
@@ -1070,7 +1070,7 @@ def makeSubmission(model,Xtest,class_names,filename='subXX.csv',zipping=False):
 	myzip.write(filename)
   
   
-  print ref.describe()
+  print(ref.describe())
   
   ax1 = ref.iloc[:,2:10].hist(bins=40)
   plt.title('ref')
@@ -1100,12 +1100,12 @@ def makeGridSearch(lmodel,lX,ly,n_jobs=1):
     clf  = grid_search.GridSearchCV(lmodel, parameters,n_jobs=1,verbose=1,scoring=score_fnc,cv=cv,refit=False)
     clf.fit(lX,ly)
     best_score=1.0E5
-    print("%6s %6s %6s %r" % ("OOB", "MEAN", "SDEV", "PARAMS"))
+    print(("%6s %6s %6s %r" % ("OOB", "MEAN", "SDEV", "PARAMS")))
     for params, mean_score, cvscores in clf.grid_scores_:
 	oob_score = mean_score
 	cvscores = cvscores
 	mean_score = cvscores.mean()
-	print("%6.3f %6.3f %6.3f %r" % (oob_score, mean_score, cvscores.std(), params))
+	print(("%6.3f %6.3f %6.3f %r" % (oob_score, mean_score, cvscores.std(), params)))
 	#if mean_score < best_score:
 	#    best_score = mean_score
 	#    scores[i,:] = cvscores
@@ -1116,9 +1116,9 @@ if __name__=="__main__":
   np.random.seed(42)
   
   t0 = time() 
-  print "numpy:",np.__version__
-  print "pandas:",pd.__version__
-  print "sklearn:",sl.__version__
+  print("numpy:",np.__version__)
+  print("pandas:",pd.__version__)
+  print("sklearn:",sl.__version__)
   
   pd.set_option('display.max_columns', 14)
   pd.set_option('display.max_rows', 40)
@@ -1147,8 +1147,8 @@ if __name__=="__main__":
   
   Xtrain, ytrain, class_names,Xtest = prepareData(subset=subset,loadTempData=loadTempData,extractFeatures=extractFeatures,maxPixel = maxPixel,doSVD=doSVD,subsample=subsample,nudgeData=nudgeData,dilation=dilation,kmeans=dokmeans,randomRotate=randomRotate,useOnlyFeats=useOnlyFeats,stripFeats=stripFeats,createExtraFeatures=createExtraFeatures,convolution=convolution,alignImages=alignImages,standardize=standardize,location=location)
   Xtrain = scaleData(Xtrain)
-  print "Xtrain dtype:",Xtrain.dtypes[0]
-  print "ytrain dtype:",ytrain.dtype
+  print("Xtrain dtype:",Xtrain.dtypes[0])
+  print("ytrain dtype:",ytrain.dtype)
   
   model =  RandomForestClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=5,criterion='gini', max_features='auto',oob_score=False)
   #model = SGDClassifier(loss="log", eta0=1.0, learning_rate="constant",n_iter=5, n_jobs=4, penalty=None, shuffle=False)#~percetpron
@@ -1186,5 +1186,5 @@ if __name__=="__main__":
   
   
   #testRBM()
-  print("Model building done on in %fs" % (time() - t0))
+  print(("Model building done on in %fs" % (time() - t0)))
   plt.show()

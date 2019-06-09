@@ -26,28 +26,27 @@ import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=DeprecationWarning)
     from sklearn.utils import shuffle
-    from sklearn import cross_validation, grid_search
     from sklearn.model_selection import cross_val_score
-    from sklearn.cross_validation import StratifiedKFold, KFold, LabelKFold, LabelShuffleSplit,  StratifiedShuffleSplit, ShuffleSplit, train_test_split, \
-        LeavePLabelOut
+    from sklearn.model_selection import StratifiedKFold, KFold, GroupKFold, GroupShuffleSplit,  StratifiedShuffleSplit, ShuffleSplit, train_test_split, \
+        LeavePGroupsOut
     from sklearn.metrics import roc_auc_score, classification_report, make_scorer, f1_score, precision_score, \
         mean_squared_error, accuracy_score, log_loss, cohen_kappa_score
     from sklearn.preprocessing import StandardScaler, PolynomialFeatures, OneHotEncoder, RobustScaler
     from sklearn.pipeline import Pipeline
     from sklearn.feature_selection import SelectKBest, SelectPercentile, chi2, f_classif, f_regression, \
         GenericUnivariateSelect, VarianceThreshold, RFECV
-    from sklearn.learning_curve import learning_curve
+    from sklearn.model_selection import learning_curve
     # import models
     from sklearn.base import BaseEstimator, TransformerMixin, clone
     from sklearn.dummy import DummyRegressor,DummyClassifier
     from sklearn.naive_bayes import BernoulliNB, MultinomialNB, GaussianNB
     from sklearn.cluster import k_means
     from sklearn.isotonic import IsotonicRegression
-    from sklearn.linear_model import LogisticRegression,LogisticRegressionCV, RandomizedLogisticRegression, SGDClassifier, Perceptron, \
+    from sklearn.linear_model import LogisticRegression,LogisticRegressionCV,  SGDClassifier, Perceptron, \
         SGDRegressor, RidgeClassifier, LinearRegression, Ridge, BayesianRidge, ElasticNet, RidgeCV, LassoLarsCV, Lasso, \
         LassoCV, LassoLars, LarsCV, ElasticNetCV
     from sklearn.cross_decomposition import PLSRegression, PLSSVD
-    from sklearn.decomposition import TruncatedSVD, PCA, RandomizedPCA, FastICA, MiniBatchSparsePCA, SparseCoder, \
+    from sklearn.decomposition import TruncatedSVD, PCA,  FastICA, MiniBatchSparsePCA, SparseCoder, \
         DictionaryLearning, MiniBatchDictionaryLearning
     from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, ExtraTreesClassifier, \
         AdaBoostClassifier, ExtraTreesRegressor, GradientBoostingRegressor, BaggingRegressor, BaggingClassifier, \
@@ -94,11 +93,11 @@ def showCorrelations(X, steps=3):
     idx_a = 0
     idx_b = n / steps
 
-    for i in xrange(steps):
-        print "a:%4d b: %4d" % (idx_a, idx_b)
+    for i in range(steps):
+        print("a:%4d b: %4d" % (idx_a, idx_b))
         d = X.iloc[:, idx_a:idx_b]
         corr = d.corr()
-        print corr
+        print(corr)
         # Generate a mask for the upper triangle
         mask = np.zeros_like(corr, dtype=np.bool)
         mask[np.triu_indices_from(mask)] = True
@@ -125,19 +124,19 @@ def showCorrelations(X, steps=3):
 
 
 def showAVGCorrelations(X_all):
-    print "Showing correlated columns"
+    print("Showing correlated columns")
     c = X_all.corr().abs()
 
     for row in range(len(c.index)):
         av1 = c.iloc[row, :].mean()  # row mean
-        print "model: %20s mean correl: %5.3f" % (c.index[row], av1)
+        print("model: %20s mean correl: %5.3f" % (c.index[row], av1))
 
 
 def calculate_vif(X,Xtest=None, thresh=10.0):
     """
     Remove correlations according to variance inflation factor
     """
-    variables = range(X.shape[1])
+    variables = list(range(X.shape[1]))
 
     dropped=True
     dropList=[]
@@ -147,21 +146,21 @@ def calculate_vif(X,Xtest=None, thresh=10.0):
         vif = []
         for ix in range(X.iloc[:,variables].shape[1]):
             tmp = variance_inflation_factor(X.iloc[:,variables].values, ix)
-            print "idx:%5d  Variable: %32s  vif=%16.2f"%(ix,X.iloc[:,variables].columns[ix],tmp)
+            print("idx:%5d  Variable: %32s  vif=%16.2f"%(ix,X.iloc[:,variables].columns[ix],tmp))
             vif.append(tmp)
 
         maxloc = vif.index(max(vif))
         if max(vif) > thresh:
             var = X.iloc[:,variables].columns[maxloc]
-            print('dropping \'' + var + '\' at index: ' + str(maxloc))
+            print(('dropping \'' + var + '\' at index: ' + str(maxloc)))
             dropList.append(var)
             del variables[maxloc]
             dropped=True
 
     print('Remaining variables:')
-    print(X.iloc[:,variables].columns)
+    print((X.iloc[:,variables].columns))
     X = X.iloc[:,variables]
-    print('Dropped variables (highest VIF first) %r'%(dropList))
+    print(('Dropped variables (highest VIF first) %r'%(dropList)))
     if Xtest is not None:
         Xtest = Xtest.iloc[:,variables]
         return X,Xtest
@@ -172,7 +171,7 @@ def removeCorrelations(X_all, X_test=None, X_valid=None, threshhold=0.99):
     """
     Remove correlations, we could improve it by only removing the variable frmo two showing the highest correlations with others
     """
-    print "Removing correlated columns with threshhold:", threshhold
+    print("Removing correlated columns with threshhold:", threshhold)
     if X_test is not None:
         X_test.columns = X_all.columns
         X_all = pd.concat([X_test, X_all], axis=0, ignore_index=True)
@@ -201,10 +200,10 @@ def removeCorrelations(X_all, X_test=None, X_valid=None, threshhold=0.99):
                     "%4.3f mean: (%4.3f/%4.3f)" % (c.iloc[row, col], av1, av2))
 
     drop_list=[]
-    for el in corcols.keys():
-        print "Dropped: %-32s due to: %32r" % (el, corcols[el])
+    for el in list(corcols.keys()):
+        print("Dropped: %-32s due to: %32r" % (el, corcols[el]))
         drop_list.append(el)
-    print drop_list
+    print(drop_list)
     X_all = X_all.drop(corcols, axis=1)
 
     if X_test is not None:
@@ -227,8 +226,8 @@ def makePredictions(lmodel, lXs_test, lidx, filename):
     """
     Uses priorily fit model to make predictions
     """
-    print "Saving predictions to: ", filename
-    print "Final test dataframe:", lXs_test.shape
+    print("Saving predictions to: ", filename)
+    print("Final test dataframe:", lXs_test.shape)
     preds = lmodel.predict_proba(lXs_test)[:, 1]
     pred_df = pd.DataFrame(preds, index=lidx, columns=['label'])
     pred_df.to_csv(filename)
@@ -240,7 +239,7 @@ def make_calibration(lmodel, Xtrain, ytrain):
     """
     calli_clf = CalibratedClassifierCV(lmodel, method='isotonic', cv=3)
     calli_clf.fit(Xtrain, ytrain)
-    print calli_clf.calibrated_classifiers_
+    print(calli_clf.calibrated_classifiers_)
 
 
 def analyzeModel(lmodel, feature_names):
@@ -249,13 +248,13 @@ def analyzeModel(lmodel, feature_names):
     """
     if hasattr(lmodel, 'coef_'):
         print("Analysis of data...")
-        print("Dimensionality: %d" % lmodel.coef_.shape[1])
-        print("Density: %4.3f" % density(lmodel.coef_))
+        print(("Dimensionality: %d" % lmodel.coef_.shape[1]))
+        print(("Density: %4.3f" % density(lmodel.coef_)))
         if feature_names is not None:
             top10 = np.argsort(lmodel.coef_)[0, -10:][::-1]
             # print model.coef_[top10b]
-            for i in xrange(top10.shape[0]):
-                print("Top %2d: coef: %0.3f %20s" % (i + 1, lmodel.coef_[0, top10[i]], feature_names[top10[i]]))
+            for i in range(top10.shape[0]):
+                print(("Top %2d: coef: %0.3f %20s" % (i + 1, lmodel.coef_[0, top10[i]], feature_names[top10[i]])))
 
 
 def sigmoid(z):
@@ -311,10 +310,10 @@ def weightedGridsearch(lmodel, lX, ly, lw, fitWithWeights=False, n_folds=5, useP
     clf_opt.fit(lX, ly)
     # dir(clf_opt)
     for params, mean_score, scores in clf_opt.grid_scores_:
-        print("%0.3f (+/- %0.3f) for %r" % (mean_score, scores.std(), params))
+        print(("%0.3f (+/- %0.3f) for %r" % (mean_score, scores.std(), params)))
 
     scores = cross_validation.cross_val_score(lmodel, lX, ly, fit_params=fit_params, scoring=local_scorer, cv=n_folds)
-    print "Score: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
+    print("Score: %0.4f (+/- %0.4f)" % (scores.mean(), scores.std()))
     return (clf_opt.best_estimator_)
 
 
@@ -325,10 +324,10 @@ def buildModel(clf, lX, ly, cv=None, scoring=None, n_jobs=1, trainFull=False, ve
     score = cross_validation.cross_val_score(clf, lX, ly, fit_params=None, scoring=scoring, cv=cv, n_jobs=n_jobs, verbose=2)
 
     if verbose:
-        print "cv-score: %6.4f +/- %6.4f" % (score.mean(), score.std())
-        print "all scores: %r" % (score)
+        print("cv-score: %6.4f +/- %6.4f" % (score.mean(), score.std()))
+        print("all scores: %r" % (score))
     if trainFull:
-        print "Train on all data..."
+        print("Train on all data...")
         clf.fit(lX, ly)
         return (clf)
     else:
@@ -343,7 +342,7 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
     """
   Final model building part
   """
-    print "Cross-validate the model ..."
+    print("Cross-validate the model ...")
 
     if isinstance(lX_df, pd.DataFrame):
         #lX = lX_df
@@ -364,7 +363,7 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
         sw = "nosw"
         if sample_weight is not None:
             sw = "sw"
-            print sample_weight
+            print(sample_weight)
             clf.fit(lX[train, :], ytrain, sample_weight=sample_weight[train])
         else:
             clf.fit(lX[train, :], ytrain)
@@ -382,14 +381,14 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
 
         #print "train set: %2d samples: %5d/%5d rmse: %6.4f  mean: %6.4f %s " % (
         #i, lX[train, :].shape[0], lX[test, :].shape[0], score2[i], score2[:i + 1].mean(), sw)
-        print "train set: %2d samples: %5d/%5d logloss: %6.4f  mean: %6.4f auc: %6.4f " % (
-            i, lX[train, :].shape[0], lX[test, :].shape[0], score1[i], score1[:i + 1].mean(), score2[i])
+        print("train set: %2d samples: %5d/%5d logloss: %6.4f  mean: %6.4f auc: %6.4f " % (
+            i, lX[train, :].shape[0], lX[test, :].shape[0], score1[i], score1[:i + 1].mean(), score2[i]))
         #showMisclass(ly[test],ypred[test],lX[test,:],index=lX_df.search_term[test],t=2.0)
 
     #print("MAE       :%6.4f +/-%6.4f" % (score1.mean(), score1.std()))
     #print("RMSE      :%6.4f +/-%6.4f" % (score2.mean(), score2.std()))
-    print("LOGLOSS   :%6.4f +/-%6.4f" % (score1.mean(), score1.std()))
-    print("ACC       :%6.4f +/-%6.4f" % (score2.mean(), score2.std()))
+    print(("LOGLOSS   :%6.4f +/-%6.4f" % (score1.mean(), score1.std())))
+    print(("ACC       :%6.4f +/-%6.4f" % (score2.mean(), score2.std())))
 
     # training on all data
     if refit:
@@ -413,13 +412,13 @@ def density(m):
     """
     if isinstance(m, pd.DataFrame) or isinstance(m, np.ndarray):
         nz = np.count_nonzero(m.values)
-        print "Non-zeros     : %12d" % (nz)
+        print("Non-zeros     : %12d" % (nz))
         te = m.shape[0] * m.shape[1]
-        print "Total elements: %12d" % (te)
-        print "Ratio         : %12.2f" % (float(nz) / float(te))
+        print("Total elements: %12d" % (te))
+        print("Ratio         : %12.2f" % (float(nz) / float(te)))
     else:
         entries = m.shape[0] * m.shape[1]
-        print "Density      : %12.3f" % (m.nnz / float(entries))
+        print("Density      : %12.3f" % (m.nnz / float(entries)))
 
 
 def buildWeightedModel(lmodel, lXs, ly, lw=None, fitWithWeights=True, n_folds=8, useProba=True, scale_wt=None, n_jobs=1,
@@ -432,21 +431,21 @@ def buildWeightedModel(lmodel, lXs, ly, lw=None, fitWithWeights=True, n_folds=8,
     fit_params['scoring_weight'] = lw
     fit_params['fitWithWeights'] = fitWithWeights
 
-    print "Xvalidation..."
+    print("Xvalidation...")
     scores = cross_validation.cross_val_score(lmodel, lXs, ly, fit_params=fit_params, scoring=local_scorer, cv=n_folds,
                                               n_jobs=n_jobs)
-    print "<SCORE>= %0.4f (+/- %0.4f)" % (scores.mean(), scores.std())
-    print "Building model with all instances..."
+    print("<SCORE>= %0.4f (+/- %0.4f)" % (scores.mean(), scores.std()))
+    print("Building model with all instances...")
 
     if fitWithWeights:
-        print "Use sample weights for final model..."
+        print("Use sample weights for final model...")
         lmodel.fit(lXs, ly, sample_weight=lw)
     else:
         lmodel.fit(lXs, ly)
 
     # analysis of final predictions
     if useProba:
-        print "Using predic_proba for final model..."
+        print("Using predic_proba for final model...")
         probs = lmodel.predict_proba(lXs)[:, 1]
         # plot it
         plt.hist(probs, label='final model', bins=50, color='b')
@@ -462,14 +461,14 @@ def compareList(X1, X2,col='question1',verbose=True, plotting=True):
     """
     uniq_train = X1[col].unique()
     uniq_test = X2[col].unique()
-    if verbose: print "In Train - total: %d unique values: %d %r:" % (X1.shape[0],uniq_train.shape[0], uniq_train[0])
-    if verbose: print "In Test - total: %d unique values: %d %r:" % (X2.shape[0],uniq_test.shape[0], uniq_test[0])
+    if verbose: print("In Train - total: %d unique values: %d %r:" % (X1.shape[0],uniq_train.shape[0], uniq_train[0]))
+    if verbose: print("In Test - total: %d unique values: %d %r:" % (X2.shape[0],uniq_test.shape[0], uniq_test[0]))
     isect = np.intersect1d(uniq_train, uniq_test)
-    if verbose: print "In Test/Train - intersect of unique values: %d (%4.2f of train) %r:" % (isect.shape[0], isect.shape[0]/float(uniq_train.shape[0])*100, isect[0])
+    if verbose: print("In Test/Train - intersect of unique values: %d (%4.2f of train) %r:" % (isect.shape[0], isect.shape[0]/float(uniq_train.shape[0])*100, isect[0]))
     only_train = np.in1d(uniq_train, isect, assume_unique=True, invert=True)
-    if verbose: print "In unique Train only : %d %r:" % (uniq_train[only_train].shape[0], uniq_train[only_train][0])
+    if verbose: print("In unique Train only : %d %r:" % (uniq_train[only_train].shape[0], uniq_train[only_train][0]))
     only_test = np.in1d(uniq_test, isect, assume_unique=True, invert=True)
-    if verbose: print "In unique Test only : %d %r:" % (uniq_test[only_test].shape[0], uniq_test[only_test][0])
+    if verbose: print("In unique Test only : %d %r:" % (uniq_test[only_test].shape[0], uniq_test[only_test][0]))
 
     if plotting:
         labels = 'Xtrain,only', 'Xtest,only', 'common'
@@ -493,12 +492,12 @@ def group_binary_data(lX, degree=2, append=True):
     """
     m, n = lX.shape
     new_data = None
-    combs = itertools.combinations(range(n), degree)
+    combs = itertools.combinations(list(range(n)), degree)
     for indices in combs:
-        print indices
+        print(indices)
         indices = lX.columns[list(indices)]
-        print indices
-        print lX[indices].head(30)
+        print(indices)
+        print(lX[indices].head(30))
         if not isinstance(new_data, pd.DataFrame):
             new_data = pd.DataFrame(lX[indices].apply(np.multiply, axis=1))
         else:
@@ -508,7 +507,7 @@ def group_binary_data(lX, degree=2, append=True):
         lX_reduced = pd.concat([lX,new_data],axis=1)
     else:
         lX_reduced = new_data
-    print "New test data:", lX_reduced.shape
+    print("New test data:", lX_reduced.shape)
     return lX_reduced
 
 
@@ -516,33 +515,33 @@ def group_binary_sparse(lXs, lXs_test, degree=2, append=True):
     """ 
     multiply columns of sparse data
     """
-    print "Columnwise min of data..."
+    print("Columnwise min of data...")
     # also transform old data
     # (Xold,Xold_test) = linearFeatureSelection(model,Xold,Xold_test,5000)
     Xtmp = sparse.vstack((lXs_test, lXs), format="csc")
     Xtmp = pd.DataFrame(np.asarray(Xtmp.todense()))
     new_data = None
     m, n = Xtmp.shape
-    for indices in itertools.combinations(range(n), degree):
+    for indices in itertools.combinations(list(range(n)), degree):
         indices = Xtmp.columns[list(indices)]
-        print indices
+        print(indices)
         if not isinstance(new_data, pd.DataFrame):
             new_data = pd.DataFrame(Xtmp[indices].apply(np.min, axis=1))
         else:
             new_data = pd.concat([new_data, pd.DataFrame(Xtmp[indices].apply(np.min, axis=1))], axis=1)
-        print new_data.shape
+        print(new_data.shape)
 
     # making test data
     Xreduced_test = new_data[:lXs_test.shape[0]]
     if append:
         Xreduced_test = sparse.hstack((lXs_test, Xreduced_test), format="csr")
-    print "New test data:", Xreduced_test.shape
+    print("New test data:", Xreduced_test.shape)
 
     # making train data
     Xreduced = new_data[lXs.shape[0]:]
     if append:
         Xreduced = sparse.hstack((lXs, Xreduced), format="csr")
-    print "New test data:", Xreduced.shape
+    print("New test data:", Xreduced.shape)
     return (Xreduced, Xreduced_test)
 
 
@@ -550,7 +549,7 @@ def featureImportance(clf, X, y):
     """
     New function for GradientBoostingClassifier
     """
-    print "New feature importance..."
+    print("New feature importance...")
     clf.fit(X, y)
 
     # Plot feature importance
@@ -571,21 +570,21 @@ def rfFeatureImportance(forest, Xold, Xold_test, n):
     """ 
     Selects n best features from a model which has the attribute feature_importances_ is it buggy?
     """
-    print "Feature importance..."
+    print("Feature importance...")
     if not hasattr(forest, 'feature_importances_'):
-        print "Missing attribute feature_importances_ ...leaving"
+        print("Missing attribute feature_importances_ ...leaving")
         # return
     importances = forest.feature_importances_
     std = np.std([tree.feature_importances_ for tree in forest.estimators_], axis=0)  # perhas we need it later
 
     indices = np.argsort(importances)[::-1]
-    print indices
+    print(indices)
     # Print the feature ranking
     print("Feature ranking:")
 
-    print("%3s %-30s %3s %10s %6s" % ("nr", "feature", "id", "importance", "std"))
+    print(("%3s %-30s %3s %10s %6s" % ("nr", "feature", "id", "importance", "std")))
     for i, f in enumerate(indices):
-        print("%3d %-30s %3d %10.4f %6.4f" % (i + 1, Xold.columns[f], f, importances[f], std[f]))
+        print(("%3d %-30s %3d %10.4f %6.4f" % (i + 1, Xold.columns[f], f, importances[f], std[f])))
 
     # Plot the feature importances of the forest  
     plt.bar(left=np.arange(len(indices)), height=importances[indices], width=0.35, color='r', yerr=std[indices])
@@ -595,17 +594,17 @@ def rfFeatureImportance(forest, Xold, Xold_test, n):
     Xreduced = pd.concat([Xold_test, Xold])
     # sorting features
     n = len(indices) - n
-    print "Selection of ", n, " top features..."
+    print("Selection of ", n, " top features...")
     Xreduced = Xreduced.iloc[:, indices[0:n]]
-    print Xreduced.columns
+    print(Xreduced.columns)
     # split train and test data
     # pd slicing sometimes confusing...last element in slicing is inclusive!!! use iloc for integer indexing (i.e. in case index are float or not ordered)
     pdrowidx = Xold_test.shape[0] - 1
     Xreduced_test = Xreduced[:len(Xold_test.index)]
     Xreduced = Xreduced[len(Xold_test.index):]
     # print "Xreduced_test:",Xreduced_test
-    print "Xreduced_test:", Xreduced_test.shape
-    print "Xreduced_train:", Xreduced.shape
+    print("Xreduced_test:", Xreduced_test.shape)
+    print("Xreduced_train:", Xreduced.shape)
     return (Xreduced, Xreduced_test)
 
 
@@ -613,18 +612,18 @@ def xgbFeatureImportance(clf, X, y):
     """
     Selects n best features, strange importances...
     """
-    print "XGB Feature importance..."
+    print("XGB Feature importance...")
     clf.fit(X, y)
 
     fmap = clf.get_fscore()
     importances = np.zeros(X.shape[1])
 
-    for i, (k, v) in enumerate(fmap.iteritems()):
+    for i, (k, v) in enumerate(fmap.items()):
         idx = int(float(k.replace("f", "")))
-        print "k", k
-        print "feature", idx
-        print "importance", v
-        print "name:", X.columns[idx]
+        print("k", k)
+        print("feature", idx)
+        print("importance", v)
+        print("name:", X.columns[idx])
         # print indices[i]
         importances[idx] = v
     # print X.columns[indices[i]]
@@ -632,11 +631,11 @@ def xgbFeatureImportance(clf, X, y):
     # indices = indices.astype(int)
 
     for i, f in enumerate(indices):
-        print("%3d. feature %16s %3d - %6.4f" % (i, X.columns[f], f, importances[f]))
+        print(("%3d. feature %16s %3d - %6.4f" % (i, X.columns[f], f, importances[f])))
 
-    print fmap
-    fscore = [(v, k) for k, v in fmap.iteritems()]
-    print "fscore", fscore.sort(reverse=True)
+    print(fmap)
+    fscore = [(v, k) for k, v in fmap.items()]
+    print("fscore", fscore.sort(reverse=True))
 
     # plt.bar(left=np.arange(len(indices)),height=importances[indices] , width=0.35, color='r')
     # plt.show()
@@ -646,9 +645,9 @@ def linearFeatureSelection(lmodel, Xold, Xold_test, n):
     """
     Analysis of data if coef_ are available for sparse matrices, better use t-scores
     """
-    print "Selecting features based on important coefficients..."
+    print("Selecting features based on important coefficients...")
     if hasattr(lmodel, 'coef_') and isinstance(Xold, sparse.csr.csr_matrix):
-        print("Dimensionality before: %d" % lmodel.coef_.shape[1])
+        print(("Dimensionality before: %d" % lmodel.coef_.shape[1]))
         indices = np.argsort(lmodel.coef_)[0, -n:][::-1]
         # print model.coef_[top10b]
         # for i in xrange(indices.shape[0]):
@@ -661,7 +660,7 @@ def linearFeatureSelection(lmodel, Xold, Xold_test, n):
         # sorting features
         # print indices[0:n]
         Xtmp = Xreduced[:, indices[0:n]]
-        print("Dimensionality after: %d" % Xtmp.shape[1])
+        print(("Dimensionality after: %d" % Xtmp.shape[1]))
         # split train and test data
         Xreduced_test = Xtmp[:Xold_test.shape[0]]
         Xreduced = Xtmp[Xold_test.shape[0]:]
@@ -676,8 +675,8 @@ def evolve_callback(ga_engine):
         pop = ga_engine.getPopulation()
         column_names = pop.oneSelfGenome.getParam("Xtrain").columns
         binary_list = [True if value == 1 else False for value in ga_engine.bestIndividual()]
-        print "Best individual:", column_names[binary_list]
-        print "Best individual:", ga_engine.bestIndividual()
+        print("Best individual:", column_names[binary_list])
+        print("Best individual:", ga_engine.bestIndividual())
     return False
 
 
@@ -702,7 +701,7 @@ def eval_func(genome):
     run_time = time() - t0
 
     # print "cv-score: %6.3f +/- %6.3f genome: %s" %(-1*score.mean(),score.std(),[value for value in genome])
-    print "cv-score: %6.3f +/- %6.3f cv-runs: %4d time: %4.2f" % (-1 * score.mean(), score.std(), len(score), run_time)
+    print("cv-score: %6.3f +/- %6.3f cv-runs: %4d time: %4.2f" % (-1 * score.mean(), score.std(), len(score), run_time))
     return -1 / score.mean()
 
 
@@ -719,8 +718,8 @@ def genetic_feature_selection(model, Xtrain, ytrain, Xtest, pool_features=None, 
     from pyevolve import DBAdapters
     from pyevolve.GenomeBase import GenomeBase
 
-    print cv
-    print model
+    print(cv)
+    print(model)
 
     if pool_features == None:
         pool_features = Xtrain.columns
@@ -752,9 +751,9 @@ def genetic_feature_selection(model, Xtrain, ytrain, Xtest, pool_features=None, 
     # Best individual
     # print ga.bestIndividual()
     binary_list = [True if value == 1 else False for value in ga.bestIndividual()]
-    print "Best features:"
-    print Xtrain.columns[binary_list]
-    print "Selected %d out of %d features" % (sum(binary_list), Xtrain.shape[1])
+    print("Best features:")
+    print(Xtrain.columns[binary_list])
+    print("Selected %d out of %d features" % (sum(binary_list), Xtrain.shape[1]))
     buildModel(model, Xtrain.iloc[:, binary_list], ytrain, cv=cv, scoring=scoring_func, n_jobs=n_jobs, trainFull=False,
                verbose=True)
 
@@ -773,10 +772,10 @@ def greedyFeatureSelection(lmodel, lX, ly, itermax=10, itermin=5, pool_features=
 
     scores = []
     score_opt = 1E10
-    for i in xrange(itermax):
-        print "Round %4d" % (i+1)
+    for i in range(itermax):
+        print("Round %4d" % (i+1))
         score_best = 1E9
-        for a, k in enumerate(xrange(len(pool_features))):
+        for a, k in enumerate(range(len(pool_features))):
             act_feature = pool_features[k]
             if act_feature in set(features): continue
 
@@ -793,9 +792,9 @@ def greedyFeatureSelection(lmodel, lX, ly, itermax=10, itermin=5, pool_features=
                 score = -1 * score
 
             if verbose:
-                print "(%4d/%4d) TARGET: %-12s - <score>= %0.4f (+/- %0.5f) score,iteration best= %0.4f score,overall best: %0.4f features: %5d time: %6.2f" % (
+                print("(%4d/%4d) TARGET: %-12s - <score>= %0.4f (+/- %0.5f) score,iteration best= %0.4f score,overall best: %0.4f features: %5d time: %6.2f" % (
                     a + 1, len(pool_features), act_feature, score.mean(), score.std(), score_best, score_opt,
-                    lX.loc[:, features].shape[1], run_time)
+                    lX.loc[:, features].shape[1], run_time))
 
             if score.mean() < score_best:
                 score_best = score.mean()
@@ -806,7 +805,7 @@ def greedyFeatureSelection(lmodel, lX, ly, itermax=10, itermin=5, pool_features=
         scores.append(score_best)
 
         if (i > itermin and (score_opt > score_best)):
-            print "Converged with threshold: %0.6f" % (np.abs(score_opt - score_best))
+            print("Converged with threshold: %0.6f" % (np.abs(score_opt - score_best)))
             score_opt = score_best
             opt_list = features_best
             break
@@ -814,12 +813,12 @@ def greedyFeatureSelection(lmodel, lX, ly, itermax=10, itermin=5, pool_features=
             score_opt = score_best
             opt_list = features_best
 
-        print " nr features: %5d " % (len(features)),
-        print " score,iteration best= %0.4f score,overall best: %0.4f \n%r" % (score_best, score_opt, features)
+        print(" nr features: %5d " % (len(features)), end=' ')
+        print(" score,iteration best= %0.4f score,overall best: %0.4f \n%r" % (score_best, score_opt, features))
 
-    print "Scores:", scores
+    print("Scores:", scores)
 
-    print "Best score: %6.4f with %5d features:\n%r" % (score_opt, len(opt_list), opt_list)
+    print("Best score: %6.4f with %5d features:\n%r" % (score_opt, len(opt_list), opt_list))
     if plotting:
         plt.plot(scores)
         plt.show()
@@ -829,9 +828,9 @@ def iterativeFeatureSelection(lmodel, Xold, Xold_test, ly, iterations=5, nrfeats
     """
     Iterative feature selection e.g. via random Forest
     """
-    print "Iterative features selection"
-    for i in xrange(iterations):
-        print ">>>Iteration: ", i, "<<<"
+    print("Iterative features selection")
+    for i in range(iterations):
+        print(">>>Iteration: ", i, "<<<")
         lmodel = buildModel(lmodel, Xold, ly, cv=cv, scoring=scoring, n_jobs=n_jobs, trainFull=True, verbose=True)
         # lmodel.fit(Xold,ly)
         (Xold, Xold_test) = rfFeatureImportance(lmodel, Xold, Xold_test, nrfeats)
@@ -843,19 +842,19 @@ def recursive_featureselection(model,X,y,Xtest=None,Xval=None,cv=5, step=1,scori
               scoring=scoring,n_jobs=4,verbose=1)
     rfecv.fit(X, y)
 
-    print("Optimal number of features : %d" % rfecv.n_features_)
+    print(("Optimal number of features : %d" % rfecv.n_features_))
     # Plot number of features VS. cross-validation scores
     plt.figure()
     plt.xlabel("step")
     plt.ylabel("Cross validation score")
-    print(rfecv.grid_scores_)
-    print(rfecv.support_)
+    print((rfecv.grid_scores_))
+    print((rfecv.support_))
     rfecv.grid_scores_ = (-1.0 * rfecv.grid_scores_)
 
-    plt.plot(np.asarray(range(0, (len(rfecv.grid_scores_))))*step, rfecv.grid_scores_)
+    plt.plot(np.asarray(list(range(0, (len(rfecv.grid_scores_)))))*step, rfecv.grid_scores_)
     plt.show()
     if return_idx:
-        print rfecv.support_
+        print(rfecv.support_)
         return rfecv.support_
 
     if Xval is not None:
@@ -891,29 +890,29 @@ def removeLowFreq(df, column_names, removeRare_freq = 2, discard_rows = False, f
     """
     Remove categories with frequency lowe than threshold
     """
-    print "Remove rare features based on frequency..."
+    print("Remove rare features based on frequency...")
     for col in column_names:
         ser = df[col]
-        counts = ser.value_counts().keys()
+        counts = list(ser.value_counts().keys())
         idx = ser.value_counts() > removeRare_freq
         threshold = idx.astype(int).sum()
-        print "%s has %d different values before, min freq: %d - threshold %d" % (
-            col, len(counts), removeRare_freq, threshold)
+        print("%s has %d different values before, min freq: %d - threshold %d" % (
+            col, len(counts), removeRare_freq, threshold))
         if len(counts) > threshold:
             if discard_rows:
-                print "Removing rows!"
-                print df.shape
+                print("Removing rows!")
+                print(df.shape)
                 df = df[ser.isin(counts[:threshold])]
-                print df.shape
+                print(df.shape)
             else:
                 ser[~ser.isin(counts[:threshold])] = fillNA
         if len(counts) <= 1:
-            print("Dropping Column %s with %d values" % (col, len(counts)))
+            print(("Dropping Column %s with %d values" % (col, len(counts))))
             df = df.drop(col, axis=1)
         #else:
         #    df[col] = ser.astype('category')
-        counts = df[col].value_counts().keys()
-        print "%s has %d different values after" % (col, len(counts))
+        counts = list(df[col].value_counts().keys())
+        print("%s has %d different values after" % (col, len(counts)))
 
     return df
 
@@ -921,10 +920,10 @@ def removeLowVar(X_all, threshhold=1E-5):
     """
     remove useless data
     """
-    print X_all.std()
+    print(X_all.std())
 
     if isinstance(X_all, sparse.csc_matrix):
-        print "Making matrix dense again..."
+        print("Making matrix dense again...")
         X_all = pd.DataFrame(X_all.toarray())
 
     idx = np.asarray(X_all.std() <= threshhold)
@@ -934,11 +933,11 @@ def removeLowVar(X_all, threshhold=1E-5):
     # raw_input()
 
     if len(X_all.columns[idx]) > 0:
-        print "Dropped %4d zero variance columns (threshold=%6.3f): %r" % (
-            np.sum(idx), threshhold, list(X_all.columns[idx]).sort())
+        print("Dropped %4d zero variance columns (threshold=%6.3f): %r" % (
+            np.sum(idx), threshhold, list(X_all.columns[idx]).sort()))
         X_all.drop(X_all.columns[idx], axis=1, inplace=True)
     else:
-        print "Variance filter dropped nothing (threshhold = %6.3f)." % (threshhold)
+        print("Variance filter dropped nothing (threshhold = %6.3f)." % (threshhold))
 
     return (X_all)
 
@@ -962,29 +961,29 @@ def pcAnalysis(X, Xtest, w=None, ncomp=2, transform=False, classification=False,
         pca = PCA(n_components=ncomp)
     else:
         pca = reducer
-    print pca
+    print(pca)
     if transform:
-        print "PCA reduction"
+        print("PCA reduction")
         X_all = pd.concat([Xtest, X])
 
         X_r = pca.fit_transform(np.asarray(X_all))
-        print(pca.explained_variance_ratio_)
+        print((pca.explained_variance_ratio_))
         # split
         X_r_train = X_r[len(Xtest.index):]
         X_r_test = X_r[:len(Xtest.index)]
         return (X_r_train, X_r_test)
 
     elif classification:
-        print "PC analysis for classification"
+        print("PC analysis for classification")
         X_all = pd.concat([Xtest, X])
         # this is transformation is necessary otherwise PCA gives rubbish!!
         ytest = np.ones((Xtest.shape[0]),)
         y = np.zeros((X.shape[0]),)
         ytrain = np.hstack((ytest, y))
 
-        print ytest.shape
-        print y.shape
-        print ytrain.shape
+        print(ytest.shape)
+        print(y.shape)
+        print(ytrain.shape)
 
         if fit_all:
             print('PCA fit on complete data train & test...')
@@ -1003,19 +1002,19 @@ def pcAnalysis(X, Xtest, w=None, ncomp=2, transform=False, classification=False,
             plt.scatter(X_r[ytrain == 1, 0], X_r[ytrain == 1, 1], c='g', label="signal", s=w[ytrain == 1] * 1000.0,
                         alpha=0.1)
 
-        print(pca.explained_variance_ratio_)
+        print((pca.explained_variance_ratio_))
         plt.legend()
         # plt.xlim(-3500,2000)
         # plt.ylim(-1000,2000)
         plt.show()
     else:
-        print "PC analysis for train/test"
+        print("PC analysis for train/test")
         X_all = pd.concat([Xtest, X])
         X_r = pca.fit_transform(X_all.values)
         plt.scatter(X_r[len(Xtest.index):, 0], X_r[len(Xtest.index):, 1], c='r', label="train", alpha=0.5)
         plt.scatter(X_r[:len(Xtest.index), 0], X_r[:len(Xtest.index), 1], c='g', label="test", alpha=0.5)
-        print("Total variance:", np.sum(pca.explained_variance_ratio_))
-        print("Explained variance:", pca.explained_variance_ratio_)
+        print(("Total variance:", np.sum(pca.explained_variance_ratio_)))
+        print(("Explained variance:", pca.explained_variance_ratio_))
         plt.legend()
         plt.show()
 
@@ -1054,11 +1053,11 @@ def root_mean_squared_log_error(x, y):
     x = np.clip(x, a_min=0.0, a_max=1E15)
     y = np.clip(y, a_min=0.0, a_max=1E15)
     if ((y + 1.0) < 0.0).sum() > 0 or ((x + 1.0) < 0.0).sum():
-        print "WARNING!"
-        print "x", ((x + 1.0) < 0.0).sum()
-        print "y", ((y + 1.0) < 0.0).sum()
+        print("WARNING!")
+        print("x", ((x + 1.0) < 0.0).sum())
+        print("y", ((y + 1.0) < 0.0).sum())
         idx = (y + 1.0) < 0.0
-        print y[idx]
+        print(y[idx])
 
     x = np.log(x + 1.0)
     y = np.log(y + 1.0)
@@ -1094,9 +1093,9 @@ def getOOBCVPredictions(lmodel, lXs, ly, repeats=1, cv=5, returnSD=True, score_f
     else:
         funcdict['scorer_funct'] = roc_auc_score
 
-    print "Computing oob predictions..."
+    print("Computing oob predictions...")
     oobpreds = np.zeros((lXs.shape[0], repeats))
-    for j in xrange(repeats):
+    for j in range(repeats):
         # print lmodel.get_params()
         # cv = KFold(lXs.shape[0], n_folds=folds,random_state=j,shuffle=True)
         scores = np.zeros(len(cv))
@@ -1113,16 +1112,16 @@ def getOOBCVPredictions(lmodel, lXs, ly, repeats=1, cv=5, returnSD=True, score_f
                 scores[i] = funcdict['scorer_funct'](ly[test], oobpreds[test, j])
                 # print "AUC: %0.2f " % (scores[i])
                 # save oobpredictions
-        print "Iteration:", j,
-        print " <score>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
+        print("Iteration:", j, end=' ')
+        print(" <score>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()), end=' ')
 
         oobscore = funcdict['scorer_funct'](ly, oobpreds[:, j])
-        print " score,oob: %0.3f" % (oobscore)
+        print(" score,oob: %0.3f" % (oobscore))
 
-    scores = [funcdict['scorer_funct'](ly, oobpreds[:, j]) for j in xrange(repeats)]
+    scores = [funcdict['scorer_funct'](ly, oobpreds[:, j]) for j in range(repeats)]
     # simple averaging of blending
     oob_avg = np.mean(oobpreds, axis=1)
-    print "Summary: <score,oob>: %0.3f (%d repeats)" % (funcdict['scorer_funct'](ly, oob_avg), repeats,)
+    print("Summary: <score,oob>: %0.3f (%d repeats)" % (funcdict['scorer_funct'](ly, oob_avg), repeats,))
     if returnSD:
         oob_avg = np.std(oobpreds, axis=1)
     return (oob_avg)
@@ -1137,13 +1136,13 @@ def lofFilter(pred, threshhold=10.0, training=True):
     lof = pd.read_csv("../stumbled_upon/data/lof.csv", sep=",", index_col=0)
     lof = lof[len(test_indices):]
     avg = np.mean(pred)
-    for i in xrange(len(lof.index)):
+    for i in range(len(lof.index)):
         # print lof.iloc[i,0]
         if lof.iloc[i, 0] > threshhold:
             pred[i] = avg
             indices.append(i)
     # print indices
-    print "threshhold:,", threshhold, "n,changed:", len(indices), " mean:", avg
+    print("threshhold:,", threshhold, "n,changed:", len(indices), " mean:", avg)
     return pred
 
 
@@ -1156,13 +1155,13 @@ def filterClassNoise(lmodel, lXs, lXs_test, ly):
     """
     threshhold = [0.045, 0.04, 0.035]
     folds = 10
-    print "Filter strongly misclassified classes..."
+    print("Filter strongly misclassified classes...")
     # rdidx=random.sample(xrange(1000), 20)
     # print rdidx
     # lXs = lXs.iloc[rdidx]
     # ly = ly[rdidx]
     preds = getOOBCVPredictions(lmodel, lXs, lXs_test, ly, folds, 10)
-    print preds
+    print(preds)
     plt.hist(preds, bins=20)
     plt.show()
     # print "stdev:",std
@@ -1188,15 +1187,15 @@ def filterClassNoise(lmodel, lXs, lXs_test, ly):
 
             scores[i, j] = roc_auc_score(ly[test], oobpreds[test, j])
 
-        print "Threshhold: %0.3f  <AUC>: %0.3f (+/- %0.3f) removed instances: %4.2f" % (
-            t, scores[:, j].mean(), scores[:, j].std(), ninst.mean()),
-        print " AUC oob: %0.3f" % (roc_auc_score(ly, oobpreds[:, j]))
+        print("Threshhold: %0.3f  <AUC>: %0.3f (+/- %0.3f) removed instances: %4.2f" % (
+            t, scores[:, j].mean(), scores[:, j].std(), ninst.mean()), end=' ')
+        print(" AUC oob: %0.3f" % (roc_auc_score(ly, oobpreds[:, j])))
     scores = np.mean(scores, axis=0)
-    print scores
+    print(scores)
     plt.plot(threshhold, scores, 'ro')
     top = np.argsort(scores)
     optt = threshhold[top[-1]]
-    print "Optimum threshhold %4.2f index: %d with score: %4.4f" % (optt, top[-1], scores[top[-1]])
+    print("Optimum threshhold %4.2f index: %d with score: %4.4f" % (optt, top[-1], scores[top[-1]]))
     lXs_reduced, ly_reduced = removeInstances(lXs, ly, preds, optt)
     return (lXs_reduced, lXs_test, ly_reduced)
 
@@ -1207,7 +1206,7 @@ def showMisclass(ly, preds, lXs, index=None, model=None, t=1.0, bubblesizes=None
     """
     preds = preds.flatten()
 
-    print "Show strongly misclassified classes..."
+    print("Show strongly misclassified classes...")
     if model is not None:
         folds = 4
         repeats = 1
@@ -1232,7 +1231,7 @@ def showMisclass(ly, preds, lXs, index=None, model=None, t=1.0, bubblesizes=None
     boolindex = lXs_plot['abs_perc_err'] > t
 
     lXs_plot = lXs_plot[boolindex]
-    print "Number of instances left: %6d with threshold %f" % (lXs_plot.shape[0], t)
+    print("Number of instances left: %6d with threshold %f" % (lXs_plot.shape[0], t))
     col1 = 'preds'
     # col2 = 'residue'
     col2 = 'y'
@@ -1244,18 +1243,18 @@ def showMisclass(ly, preds, lXs, index=None, model=None, t=1.0, bubblesizes=None
     # sct = plt.scatter(lXs_plot[col1], lXs_plot[col2],s=bubblesizes, linewidths=2, edgecolor='black')
     sct.set_alpha(0.75)
 
-    print "%4s %10s %8s %8s %8s %8s %8s %8s" % (
-    "nr", "index", 'y', 'preds', 'residue', 'abs_error', '%%errorabs', 'sq_percerr')
+    print("%4s %10s %8s %8s %8s %8s %8s %8s" % (
+    "nr", "index", 'y', 'preds', 'residue', 'abs_error', '%%errorabs', 'sq_percerr'))
     for i, (row_index, row) in enumerate(lXs_plot.iterrows()):
         plt.text(row[col1], row[col2], row_index, size=10, horizontalalignment='center')
-        print "%4d %10s %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f" % (
-        i, row_index, row['y'], row['preds'], row['residue'], row['abs_err'], row['abs_perc_err'], row['sq_percerr'])
+        print("%4d %10s %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f" % (
+        i, row_index, row['y'], row['preds'], row['residue'], row['abs_err'], row['abs_perc_err'], row['sq_percerr']))
         if i > 100: break
-    print "%4s %10s %6s %6s %8s %8s %8s %8s" % (
-    "nr", "index", 'y', 'preds', 'residue', 'abs_error', '%%errorabs', 'sq_percerr')
+    print("%4s %10s %6s %6s %8s %8s %8s %8s" % (
+    "nr", "index", 'y', 'preds', 'residue', 'abs_error', '%%errorabs', 'sq_percerr'))
 
-    print "MEAN:\n", lXs_plot.describe()
-    print "MEAN:\n", lXs_plot.iloc[1:, :].describe()
+    print("MEAN:\n", lXs_plot.describe())
+    print("MEAN:\n", lXs_plot.iloc[1:, :].describe())
 
     plt.xlabel(col1)
     plt.ylabel(col2)
@@ -1279,15 +1278,15 @@ def scaleData(lXs, lXs_test=None, cols=None, normalize=False, epsilon=0.0):
         lX_all = lXs
 
     if normalize:
-        print "Normalize data..."
+        print("Normalize data...")
         lX_all[cols] = (lX_all[cols] - lX_all[cols].min()) / (lX_all[cols].max() - lX_all[cols].min())
     # standardize
     else:
         if epsilon > 1E-15:
-            print "Standardize data with epsilon:", epsilon
+            print("Standardize data with epsilon:", epsilon)
             lX_all[cols] = (lX_all[cols] - lX_all[cols].mean()) / np.sqrt(lX_all[cols].var() + epsilon)
         else:
-            print "Standardize data"
+            print("Standardize data")
             lX_all[cols] = (lX_all[cols] - lX_all[cols].mean()) / lX_all[cols].std()
 
     # print lX_all[cols].describe()
@@ -1334,9 +1333,9 @@ def make_polynomials(Xtrain, Xtest=None, degree=2, cutoff=100,quadratic=True):
     if Xtest is not None: Xtrain = Xtrain[len(Xtest.index):]
     m, n = Xtrain.shape
     if quadratic:
-        indices = list(itertools.combinations_with_replacement(range(n), degree))
+        indices = list(itertools.combinations_with_replacement(list(range(n)), degree))
     else:
-        indices = list(itertools.combinations(range(n), degree))
+        indices = list(itertools.combinations(list(range(n)), degree))
     new_data = []
     colnames = []
     for i, j in indices:
@@ -1347,7 +1346,7 @@ def make_polynomials(Xtrain, Xtest=None, degree=2, cutoff=100,quadratic=True):
             new_data.append(Xnew)
             colnames.append(name)
         else:
-            print "Dropped:", name
+            print("Dropped:", name)
 
     new_data = pd.DataFrame(np.array(new_data).T, columns=colnames)
     return new_data
@@ -1357,16 +1356,16 @@ def make_polynomials(Xtrain, Xtest=None, degree=2, cutoff=100,quadratic=True):
 def report(grid_scores, n_top=3):
     top_scores = sorted(grid_scores, key=itemgetter(1), reverse=True)[:n_top]
     for i, score in enumerate(top_scores):
-        print("Model with rank: {0}".format(i + 1))
-        print("Mean validation score: {0:.3f} (std: {1:.3f})".format(
+        print(("Model with rank: {0}".format(i + 1)))
+        print(("Mean validation score: {0:.3f} (std: {1:.3f})".format(
             score.mean_validation_score,
-            np.std(score.cv_validation_scores)))
-        print("Parameters: {0}".format(score.parameters))
+            np.std(score.cv_validation_scores))))
+        print(("Parameters: {0}".format(score.parameters)))
         print("")
 
 
 def makeGridSearch(lmodel, lX, ly, n_jobs=1, refit=True, cv=5, scoring='roc_auc', random_iter=-1, parameters={},score_sign = -1.0):
-    print "Start GridSearch..."
+    print("Start GridSearch...")
     if parameters is None:
         parameters = {}
 
@@ -1379,12 +1378,12 @@ def makeGridSearch(lmodel, lX, ly, n_jobs=1, refit=True, cv=5, scoring='roc_auc'
 
     search.fit(lX, ly)
     best_score = 1.0E5
-    print("%6s %6s %6s %r" % ("OOB", "MEAN", "SDEV", "PARAMS"))
+    print(("%6s %6s %6s %r" % ("OOB", "MEAN", "SDEV", "PARAMS")))
     for params, mean_score, cvscores in search.grid_scores_:
         oob_score = score_sign*mean_score
         cvscores = score_sign*cvscores
         mean_score = score_sign*cvscores.mean()
-        print("%6.4f %6.4f %6.4f %r" % (oob_score, mean_score, cvscores.std(), params))
+        print(("%6.4f %6.4f %6.4f %r" % (oob_score, mean_score, cvscores.std(), params)))
 
     if refit:
         return search.best_estimator_
@@ -1394,7 +1393,7 @@ def makeGridSearch(lmodel, lX, ly, n_jobs=1, refit=True, cv=5, scoring='roc_auc'
 
 def df_info(X):
     if isinstance(X, pd.DataFrame): X = X.values
-    print "Shape:", X.shape, " size (MB):", float(X.nbytes) / 1.0E6, " dtype:", X.dtype
+    print("Shape:", X.shape, " size (MB):", float(X.nbytes) / 1.0E6, " dtype:", X.dtype)
 
 
 def analyzeLearningCurve(model, X, y, cv=8, score_func='log_loss',train_sizes=np.linspace(.1, 1.0, 10),ylim=None):
@@ -1448,8 +1447,8 @@ def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None, n_jobs=1, sc
 
     train_scores = -1* train_scores
     test_scores = -1* test_scores
-    print "train_scores:",train_scores
-    print "test_scores:",test_scores
+    print("train_scores:",train_scores)
+    print("test_scores:",test_scores)
     train_scores_mean = np.mean(train_scores, axis=1)
     train_scores_std = np.std(train_scores, axis=1)
     test_scores_mean = np.mean(test_scores, axis=1)
@@ -1560,7 +1559,7 @@ def differentiateFeatures(X,plotting=False):
     """
     make derivative
     """
-    print "Making 1st derivative..."
+    print("Making 1st derivative...")
     tutto=[]
     for ind in X.index:
         row=[]
@@ -1569,13 +1568,13 @@ def differentiateFeatures(X,plotting=False):
             row.append(el)
         tutto.append(row)
     newdf = pd.DataFrame(tutto).set_index(0)
-    colnames = [ "diff"+str(x) for x in xrange(newdf.shape[1]) ]
+    colnames = [ "diff"+str(x) for x in range(newdf.shape[1]) ]
     newdf.columns=colnames
     if plotting:
         newdf.iloc[3,:].plot()
         plt.show()
 
-    print newdf.head(10)
+    print(newdf.head(10))
     ###print newdf.describe()
     return(newdf)
 
@@ -1584,7 +1583,7 @@ def LeavePLabelOutWrapper(str_labels, n_folds=8, p=1, verbose=True):
     lenc = preprocessing.LabelEncoder()
     labels = lenc.fit_transform(str_labels) % n_folds
     cv = LeavePLabelOut(labels, p=1)
-    if verbose: print "Labels: %r length %d" % (np.unique(labels).shape, len(cv))
+    if verbose: print("Labels: %r length %d" % (np.unique(labels).shape, len(cv)))
     return cv
 
 
@@ -1637,9 +1636,9 @@ class KLabelFolds():
         unique_labels = np.unique(self.labels)
         #print unique_labels
         for i in range(self.repeats):
-            cv = cross_validation.KFold(len(unique_labels), self.n_folds)
+            cv = KFold( self.n_folds)
             #unique_labels = shuffle(unique_labels)  # reproducible?
-            for train, test in cv:
+            for train, test in cv.split(unique_labels):
                 test_labels = unique_labels[test]
                 #print "test:",test_labels
                 #print "train:",unique_labels[train]
@@ -1674,7 +1673,7 @@ class ScaleContinuousOnly(BaseEstimator, TransformerMixin):
 def showMemUsageGB():
     to_gb = 1024.0*1024
     mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    print("Memory usage: %6.2f GB"%(float(mem)/to_gb))
+    print(("Memory usage: %6.2f GB"%(float(mem)/to_gb)))
 
 
 

@@ -40,14 +40,14 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
 	  X_ir = peakfinder('load')
       else:
 	  X_ir = peakfinder(X_all)
-      print "X_ir",X_ir['int3720.0'].values
+      print("X_ir",X_ir['int3720.0'].values)
       X_all = pd.concat([X_all, X_ir],axis=1)
-      print "da shape",X_all.shape
+      print("da shape",X_all.shape)
       #remove zero columns
       #X_all = X_all.ix[:,(X_all != 0).any(axis=0)]
     
     if transform is not None:
-	print "log transformation "
+	print("log transformation ")
 	if "spectra" == transform:
 	    transform = [m for m in list(X_all.columns) if m[0]=='m']
 	#spectra = [m for m in list(X_all.columns) if m[0]=='m']
@@ -94,7 +94,7 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
 	X_all.drop(spectra, axis=1, inplace=True) 
     
     if featureFilter is not None:
-	print "Using featurefilter..."
+	print("Using featurefilter...")
 	X_all=X_all[featureFilter]
     
     if doPCA is not None:
@@ -103,8 +103,8 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
 	for col in X_all.columns:
 	    X_all=X_all.rename(columns = {col:'pca'+str(col+1)})
 	
-	print "explained variance:",pca.explained_variance_ratio_
-	print "components: %5d sum: %6.2f"%(doPCA,pca.explained_variance_ratio_.sum())
+	print("explained variance:",pca.explained_variance_ratio_)
+	print("components: %5d sum: %6.2f"%(doPCA,pca.explained_variance_ratio_.sum()))
       
     if deleteFeatures is not None:
 	deleteFeatures = [ col for col in deleteFeatures if col in X_all.columns ]
@@ -150,8 +150,8 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
 	Xtrain = pd.concat([Xtrain,tmp1],axis=1)
 	tmp2 = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/test_all.csv')[loadFeatures]
 	tmp2.index = Xtest.index
-	print tmp2.head(10)
-	print Xtest.head(10)
+	print(tmp2.head(10))
+	print(Xtest.head(10))
 	Xtest = pd.concat([Xtest,tmp2],axis=1)
    
     #analyze data
@@ -169,8 +169,8 @@ def prepareDatasets(nsamples=-1,onlySpectra=False,deleteSpectra=False,plotting=F
     #print "Train set:\n",Xtrain.describe()
     #print "Test set:\n",Xtest.describe()
     #print Xtest.index
-    print "Dim train set:",Xtrain.shape    
-    print "Dim test set :",Xtest.shape
+    print("Dim train set:",Xtrain.shape)    
+    print("Dim test set :",Xtest.shape)
     
     #Xtrain.to_csv("/home/loschen/Desktop/datamining-kaggle/african_soil/training_all.csv",index=False)
     #Xtest.to_csv("/home/loschen/Desktop/datamining-kaggle/african_soil/test_all.csv",index=False)
@@ -181,7 +181,7 @@ def applySavitzkyGolay(X,window_size=31, order=3,plotting=False):
     """
     use filter
     """
-    print "Use Savitzky-Golay (windowsize=%4d, order=%4d)"%(window_size,order)
+    print("Use Savitzky-Golay (windowsize=%4d, order=%4d)"%(window_size,order))
     tutto=[]
     for ind in X.index:
 	row=[]
@@ -200,9 +200,9 @@ def applySavitzkyGolay(X,window_size=31, order=3,plotting=False):
 	    plt.show()
 	
     newdf = pd.DataFrame(tutto).set_index(0)
-    colnames = [ "s"+str(x) for x in xrange(newdf.shape[1]) ]
+    colnames = [ "s"+str(x) for x in range(newdf.shape[1]) ]
     newdf.columns=colnames
-    print newdf.head(10)
+    print(newdf.head(10))
     return(newdf)
     
 
@@ -210,7 +210,7 @@ def makeCompression(X,bin_size,plotting=False):
     """
     Collects spectra frequencies
     """
-    print "Compressing spectrum"
+    print("Compressing spectrum")
     tutto=[]
     
     for ind in X.index:
@@ -229,13 +229,13 @@ def makeCompression(X,bin_size,plotting=False):
 	tutto.append(row)
 
     newdf = pd.DataFrame(tutto).set_index(0)
-    colnames = [ "z"+str(x) for x in xrange(newdf.shape[1]) ]
+    colnames = [ "z"+str(x) for x in range(newdf.shape[1]) ]
     newdf.columns=colnames
     if plotting:
 	newdf.iloc[3,:].plot()
 	plt.show()
     
-    print newdf.head(10)
+    print(newdf.head(10))
     ###print newdf.describe()
     return(newdf)
 	
@@ -246,7 +246,7 @@ def makeDiff(X,plotting=False):
     """
     make derivative
     """
-    print "Making 1st derivative..."
+    print("Making 1st derivative...")
     tutto=[]
     for ind in X.index:
 	row=[]
@@ -255,13 +255,13 @@ def makeDiff(X,plotting=False):
 	    row.append(el)
 	tutto.append(row)
     newdf = pd.DataFrame(tutto).set_index(0)
-    colnames = [ "d"+str(x) for x in xrange(newdf.shape[1]) ]
+    colnames = [ "d"+str(x) for x in range(newdf.shape[1]) ]
     newdf.columns=colnames
     if plotting:
 	newdf.iloc[3,:].plot()
 	plt.show()
     
-    print newdf.head(10)
+    print(newdf.head(10))
     ###print newdf.describe()
     return(newdf)
     
@@ -273,17 +273,17 @@ def peakfinder(X_all,verbose=False):
     #xs = np.arange(0, 4*np.pi, 0.05)
     #data = np.sin(xs)
     
-    print "Locating IR-peaks..."
+    print("Locating IR-peaks...")
     if X_all is "load":
 	newdf = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/irpeaks.csv')
 	return(newdf)
     
-    print X_all.describe()
+    print(X_all.describe())
     tutto=[]
-    print X_all.index
-    print X_all.index[-1]
+    print(X_all.index)
+    print(X_all.index[-1])
     for ind in X_all.index:
-	print "processing spectra %4d/%4d "%(ind,X_all.shape[0])
+	print("processing spectra %4d/%4d "%(ind,X_all.shape[0]))
 	row=[]
 	row.append(ind)
 	data = X_all.ix[ind,:3578].values.flatten()
@@ -295,7 +295,7 @@ def peakfinder(X_all,verbose=False):
 	tutto.append(row)
 	
 	if verbose:
-	    print hi
+	    print(hi)
 	    plt.plot(data)
 	    plt.bar(edges,hi>0)
 	    plt.show()
@@ -323,18 +323,18 @@ def makePrediction(models,Xtrain,Xtest,nt,filename='subXXX.csv'):
     preds = np.zeros((Xtest.shape[0], nt))
     f, axarr = plt.subplots(nt, sharex=True)
     rmse_list = np.zeros((nt,1))
-    print "%-10s %6s" %("TARGET","RMSE,train")
+    print("%-10s %6s" %("TARGET","RMSE,train"))
     for i in range(nt):
 	y_true = np.asarray(ymat.iloc[:,i])
 	y_pred = models[i].predict(Xtrain).astype(float)
 	rmse_score = np.sqrt(mean_squared_error(y_true, y_pred))
-	print "%-10s %6.3f" %(ymat.columns[i],rmse_score)
+	print("%-10s %6.3f" %(ymat.columns[i],rmse_score))
 	preds[:,i] = models[i].predict(Xtest).astype(float)
 	axarr[i].scatter(y_pred,y_true)
 	axarr[i].set_ylabel(ymat.columns[i])
 	rmse_list[i]=rmse_score
     
-    print "<RMSE,train>: %6.3f +/- %6.3f" %(rmse_list.mean(),rmse_list.std())
+    print("<RMSE,train>: %6.3f +/- %6.3f" %(rmse_list.mean(),rmse_list.std()))
     plt.show()
     sample = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/sample_submission.csv')
     sample['Ca'] = preds[:,0]
@@ -351,15 +351,15 @@ def modelsFeatureSelection(lmodels,Xold,Xold_test,lymat):
 def modelsGreedySelection(lmodels,Xold,Xold_test,lymat):
     for i,model in enumerate(lmodels):
 	if i!=1: continue
-	print "Target:",ymat.columns[i]
+	print("Target:",ymat.columns[i])
 	greedyFeatureSelection(models[0],Xtrain,ymat.iloc[:,i],itermax=60,itermin=30,targets=None,start_features=None,n_jobs=8,verbose=False,cv= cross_validation.LeavePLabelOut(pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/landscapes_quick3.csv',index_col=0)['LANDSCAPE'],1))
 	
 def modelLandscapes(X_all,X_orig):
     plottLS=True
     groups = pd.read_csv('/home/loschen/Desktop/datamining-kaggle/african_soil/groupings.csv',sep=';')
     groups['TMAP']=np.round(groups['TMAP'],5)
-    print X_all.index
-    print X_orig.index
+    print(X_all.index)
+    print(X_orig.index)
     X_all['TMAP']=np.round(X_orig['TMAP'],5)
     
     #print X_all.loc[:,['TMAP']]
@@ -407,8 +407,8 @@ def modelLandscapes(X_all,X_orig):
     
     if plottLS:
 	#X_LS.iloc[0:20,:].T.plot()
-	print X_LS.describe()
-	print X_LS.head(20)
+	print(X_LS.describe())
+	print(X_LS.head(20))
 	plt.scatter(X_r.iloc[:,0].values, X_r.iloc[:,1].values, c='r', label="landscape",alpha=0.5)
 	for name, x, y in zip(X_r.index, X_r.iloc[:,0].values, X_r.iloc[:,1].values):
 	    plt.annotate(name,xy = (x, y))
@@ -422,7 +422,7 @@ def modelLandscapes(X_all,X_orig):
     X_all = X_all.set_index('index')
     
     X_all.drop(['LANDSCAPE'], axis=1, inplace=True)
-    print X_all
+    print(X_all)
     return X_all
     
 def getFeatures(key):
@@ -489,7 +489,7 @@ def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv
 	#    print lX.iloc[train_index].head(65)
 	#    print lX.iloc[test_index].head(65)
 	    
-	print "Leave one landscape out x-validation, %4d groups."%(len(cv))
+	print("Leave one landscape out x-validation, %4d groups."%(len(cv)))
     else:
 	cv = cross_validation.ShuffleSplit(lX.shape[0], n_iter=cv_split, test_size=0.25, random_state=0)
     
@@ -521,12 +521,12 @@ def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv
 	    clf  = grid_search.GridSearchCV(lmodels[i], parameters,n_jobs=n_jobs,verbose=0,scoring=scoring,cv=cv,fit_params=fit_params,refit=True)
 	    clf.fit(lX,ly)
 	    best_score=1.0E5
-	    print("%6s %6s %6s %r" % ("OOB", "MEAN", "SDEV", "PARAMS"))
+	    print(("%6s %6s %6s %r" % ("OOB", "MEAN", "SDEV", "PARAMS")))
 	    for params, mean_score, cvscores in clf.grid_scores_:
 		oob_score = (-1*mean_score)**0.5
 		cvscores = (-1*cvscores)**0.5
 		mean_score = cvscores.mean()
-		print("%6.3f %6.3f %6.3f %r" % (oob_score, mean_score, cvscores.std(), params))
+		print(("%6.3f %6.3f %6.3f %r" % (oob_score, mean_score, cvscores.std(), params)))
 		if mean_score < best_score:
 		    best_score = mean_score
 		    scores[i,:] = cvscores
@@ -536,13 +536,13 @@ def buildmodels(lmodels,lX,lymat,fit_params=None,scoring='mean_squared_error',cv
 	else:    
 	    scores[i,:] = (-1*cross_validation.cross_val_score(lmodels[i],lX,ly,fit_params=fit_params, scoring=scoring,cv=cv,n_jobs=n_jobs))**0.5   
 
-	print "TARGET: %-12s"%(lymat.columns[i]),    
-	print " - <score>= %0.3f (+/- %0.3f) runs: %4d" % (scores[i].mean(), scores[i].std(),scores.shape[1])
+	print("TARGET: %-12s"%(lymat.columns[i]), end=' ')    
+	print(" - <score>= %0.3f (+/- %0.3f) runs: %4d" % (scores[i].mean(), scores[i].std(),scores.shape[1]))
 	#FIT FULL MODEL
 	lmodels[i].fit(lX,ly)
 
-    print 
-    print "Total cv-score: %6.3f (+/- %6.3f) "%(scores.mean(axis=1).mean(),scores.mean(axis=1).std())
+    print() 
+    print("Total cv-score: %6.3f (+/- %6.3f) "%(scores.mean(axis=1).mean(),scores.mean(axis=1).std()))
     return(models)
     
     
@@ -564,10 +564,10 @@ if __name__=="__main__":
     #boruta results: 
   
     t0 = time()
-    print "numpy:",np.__version__
-    print "scipy:",sp.__version__
-    print "pandas:",pd.__version__
-    print "sklearn:",sl.__version__
+    print("numpy:",np.__version__)
+    print("scipy:",sp.__version__)
+    print("pandas:",pd.__version__)
+    print("sklearn:",sl.__version__)
     pd.set_option('display.max_columns', 14)
     pd.set_option('display.max_rows', 40)
 
@@ -681,13 +681,13 @@ if __name__=="__main__":
     #modelsGreedySelection(models,Xtrain,Xtest,ymat)
     
     for i in range(nt):
-	print "TARGET: %-10s" %(ymat.columns[i])
+	print("TARGET: %-10s" %(ymat.columns[i]))
 	#print models[i].alpha_#optimized alpha from ridge 0.1 0.05
-	print models[i]
+	print(models[i])
 
       
     #makePrediction(models,Xtrain,Xtest,nt,filename='/home/loschen/Desktop/datamining-kaggle/african_soil/submissions/sub2609a.csv')
     #make the predictions 
 
-    print("Model building done on %d samples in %fs" % (Xtrain.shape[0],time() - t0))
+    print(("Model building done on %d samples in %fs" % (Xtrain.shape[0],time() - t0)))
 

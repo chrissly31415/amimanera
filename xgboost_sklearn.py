@@ -80,8 +80,8 @@ class XgboostClassifier(BaseEstimator):
         # early stopping!!
         if self.eval_size > 0.0:
             n_test = int(self.eval_size * lX.shape[0])
-            idx_test = np.random.choice(xrange(lX.shape[0]), n_test, False)
-            idx_train = [x for x in xrange(lX.shape[0]) if x not in idx_test]
+            idx_test = np.random.choice(range(lX.shape[0]), n_test, False)
+            idx_train = [x for x in range(lX.shape[0]) if x not in idx_test]
             Xeval = lX[idx_test, :]
             yeval = ly[idx_test]
             lX = lX[idx_train, :]
@@ -116,7 +116,7 @@ class XgboostClassifier(BaseEstimator):
         param['alpha'] = self.alpha_L1
         param['lambda'] = self.lambda_L2
 
-        plst = param.items()
+        plst = list(param.items())
         # watchlist = [ (dtrain,'train') ]
         if self.eval_size > 1E-15:
             watchlist = [(dtrain, 'train'), (deval, 'eval')]
@@ -177,10 +177,10 @@ class XgboostRegressor(XgboostClassifier):
 
 ## softmax
 def softmax(score):
-    print score
-    print type(score)
+    print(score)
+    print(type(score))
     score = np.asarray(score, dtype=float)
-    print score.shape
+    print(score.shape)
     score = np.exp(score - np.max(score))
     score /= np.sum(score, axis=1)[:, np.newaxis]
     return score

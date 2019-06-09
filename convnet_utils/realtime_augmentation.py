@@ -50,7 +50,7 @@ def fast_warp(img, tf, output_shape=(53,53), mode='reflect'):
     """
     m = tf._matrix
     img_wf = np.empty((output_shape[0], output_shape[1], 3), dtype='float32')
-    for k in xrange(3):
+    for k in range(3):
         img_wf[..., k] = skimage.transform._warps_cy._warp_fast(img[..., k], m, output_shape=output_shape, mode=mode)
     return img_wf
 
@@ -154,7 +154,7 @@ def random_perturbation_transform(zoom_range, rotation_range, shear_range, trans
 
 def perturb_and_dscrop(img, ds_transforms, augmentation_params, target_sizes=None):
     if target_sizes is None: # default to (53,53) for backwards compatibility
-        target_sizes = [(53, 53) for _ in xrange(len(ds_transforms))]
+        target_sizes = [(53, 53) for _ in range(len(ds_transforms))]
 
     tform_augment = random_perturbation_transform(**augmentation_params)
     # return [skimage.transform.warp(img, tform_ds + tform_augment, output_shape=target_size, mode='reflect').astype('float32') for tform_ds in ds_transforms]
@@ -227,7 +227,7 @@ def realtime_augmented_data_gen(num_chunks=None, chunk_size=CHUNK_SIZE, augmenta
     from lists to numpy arrays afterwards.
     """
     if target_sizes is None: # default to (53,53) for backwards compatibility
-        target_sizes = [(53, 53) for _ in xrange(len(ds_transforms))]
+        target_sizes = [(53, 53) for _ in range(len(ds_transforms))]
 
     n = 0 # number of chunks yielded so far
     while True:
@@ -273,7 +273,7 @@ def realtime_augmented_data_gen(num_chunks=None, chunk_size=CHUNK_SIZE, augmenta
 
 def augment_fixed_and_dscrop(img, ds_transforms, augmentation_transforms, target_sizes=None):
     if target_sizes is None: # default to (53,53) for backwards compatibility
-        target_sizes = [(53, 53) for _ in xrange(len(ds_transforms))]
+        target_sizes = [(53, 53) for _ in range(len(ds_transforms))]
 
     augmentations_list = []
     for tform_augment in augmentation_transforms:
@@ -319,11 +319,11 @@ def realtime_fixed_augmented_data_gen(selected_indices, subset, ds_transforms=ds
     num_chunks = int(np.ceil(len(selected_indices) / float(num_ids_per_chunk)))
 
     if target_sizes is None: # default to (53,53) for backwards compatibility
-        target_sizes = [(53, 53) for _ in xrange(len(ds_transforms))]
+        target_sizes = [(53, 53) for _ in range(len(ds_transforms))]
 
     process_func = processor_class(subset, ds_transforms, augmentation_transforms, target_sizes)
 
-    for n in xrange(num_chunks):
+    for n in range(num_chunks):
         indices_n = selected_indices[n * num_ids_per_chunk:(n+1) * num_ids_per_chunk]
         current_chunk_size = len(indices_n) * len(augmentation_transforms) # last chunk will be shorter!
 
@@ -359,7 +359,7 @@ def post_augment_chunks(chunk_list, gamma_range=(1.0, 1.0)):
         gammas = np.exp(np.random.uniform(lgamma_min, lgamma_max, (chunk_size,)))
         gammas = gammas.astype('float32').reshape(-1, 1, 1, 1)
 
-        for i in xrange(len(chunk_list)):
+        for i in range(len(chunk_list)):
             chunk_list[i] **= gammas
 
 
@@ -524,7 +524,7 @@ def perturb_and_dscrop_with_prepro(img, ds_transforms, augmentation_params, targ
     This version supports a preprocessing transform which is applied before anything else
     """
     if target_sizes is None: # default to (53,53) for backwards compatibility
-        target_sizes = [(53, 53) for _ in xrange(len(ds_transforms))]
+        target_sizes = [(53, 53) for _ in range(len(ds_transforms))]
 
     tform_augment = random_perturbation_transform(**augmentation_params)
     # return [skimage.transform.warp(img, tform_ds + tform_augment, output_shape=target_size, mode='reflect').astype('float32') for tform_ds in ds_transforms]
@@ -615,7 +615,7 @@ class LoadAndProcessPysexGen1CenteringRescaling(object):
 
 def augment_fixed_and_dscrop_with_prepro(img, ds_transforms, augmentation_transforms, target_sizes=None, prepro_transform=tform_identity):
     if target_sizes is None: # default to (53,53) for backwards compatibility
-        target_sizes = [(53, 53) for _ in xrange(len(ds_transforms))]
+        target_sizes = [(53, 53) for _ in range(len(ds_transforms))]
 
     augmentations_list = []
     for tform_augment in augmentation_transforms:

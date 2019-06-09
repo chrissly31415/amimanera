@@ -11,7 +11,7 @@ def crawlHTML(lXall):
       """
       crawling raw data
       """
-      print "Crawling html data..."
+      print("Crawling html data...")
       basedir='../stumbled_upon/raw_content/'
       #phtml = re.compile("</[^>]*?>")
       phtml = re.compile("<[^>]*?>")
@@ -30,7 +30,7 @@ def crawlHTML(lXall):
 	    tmp=[x for x in res]
 	    tmp=tmp[:100]
 	    tmp=' '.join(tmp)
-	    tmp=unicode(tmp, errors='replace')
+	    tmp=str(tmp, errors='replace')
 	    tmp=tmp.lower()
 	    tmp=tmp.replace("<","").replace(">","").replace("/","") 
 	    #tmp=tmp.decode("utf8")
@@ -44,8 +44,8 @@ def crawlHTML(lXall):
 	  tutto.append(row)
       newdf=pd.DataFrame(tutto).set_index(0)
       newdf.columns=['htmltag']
-      print newdf.head(20)
-      print newdf.describe()
+      print(newdf.head(20))
+      print(newdf.describe())
       return newdf
 
 
@@ -53,7 +53,7 @@ def crawlRawData(lXall):
       """
       crawling raw data
       """
-      print "Crawling raw data..."
+      print("Crawling raw data...")
       basedir='../stumbled_upon/raw_content/'
       pfacebook = re.compile("www.{1,2}facebook.{1,2}com")
       pfacebook2 = re.compile("developers.{1,2}facebook.{1,2}com.{1,2}docs.{1,2}reference.{1,2}plugins.{1,2}like|facebook.{1,2}com.{1,2}plugins.{1,2}like")
@@ -171,6 +171,6 @@ def crawlRawData(lXall):
       newdf=pd.DataFrame(tutto).set_index(0)
       newdf.columns=['wwwfacebook_ratio','facebooklike_ratio','twitter_ratio','n_comment','logn_newline']
       pd.set_printoptions(max_rows=40, max_columns=20)
-      print newdf.head(20)
-      print newdf.describe()
+      print(newdf.head(20))
+      print(newdf.describe())
       return newdf

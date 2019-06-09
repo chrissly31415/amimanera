@@ -20,7 +20,7 @@ from nolearn.lasagne import NeuralNet
 from nolearn.lasagne import BatchIterator
 #from BatchNormalization import *
 
-import cPickle as pickle
+import pickle as pickle
 
 def plotNN(net1):
     train_loss = np.array([i["train_loss"] for i in net1.train_history_])
@@ -143,8 +143,8 @@ class EarlyStopping(object):
             self.best_weights = [w.get_value() for w in nn.get_all_params()]
         elif self.best_valid_epoch + self.patience < current_epoch:
             print("Early stopping.")
-            print("Best valid loss was {:.6f} at epoch {}.".format(
-                self.best_valid, self.best_valid_epoch))
+            print(("Best valid loss was {:.6f} at epoch {}.".format(
+                self.best_valid, self.best_valid_epoch)))
             nn.load_weights_from(self.best_weights)
             raise StopIteration()
 	  

@@ -50,7 +50,7 @@ refit_train_val_dir = 'refit_train_val'
 refit_train_dir = 'refit_train'
 
 #epoch_save_range = range(30, 101, 5)
-epoch_save_range = range(10, 11, 5)
+epoch_save_range = list(range(10, 11, 5))
 
 t0 = time.time()
 n_folds = 3
@@ -59,9 +59,7 @@ do_folds = 3
 def KLabelFold(labels, n_folds=3, shuffle=False, random_state=None):
     kfold = KFold(labels.nunique(), n_folds=n_folds, shuffle=shuffle, random_state=random_state)
     unique_labels = labels.unique()
-    return PredefinedSplit(pd.concat(map(lambda (i, x): labels.isin(x)*i,
-                                                        enumerate([unique_labels[mask[1]] for mask in kfold])
-                                        ), axis=1).sum(axis=1))
+    return PredefinedSplit(pd.concat([labels.isin(i_x[1])*i_x[0] for i_x in enumerate([unique_labels[mask[1]] for mask in kfold])], axis=1).sum(axis=1))
 
 def KLabelInnerFold(kfold_outer, fold_outer):
     indicies = np.arange(kfold_outer.n)
@@ -74,8 +72,8 @@ def KLabelInnerFold(kfold_outer, fold_outer):
 
 kfold_outer = KLabelFold(train.tube_assembly_id, n_folds, shuffle=True, random_state=42)
 for fold_outer, val_mask in enumerate(kfold_outer):
-    print ''.join(['-']*120)
-    print 'fold_outer ', fold_outer
+    print(''.join(['-']*120))
+    print('fold_outer ', fold_outer)
     fold_outer_dir = 'fold_outer-%s'%(fold_outer)
     X_train_val = train.iloc[val_mask[0]].drop(['tube_assembly_id'], axis=1)
     y_train_val = target.iloc[val_mask[0]]
@@ -84,20 +82,20 @@ for fold_outer, val_mask in enumerate(kfold_outer):
 
     t0_outer = time.time()
     for iparam, params in enumerate([1]):
-        print ''.join(['-']*90)
+        print(''.join(['-']*90))
 #        print 'model %s of %s '%(iparam+1, len(param_list))
 #        name = make_name(dataset, nn_params, 'sco')
 #        if os.path.exists(os.path.join(cwd, 'stage2', name, str(epoch_save_range[-1]), fold_outer_dir)):
 #            print name, ' exists, skipping parameter set'
 #            continue
         name = 'br6lin-nn'
-        print name
+        print(name)
 
         kfold_inner = KLabelInnerFold(kfold_outer, fold_outer)
         for inner_folds_, mask in kfold_inner:
             train_folds, fold_inner = inner_folds_
-            print ''.join(['-']*60)
-            print 'fold_inner ', fold_inner, 'train_folds_inner ', train_folds
+            print(''.join(['-']*60))
+            print('fold_inner ', fold_inner, 'train_folds_inner ', train_folds)
             fold_inner_dir = 'fold_inner-%s'%(fold_inner)
 
             X_train = train.iloc[mask[0]].drop(['tube_assembly_id'], axis=1)
@@ -119,10 +117,10 @@ for fold_outer, val_mask in enumerate(kfold_outer):
             reg.fit(X_train_, np.log1p(y_train_))
 
             y_pred_test = np.expm1( reg.predict( X_test_ ) )
-            print 'RMSLE (%5s)= %.5f'%( epoch_save_range[-1], root_mean_squared_logarithmic_error( y_test, y_pred_test ) )
+            print('RMSLE (%5s)= %.5f'%( epoch_save_range[-1], root_mean_squared_logarithmic_error( y_test, y_pred_test ) ))
 
-        print ''.join(['-']*90)
-        print 'refit on train_val set'
+        print(''.join(['-']*90))
+        print('refit on train_val set')
         X_train_val_ = preprocess.fit_transform( X_train_val )
         X_val_ = preprocess.transform( X_val )
         X_train_val_, y_train_val_ = sklearn.utils.shuffle(X_train_val_, y_train_val, random_state=random_state)
@@ -140,11 +138,11 @@ for fold_outer, val_mask in enumerate(kfold_outer):
         reg = NeuralNet(**nn_params)
         reg.fit(X_train_val_, y_train_val_, X_val_, y_val)
         y_pred_val = reg.predict( X_val_ )
-        print 'RMSLE (%5s)= %.5f'%( epoch_save_range[-1], root_mean_squared_logarithmic_error( y_val, y_pred_val ) )
+        print('RMSLE (%5s)= %.5f'%( epoch_save_range[-1], root_mean_squared_logarithmic_error( y_val, y_pred_val ) ))
 
         if fold_outer == 0:
-            print ''.join(['-']*90)
-            print 'refit on all train data'
+            print(''.join(['-']*90))
+            print('refit on all train data')
             train_ = preprocess.fit_transform( train.drop(['tube_assembly_id'], axis=1) )
             test_ = preprocess.transform( test )
             train_, target_ = sklearn.utils.shuffle(train_, target, random_state=random_state)
@@ -164,12 +162,12 @@ for fold_outer, val_mask in enumerate(kfold_outer):
 
         t = (time.time() - t0_outer)/(60*60)
         eta_outer = (len(param_list)-(iparam+1))*t
-        print 'finished fold_outer %s for model %s of %s at time %.2fh, ETA (outer) %.2fh'%(
-                        fold_outer, iparam+1, len(param_list), t, eta_outer)
+        print('finished fold_outer %s for model %s of %s at time %.2fh, ETA (outer) %.2fh'%(
+                        fold_outer, iparam+1, len(param_list), t, eta_outer))
 
     t = (time.time() - t0)/(60*60)
     eta = (n_folds-(fold_outer+1))*t
-    print 'finished fold %s of %s at time %.2fh, ETA %.2fh'%(fold_outer+1, n_folds, t, eta)
+    print('finished fold %s of %s at time %.2fh, ETA %.2fh'%(fold_outer+1, n_folds, t, eta))
 
     if do_folds-1 == fold_outer:
         break

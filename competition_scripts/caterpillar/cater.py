@@ -38,7 +38,7 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
                  'component_id_6', 'component_id_7', 'component_id_8']
 
     if isinstance(loadBN, str):
-        print "Loading BN data..."
+        print("Loading BN data...")
 
         if loadBN in "logtransformed" or loadBN in "nn":
             Xtrain = pd.read_csv("./data/training_Aug23_log.csv")
@@ -48,10 +48,10 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
             Xtest = pd.read_csv("./data/testing_Aug15_v2.csv")
         Xtrain.drop(['cost'], axis=1, inplace=True)
         Xtest.drop(['cost'], axis=1, inplace=True)
-        print Xtrain.shape
-        print Xtest.shape
+        print(Xtrain.shape)
+        print(Xtest.shape)
 
-        print list(Xtrain.columns)
+        print(list(Xtrain.columns))
         # return Xtest,Xtrain
         Xtrain['tube_assembly_id'] = pd.read_csv("./data/train_set.csv", usecols=['tube_assembly_id'])
         Xtest['tube_assembly_id'] = "NA"
@@ -63,12 +63,12 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
         # raw_input()
 
     if not useRdata and not loadBN and not isinstance(loadBN, str):
-        print "Generating data from scratch..."
+        print("Generating data from scratch...")
         Xtrain = pd.read_csv('./data/train_set.csv', parse_dates=[2, ])
         Xtest = pd.read_csv('./data/test_set.csv', parse_dates=[3, ])
 
         if useTubExtended:
-            print "Extended data!"
+            print("Extended data!")
             tube_data = pd.read_csv('./data/tube_extended.csv')
             # tube_data = pd.read_csv('./data/tube.csv')
             # verbose=True
@@ -87,39 +87,39 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
 
         if verbose:
             print("train columns")
-            print(Xtrain.columns)
-            print Xtrain.shape
-            print Xtrain.describe(include='all')
+            print((Xtrain.columns))
+            print(Xtrain.shape)
+            print(Xtrain.describe(include='all'))
             # print Xtrain
-            raw_input()
+            input()
 
             print("test columns")
-            print(Xtest.columns)
-            print Xtest.shape
-            print Xtest.describe(include='all')
+            print((Xtest.columns))
+            print(Xtest.shape)
+            print(Xtest.describe(include='all'))
             # print Xtest
-            raw_input()
+            input()
 
             print("tube.csv df columns")
-            print(tube_data.columns)
-            print tube_data.shape
-            print tube_data.describe(include='all')
+            print((tube_data.columns))
+            print(tube_data.shape)
+            print(tube_data.describe(include='all'))
             # print tube_data
-            raw_input()
+            input()
 
             print("bill_of_materials.csv df columns")
-            print(bill_of_materials_data.columns)
-            print bill_of_materials_data.shape
-            print bill_of_materials_data.describe(include='all')
+            print((bill_of_materials_data.columns))
+            print(bill_of_materials_data.shape)
+            print(bill_of_materials_data.describe(include='all'))
             # print bill_of_materials_data
-            raw_input()
+            input()
 
             print("specs.csv df columns")
-            print(specs_data.columns)
-            print specs_data.shape
-            print specs_data.describe(include='all')
+            print((specs_data.columns))
+            print(specs_data.shape)
+            print(specs_data.describe(include='all'))
             # print specs_data
-            raw_input()
+            input()
 
         Xall = pd.concat([Xtest, Xtrain])
 
@@ -133,25 +133,25 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
             Xall = pd.merge(Xall, end_form, on='end_a', how='left')
             end_form.rename(columns={'end_a': 'end_x', 'forming_enda': 'forming_endx'}, inplace=True)
             Xall = pd.merge(Xall, end_form, on='end_x', how='left')
-            print Xall[['forming_enda', 'forming_endx']].describe(include='all')
-            print Xall.forming_enda.value_counts()
-            print Xall.forming_endx.value_counts()
+            print(Xall[['forming_enda', 'forming_endx']].describe(include='all'))
+            print(Xall.forming_enda.value_counts())
+            print(Xall.forming_endx.value_counts())
 
         if comptypes > 0:
             n = Xall.shape[1]
-            print "Loading all component files...columns before", n
+            print("Loading all component files...columns before", n)
             keyMerge = 0
-            for cid in xrange(1, 9):
+            for cid in range(1, 9):
                 if cid > comptypes: break
                 for filenname in os.listdir("./data"):
                     if filenname.startswith("comp_"):
                         print(filenname)
                         compl = 'component_id_' + str(cid)
-                        print "Compl:", compl,
+                        print("Compl:", compl, end=' ')
                         compr = 'component_id_' + str(cid)
-                        print "Compr:", compr
+                        print("Compr:", compr)
                         keyMerge = filenname.replace("comp_", "").replace(".csv", "") + "_" + compr
-                        print "keyMerge:", keyMerge
+                        print("keyMerge:", keyMerge)
                         # print "File:",filenname,
                         _comp_data = pd.read_csv('./data/' + filenname)
 
@@ -161,7 +161,7 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
                         # do label encoding directly!
                         for col in list(_comp_data.select_dtypes(include=['object']).columns):
                             lbl = preprocessing.LabelEncoder()
-                            if col <> compl:
+                            if col != compl:
                                 _comp_data[col] = lbl.fit_transform(_comp_data[col].values)
 
                         # print _comp_data.shape
@@ -183,7 +183,7 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
             Xall['comp_complexity'] = (Xall.iloc[:, n:] != 0).astype(int).sum(axis=1)
             # Xall['complexity_std'] = (Xall.iloc[:,n:] != 0).astype(int).std(axis=1)
             # print Xall._get_numeric_data().columns
-            print "Loaded all component files...columns after", Xall.shape[1]
+            print("Loaded all component files...columns after", Xall.shape[1])
             # raw_input()
 
         # create some new features
@@ -226,9 +226,9 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
             corr['TA-17390'] = 40
             corr['TA-18227'] = 74
             corr['TA-18229'] = 51
-            for i in xrange(Xall.shape[0]):
+            for i in range(Xall.shape[0]):
                 tube_id = Xall['tube_assembly_id'].iloc[i]
-                if tube_id in corr.keys():
+                if tube_id in list(corr.keys()):
                     Xall.ix[i, ['length']] = corr[tube_id]
 
         # b=['supplier', 'bracket_pricing', 'material_id', 'end_a_1x', 'end_a_2x', 'end_x_1x', 'end_x_2x', 'end_a', 'end_x']
@@ -239,13 +239,13 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
             Xtest = Xall[:len(Xtest.index)]
             for col in Xall.columns:
                 if col in balance:
-                    print "FEATURE:", col
+                    print("FEATURE:", col)
                     uniq_train = Xtrain[col].unique()
                     uniq_test = Xtest[col].unique()
                     uniq_features = compareList(uniq_train, uniq_test, verbose=False)
                     if uniq_features.shape[0] > 0:
                         # print Xtrain[col].value_counts()
-                        print "Removing unique categorical values in Train/Test", uniq_features
+                        print("Removing unique categorical values in Train/Test", uniq_features)
                         replace_dic = {}
                         for feat in uniq_features:
                             replace_dic[feat] = 'AMBIGIOUS'
@@ -254,7 +254,7 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
                         # print Xtest[col].value_counts()
 
         if bagofwords_v2_0 is not None:
-            print "Bag of wordsv2.0..."
+            print("Bag of wordsv2.0...")
             # balance components
             Xtrain = Xall[len(Xtest.index):]
             Xtest = Xall[:len(Xtest.index)]
@@ -263,7 +263,7 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
             uniq_features = compareList(uniq_train, uniq_test, verbose=False)
             if uniq_features.shape[0] > 0:
                 # print Xtrain[col].value_counts()
-                print "Removing unique categorical values in Train/Test", uniq_features
+                print("Removing unique categorical values in Train/Test", uniq_features)
                 replace_dic = {}
                 for feat in uniq_features:
                     replace_dic[feat] = 'AMBIGIOUS'
@@ -286,7 +286,7 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
                     value = "None"
                 my_array[row] = value
             Xall['doc_component_id'] = pd.Series(my_array)
-            print Xall
+            print(Xall)
             Xall['doc_component_id'] = Xall.doc_component_id.str.replace("-", "_")
             vectorizer = CountVectorizer(min_df=3, max_features=100, lowercase=True, analyzer="word",
                                          ngram_range=(1, 1), stop_words=None, strip_accents='unicode',
@@ -295,18 +295,18 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
             Xtmp = vectorizer.fit_transform(Xall['doc_component_id']).todense()
             column_names = vectorizer.get_feature_names()
             Xtmp = pd.DataFrame(Xtmp, columns=column_names)
-            keys = vectorizer.vocabulary_.keys()
-            print "Length of dic:", len(keys)
-            print "New features:", Xtmp.shape
-            print "Columns:", column_names
+            keys = list(vectorizer.vocabulary_.keys())
+            print("Length of dic:", len(keys))
+            print("New features:", Xtmp.shape)
+            print("Columns:", column_names)
             Xall = pd.concat([Xall, Xtmp], axis=1)
-            print Xall[column_names].describe()
+            print(Xall[column_names].describe())
 
             # discarding columns
             for col in Xall.columns:
                 if col.startswith('component_id') or col.startswith('quantity_') or col.startswith(
                         'doc_component_id') or col.startswith('spec'):
-                    print "Dropping:", col
+                    print("Dropping:", col)
                     Xall.drop([col], axis=1, inplace=True)
 
         if concat or bagofwords is not None:
@@ -322,14 +322,14 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
             Xall['doc_spec'] = Xall.doc_spec.str.replace("-", "_")
             Xall['doc_spec'] = Xall.doc_spec.str.replace("AMBIGIOUS", "AMBIGIOUS_SPEC")
 
-            print Xall['doc_component_id'].value_counts()
-            print Xall['doc_spec'].value_counts()
+            print(Xall['doc_component_id'].value_counts())
+            print(Xall['doc_spec'].value_counts())
 
             Xall['doc_component_id'].fillna('NA', inplace=True)
             Xall['doc_spec'].fillna('NA', inplace=True)
 
             if bagofwords is not None:
-                print "Creating bag of components and of specs..."
+                print("Creating bag of components and of specs...")
                 bagcolumns = bagofwords  #
                 for col in bagcolumns:
                     vectorizer = CountVectorizer(min_df=2, max_features=100, lowercase=True, analyzer="word",
@@ -337,21 +337,21 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
                                                  token_pattern=r'\w{1,}')
                     Xtmp = vectorizer.fit_transform(Xall[col]).todense()
                     Xtmp = pd.DataFrame(Xtmp, columns=vectorizer.get_feature_names())
-                    keys = vectorizer.vocabulary_.keys()
-                    print "Length of dic:", len(keys)
-                    print "New features:", Xtmp.shape
+                    keys = list(vectorizer.vocabulary_.keys())
+                    print("Length of dic:", len(keys))
+                    print("New features:", Xtmp.shape)
                     # print Xtmp.describe()
                     for key in keys:
-                        print "%-20s %10d" % (key, vectorizer.vocabulary_[key])
+                        print("%-20s %10d" % (key, vectorizer.vocabulary_[key]))
 
                     Xall = pd.concat([Xall, Xtmp], axis=1)
                     Xall.drop([col], axis=1, inplace=True)
-                    print "New shape:", Xall.shape
-                    print Xall.describe()
+                    print("New shape:", Xall.shape)
+                    print(Xall.describe())
 
                 for col in Xall.columns:
                     if col.startswith('component_id'):
-                        print "Dropping:", col
+                        print("Dropping:", col)
                         Xall.drop([col], axis=1, inplace=True)
 
         b = ['supplier', 'bracket_pricing', 'material_id', 'end_a_1x', 'end_a_2x', 'end_x_1x', 'end_x_2x', 'end_a',
@@ -361,7 +361,7 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
         b = b + ['forming_endx', 'forming_enda']
 
         if useFrequencies:
-            print "Substituting categories by frequencies"
+            print("Substituting categories by frequencies")
             # preprocess
             for col in Xall.columns:
                 if col in b or col.startswith('spec'):
@@ -375,27 +375,27 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
         for col in Xall.columns:
             lbl = preprocessing.LabelEncoder()
             if skipLabelEncoding is not None and col in skipLabelEncoding:
-                print "SKIP Label_encoding:", col
+                print("SKIP Label_encoding:", col)
                 continue
             if encodeKeepNumber and (col in b or col.startswith('spec')):
 
                 if not Xall[col].str.contains("-").any():
-                    print "encoder now", tmp.isnull().sum(), " col:", col
+                    print("encoder now", tmp.isnull().sum(), " col:", col)
                     Xall[col] = lbl.fit_transform(Xall[col].values)
                 else:
-                    print "extract number"
+                    print("extract number")
                     Xall[col] = Xall[col].astype(str)
-                    print Xall[col].head(10)
+                    print(Xall[col].head(10))
                     tmp = Xall[col].str.split('-').str.get(1)
-                    print "NaN:", tmp.isnull().sum()
+                    print("NaN:", tmp.isnull().sum())
                     tmp.fillna(0, inplace=True)
 
                     Xall[col] = tmp.astype(int)
-                    print Xall[col].head(10)
+                    print(Xall[col].head(10))
 
                     # raw_input()
             elif col in b or col.startswith('spec'):
-                print "Label_encoding:", col
+                print("Label_encoding:", col)
                 # print(Xall[col].iloc[::10000])
                 Xall[col] = lbl.fit_transform(Xall[col].values)
                 # print(Xall[col].iloc[::10000])
@@ -411,7 +411,7 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
                 # Xall.drop([ 'component_id_7','quantity_7','component_id_8','quantity_8'], axis = 1,inplace=True)
 
     elif useRdata:
-        print "Loading R generated dataframe"
+        print("Loading R generated dataframe")
         Xtrain = pd.read_csv('./data/train_R.csv', sep=';')
         Xtest = pd.read_csv('./data/test_R.csv', sep=';')
 
@@ -442,8 +442,8 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
             if col in b or col.startswith('spec'):
                 lbl = preprocessing.LabelEncoder()
                 Xall[col] = lbl.fit_transform(Xall[col].values)
-        print Xall.dtypes
-        print Xall.describe(include='all')
+        print(Xall.dtypes)
+        print(Xall.describe(include='all'))
 
     ta = Xall.tube_assembly_id.values
     ta_train = ta[len(Xtest.index):]
@@ -455,12 +455,12 @@ def loadData(nsamples=-1, verbose=False, useRdata=False, useFrequencies=False, c
 
     if nsamples != -1:
         if isinstance(nsamples, str) and 'shuffle' in nsamples:
-            print "Shuffle train data..."
+            print("Shuffle train data...")
             rows = np.random.choice(len(Xtrain.index), size=len(Xtrain.index), replace=False)
         else:
             rows = np.random.choice(len(Xtrain.index), size=nsamples, replace=False)
 
-        print "unique rows: %6.2f" % (float(np.unique(rows).shape[0]) / float(rows.shape[0]))
+        print("unique rows: %6.2f" % (float(np.unique(rows).shape[0]) / float(rows.shape[0])))
         Xtrain = Xtrain.iloc[rows, :]
         y = y[rows]
         ta_train = ta_train[rows]
@@ -492,7 +492,7 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
     Xall = pd.concat([Xtest, Xtrain], ignore_index=True)
 
     if addNoiseColumns is not None:
-        print "Adding %d random noise columns" % (addNoiseColumns)
+        print("Adding %d random noise columns" % (addNoiseColumns))
         Xrnd = pd.DataFrame(np.random.randn(Xall.shape[0], addNoiseColumns))
         for col in Xrnd.columns:
             Xrnd = Xrnd.rename(columns={col: 'rnd' + str(col + 1)})
@@ -501,12 +501,12 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
     sample_weight = None
     if useSampleWeights:
         # a=1.0/2.0
-        print "Creating sample_weights..."
+        print("Creating sample_weights...")
 
         # print Xtrain['annual_usage'].describe()
         sample_weight = np.sqrt(1.0 / Xtrain['quantity'].values)
         # sample_weight =Xtrain['quantity'].values
-        print pd.Series(sample_weight).describe()
+        print(pd.Series(sample_weight).describe())
     # plt.hist(sample_weight,bins=50)
     # plt.show()
 
@@ -514,7 +514,7 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
         Xall['quantity_inv'] = 1.0 / Xall['quantity']
 
     if createFeatures:
-        print Xall.columns
+        print(Xall.columns)
         spec_cols = [col for col in Xall.columns if col.startswith('spec')]
         if len(spec_cols) > 0:
             Xspec = Xall[spec_cols]
@@ -532,10 +532,10 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
             # print Xall[['nspecs','ncomponents','nparts']].describe()
 
     if biningData is not None:
-        print "Binning..."
+        print("Binning...")
         columns = ['quantity', 'annual_usage']
         for col in columns:
-            print Xall[col].describe()
+            print(Xall[col].describe())
             # print Xall[col].unique()
             bins = [-1, 0, 1, 2, 5, 10, 25, 50, 100, 250, 1000, 1E15]
 
@@ -550,13 +550,13 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
             Xall[col] = df
             # print Xall[col].head(50)
             # print Xall[col].unique()
-            print Xall[col].describe()
+            print(Xall[col].describe())
 
     if shapeFeatures:
-        print "Shape features..."
+        print("Shape features...")
         # is straight
         Xall['isStraight'] = (Xall['num_bends'] == 0).astype(int)
-        print Xall['isStraight'].describe()
+        print(Xall['isStraight'].describe())
     # Xall['no_annual_usage'] = (Xall['annual_usage'] == 0).astype(int)
     # print Xall['no_annual_usage'].describe()
     # Xall['no_min_order_quantity'] = (Xall['min_order_quantity'] == 0).astype(int)
@@ -577,7 +577,7 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
     # raw_input()
 
     if timeFeatures:
-        print "Time features"
+        print("Time features")
         Xall['total_months'] = 2017 * 12 - Xall['year'] * 12 + Xall['month']
         Xtrain = Xall[len(Xtest.index):]
 
@@ -615,7 +615,7 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
     # plt.show()
 
     if computeFixVarCost:
-        print "Fix & Var cost model"
+        print("Fix & Var cost model")
         # Xall['quantity'] = 1.0/Xall['quantity']
         Xtrain = Xall[len(Xtest.index):]
         _tmp = pd.DataFrame(np.log1p(y), columns=['cost'], index=Xtrain.index)
@@ -632,11 +632,11 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
             if _df.shape[0] > 1:
                 param, err = curve_fit(f_hyperbel, Xtrain_ta_y.loc[idx, 'quantity'], Xtrain_ta_y.loc[idx, 'cost'])
 
-                print _df.head()
-                print "ta:", ta
-                print "param[0]", param[0]
-                print "param[1]", param[1]
-                print "err", err
+                print(_df.head())
+                print("ta:", ta)
+                print("param[0]", param[0])
+                print("param[1]", param[1])
+                print("err", err)
 
                 plt.scatter(_df['quantity'], _df['cost'], c='r', s=15)
                 plt.scatter(_df['quantity'], f_hyperbel(_df['quantity'], param[0], param[1]), c='b')
@@ -645,13 +645,13 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
                 plt.show()
 
                 if param[0] < 105 and param[0] > 95:
-                    print "not fittable...+100"
+                    print("not fittable...+100")
                     # print err
                     Xtrain_ta_y.loc[idx, 'varcost'] = -2.0
                     Xtrain_ta_y.loc[idx, 'fixcost'] = 1.7
                     Xtrain_ta_y.loc[idx, 'special'] = 1
                 elif param[0] > -105 and param[0] < -95:
-                    print "not fittable...-100"
+                    print("not fittable...-100")
                     # print err
                     Xtrain_ta_y.loc[idx, 'varcost'] = -2.0
                     Xtrain_ta_y.loc[idx, 'fixcost'] = 1.7
@@ -662,7 +662,7 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
                     Xtrain_ta_y.loc[idx, 'fixcost'] = param[1]
                     Xtrain_ta_y.loc[idx, 'special'] = 0
                 else:
-                    print "inf..."
+                    print("inf...")
                     Xtrain_ta_y.loc[idx, 'varcost'] = -2.0
                     Xtrain_ta_y.loc[idx, 'fixcost'] = 1.7
                     Xtrain_ta_y.loc[idx, 'special'] = 1
@@ -671,11 +671,11 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
                 Xtrain_ta_y.loc[idx, 'fixcost'] = 1.7
                 Xtrain_ta_y.loc[idx, 'special'] = 1
             if i % 1000 == 0:
-                print "Iteration i %d/%d:" % (i, len(ta_uniques))
+                print("Iteration i %d/%d:" % (i, len(ta_uniques)))
 
-        print "varcost", Xtrain_ta_y['varcost'].describe()
-        print "fixcost", Xtrain_ta_y['fixcost'].describe()
-        print "special", Xtrain_ta_y['special'].describe()
+        print("varcost", Xtrain_ta_y['varcost'].describe())
+        print("fixcost", Xtrain_ta_y['fixcost'].describe())
+        print("special", Xtrain_ta_y['special'].describe())
 
         y_tmpa = Xtrain_ta_y['varcost'].values
         y_tmpb = Xtrain_ta_y['fixcost'].values
@@ -684,7 +684,7 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
         Xtrain_ta_y.drop(['varcost', 'fixcost', 'ta', 'cost', 'special'], axis=1, inplace=True)
         tmp_model = RandomForestRegressor(n_estimators=200, n_jobs=4)
 
-        print dir(tmp_model)
+        print(dir(tmp_model))
         # a_train = tmp_model.predict(Xtrain_ta_y)# tmp_model.oob_prediction_
         a_train = getOOBCVPredictions(tmp_model, Xtrain_ta_y, y_tmpa,
                                       cv=KLabelFolds(pd.Series(ta_train), n_folds=8, repeats=1), returnSD=False,
@@ -712,8 +712,8 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
 
         b_test = tmp_model.predict(Xall[:len(Xtest.index)].values)
 
-        print a_test.shape
-        print a_train.shape
+        print(a_test.shape)
+        print(a_train.shape)
         Xall['varcost'] = np.hstack((a_test, a_train))
         Xall['fixcost'] = np.hstack((b_test, b_train))
     # Xall['quantity'] = 1.0/Xall['quantity']
@@ -723,7 +723,7 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
         Xtrain = Xall[len(Xtest.index):]
         fitting = True
         testing = False
-        print "Compute log discount..."
+        print("Compute log discount...")
         if not isinstance(computeDiscount, str):
             _tmp = pd.DataFrame(np.log1p(y), columns=['cost'], index=Xtrain.index)
             Xtrain_ta_y = pd.concat([Xtrain, pd.DataFrame(ta_train, columns=['ta'], index=Xtrain.index), _tmp], axis=1)
@@ -760,14 +760,14 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
                         Xtrain_ta_y.loc[idx, 'discount_fitb'] = 0
 
                     if i % 500 == 0:
-                        print "Iteration i %d/%d:" % (i, len(ta_uniques))
+                        print("Iteration i %d/%d:" % (i, len(ta_uniques)))
             else:
                 pass
 
             # fitting the discount
 
-            print "param a:", Xtrain_ta_y['discount_fita'].describe()
-            print "param b:", Xtrain_ta_y['discount_fitb'].describe()
+            print("param a:", Xtrain_ta_y['discount_fita'].describe())
+            print("param b:", Xtrain_ta_y['discount_fitb'].describe())
             y_tmpa = Xtrain_ta_y['discount_fita'].values
             y_tmpb = Xtrain_ta_y['discount_fitb'].values
             Xtrain_ta_y.drop(['discount', 'discount_fita', 'discount_fitb', 'ta', 'cost'], axis=1, inplace=True)
@@ -789,8 +789,8 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
             # b_train = tmp_model.predict(Xall[len(Xtest.index):].values)# tmp_model.oob_prediction_
             b_test = tmp_model.predict(Xall[:len(Xtest.index)].values)
 
-            print a_test.shape
-            print a_train.shape
+            print(a_test.shape)
+            print(a_train.shape)
             Xall['discount_fita'] = np.hstack((a_test, a_train))
             Xall['discount_fitb'] = np.hstack((b_test, b_train))
 
@@ -802,7 +802,7 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
         # pd.DataFrame(ta_train,columns=['tube_assembly_id']).to_csv('./data/ta.csv',index=False)
         else:
             y = pd.read_csv('./data/discount.csv').values
-            print y
+            print(y)
 
             # plt.hist(y,bins=50)
             # plt.show()
@@ -810,8 +810,8 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
     if createInflationData:
         # works but against the rules
         # http://inflationdata.com/Inflation/Inflation_Rate/HistoricalInflation.aspx
-        print "Inflation data"
-        print Xall['year']
+        print("Inflation data")
+        print(Xall['year'])
         ir = {}
         ir[2017] = 0.016
         ir[2016] = 0.016
@@ -853,7 +853,7 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
         ir[1980] = 0.136
         Xall['ir'] = Xall['year'].copy()
         Xall['ir'].replace(ir, inplace=True)
-        print Xall['ir']
+        print(Xall['ir'])
 
         # http://www.boerse.de/historische-kurse/Euro-Dollar/EU0009652759
         eur = {}
@@ -897,12 +897,12 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
         eur[1980] = 0.9928
         Xall['eur'] = Xall['year'].copy()
         Xall['eur'].replace(eur, inplace=True)
-        print Xall['eur']
+        print(Xall['eur'])
     # GDP?
     # http://www.tradingeconomics.com/united-states/gdp
 
     if createVerticalFeatures:  # possibly flawed..?
-        print "Creating vertical features..."
+        print("Creating vertical features...")
         ta = np.concatenate((ta_test, ta_train))
         ta_unique = np.unique(ta)
         Xall['max_quantity'] = 0
@@ -917,10 +917,10 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
             # print Xall[bool_idx]
             # raw_input()
             if i % 500 == 0:
-                print "iteration %d/%d" % (i, len(ta_unique))
+                print("iteration %d/%d" % (i, len(ta_unique)))
 
     if createVerticalFeaturesV2:
-        print "Creating vertical features V2.0..."
+        print("Creating vertical features V2.0...")
         ta = np.concatenate((ta_test, ta_train))
         ta_unique = np.unique(ta)
         Xall_ta = pd.concat([Xall, pd.DataFrame(ta, columns=['ta'], index=Xall.index)], axis=1)
@@ -962,63 +962,63 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
 
             # print Xall.loc[bool_idx,['max_annual_usage','min_annual_usage']]
             if i % 500 == 0:
-                print "iteration %d/%d" % (i, len(ta_unique))
+                print("iteration %d/%d" % (i, len(ta_unique)))
         Xall['diff_annual_usage'] = Xall['annual_usage'] - Xall['min_annual_usage']
         Xall['diff_order_quantity'] = Xall['min_order_quantity'] - Xall['min_min_order_quantity']
 
     if createSupplierFeatures is not None:
-        print "Creating supplier features..."
-        print createSupplierFeatures
+        print("Creating supplier features...")
+        print(createSupplierFeatures)
         grouped = Xall.loc[:, createSupplierFeatures].groupby('supplier', as_index=False)
-        print grouped.describe()
+        print(grouped.describe())
         Xnew = grouped.aggregate(np.sum)
         Xnew.columns = [x + '_sum_supp' for x in Xnew.columns]
         Xnew.rename(columns={'supplier_sum_supp': 'supplier'}, inplace=True)
-        print "Xnew", Xnew.describe()
+        print("Xnew", Xnew.describe())
         Xall = pd.merge(Xall, Xnew, on='supplier', how='left')
 
         Xnew = grouped['quantity'].aggregate(np.size)
         Xnew.columns = [x + '_size_supp' for x in Xnew.columns]
         Xnew.rename(columns={'supplier_size_supp': 'supplier'}, inplace=True)
-        print "Xnew", Xnew.describe()
+        print("Xnew", Xnew.describe())
         Xall = pd.merge(Xall, Xnew, on='supplier', how='left')
 
         Xnew = grouped.aggregate(np.mean)
         Xnew.columns = [x + '_mean_supp' for x in Xnew.columns]
         Xnew.rename(columns={'supplier_mean_supp': 'supplier'}, inplace=True)
-        print "Xnew", Xnew.describe()
+        print("Xnew", Xnew.describe())
         Xall = pd.merge(Xall, Xnew, on='supplier', how='left')
 
     # print grouped['annual_usage'].describe()
 
     if createMaterialFeatures is not None:
-        print "Creating material_id features..."
+        print("Creating material_id features...")
         grouped = Xall.loc[:, createMaterialFeatures].groupby('material_id', as_index=False)
-        print grouped.describe()
+        print(grouped.describe())
         Xnew = grouped.aggregate(np.sum)
         Xnew.columns = [x + '_sum_mat' for x in Xnew.columns]
         Xnew.rename(columns={'material_id_sum_mat': 'material_id'}, inplace=True)
-        print "Xnew", Xnew.describe()
+        print("Xnew", Xnew.describe())
         Xall = pd.merge(Xall, Xnew, on='material_id', how='left')
 
         Xnew = grouped['quantity'].aggregate(np.size)
         Xnew.columns = [x + '_size_mat' for x in Xnew.columns]
         Xnew.rename(columns={'material_id_size_mat': 'material_id'}, inplace=True)
-        print "Xnew", Xnew.describe()
+        print("Xnew", Xnew.describe())
         Xall = pd.merge(Xall, Xnew, on='material_id', how='left')
 
         Xnew = grouped.aggregate(np.mean)
         Xnew.columns = [x + '_mean_mat' for x in Xnew.columns]
         Xnew.rename(columns={'material_id_mean_mat': 'material_id'}, inplace=True)
-        print "Xnew", Xnew.describe()
+        print("Xnew", Xnew.describe())
         Xall = pd.merge(Xall, Xnew, on='material_id', how='left')
 
-        print "Xall", Xall.describe()
+        print("Xall", Xall.describe())
 
     if removeComp:
         for col in Xall.columns:
             if col.startswith('component'):
-                print "Dropping:", col
+                print("Dropping:", col)
                 Xall.drop([col], axis=1, inplace=True)
 
     if createVolumeFeats:
@@ -1040,66 +1040,66 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
     if removeSpec:
         for col in Xall.columns:
             if col.startswith('spec'):
-                print "Dropping:", col
+                print("Dropping:", col)
                 Xall.drop([col], axis=1, inplace=True)
 
     if removeRare is not None:
         for col in oneHotenc:
             ser = Xall[col]
-            print ser.value_counts()
-            counts = ser.value_counts().keys()
+            print(ser.value_counts())
+            counts = list(ser.value_counts().keys())
 
-            print "%s has %d different values before" % (col, len(counts))
+            print("%s has %d different values before" % (col, len(counts)))
             threshold = removeRare
             if len(counts) > threshold:
                 ser[~ser.isin(counts[:threshold])] = 9999
             if len(counts) <= 1:
-                print("Dropping Column %s with %d values" % (col, len(counts)))
+                print(("Dropping Column %s with %d values" % (col, len(counts))))
                 Xall = Xall.drop(col, axis=1)
             else:
                 Xall[col] = ser.astype('category')
-            print ser.value_counts()
-            counts = ser.value_counts().keys()
-            print "%s has %d different values after" % (col, len(counts))
+            print(ser.value_counts())
+            counts = list(ser.value_counts().keys())
+            print("%s has %d different values after" % (col, len(counts)))
 
     if removeRare_freq is not None:
-        print "Remove rare features based on frequency..."
+        print("Remove rare features based on frequency...")
         for col in oneHotenc:
             ser = Xall[col]
-            counts = ser.value_counts().keys()
+            counts = list(ser.value_counts().keys())
             idx = ser.value_counts() > removeRare_freq
             threshold = idx.astype(int).sum()
-            print "%s has %d different values before, min freq: %d - threshold %d" % (
-                col, len(counts), removeRare_freq, threshold)
+            print("%s has %d different values before, min freq: %d - threshold %d" % (
+                col, len(counts), removeRare_freq, threshold))
             if len(counts) > threshold:
                 ser[~ser.isin(counts[:threshold])] = 9999
             if len(counts) <= 1:
-                print("Dropping Column %s with %d values" % (col, len(counts)))
+                print(("Dropping Column %s with %d values" % (col, len(counts))))
                 Xall = Xall.drop(col, axis=1)
             else:
                 Xall[col] = ser.astype('category')
-            print ser.value_counts()
-            counts = ser.value_counts().keys()
-            print "%s has %d different values after" % (col, len(counts))
+            print(ser.value_counts())
+            counts = list(ser.value_counts().keys())
+            print("%s has %d different values after" % (col, len(counts)))
 
     if oneHotenc is not None:
         # Xtrain = Xall[len(Xtest.index):].values
         # Xtest = Xall[:len(Xtest.index)].values
-        print "1-0 Encoding categoricals...", oneHotenc
+        print("1-0 Encoding categoricals...", oneHotenc)
         for col in oneHotenc:
-            print "Unique values for col:", col, " -", np.unique(Xall[col].values)
+            print("Unique values for col:", col, " -", np.unique(Xall[col].values))
             encoder = OneHotEncoder()
             X_onehot = pd.DataFrame(encoder.fit_transform(Xall[[col]].values).todense())
             X_onehot.columns = [col + "_" + str(column) for column in X_onehot.columns]
-            print "One-hot-encoding of %r...new shape: %r" % (col, X_onehot.shape)
+            print("One-hot-encoding of %r...new shape: %r" % (col, X_onehot.shape))
             # print X_onehot.describe()
             Xall.drop([col], axis=1, inplace=True)
             Xall = pd.concat([Xall, X_onehot], axis=1)
-            print "One-hot-encoding final shape:", Xall.shape
+            print("One-hot-encoding final shape:", Xall.shape)
             # raw_input()
 
     if materialCost:  # Overfitt!!
-        print "Material cost..."
+        print("Material cost...")
         vn_y = 'cost'
         vn = 'material_id'
         # reduce df with quantity ==1 minimum
@@ -1145,7 +1145,7 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
     if owenEncoding is not None:
         # better for classification...!
         # https://github.com/owenzhang/kaggle-avazu/blob/master/utils.py
-        print "Owen Encoding categoricals...", owenEncoding
+        print("Owen Encoding categoricals...", owenEncoding)
         vn_y = 'cost'
         for vn in owenEncoding:
             # filter_train = np.zeros(Xall.shape[0], dtype=bool)
@@ -1162,7 +1162,7 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
 
             # compute mean from training data
             mean0 = df_yt[vn_y].mean() * np.ones(Xall.shape[0])
-            print "overall mean0:", mean0
+            print("overall mean0:", mean0)
             # group by category ie suppliers
             grp1 = df_yt.groupby([vn])
             # print grp1.describe()
@@ -1217,25 +1217,25 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
 
 
     if removeLowVariance:
-        print Xall
-        print "remove low var..."
+        print(Xall)
+        print("remove low var...")
         Xall = removeLowVar(Xall, threshhold=1E-5)
 
     if keepFeatures is not None:
         dropcols = [col for col in Xall.columns if col not in keepFeatures]
         for col in dropcols:
             if col in Xall.columns:
-                print "Dropping: ", col
+                print("Dropping: ", col)
                 Xall.drop([col], axis=1, inplace=True)
 
     if dropFeatures is not None:
         for col in dropFeatures:
             if col in Xall.columns:
-                print "Dropping: ", col
+                print("Dropping: ", col)
                 Xall.drop([col], axis=1, inplace=True)
 
     if logtransform is not None:
-        print "log Transform"
+        print("log Transform")
         for col in logtransform:
             if col in Xall.columns: Xall[col] = Xall[col].map(np.log1p)
             # print Xall[col].describe(include=all)
@@ -1244,41 +1244,41 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
         ncol = Xall.shape[1]
 
         if verbose:
-            for i in xrange(0, ncol - 5, 5):
+            for i in range(0, ncol - 5, 5):
                 tmp = Xall.iloc[:, i:i + 5]
-                print tmp.describe(include='all')
+                print(tmp.describe(include='all'))
                 tmp.hist(bins=50)
                 plt.show()
 
         if not isinstance(Xall, pd.DataFrame):
-            print "X is not a DataFrame, converting from,", type(Xall)
+            print("X is not a DataFrame, converting from,", type(Xall))
             Xall = pd.DataFrame(Xall.todense())
 
         if isinstance(standardize, str) and 'all' in standardize:
             Xall = scaleData(lXs=Xall, lXs_test=None)
         else:
-            print "Standardizing cols:", standardize
+            print("Standardizing cols:", standardize)
             standardize = [x for x in standardize if x in Xall.columns]
             Xall.loc[:, standardize] = scaleData(lXs=Xall.loc[:, standardize])
 
         if verbose:
-            for i in xrange(0, ncol - 5, 5):
+            for i in range(0, ncol - 5, 5):
                 tmp = Xall.iloc[:, i:i + 5]
-                print tmp.describe(include='all')
+                print(tmp.describe(include='all'))
                 tmp.hist(bins=50)
                 plt.show()
                 # raw_input()
 
     if createSparse:
-        print "Creating sparse matrix..."
+        print("Creating sparse matrix...")
         if isinstance(Xtrain, pd.DataFrame): Xall = Xall.values
         Xall = csr_matrix(Xall)
-        print type(Xall)
+        print(type(Xall))
         density(Xall)
 
     if isinstance(Xall, pd.DataFrame):
         for col in Xall.columns:
-            print "Col: %20s Is null: %d" % (col, Xall[col].isnull().sum())
+            print("Col: %20s Is null: %d" % (col, Xall[col].isnull().sum()))
 
     Xtrain = Xall[len(Xtest.index):]
 
@@ -1292,7 +1292,7 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
         plt.show()
 
     if log1p:
-        print "Transform y: y=log(y+1)"
+        print("Transform y: y=log(y+1)")
         y = np.log1p(y)
 
     if rootTransformation:
@@ -1302,27 +1302,27 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
         y = y.map(lambda x: x + np.random.normal(loc=0.0, scale=.05))
 
     if yBinning > 0:
-        print "Binning target value:", yBinning
+        print("Binning target value:", yBinning)
         ys = pd.Series(y)
         y, bins = pd.qcut(ys, yBinning, retbins=True)
         # y,bins = pd.cut(ys, yBinning,retbins=True)
         # create bins without last point
         bins = bins[:-1]
         # bins = np.diff(bins,n=1)
-        print bins
+        print(bins)
         y.cat.categories = bins
         y = y.values.astype(np.float32)
     # plt.hist(y,bins=2*bins.shape[0])
     # plt.show()
 
-    if isinstance(Xtrain, pd.DataFrame): print "#columns", list(Xtrain.columns)
+    if isinstance(Xtrain, pd.DataFrame): print("#columns", list(Xtrain.columns))
 
     if holdout:
-        print "Split holdout..."
+        print("Split holdout...")
 
         unique_labels = np.unique(ta_train)
 
-        print type(unique_labels)
+        print(type(unique_labels))
 
         unique_labels = shuffle(np.asarray(unique_labels,dtype='S8'),random_state=seed)
         split_pc = 0.7
@@ -1330,8 +1330,8 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
 
         unique_val = unique_labels[index:]
 
-        print unique_val[:10]
-        print unique_val[-10:]
+        print(unique_val[:10])
+        print(unique_val[-10:])
 
         val_mask = np.in1d(ta_train,unique_val)
         train_mask = np.logical_not(val_mask)
@@ -1342,23 +1342,23 @@ def prepareDataset(seed=123, nsamples=-1, addNoiseColumns=None, log1p=True, useR
         y = y[train_mask].copy()
         ta_train = ta_train[train_mask].copy()
 
-        print "Xtrain:",Xtrain.shape
-        print "yval:",yval.shape
-        print "ta_train:",ta_train.shape
+        print("Xtrain:",Xtrain.shape)
+        print("yval:",yval.shape)
+        print("ta_train:",ta_train.shape)
 
 
-    print "#Xtrain:", Xtrain.shape
-    print "#Xtest:", Xtest.shape
+    print("#Xtrain:", Xtrain.shape)
+    print("#Xtest:", Xtest.shape)
 
     # print type(ytrain)
-    print "#ytrain:", y.shape
+    print("#ytrain:", y.shape)
 
     if holdout:
-        print "#Xval:", Xval.shape
+        print("#Xval:", Xval.shape)
         return Xtest, Xtrain, y, idx, ta_train, sample_weight, Xval, yval
 
     else:
-        print "#data preparation finished!\n\n"
+        print("#data preparation finished!\n\n")
         return Xtest, Xtrain, y, idx, ta_train, sample_weight
 
 
@@ -1369,23 +1369,23 @@ def makePredictions(model=None, Xtest=None, idx=None, filename='submission.csv',
         preds = Xtest
     if idx is None:
         idx = np.arange(Xtest.shape[0]) + 1
-    print preds.shape
-    print idx.shape
+    print(preds.shape)
+    print(idx.shape)
     preds = np.clip(preds, a_min=0.0, a_max=1E15)
     if log1p:
-        print "Backtransform y -> exp(y)-1"
+        print("Backtransform y -> exp(y)-1")
         preds = np.expm1(preds)
     submission = pd.DataFrame({"id": idx, "cost": preds})  # order?
     submission = submission[['id', 'cost']]
     submission.to_csv(filename, index=False)
-    print "Saving submission: ", filename
+    print("Saving submission: ", filename)
 
 
 def loadBNdata():
     Xtrain = pd.read_csv("/home/loschen/Desktop/datamining-kaggle/caterpillar/data/training_Aug23_log.csv")
     Xtest = pd.read_csv("/home/loschen/Desktop/datamining-kaggle/caterpillar/data/testing_Aug23_log.csv")
     Xtrain.drop(['cost'], axis=1, inplace=True)
-    print list(Xtrain.columns)
+    print(list(Xtrain.columns))
     return Xtest, Xtrain
 
 
@@ -1457,9 +1457,9 @@ if __name__ == "__main__":
 
     t0 = time()
 
-    print "numpy:", np.__version__
-    print "pandas:", pd.__version__
-    print "scipy:", sp.__version__
+    print("numpy:", np.__version__)
+    print("pandas:", pd.__version__)
+    print("scipy:", sp.__version__)
     categoricals = ['supplier', 'material_id', 'end_a_1x', 'end_a_2x', 'end_x_1x', 'end_x_2x', 'end_a', 'end_x',
                     'component_id_1', 'component_id_2', 'component_id_3', 'component_id_4', 'component_id_5',
                     'component_id_6', 'component_id_7', 'component_id_8', 'spec1', 'spec2', 'spec3', 'spec4', 'spec5',
@@ -1633,7 +1633,7 @@ if __name__ == "__main__":
     Xtrain = scaleData(Xtrain,normalize=False).values
     # model = Pipeline([('scaler', StandardScaler()), ('model',nn10_BN)])
     #model = nnet_BN_deep  # nn10_BN
-    print model
+    print(model)
     # featureImportance(model,Xtrain,ytrain)
 
     if log1p:
@@ -1647,7 +1647,7 @@ if __name__ == "__main__":
     # XVAL END
 
     if isinstance(model, NeuralNet) or isinstance(model, KerasNNReg):
-        print "Converting df to np..."
+        print("Converting df to np...")
         if isinstance(Xtrain, pd.DataFrame):
             Xtrain = Xtrain.values
         ytrain = ytrain.reshape((ytrain.shape[0], 1))
@@ -1671,4 +1671,4 @@ if __name__ == "__main__":
     # print Xtest.describe()
     # print Xtest.shape
     # makePredictions(model=model, Xtest=Xtest, idx=idx, filename='submissions/sub16082015xxx.csv', log1p=log1p)
-    print("Model building done in %fs" % (time() - t0))
+    print(("Model building done in %fs" % (time() - t0)))

@@ -32,22 +32,21 @@ def interact_analysis(df,n_bins=100):
             """
     func_dic = {'np.log1p': np.log1p, 'np.sqrt': np.sqrt}
     func_hist={}
-    print df.columns
+    print(df.columns)
     num_columns = df._get_numeric_data().columns
-    print "\n\nInteractive Analysis of Data\n"
-    print "Numeric columns       n=%4d %s"%(len(num_columns),num_columns)
+    print("\n\nInteractive Analysis of Data\n")
+    print("Numeric columns       n=%4d %s"%(len(num_columns),num_columns))
     nonnum_columns = df.columns.difference(num_columns)
-    print "Non-numeric columns   n=%4d %s"%(len(nonnum_columns),nonnum_columns)
+    print("Non-numeric columns   n=%4d %s"%(len(nonnum_columns),nonnum_columns))
 
     for i,col in enumerate(num_columns):
         leave_it = False
         df_orig = df[col].copy()
         func_hist[col] = None
         while True:
-	    print "Column:",col
-            print df[col].describe()
-            line = raw_input(usage)
-            print 'ENTERED: "%s"' % line
+            print(df[col].describe())
+            line = input(usage)
+            print('ENTERED: "%s"' % line)
             if line == 'q':
                 leave_it = True
                 func_hist[col] = None
@@ -67,10 +66,10 @@ def interact_analysis(df,n_bins=100):
                 func_hist[col] = None
                 line = 'p'
             if line in num_columns:
-		col = line
-		df_orig = df[col].copy()
-            print "Column:",col
-            print df[col].describe()
+                col = line
+            df_orig = df[col].copy()
+            print("Column:",col)
+            print(df[col].describe())
             
             if line == 'p':
                 plt.close()
@@ -85,10 +84,10 @@ def interact_analysis(df,n_bins=100):
         
         if leave_it == True: break
     
-    for key in func_hist.keys():
-	print "Col: %s  transformation: %s"%(key,func_hist[key])
+    for key in list(func_hist.keys()):
+        print("Col: %s  transformation: %s"%(key,func_hist[key]))
     
-    print "Finished!"
+    print("Finished!")
     
 
 def pairplot(df,hue_name=None):

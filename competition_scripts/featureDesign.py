@@ -23,7 +23,7 @@ def getStopwords(addRecipe=True):
     if addRecipe:
 	for x in recipe_words:
 	    stop_words.append(x)
-    print stop_words
+    print(stop_words)
     return(stop_words)
 
 
@@ -31,7 +31,7 @@ def posTagging(olddf):
     """
     Creates new features
     """
-    print "Use nltk postagging..."
+    print("Use nltk postagging...")
     tutto=[]
     taglist=['N','NP','ADJ','ADV','PRO','V','NUM','VD','DET','P','WH','MOD','TO','VG','CNJ']
     #taglist=['N','NP','ADJ','ADV']
@@ -39,9 +39,9 @@ def posTagging(olddf):
     #olddf = olddf.ix[random.sample(olddf.index, 10)]
     olddf=pd.DataFrame(olddf['body'])
     
-    print type(olddf)
+    print(type(olddf))
     for ind in olddf.index:
-	  print ind
+	  print(ind)
 	  row=[]
 	  row.append(ind)
 	  text=olddf.ix[ind,'body']
@@ -50,7 +50,7 @@ def posTagging(olddf):
 	  
 	  tag_fd = FreqDist(tag for (word, tag) in tagged)
 	  
-	  print tagged
+	  print(tagged)
 	  #print len(tagged)
 	  
 	  for l in taglist:
@@ -71,8 +71,8 @@ def posTagging(olddf):
 	  tutto.append(row)
     newdf=pd.DataFrame(tutto).set_index(0)
     newdf.columns=taglist
-    print newdf.head(20)
-    print newdf.describe()
+    print(newdf.head(20))
+    print(newdf.describe())
     newdf.to_csv("../stumbled_upon/data/postagged2.csv")
 
     
@@ -80,11 +80,11 @@ def postagFeatures(olddf):
     """
     Creates new features
     """
-    print "Create POS tag as features..."
+    print("Create POS tag as features...")
     tutto=[]
     olddf=pd.DataFrame(olddf['body'])
     for ind in olddf.index:
-	  print "postag feats: ",ind
+	  print("postag feats: ",ind)
 	  row=[]
 	  row.append(ind)
 	  text=olddf.ix[ind,'body']
@@ -109,38 +109,38 @@ def postagFeatures(olddf):
 	  tutto.append(row)
     newdf=pd.DataFrame(tutto).set_index(0)
     newdf.columns=["postagfeats"]
-    print newdf.head(20)
-    print newdf.describe()
+    print(newdf.head(20))
+    print(newdf.describe())
     newdf.to_csv("../stumbled_upon/data/postagfeats_simple.csv",encoding="utf-8")
     
 def postagSmoothing(olddf):
     """
     Use postag to smooth data
     """
-    print "Smoothing data via postag..."
+    print("Smoothing data via postag...")
     tutto=[]    
     #olddf = olddf.ix[random.sample(olddf.index, 10)]
     #olddf = olddf.ix[olddf.index[0:9]]
     olddf=pd.DataFrame(olddf['body'])
     wnl = PorterStemmer()
     for ind in olddf.index:
-	  print "Smoothing: ",ind
+	  print("Smoothing: ",ind)
 	  row=[]
 	  row.append(ind)
 	  text=olddf.ix[ind,'body']
 	  text=[wnl.stem(t) for t in word_tokenize(text)]	  
 	  tagged=pos_tag(text)
-	  word_tag=u''
-	  tag_word=u''
-	  actual_tag=u'.'
-	  actual_word=u'.'
+	  word_tag=''
+	  tag_word=''
+	  actual_tag='.'
+	  actual_word='.'
 	  #print tagged
 	  for word, tag in tagged:
 	      #tag=simplify_wsj_tag(tag)
 	      word=word.lower()
-	      word_tag=word_tag+actual_word+u"_"+tag+" "
+	      word_tag=word_tag+actual_word+"_"+tag+" "
 	      actual_word=word
-	      tag_word=tag_word+actual_tag+u"_"+word+" "
+	      tag_word=tag_word+actual_tag+"_"+word+" "
 	      actual_tag=tag
 	  #print word_tag
 	  #print tag_word
@@ -148,9 +148,9 @@ def postagSmoothing(olddf):
 	  row.append(tag_word)
 	  tutto.append(row)
     newdf=pd.DataFrame(tutto).set_index(0)
-    newdf.columns=[u'wordtag',u'tagword']
-    print newdf.head(20)
-    print newdf.describe()
+    newdf.columns=['wordtag','tagword']
+    print(newdf.head(20))
+    print(newdf.describe())
     newdf.to_csv("../stumbled_upon/data/postagsmoothed2.csv",encoding="utf-8")
     
     
@@ -160,15 +160,15 @@ def lidstoneProbDist(olddf):
     """
     #http://www.inf.ed.ac.uk/teaching/courses/icl/nltk/probability.pdf
     #https://github.com/tuzzeg/detect_insults/blob/master/README.md
-    print "Creating LidStone Probdist...",nltk.__version__
+    print("Creating LidStone Probdist...",nltk.__version__)
     tutto=[]
     
     #olddf = olddf.ix[random.sample(olddf.index, 10)]
     olddf=pd.DataFrame(olddf['body'])
     
-    print type(olddf)
+    print(type(olddf))
     for ind in olddf.index:
-	  print ind
+	  print(ind)
 	  row=[]
 	  row.append(ind)
 	  text=olddf.ix[ind,'body']
@@ -177,11 +177,11 @@ def lidstoneProbDist(olddf):
 	  
 	  t_fd = FreqDist(tokens)
 	  pdist = LidstoneProbDist(t_fd,0.1)
-	  print pdist.samples()
+	  print(pdist.samples())
 	  #for tok in tokens:
 	  #    print pdist[3][tok]
 	  #t_fd.plot(cumulative=False)
-	  raw_input("HITKEY")
+	  input("HITKEY")
 	  row=tokens
 	  #print tagged
 	  #print len(tagged)
@@ -189,8 +189,8 @@ def lidstoneProbDist(olddf):
 	  tutto.append(row)
     newdf=pd.DataFrame(tutto).set_index(0)
     newdf.columns=taglist
-    print newdf.head(20)
-    print newdf.describe()
+    print(newdf.head(20))
+    print(newdf.describe())
     newdf.to_csv("../stumbled_upon/data/lidstone.csv")
     
     
@@ -198,7 +198,7 @@ def featureEngineering(olddf):
     """
     Creates new features
     """
-    print "Feature engineering..."
+    print("Feature engineering...")
     #lower
     olddf['url']=olddf.url.str.lower()
     olddf['embed_ratio']=olddf.embed_ratio.replace(-1.0,0.0)

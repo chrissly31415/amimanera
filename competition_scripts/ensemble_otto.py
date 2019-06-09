@@ -872,7 +872,7 @@ def finalizeModel(m,binarizeProbas=False,use_proba=True):
 	"""
 	Make predictions and save them
 	"""
-	print "Make predictions and save them..."
+	print("Make predictions and save them...")
 	if binarizeProbas:
 	    #oob class predictions,binarize data
 	    vfunc = np.vectorize(binarizeProbs)
@@ -909,7 +909,7 @@ def finalizeModel(m,binarizeProbas=False,use_proba=True):
 	#print allpred
 	#submission data is first, train data is last!
 	filename="/home/loschen/Desktop/datamining-kaggle/otto/data/"+m.name+".csv"
-	print "Saving oob + predictions as csv to:",filename
+	print("Saving oob + predictions as csv to:",filename)
 	allpred.to_csv(filename,index=False)
 	
 	#XModel.saveModel(m,"/home/loschen/Desktop/datamining-kaggle/higgs/data/"+m.name+".pkl")
@@ -924,13 +924,13 @@ def createOOBdata_parallel(ensemble,repeats=2,nfolds=8,n_jobs=1,score_func='log_
     global funcdict
 
     for m in ensemble:
-	print "Computing oob predictions for:",m.name
-	print m.classifier.get_params
+	print("Computing oob predictions for:",m.name)
+	print(m.classifier.get_params)
 	if m.class_names is not None:
 	    n_classes = len(m.class_names)
 	else:
 	    n_classes = 1
-	print "n_classes",n_classes
+	print("n_classes",n_classes)
 	
 	oob_preds=np.zeros((m.ytrain.shape[0],n_classes,repeats))
 	ly=m.ytrain
@@ -938,7 +938,7 @@ def createOOBdata_parallel(ensemble,repeats=2,nfolds=8,n_jobs=1,score_func='log_
 	maescore=np.zeros(repeats)
 	
 	#outer loop
-	for j in xrange(repeats):
+	for j in range(repeats):
 	    cv = StratifiedKFold(ly, n_folds=nfolds,shuffle=True,random_state=None)
 	    #cv = StratifiedShuffleSplit(ly, n_iter=nfolds, test_size=0.25,random_state=j)
 	    
@@ -955,7 +955,7 @@ def createOOBdata_parallel(ensemble,repeats=2,nfolds=8,n_jobs=1,score_func='log_
 	  
 	    if returnModel:
 	      for in_bagmodel in inbag_models:
-		  print in_bagmodel
+		  print(in_bagmodel)
 	    
 	    for i,(train,test) in enumerate(cv):
 	        oob_pred[i] = oob_pred[i].reshape(oob_pred[i].shape[0],n_classes)
@@ -968,9 +968,9 @@ def createOOBdata_parallel(ensemble,repeats=2,nfolds=8,n_jobs=1,score_func='log_
 	    oobscore[j]=funcdict[score_func](ly,oob_preds[:,:,j])
 	    #maescore[j]=funcdict['mae'](ly,oob_preds[:,j])
 	    
-	    print "Iteration:",j,
-	    print " <score>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
-	    print " score,oob: %0.3f" %(oobscore[j])
+	    print("Iteration:",j, end=' ')
+	    print(" <score>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()), end=' ')
+	    print(" score,oob: %0.3f" %(oobscore[j]))
 	    #print " ## <mae>: %0.3f (+/- %0.3f)" % (scores_mae.mean(), scores_mae.std()),
 	    #print " score3,oob: %0.3f" %(maescore[j])
 	    
@@ -986,12 +986,12 @@ def createOOBdata_parallel(ensemble,repeats=2,nfolds=8,n_jobs=1,score_func='log_
 	   
 	score_oob = funcdict[score_func](ly,m.oob_preds)
 	# = funcdict['mae'](ly,m.oob_preds)
-	print "Summary: <score,oob>: %6.3f +- %6.3f   score,oob-total: %0.3f (after %d repeats)\n" %(oobscore.mean(),oobscore.std(),score_oob,repeats)
+	print("Summary: <score,oob>: %6.3f +- %6.3f   score,oob-total: %0.3f (after %d repeats)\n" %(oobscore.mean(),oobscore.std(),score_oob,repeats))
 	
 	#Train model with test sets
-	print "Train full modell...",	
+	print("Train full modell...", end=' ')	
 	if m.sample_weight is not None:
-	    print "... with sample weights"
+	    print("... with sample weights")
 	    m.classifier.fit(m.Xtrain,ly,m.sample_weight)
 	else:
 	    m.classifier.fit(m.Xtrain,ly)
@@ -1047,14 +1047,14 @@ def trainEnsemble_multiclass(ensemble,mode='linear',useCols=None,addMetaFeatures
 
     for i,model in enumerate(ensemble):
 	
-	print "Loading model:",i," name:",model
+	print("Loading model:",i," name:",model)
 	xmodel = XModel.loadModel(basedir+model)
 	class_names = xmodel.class_names
 	if class_names is None:
 	  class_names = ['Class']
-	print "OOB data:",xmodel.oob_preds.shape
-	print "pred data:",xmodel.preds.shape
-	print "y train:",xmodel.ytrain.shape
+	print("OOB data:",xmodel.oob_preds.shape)
+	print("pred data:",xmodel.preds.shape)
+	print("y train:",xmodel.ytrain.shape)
 	
 	if i>0:
 	    xmodel.oob_preds.columns = [model+"_"+n for n in class_names]
@@ -1067,10 +1067,10 @@ def trainEnsemble_multiclass(ensemble,mode='linear',useCols=None,addMetaFeatures
 	    y = xmodel.ytrain
 	    Xtrain.columns = [model+"_"+n for n in class_names]
 
-    print Xtrain.columns
-    print Xtrain.shape
+    print(Xtrain.columns)
+    print(Xtrain.shape)
     #print Xtrain.describe()
-    print Xtest.shape
+    print(Xtest.shape)
     #print Xtest.describe()
    
     if mode is 'classical':
@@ -1090,10 +1090,10 @@ def trainEnsemble(ensemble,mode='classical',useCols=None,addMetaFeatures=False,u
     basedir="/home/loschen/Desktop/datamining-kaggle/otto/data/"
     xensemble=[]
     for i,model in enumerate(ensemble):
-	print "Loading model:",i," name:",model
+	print("Loading model:",i," name:",model)
 	xmodel = XModel.loadModel(basedir+model)
-	print "OOB data     :",xmodel.oob_preds.shape
-	print "y data       :",xmodel.preds.shape
+	print("OOB data     :",xmodel.oob_preds.shape)
+	print("y data       :",xmodel.preds.shape)
 	if i>0:
 	    Xtrain = pd.concat([Xtrain,xmodel.oob_preds], axis=1)
 	    Xtest = pd.concat([Xtest,xmodel.preds], axis=1)
@@ -1135,7 +1135,7 @@ def voting_multiclass(ensemble,Xtrain,Xtest,y,n_classes=9,subfile=""):
     """
     Voting for multi classifiction result
     """
-    print "Majority voting for predictions"
+    print("Majority voting for predictions")
     voter = np.reshape(Xtrain.values,(Xtrain.shape[0],-1,n_classes)).swapaxes(0,1)
 
     for model in voter:
@@ -1145,8 +1145,8 @@ def voting_multiclass(ensemble,Xtrain,Xtest,y,n_classes=9,subfile=""):
 	    row[idx]=1.0
     
     voter = voter.mean(axis=0)
-    print voter
-    print voter.shape
+    print(voter)
+    print(voter.shape)
 
     
 def voting(ensemble,Xtrain,Xtest,y,test_indices,subfile):
@@ -1156,7 +1156,7 @@ def voting(ensemble,Xtrain,Xtest,y,test_indices,subfile):
     
     vfunc = np.vectorize(binarizeProbs)
     
-    print "Majority voting for predictions"
+    print("Majority voting for predictions")
     #weights=np.asarray(pd.read_csv('../datamining-kaggle/higgs/training.csv', sep=",", na_values=['?'], index_col=0)['Weight'])
     
     for i,col in enumerate(Xtrain.columns):
@@ -1165,7 +1165,7 @@ def voting(ensemble,Xtrain,Xtest,y,test_indices,subfile):
 	Xtrain[col]=vfunc(Xtrain[col].values,cutoff)
 	#oob_avg=np.mean(Xtmp,axis=1)
 	score=ams_score(y,Xtrain[col].values,sample_weight=weights,use_proba=False,cutoff=cutoff,verbose=False)
-	print "%4d AMS,oob data: %0.4f colum: %20s" % (i,score,col)
+	print("%4d AMS,oob data: %0.4f colum: %20s" % (i,score,col))
 	cutoff = computeCutoff(Xtest[col].values,False)
 	Xtest[col]=vfunc(Xtest[col].values,cutoff)
 	#plt.hist(np.asarray(Xtrain[col]),bins=50,label=col+'_oob')
@@ -1177,7 +1177,7 @@ def voting(ensemble,Xtrain,Xtest,y,test_indices,subfile):
     
     oob_avg=np.asarray(np.mean(Xtrain,axis=1))
     score=ams_score(y,oob_avg,sample_weight=weights,use_proba=False,cutoff=0.5,verbose=True)
-    print " AMS,oob all: %0.4f" % (score)
+    print(" AMS,oob all: %0.4f" % (score))
     
     preds=np.asarray(np.mean(Xtest,axis=1))
     
@@ -1217,7 +1217,7 @@ def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_l
 	blend_scores=np.zeros(len(cv))
 	n_classes = 9 #oobpreds.shape[1]/len(ensemble)
 	blend_oob=np.zeros((oobpreds.shape[0],n_classes))
-	print blender
+	print(blender)
 	for i, (train, test) in enumerate(cv):
 	    Xtrain = oobpreds.iloc[train]
 	    Xtest = oobpreds.iloc[test]
@@ -1225,31 +1225,31 @@ def classicalBlend(ensemble,oobpreds,testset,ly,use_proba=True,score_func='log_l
 	    if use_proba:
 		blend_oob[test] = blender.predict_proba(Xtest)
 	    else:
-		print "Warning: Using predict, no proba!"
+		print("Warning: Using predict, no proba!")
 
 		blend_oob[test] = blender.predict(Xtest)
 	    blend_scores[i]=funcdict[score_func](ly[test],blend_oob[test])
-	    print "Fold: %3d <%s>: %0.6f" % (i,score_func,blend_scores[i])
+	    print("Fold: %3d <%s>: %0.6f" % (i,score_func,blend_scores[i]))
 	
-	print " <"+score_func+">: %0.6f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()),
+	print(" <"+score_func+">: %0.6f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()), end=' ')
 	oob_auc=funcdict[score_func](ly,blend_oob)
-	print " "+score_func+": %0.6f" %(oob_auc)
+	print(" "+score_func+": %0.6f" %(oob_auc))
 	
 	if hasattr(blender,'coef_'):
-	  print "%-16s %10s %10s" %("model",score_func,"coef")
+	  print("%-16s %10s %10s" %("model",score_func,"coef"))
 	  idx = 0
 	  for i,model in enumerate(ensemble):
 	    idx_start = n_classes*i
 	    idx_end = n_classes*(i+1)
 	    coldata=np.asarray(oobpreds.iloc[:,idx_start:idx_end])
 	    score=funcdict[score_func](ly, coldata)
-	    print "%-16s %10.3f%10.3f" %(model,score,blender.coef_[0][i])
-	  print "sum coef: %4.4f"%(np.sum(blender.coef_))
+	    print("%-16s %10.3f%10.3f" %(model,score,blender.coef_[0][i]))
+	  print("sum coef: %4.4f"%(np.sum(blender.coef_)))
 	#plt.plot(range(len(ensemble)),scores,'ro')
     
     if len(subfile)>1:
 	#Prediction
-	print "Make final ensemble prediction..."
+	print("Make final ensemble prediction...")
 	#make prediction for each classifiers   
 	preds=blender.fit(oobpreds,ly)
 	#blend results
@@ -1285,7 +1285,7 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',normali
     def fopt(params):
 	# nxm  * m*1 ->n*1
 	if np.isnan(np.sum(params)):
-	    print "We have NaN here!!"
+	    print("We have NaN here!!")
 	    score=0.0
 	else:
 	    #ypred=np.dot(Xtrain,params)	    
@@ -1294,9 +1294,9 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',normali
 	    #regularization
 	    if alpha is not None:
 	      penalty=alpha*np.sum(np.square(params))
-	      print "orig score:%8.3f"%(score),
+	      print("orig score:%8.3f"%(score), end=' ')
 	      score=score-penalty
-	      print " - Regularization - alpha: %8.3f penalty: %8.3f regularized score: %8.3f"%(alpha,penalty,score) 
+	      print(" - Regularization - alpha: %8.3f penalty: %8.3f regularized score: %8.3f"%(alpha,penalty,score)) 
 	return score
 
     y = np.asarray(y)
@@ -1309,7 +1309,7 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',normali
     constr=[lambda x,z=i: x[z]-lowerbound for i in range(n_models)]
     constr2=[lambda x,z=i: upperbound-x[z] for i in range(n_models)]
     constr=constr+constr2
-    print n_models
+    print(n_models)
     x0 = np.ones((n_models, 1)) / n_models
 
     #x0= np.random.random_sample((n_models,1))
@@ -1317,40 +1317,40 @@ def linearBlend_multiclass(ensemble,Xtrain,Xtest,y,score_func='log_loss',normali
     xopt = fmin_cobyla(fopt, x0,constr,rhoend=1e-7,maxfun=5000)
     
     if takeMean:
-	print "Taking the mean..."
+	print("Taking the mean...")
 	xopt=x0
     
     #normalize coefficient
     if normalize: 
 	xopt=xopt/np.sum(xopt)
-	print "Normalized coefficients:",xopt
+	print("Normalized coefficients:",xopt)
     
     if np.isnan(np.sum(xopt)):
-	    print "We have NaN here!!"
+	    print("We have NaN here!!")
     
     ypred=multiclass_mult(Xtrain,xopt,n_classes)
     
     ymean= multiclass_mult(Xtrain,x0,n_classes)
     
     oob_score=funcdict[score_func](y,ypred)
-    print "->score,opt: %4.4f" %(oob_score)
+    print("->score,opt: %4.4f" %(oob_score))
     score=funcdict[score_func](y,ymean)
-    print "->score,mean: %4.4f" %(score)
+    print("->score,mean: %4.4f" %(score))
        
     zero_models=[]
-    print "%4s %-48s %6s %6s" %("nr","model","score","coeff")
+    print("%4s %-48s %6s %6s" %("nr","model","score","coeff"))
     for i,model in enumerate(ensemble):
 	idx_start = n_classes*i
 	idx_end = n_classes*(i+1)
 	coldata=np.asarray(Xtrain.iloc[:,idx_start:idx_end])
 	score = funcdict[score_func](y,coldata)	
-	print "%4d %-48s %6.3f %6.3f" %(i+1,model,score,xopt[i])
+	print("%4d %-48s %6.3f %6.3f" %(i+1,model,score,xopt[i]))
 	if xopt[i]<removeZeroModels:
 	    zero_models.append(model)
-    print "##sum coefficients: %4.4f"%(np.sum(xopt))
+    print("##sum coefficients: %4.4f"%(np.sum(xopt)))
     
     if removeZeroModels>0.0:
-	print "Dropping ",len(zero_models)," columns:",zero_models
+	print("Dropping ",len(zero_models)," columns:",zero_models)
 	Xtrain=Xtrain.drop(zero_models,axis=1)
 	Xtest=Xtest.drop(zero_models,axis=1)
 	return (Xtrain,Xtest)
@@ -1381,7 +1381,7 @@ def linearBlend(ensemble,Xtrain,Xtest,y,weights=None,score_func='rmse',test_indi
     def fopt(params):
 	# nxm  * m*1 ->n*1
 	if np.isnan(np.sum(params)):
-	    print "We have NaN here!!"
+	    print("We have NaN here!!")
 	    score=0.0
 	else:
 	    ypred=np.dot(Xtrain,params).flatten()
@@ -1391,9 +1391,9 @@ def linearBlend(ensemble,Xtrain,Xtest,y,weights=None,score_func='rmse',test_indi
 	    #regularization
 	    if alpha is not None:
 	      penalty=alpha*np.sum(np.square(params))
-	      print "orig score:%8.3f"%(score),
+	      print("orig score:%8.3f"%(score), end=' ')
 	      score=score-penalty
-	      print " - Regularization - alpha: %8.3f penalty: %8.3f regularized score: %8.3f"%(alpha,penalty,score) 
+	      print(" - Regularization - alpha: %8.3f penalty: %8.3f regularized score: %8.3f"%(alpha,penalty,score)) 
 	return score
 
     y = np.asarray(y)
@@ -1410,14 +1410,14 @@ def linearBlend(ensemble,Xtrain,Xtest,y,weights=None,score_func='rmse',test_indi
     xopt = fmin_cobyla(fopt, x0,constr,rhoend=1e-7,maxfun=5000)
     
     if takeMean:
-	print "Taking the mean..."
+	print("Taking the mean...")
 	xopt=x0
     
     #normalize coefficient
     if normalize: xopt=xopt/np.sum(xopt)
     
     if np.isnan(np.sum(xopt)):
-	    print "We have NaN here!!"
+	    print("We have NaN here!!")
     
     ypred=np.dot(Xtrain,xopt).flatten()
     #ypred = ypred/np.max(ypred)#normalize?
@@ -1426,23 +1426,23 @@ def linearBlend(ensemble,Xtrain,Xtest,y,weights=None,score_func='rmse',test_indi
     #ymean = ymean/np.max(ymean)#normalize?
     
     oob_score=funcdict[score_func](y,ypred)
-    print "->score,opt: %4.4f" %(oob_score)
+    print("->score,opt: %4.4f" %(oob_score))
     score=funcdict[score_func](y,ymean)
-    print "->score,mean: %4.4f" %(score)
+    print("->score,mean: %4.4f" %(score))
     
     
     zero_models=[]
-    print "%4s %-48s %6s %6s" %("nr","model","score","coeff")
+    print("%4s %-48s %6s %6s" %("nr","model","score","coeff"))
     for i,model in enumerate(Xtrain.columns):
 	coldata=np.asarray(Xtrain.iloc[:,i])
 	score = funcdict[score_func](y,coldata)	
-	print "%4d %-48s %6.3f %6.3f" %(i+1,model,score,xopt[i])
+	print("%4d %-48s %6.3f %6.3f" %(i+1,model,score,xopt[i]))
 	if xopt[i]<removeZeroModels:
 	    zero_models.append(model)
-    if not normalize: print "##sum coefficients: %4.4f"%(np.sum(xopt))
+    if not normalize: print("##sum coefficients: %4.4f"%(np.sum(xopt)))
     
     if removeZeroModels>0.0:
-	print "Dropping ",len(zero_models)," columns:",zero_models
+	print("Dropping ",len(zero_models)," columns:",zero_models)
 	Xtrain=Xtrain.drop(zero_models,axis=1)
 	Xtest=Xtest.drop(zero_models,axis=1)
 	return (Xtrain,Xtest)
@@ -1472,11 +1472,11 @@ def selectModels(ensemble,startensemble=[],niter=10,mode='amsMaximize',useCols=N
     ens_list=[]
     cols_list=[]
     for i in range(niter):
-	print "iteration %5d/%5d, current max_score: %6.3f"%(i+1,niter,max(auc_list))
+	print("iteration %5d/%5d, current max_score: %6.3f"%(i+1,niter,max(auc_list)))
 	actlist=randBinList(len(ensemble))
 	actensemble=[x for x in itertools.compress(ensemble,actlist)]
 	actensemble=startensemble+actensemble
-	print actensemble
+	print(actensemble)
 	#print actensemble
 	auc=trainEnsemble(actensemble,mode=mode,useCols=useCols,addMetaFeatures=False,dropCorrelated=False)
 	auc_list.append(auc)
@@ -1486,14 +1486,14 @@ def selectModels(ensemble,startensemble=[],niter=10,mode='amsMaximize',useCols=N
     topens=None
     topcols=None
     for ens,auc in zip(ens_list,auc_list):	
-	print "SCORE: %4.4f" %(auc),
-	print ens
+	print("SCORE: %4.4f" %(auc), end=' ')
+	print(ens)
 	if auc>maxauc:
 	  maxauc=auc
 	  topens=ens
 	  #topcols=col
-    print "\nTOP ensemble:",topens
-    print "TOP score: %4.4f" %(maxauc)
+    print("\nTOP ensemble:",topens)
+    print("TOP score: %4.4f" %(maxauc))
 
 def selectModelsGreedy(ensemble,startensemble=[],niter=2,mode='classical',useCols=None,dropCorrelated=False,greater_is_better=False):    
     """
@@ -1520,8 +1520,8 @@ def selectModelsGreedy(ensemble,startensemble=[],niter=2,mode='classical',useCol
 	    
 	    #score=trainEnsemble(actensemble,mode=mode,useCols=useCols,addMetaFeatures=False,dropCorrelated=dropCorrelated)
 	    score=trainEnsemble_multiclass(actensemble,mode=mode,useCols=None,use_proba=True)
-	    print "##(Current top score: %4.4f | overall best score: %4.4f) actual score: %4.4f  - " %(maxscore,bestscore,score),
-	    print actensemble
+	    print("##(Current top score: %4.4f | overall best score: %4.4f) actual score: %4.4f  - " %(maxscore,bestscore,score), end=' ')
+	    print(actensemble)
 	    if greater_is_better:
 		if score>maxscore:
 		    maxscore=score
@@ -1536,8 +1536,8 @@ def selectModelsGreedy(ensemble,startensemble=[],niter=2,mode='classical',useCol
 	#    print "Not gain in score anymore, leaving..."
 	#    break
 	topensemble.append(ensemble[topidx])
-	print "TOP score: %4.4f" %(maxscore),
-	print " - actual ensemble:",topensemble
+	print("TOP score: %4.4f" %(maxscore), end=' ')
+	print(" - actual ensemble:",topensemble)
 	score_list.append(maxscore)
 	ens_list.append(list(topensemble))
 	if greater_is_better:
@@ -1548,8 +1548,8 @@ def selectModelsGreedy(ensemble,startensemble=[],niter=2,mode='classical',useCol
 	      bestscore=maxscore
     
     for ens,score in zip(ens_list,score_list):	
-	print "SCORE: %4.4f" %(score),
-	print ens
+	print("SCORE: %4.4f" %(score), end=' ')
+	print(ens)
 	
     plt.plot(score_list)
     plt.show()

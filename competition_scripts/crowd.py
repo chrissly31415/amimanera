@@ -30,7 +30,7 @@ class MyTokenizer(object):
     http://nltk.org/api/nltk.tokenize.html
     """
     def __init__(self,stemmer=None,stop_words=None):
-        print "Using special tokenizer, stemmer:",stemmer," stop_words:",stop_words
+        print("Using special tokenizer, stemmer:",stemmer," stop_words:",stop_words)
         self.wnl = stemmer
         self.stop_words = stop_words
     def __call__(self, doc):
@@ -81,11 +81,11 @@ def loadData(nsamples=-1):
 
     if nsamples != -1:
         if isinstance(nsamples,str) and 'shuffle' in nsamples:
-            print "Shuffle train data..."
+            print("Shuffle train data...")
             rows = np.random.choice(len(Xtrain.index), size=len(Xtrain.index),replace=False)
         else:
             rows = np.random.randint(0,len(Xtrain.index), nsamples)
-        print "unique: %6.2f"%(float(np.unique(rows).shape[0])/float(rows.shape[0]))
+        print("unique: %6.2f"%(float(np.unique(rows).shape[0])/float(rows.shape[0])))
         Xtrain = Xtrain.iloc[rows,:]
         ytrain = ytrain[rows]
         sample_weight = sample_weight[rows]
@@ -106,11 +106,11 @@ def prepareDataset(seed=123,nsamples=-1,cleanse=None,useOnlyTrain=False,vectoriz
 
     Xtest,Xtrain,ytrain,idx,sample_weight = loadData(nsamples=nsamples)
     Xall = pd.concat([Xtest, Xtrain])
-    print "Original shape:",Xall.shape
+    print("Original shape:",Xall.shape)
 
     if cleanse is not None:
         if isinstance(cleanse,str):
-            print "Loading cleansed data..."
+            print("Loading cleansed data...")
             Xall = pd.read_csv('Xall_cleansed.csv',index_col=0)
         else:
             Xall = cleanse_data(Xall)
@@ -118,40 +118,40 @@ def prepareDataset(seed=123,nsamples=-1,cleanse=None,useOnlyTrain=False,vectoriz
 
 
     if computeSynonyma is not None:
-        print Xall['query'].head(10)
+        print(Xall['query'].head(10))
         Xall = makeQuerySynonyms(Xall)
-        print Xall['query'].head(10)
+        print(Xall['query'].head(10))
 
     if concatTitleDesc:
-        print "Concatenating title+description..."
+        print("Concatenating title+description...")
         Xall['product_title'] = Xall.apply(lambda x:'%s %s' % (x['product_title'],x['product_description']),axis=1)
         Xall = Xall.drop(['product_description'], axis=1)
-        print Xall.head(10)
+        print(Xall.head(10))
 
     if doBenchMark:
         Xall = useBenchmarkMethod(Xall)
 
-    print "computeFeatures:",computeFeatures
+    print("computeFeatures:",computeFeatures)
     Xfeat = None
     if computeFeatures is not None:
         if isinstance(computeFeatures,str):
-            print "Loading features data..."
+            print("Loading features data...")
             Xfeat = pd.read_csv('Xfeat.csv',index_col=0)
         else:
             Xfeat = additionalFeatures(Xall,verbose=False)
             Xfeat.to_csv("Xfeat.csv")
 
-        print Xfeat.describe()
+        print(Xfeat.describe())
 
     Xw2vec = None
     if computeWord2Vec is not None:
         if isinstance(computeWord2Vec,str):
-            print "Loading word2vec features..."
+            print("Loading word2vec features...")
             Xw2vec = pd.read_csv('Xw2vec.csv',index_col=0)
         else:
             Xw2vec = genWord2VecFeatures(Xall,verbose=False)
             Xw2vec.to_csv("Xw2vec.csv")
-        print Xw2vec.describe()
+        print(Xw2vec.describe())
 
     Xkdist = None
     if computeKaggleDistance is not None:
@@ -160,11 +160,11 @@ def prepareDataset(seed=123,nsamples=-1,cleanse=None,useOnlyTrain=False,vectoriz
     Xsim = None
     if computeSim is not None:
         Xsim = computeSimilarityFeatures(Xall,columns=['query','product_title'],verbose=False,useOnlyTrain=useOnlyTrain,startidx=len(Xtest.index),stop_words=stop_words)
-        print Xsim.describe()
+        print(Xsim.describe())
 
     if doSeparateTFID is False or doSeparateTFID is not None:
         analyze=False
-        print "Vectorize columns separately...",
+        print("Vectorize columns separately...", end=' ')
 
         tokenizer = MyTokenizer(stemmer=PorterStemmer())
 
@@ -172,62 +172,62 @@ def prepareDataset(seed=123,nsamples=-1,cleanse=None,useOnlyTrain=False,vectoriz
         #vectorizer = CountVectorizer(min_df=3,  max_features=None, lowercase=True,analyzer="word",ngram_range=(1,2),stop_words=stop_words,strip_accents='unicode')
         #vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 2), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}',norm='l2')
         if vectorizer is None:
-            print "Using default vectorizer..."
+            print("Using default vectorizer...")
             vectorizer = TfidfVectorizer(min_df=3,  max_features=None, strip_accents='unicode', analyzer='word',ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,stop_words = stop_words,token_pattern=r'\w{1,}',norm='l2')
         else:
-            print "Using vectorizer:"
-            print vectorizer
+            print("Using vectorizer:")
+            print(vectorizer)
         Xtrain = Xall[len(Xtest.index):]
         Xtest_t = Xall[:len(Xtest.index)]
 
         for i,col in enumerate(doSeparateTFID):
-            print "Vectorizing: ",col
+            print("Vectorizing: ",col)
 
-            print "Is null:",Xtrain[col].isnull().sum()
-            print Xtrain[col].describe()
+            print("Is null:",Xtrain[col].isnull().sum())
+            print(Xtrain[col].describe())
 
             if i>0:
                 if not vectorizeFirstOnly:
-                    print "Vecorizing col:",col
+                    print("Vecorizing col:",col)
                     if useOnlyTrain:
-                        print "Using only training data for TFIDF."
+                        print("Using only training data for TFIDF.")
                         vectorizer.fit(Xtrain[col])
                     else:
                         vectorizer.fit(Xall[col])#should reduce overfitting-> padded with fake data!!
                 else:
-                    print "Only transform for col:",col
+                    print("Only transform for col:",col)
                 Xs_all_new = vectorizer.transform(Xall[col])
-                print "Shape Xs_all 2nd after vectorization:",Xs_all_new.shape
+                print("Shape Xs_all 2nd after vectorization:",Xs_all_new.shape)
 
                 if doSVDseparate:
                     if doSVDseparate_2nd is None:
                         n_components = doSVDseparate
                     else:
                         n_components = doSVDseparate_2nd
-                    print "col: %s n_components: %d"%(col,n_components)
+                    print("col: %s n_components: %d"%(col,n_components))
                     reducer=TruncatedSVD(n_components=n_components, algorithm='randomized', n_iter=5, tol=0.0)
                     #Xs_all_new=sparse.vstack((Xs_test_new,Xs_train_new))
                     Xs_all_new=reducer.fit_transform(Xs_all_new)
                     Xs_all = pd.DataFrame(np.hstack((Xs_all,Xs_all_new)))
-                    print "Shape Xs_all after SVD:",Xs_all.shape
+                    print("Shape Xs_all after SVD:",Xs_all.shape)
 
             else:
                 #we fit first column on all data!!!
                 if useOnlyTrain:
-                    print "Using only training data for TFIDF."
+                    print("Using only training data for TFIDF.")
                     vectorizer.fit(Xtrain[col])
                 else:
                     vectorizer.fit(Xall[col])#should reduce overfitting?
                 Xs_all = vectorizer.transform(Xall[col])
-                print "Shape Xs_all after vectorization:",Xs_all.shape
+                print("Shape Xs_all after vectorization:",Xs_all.shape)
 
                 if doSVDseparate is not None:
                     n_components = doSVDseparate
-                    print "col: %s n_components: %d"%(col,n_components)
+                    print("col: %s n_components: %d"%(col,n_components))
                     reducer=TruncatedSVD(n_components=n_components, algorithm='randomized', n_iter=5, tol=0.0)
                     #Xs_all=sparse.vstack((Xs_test,Xs_train))
                     Xs_all=reducer.fit_transform(Xs_all)
-                    print "Shape Xs_all after SVD:",Xs_all.shape
+                    print("Shape Xs_all after SVD:",Xs_all.shape)
 
             if analyze:
                 analyzer(vectorizer,Xs_train, ytrain)
@@ -237,36 +237,36 @@ def prepareDataset(seed=123,nsamples=-1,cleanse=None,useOnlyTrain=False,vectoriz
             #Xall = pd.concat([Xs_test, Xs_train])
             Xall = Xs_all
 
-        print type(Xall)
-        print " shape:",Xall.shape
+        print(type(Xall))
+        print(" shape:",Xall.shape)
         #vectorizer.get_features_names()[0:2]
 
     if concat:
-        print "Concatenating query+title, discarding description..."
+        print("Concatenating query+title, discarding description...")
         # do some lambda magic on text columns
         #data = list(Xall.apply(lambda x:'%s %s' % (x['query'],x['product_title']),axis=1))
         #print data[0]
         Xall['query'] = Xall.apply(lambda x:'%s %s' % (x['query'],x['product_title']),axis=1)
         Xall = Xall.drop(['product_title','product_description'], axis=1)
-        print Xall.head(10)
+        print(Xall.head(10))
 
 
 
     if doTFID:
-        print "Fit TFIDF..."
+        print("Fit TFIDF...")
         stop_words = text.ENGLISH_STOP_WORDS
 
         if vectorizer is None:
-            print "Default vectorizer:"
+            print("Default vectorizer:")
             vectorizer = TfidfVectorizer(min_df=3,  max_features=None,
                   strip_accents='unicode', analyzer='word',
                   ngram_range=(1, 5), use_idf=True,smooth_idf=True,sublinear_tf=True,
                   stop_words = stop_words,token_pattern=r'\w{1,}',norm='l2',tokenizer=None)
 
-        print vectorizer
+        print(vectorizer)
         if useAll:
             Xall =  vectorizer.fit_transform(Xall['query'])
-            print Xall
+            print(Xall)
 
         else:
             Xtrain = Xall[len(Xtest.index):]
@@ -277,21 +277,21 @@ def prepareDataset(seed=123,nsamples=-1,cleanse=None,useOnlyTrain=False,vectoriz
 
         #print vectorizer.get_features_names()
 
-        print "Xall:"
-        print Xall.shape
+        print("Xall:")
+        print(Xall.shape)
 
     reducer=None
     if doKmeans is not None and doKmeans is not False:
-        print "Kmeans components..."
+        print("Kmeans components...")
         reducer = MiniBatchKMeans(init='k-means++', n_clusters=doKmeans, n_init=3,batch_size=400)
 
     if doSVD is not None and doSVD is not False:
-        print "SVD...components:",doSVD
+        print("SVD...components:",doSVD)
         reducer=TruncatedSVD(n_components=doSVD, algorithm='randomized', n_iter=5, tol=0.0)
         #reducer = RandomizedPCA(n_components=doSVD, whiten=True)
 
     if reducer is not None:
-        print reducer
+        print(reducer)
 
         if useAll:
             Xall = reducer.fit_transform(Xall)
@@ -319,7 +319,7 @@ def prepareDataset(seed=123,nsamples=-1,cleanse=None,useOnlyTrain=False,vectoriz
     """
 
     if addNoiseColumns is not None:
-        print "Adding %d random noise columns"%(addNoiseColumns)
+        print("Adding %d random noise columns"%(addNoiseColumns))
         Xrnd = pd.DataFrame(np.random.randn(Xall.shape[0],addNoiseColumns))
         #print "Xrnd:",Xrnd.shape
         #print Xrnd
@@ -349,7 +349,7 @@ def prepareDataset(seed=123,nsamples=-1,cleanse=None,useOnlyTrain=False,vectoriz
 
     if standardize:
         if not isinstance(Xall,pd.DataFrame):
-            print "X is not a DataFrame, converting from,",type(Xall)
+            print("X is not a DataFrame, converting from,",type(Xall))
             Xall = pd.DataFrame(Xall.todense())
         Xall = scaleData(lXs=Xall,lXs_test=None)
 
@@ -357,12 +357,12 @@ def prepareDataset(seed=123,nsamples=-1,cleanse=None,useOnlyTrain=False,vectoriz
     Xtest = Xall[:len(Xtest.index)]
 
     if not isinstance(Xtrain,list):
-        print "#Xtrain:",Xtrain.shape
-        print "#Xtest:",Xtest.shape
+        print("#Xtrain:",Xtrain.shape)
+        print("#Xtest:",Xtest.shape)
 
     #print type(ytrain)
-    print "#ytrain:",ytrain.shape
-    print "#data preparation finished!\n\n"
+    print("#ytrain:",ytrain.shape)
+    print("#data preparation finished!\n\n")
     return(Xtrain,ytrain,Xtest,idx,sample_weight)
 
 
@@ -373,7 +373,7 @@ def analyzer(vectorizer,Xs_train, ytrain):
         features = vectorizer.get_feature_names()
         top_n = 20
         top_features = [features[i] for i in indices[:top_n]]
-        print top_features
+        print(top_features)
 
     else:
         #indices = np.argsort(vectorizer.idf_)[::-1]
@@ -383,7 +383,7 @@ def analyzer(vectorizer,Xs_train, ytrain):
         indices = np.argsort(ch2.scores_)[::-1]
 
         for idx in indices:
-            print "idx: %10d Key: %32s  score: %20d"%(idx,features[idx],ch2.scores_[idx])
+            print("idx: %10d Key: %32s  score: %20d"%(idx,features[idx],ch2.scores_[idx]))
             #raw_input()
 
 
@@ -391,7 +391,7 @@ def makePredictions(model=None,Xtest=None,idx=None,filename='submission.csv'):
     # Create your first submission file
     if model is not None:
         preds = model.predict(Xtest)
-        print type(model)
+        print(type(model))
         if isinstance(model,NeuralNet):
             preds = preds + 1
 
@@ -458,9 +458,9 @@ if __name__=="__main__":
 
     t0 = time()
 
-    print "numpy:",np.__version__
-    print "pandas:",pd.__version__
-    print "scipy:",sp.__version__
+    print("numpy:",np.__version__)
+    print("pandas:",pd.__version__)
+    print("scipy:",sp.__version__)
 
     seed = 123
     nsamples=-1#'shuffle'
@@ -574,4 +574,4 @@ if __name__=="__main__":
 
     #model = buildClassificationModel(model,Xtrain,ytrain,sample_weight=sample_weight,class_names=['1','2','3','4'],trainFull=False,cv=cv)
     #makePredictions(model,Xtest,idx=idx,filename='submissions/sub03072015a.csv')
-    print("Model building done in %fs" % (time() - t0))
+    print(("Model building done in %fs" % (time() - t0)))

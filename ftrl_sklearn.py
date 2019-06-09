@@ -83,8 +83,8 @@ class ftrl_proximal(object):
             L = len(x)
 
             x = sorted(x)
-            for i in xrange(L):
-                for j in xrange(i+1, L):
+            for i in range(L):
+                for j in range(i+1, L):
                     # one-hot encode interactions with hash trick
                     yield abs(hash(str(x[i]) + '_' + str(x[j]))) % D
 
@@ -173,7 +173,7 @@ class ftrl_proximal(object):
 
         """
         # start training
-        for e in xrange(self.maxiter):
+        for e in range(self.maxiter):
             loss = 0.
             count = 1
 
@@ -202,8 +202,8 @@ class ftrl_proximal(object):
                     # step 2-2, update learner with label (click) information
                     learner.update(x, p, y)
 
-            print('Iteration %d finished, validation logloss: %f, elapsed time: %s' % (
-                e, loss/count, str(datetime.now() - start)))
+            print(('Iteration %d finished, validation logloss: %f, elapsed time: %s' % (
+                e, loss/count, str(datetime.now() - start))))
             sys.stdout.flush()
 
 
@@ -242,7 +242,7 @@ def data(path, D, roundp):
     for t, row in enumerate(DictReader(open(path))):
         # process id
 
-        if 't_id' in row.keys():
+        if 't_id' in list(row.keys()):
             ID = row['t_id']
         else:
             ID = t

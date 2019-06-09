@@ -70,7 +70,7 @@ def flip_image(image,mode='fliplr'):
     return img_mirror, str(mode)
 
 def translate_image(image,mode='trans'):
-    rg = range(-10,-4)+range(5,11)
+    rg = list(range(-10,-4))+list(range(5,11))
     tx = choice(rg)
     ty = choice(rg)
     img = ImageChops.offset(image,tx,ty)    
@@ -110,7 +110,7 @@ if __name__ == '__main__':
     for img_data in img_dir:
 	filenames = [ os.path.join(img_data,f) for f in os.listdir(img_data) if os.path.isfile(os.path.join(img_data,f)) ]
 	n_images = len(filenames)
-	print 'Processing %i images in %s' % (n_images,img_data)
+	print('Processing %i images in %s' % (n_images,img_data))
     
 	start_time = datetime.now()
     
@@ -126,7 +126,7 @@ if __name__ == '__main__':
 	    if translateOnly:
 	      img,label = translate_image(img)
 	      imgp = image_path + '/' + image_file + '_mod'+label+'.jpg'
-	      print imgp
+	      print(imgp)
 	      #img.save(imgp)
 	      
 	    else:
@@ -135,4 +135,4 @@ if __name__ == '__main__':
 		  rimg.save(image_path + '/' + image_file + '_mod' + str(rot) + '.jpg')
     
 	    if ((i+1) % 10000) == 0:
-		print 'Processed %i files in %is' % (i+1, (datetime.now() - start_time).seconds)
+		print('Processed %i files in %is' % (i+1, (datetime.now() - start_time).seconds))

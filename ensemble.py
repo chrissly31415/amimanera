@@ -237,7 +237,7 @@ def finalizeModel(m, use_proba=True):
     """
     Make predictions and save them
     """
-    print "Make predictions and save them..."
+    print("Make predictions and save them...")
     # oob from crossvalidation
     yoob = m.oob_preds
     # final prediction
@@ -260,7 +260,7 @@ def finalizeModel(m, use_proba=True):
     allpred = pd.concat([m.preds, m.oob_preds])
     # submission data is first, train data is last!
     filename = "./data/" + m.name + ".csv"
-    print "Saving oob + predictions as csv to:", filename
+    print("Saving oob + predictions as csv to:", filename)
     allpred.to_csv(filename, index=False)
 
     # XModel.saveModel(m,"/home/loschen/Desktop/datamining-kaggle/higgs/data/"+m.name+".pkl")
@@ -273,7 +273,7 @@ def saveTrainData(ensemble):
     parallel oob creation
     """
     for m in ensemble:
-        print "Saving data for model:", m.name
+        print("Saving data for model:", m.name)
         XModel.saveDataSet(m)
 
 
@@ -287,7 +287,7 @@ def loadDataSet(ensemble):
         xmodel = XModel.loadModel(basedir + model)
 
         Xtrain, Xtest = XModel.loadDataSet(xmodel)
-        print "model: %-20s %20r %20r %20r" % (xmodel.name, Xtrain.shape, Xtest.shape, type(xmodel.classifier))
+        print("model: %-20s %20r %20r %20r" % (xmodel.name, Xtrain.shape, Xtest.shape, type(xmodel.classifier)))
 
 
 def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_loss', verbose=False, calibrate=False,
@@ -298,17 +298,17 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
     global funcdict
 
     for m in ensemble:
-        print m.name
+        print(m.name)
 
     for m in ensemble:
         bag_mode = m.bag_mode
-        print "\nComputing oob predictions for:", m.name
-        print m.classifier.get_params
+        print("\nComputing oob predictions for:", m.name)
+        print(m.classifier.get_params)
         if m.class_names is not None:
             n_classes = len(m.class_names)
         else:
             n_classes = 1
-        print "n_classes:", n_classes
+        print("n_classes:", n_classes)
 
         oob_preds = np.zeros((m.ytrain.shape[0], n_classes, repeats),dtype=np.float32)
         preds = np.zeros((m.Xtest.shape[0], n_classes, repeats))
@@ -320,13 +320,13 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
         maescore = np.zeros(repeats)
 
         # outer loop
-        for j in xrange(repeats):
+        for j in range(repeats):
             if m.cv_labels is not None:
-                print "ForwardDateCV ..."
+                print("ForwardDateCV ...")
                 #cv = ForwardDateCV(m.Xtrain.Month,m.Xtrain.Year,n_iter=8,useAll=True,verbose=True)
 
             else:
-                print "KFOLD  ..."
+                print("KFOLD  ...")
                 cv = StratifiedKFold(m.ytrain, n_folds=n_folds, shuffle=True, random_state=None)
 
             scores = np.zeros(len(cv))
@@ -350,7 +350,7 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
                 scores[i] = funcdict[score_func](m.ytrain[test], oob_preds[test, :, j])
 
                 if bag_mode:
-                    print "Using cv models for test set(bag_mode)..."
+                    print("Using cv models for test set(bag_mode)...")
                     if use_proba:
                         p = cv_model.predict_proba(m.Xtest)
                         p = p.reshape(p.shape[0], n_classes)
@@ -371,9 +371,9 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
             oobscore[j] = funcdict[score_func](m.ytrain, oob_preds[:, :, j])
             # maescore[j]=funcdict['mae'](ly,oob_preds[:,j])
 
-            print "Iteration:", j,
-            print " <score>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()),
-            print " score,oob: %0.3f" % (oobscore[j])
+            print("Iteration:", j, end=' ')
+            print(" <score>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()), end=' ')
+            print(" score,oob: %0.3f" % (oobscore[j]))
         # print " ## <mae>: %0.3f (+/- %0.3f)" % (scores_mae.mean(), scores_mae.std()),
         # print " score3,oob: %0.3f" %(maescore[j])
 
@@ -381,18 +381,18 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
         m.oob_preds = np.mean(oob_preds, axis=2)
 
         score_oob = funcdict[score_func](m.ytrain, m.oob_preds)
-        print "Summary: <score,oob>: %6.3f +- %6.3f   score,oob-total: %0.3f (after %d repeats)\n" % (
-            oobscore.mean(), oobscore.std(), score_oob, repeats)
+        print("Summary: <score,oob>: %6.3f +- %6.3f   score,oob-total: %0.3f (after %d repeats)\n" % (
+            oobscore.mean(), oobscore.std(), score_oob, repeats))
 
         orig_classifier = clone(m.classifier)
         m.classifier = clone(orig_classifier)
         if not bag_mode:
             # Train full model on total train data
-            print "Training on full train set..."
+            print("Training on full train set...")
             Xtrain_ = m.Xtrain
             ly_ = m.ytrain
             if m.sample_weight is not None:
-                print "... with sample weights"
+                print("... with sample weights")
                 sample_weight_ = m.sample_weight
 
                 m.classifier.fit(Xtrain_, ly_, sample_weight_)
@@ -400,24 +400,24 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
                 m.classifier.fit(Xtrain_, ly_)
 
             if m.Xval is not None:
-                print "Prediction for val set...",
+                print("Prediction for val set...", end=' ')
                 if use_proba:
                     m.val_preds = m.classifier.predict_proba(m.Xval)[:,1]
                 else:
                     m.val_preds = m.classifier.predict(m.Xval)
                 # check
                 score = funcdict[score_func](m.yval, m.val_preds)
-                print " score,validation: %0.4f" % (score)
+                print(" score,validation: %0.4f" % (score))
 
             else:
-                print "Predicting on test set..."
+                print("Predicting on test set...")
                 if use_proba:
                     m.preds = m.classifier.predict_proba(m.Xtest)[:,1]
                 else:
                     m.preds = m.classifier.predict(m.Xtest)
 
             if m.Xval is not None:
-                print "Re-training on train & val set..."
+                print("Re-training on train & val set...")
                 Xtrain_ = pd.concat([m.Xtrain, m.Xval])
                 ly_ = np.hstack((m.ytrain.ravel(), m.yval.ravel()))
                 if m.sample_weight is not None:
@@ -427,17 +427,17 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
                 m.classifier = clone(orig_classifier)
                 m.classifier.fit(Xtrain_, ly_)
 
-                print "Predicting on test set..."
+                print("Predicting on test set...")
                 if use_proba:
-                    print m.Xtest.describe()
-                    raw_input()
+                    print(m.Xtest.describe())
+                    input()
                     m.preds = m.classifier.predict_proba(m.Xtest)[:,1]
                 else:
                     m.preds = m.classifier.predict(m.Xtest)
 
 
         else:
-            print "bag_mode: averaging all cv classifier results"
+            print("bag_mode: averaging all cv classifier results")
             # print preds[:10]
             m.preds = np.mean(preds, axis=2)
             if m.Xval is not None:
@@ -464,7 +464,7 @@ def fit_and_score(xmodel, X, y, train, valid, sample_weight=None, scale_wt=None,
     ytrain = y[train]
 
     if sample_weight is not None:
-        print "Using sample weight...", sample_weight[train]
+        print("Using sample weight...", sample_weight[train])
         xmodel.fit(Xtrain, ytrain, sample_weight=sample_weight[train])
     else:
         xmodel.fit(Xtrain, ytrain)
@@ -490,17 +490,17 @@ def trainEnsemble(ensemble, mode='linear', score_func='log_loss', useCols=None, 
     basedir = "./data/"
 
     for i, model in enumerate(ensemble):
-        print ''.join(['-'] * 60)
-        print "Loading model:", i, " name:", model
+        print(''.join(['-'] * 60))
+        print("Loading model:", i, " name:", model)
         xmodel = XModel.loadModel(basedir + model)
         class_names = xmodel.class_names
         if class_names is None:
             class_names = ['Class']
-        print "OOB data:", xmodel.oob_preds.shape
+        print("OOB data:", xmodel.oob_preds.shape)
         if hasattr(xmodel, 'Xval') and xmodel.Xval is not None:
-            print "Holdout data:", xmodel.val_preds.shape
-        print "pred data:", xmodel.preds.shape
-        print "y train:", xmodel.ytrain.shape
+            print("Holdout data:", xmodel.val_preds.shape)
+        print("pred data:", xmodel.preds.shape)
+        print("y train:", xmodel.ytrain.shape)
 
         if i > 0:
             xmodel.oob_preds.columns = [model + "_" + n for n in class_names]
@@ -520,20 +520,20 @@ def trainEnsemble(ensemble, mode='linear', score_func='log_loss', useCols=None, 
             if hasattr(xmodel, 'Xval') and xmodel.Xval is not None:
                 Xval = xmodel.val_preds
                 yval = xmodel.yval
-                print Xval.shape
+                print(Xval.shape)
 
     Xtest.columns = Xtrain.columns
     if hasattr(xmodel, 'Xval') and xmodel.Xval is not None:
         Xval.columns = Xtrain.columns
 
-    print Xtrain.columns
-    print Xtrain.shape
+    print(Xtrain.columns)
+    print(Xtrain.shape)
 
     # print "spearman-correlation:\n",Xtrain.corr(method='spearman')
-    print "pearson-correlation :\n", Xtrain.corr(method='pearson')
+    print("pearson-correlation :\n", Xtrain.corr(method='pearson'))
 
     # print Xtrain.describe()
-    print Xtest.shape
+    print(Xtest.shape)
     # print Xtest.describe()
 
     if mode is 'classical':
@@ -563,7 +563,7 @@ def voting_multiclass(ensemble, Xtrain, Xtest, y, n_classes=9, use_proba=False, 
     Voting for multi classifiction result
     """
     if use_proba:
-        print "Majority voting for predictions using proba"
+        print("Majority voting for predictions using proba")
         voter = np.reshape(Xtrain.values, (Xtrain.shape[0], -1, n_classes)).swapaxes(0, 1)
 
         for model in voter:
@@ -573,13 +573,13 @@ def voting_multiclass(ensemble, Xtrain, Xtest, y, n_classes=9, use_proba=False, 
                 row[idx] = 1.0
 
         voter = voter.mean(axis=0)
-        print voter
-        print voter.shape
+        print(voter)
+        print(voter.shape)
     else:
-        print "Majority voting for predictions"
+        print("Majority voting for predictions")
         # assuming all classes are predicted
         if Xtrain.shape[1] % 2 == 0:
-            print "Warning: Even number of voters..."
+            print("Warning: Even number of voters...")
 
         classes = np.unique(Xtrain.values)
 
@@ -599,7 +599,7 @@ def voting_multiclass(ensemble, Xtrain, Xtest, y, n_classes=9, use_proba=False, 
         preds = encoder.inverse_transform(votes_test)
 
         score = funcdict[score_func](y, ypred)
-        print score_func + ": %0.3f" % (score)
+        print(score_func + ": %0.3f" % (score))
 
     if subfile is not None:
         analyze_predictions(ypred, preds)
@@ -632,7 +632,7 @@ def preprocess(oobpreds, testset, verbose=False):
 
     # overfittet models
     noise_columns = []  # ['bagxgb5_br1_Class','nn7_br25_Class']
-    print "Adding random noise:", noise_columns
+    print("Adding random noise:", noise_columns)
     for col in noise_columns:
         if col in oobpreds.columns:
             oobpreds[col] = oobpreds[col].map(lambda x: x + np.random.normal(loc=0.0, scale=.05))
@@ -655,7 +655,7 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
     if kwargs['dropCorrelated']:
         # showCorrelations(oobpreds)
         oobpreds, testset, valpreds = removeCorrelations(oobpreds, testset,valpreds, 0.995)
-        print oobpreds.shape
+        print(oobpreds.shape)
 
 
     #blender=Ridge(alpha=10.0)#0.212644
@@ -687,7 +687,7 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
         blend_scores = np.zeros(len(cv))
         n_classes = 1
         blend_oob = np.zeros((oobpreds.shape[0], n_classes))
-        print blender
+        print(blender)
         for i, (train, test) in enumerate(cv):
             clf = clone(blender)
             Xtrain = oobpreds.iloc[train]
@@ -699,46 +699,46 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
             else:
                 blend_oob[test] = clf.predict(Xtest).reshape(blend_oob[test].shape)
             blend_scores[i] = funcdict[score_func](ly[test], blend_oob[test])
-            print "Fold: %3d <%s>: %0.6f ~mean: %6.4f std: %6.4f" % (
-                i, score_func, blend_scores[i], blend_scores[:i + 1].mean(), blend_scores[:i + 1].std())
+            print("Fold: %3d <%s>: %0.6f ~mean: %6.4f std: %6.4f" % (
+                i, score_func, blend_scores[i], blend_scores[:i + 1].mean(), blend_scores[:i + 1].std()))
 
-        print " <" + score_func + ">: %0.5f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()),
+        print(" <" + score_func + ">: %0.5f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()), end=' ')
         oob_auc = funcdict[score_func](ly, blend_oob)
         # showMisclass(ly,blend_oob,oobpreds,index=kwargs['cv_labels'])
-        print " " + score_func + ": %0.5f" % (oob_auc)
+        print(" " + score_func + ": %0.5f" % (oob_auc))
 
         if subfile is not None:
-            print "Make model fit on oob data..."
+            print("Make model fit on oob data...")
             blender.fit(oobpreds, ly)
             if valpreds is not None:
-                print "Evaluate full model on validation data...",
+                print("Evaluate full model on validation data...", end=' ')
                 if use_proba:
                     y_val_pred = blender.predict_proba(valpreds)[:,1]
                 else:
                     y_val_pred = blender.predict(valpreds)
                 score = funcdict[score_func](yval, y_val_pred)
-                print " " + score_func + ": %0.5f" % (score)
+                print(" " + score_func + ": %0.5f" % (score))
 
-                print "Make model fit on oob & validation data..."
+                print("Make model fit on oob & validation data...")
                 oobpreds = pd.concat([oobpreds, valpreds], axis=0)
                 ly = np.hstack((ly.ravel(), yval.ravel()))
                 blender.fit(oobpreds, ly)
                 # raw_input()
 
         if hasattr(blender, 'coef_'):
-            print "%-3s %-24s %10s %10s" % ("nr", "model", score_func, "coef")
+            print("%-3s %-24s %10s %10s" % ("nr", "model", score_func, "coef"))
             for i, model in enumerate(oobpreds.columns):
                 coldata = np.asarray(oobpreds.iloc[:, i])
                 score = funcdict[score_func](ly, coldata)
-                print "%-3d %-24s %10.4f%10.4f" % (i + 1, model.replace("_Class", ""), score, blender.coef_.flatten()[i])
-            print "sum coef: %4.4f" % (np.sum(blender.coef_))
+                print("%-3d %-24s %10.4f%10.4f" % (i + 1, model.replace("_Class", ""), score, blender.coef_.flatten()[i]))
+            print("sum coef: %4.4f" % (np.sum(blender.coef_)))
 
         if subfile is not None:
             info_dist(ly, "orig")
             info_dist(blender.predict(oobpreds), "fit")
 
     if subfile is not None:
-        print "Make final ensemble prediction..."
+        print("Make final ensemble prediction...")
         # blend results
         if use_proba:
             preds = blender.predict_proba(testset)[:,1]
@@ -879,7 +879,7 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
     def fopt(params):
         # nxm  * m*1 ->n*1
         if np.isnan(np.sum(params)):
-            print "We have NaN here!!"
+            print("We have NaN here!!")
             score = 0.0
         else:
             ypred = blend_mult(Xtrain, params, n_classes)
@@ -890,8 +890,8 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
                 penalty = alpha * np.sum(np.square(params))
                 #print "orig score:%8.3f" % (score),
                 score = score - penalty
-                print " - Regularization - alpha: %8.3f penalty: %8.3f regularized score: %8.3f" % (
-                    alpha, penalty, score)
+                print(" - Regularization - alpha: %8.3f penalty: %8.3f regularized score: %8.3f" % (
+                    alpha, penalty, score))
             if greater_is_better: score = -1 * score
         return score
 
@@ -915,7 +915,7 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
         xopt = fmin_cobyla(fopt, x0, constr, rhoend=1e-5, maxfun=2000)
         # xopt = minimize(fopt, x0,method='Nelder-Mead')
         # xopt = minimize(fopt, x0,method='COBYLA',constraints=cons)
-        print xopt
+        print(xopt)
     # xopt = xopt.x
     else:
         xopt = x0
@@ -923,10 +923,10 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
     # normalize coefficient
     if normalize:
         xopt = xopt / np.sum(xopt)
-        print "Normalized coefficients:", xopt
+        print("Normalized coefficients:", xopt)
 
     if np.isnan(np.sum(xopt)):
-        print "We have NaN here!!"
+        print("We have NaN here!!")
 
     ypred = blend_mult(Xtrain, xopt, n_classes)
     # ymean= blend_mult(Xtrain,x0,n_classes).flatten()
@@ -934,7 +934,7 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
     # ymean=np.median(Xtrain.values,axis=1)
 
     if takeMean:
-        print "Taking the mean/median..."
+        print("Taking the mean/median...")
         ypred = ymean
 
     # print ymean[:10]
@@ -942,52 +942,52 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
     #  ymean = np.round(ymean+1E-2).astype(int)
     #  ypred = np.round(ypred+1E-6).astype(int)
 
-    print "ypred:", ypred.sum()
-    print "ypred:", ypred
-    print "ymean:", ymean.sum()
-    print "ymean:", ymean
+    print("ypred:", ypred.sum())
+    print("ypred:", ypred)
+    print("ymean:", ymean.sum())
+    print("ymean:", ymean)
 
     score = funcdict[score_func](y, ymean)
-    print "->score,mean: %4.4f" % (score)
+    print("->score,mean: %4.4f" % (score))
     oob_score = funcdict[score_func](y, ypred)
-    print "->score,opt: %4.4f" % (oob_score)
+    print("->score,opt: %4.4f" % (oob_score))
     if Xval is not None:
-        print "Evaluating on validation set..."
+        print("Evaluating on validation set...")
         yval_mean = np.mean(Xval.values, axis=1)
         pred_score = funcdict[score_func](yval, yval_mean)
-        print "->score,mean: %4.4f" % (pred_score)
+        print("->score,mean: %4.4f" % (pred_score))
         yval_pred = blend_mult(Xval, xopt, n_classes)
         pred_score = funcdict[score_func](yval, yval_pred)
-        print "->score,opt: %4.4f" % (pred_score)
+        print("->score,opt: %4.4f" % (pred_score))
 
     zero_models = []
-    print "%4s %-48s %6s %6s" % ("nr", "model", "score", "coeff")
+    print("%4s %-48s %6s %6s" % ("nr", "model", "score", "coeff"))
     for i, model in enumerate(ensemble):
         idx_start = n_classes * i
         idx_end = n_classes * (i + 1)
         coldata = np.asarray(Xtrain.iloc[:, idx_start:idx_end])
         score = funcdict[score_func](y, coldata)
-        print "%4d %-48s %6.4f %6.3f" % (i + 1, model, score, xopt[i]),
+        print("%4d %-48s %6.4f %6.3f" % (i + 1, model, score, xopt[i]), end=' ')
         if xopt[i] < removeZeroModels:
             zero_models.append(model)
         if Xval is not None:
             coldata_val = np.asarray(Xval.iloc[:, idx_start:idx_end])
             score = funcdict[score_func](yval, coldata_val)
-            print "(val: %6.3f)" % (score)
+            print("(val: %6.3f)" % (score))
         else:
-            print ""
+            print("")
 
-    print "##sum coefficients: %4.4f" % (np.sum(xopt))
+    print("##sum coefficients: %4.4f" % (np.sum(xopt)))
 
     if removeZeroModels > 0.0:
-        print "Dropping ", len(zero_models), " columns:", zero_models
+        print("Dropping ", len(zero_models), " columns:", zero_models)
         Xtrain = Xtrain.drop(zero_models, axis=1)
         Xtest = Xtest.drop(zero_models, axis=1)
         return (Xtrain, Xtest)
 
     # prediction flatten makes a n-dim row vector from a nx1 column vector...
     if takeMean:
-        print "Taking the mean/median for predictions..."
+        print("Taking the mean/median for predictions...")
         preds = np.mean(Xtest.values, axis=1)
     else:
         preds = blend_mult(Xtest, xopt, n_classes).flatten()
@@ -1011,7 +1011,7 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
 
 
 def info_dist(y, info):
-    print info + "-  max: %4.2f mean: %4.2f median: %4.2f min: %4.2f" % (np.amax(y), y.mean(), np.median(y), np.amin(y))
+    print(info + "-  max: %4.2f mean: %4.2f median: %4.2f min: %4.2f" % (np.amax(y), y.mean(), np.median(y), np.amin(y)))
 
 
 def selectModels(ensemble, startensemble=[], niter=10, mode='linear', useCols=None):
@@ -1023,11 +1023,11 @@ def selectModels(ensemble, startensemble=[], niter=10, mode='linear', useCols=No
     ens_list = []
     cols_list = []
     for i in range(niter):
-        print "iteration %5d/%5d, current max_score: %6.3f" % (i + 1, niter, max(auc_list))
+        print("iteration %5d/%5d, current max_score: %6.3f" % (i + 1, niter, max(auc_list)))
         actlist = randBinList(len(ensemble))
         actensemble = [x for x in itertools.compress(ensemble, actlist)]
         actensemble = startensemble + actensemble
-        print actensemble
+        print(actensemble)
         # print actensemble
         score = trainEnsemble(actensemble, mode=mode, useCols=useCols, addMetaFeatures=False, dropCorrelated=False)
         auc_list.append(score)
@@ -1037,14 +1037,14 @@ def selectModels(ensemble, startensemble=[], niter=10, mode='linear', useCols=No
     topens = None
     topcols = None
     for ens, score in zip(ens_list, auc_list):
-        print "SCORE: %4.4f" % (score),
-        print ens
+        print("SCORE: %4.4f" % (score), end=' ')
+        print(ens)
         if score > max_score:
             maxauc = score
             topens = ens
             # topcols=col
-    print "\nTOP ensemble:", topens
-    print "TOP score: %4.4f" % (max_score)
+    print("\nTOP ensemble:", topens)
+    print("TOP score: %4.4f" % (max_score))
 
 
 def selectModelsGreedy(ensemble, startensemble=[], niter=2, mode='mean', useCols=None, dropCorrelated=False,
@@ -1079,8 +1079,8 @@ def selectModelsGreedy(ensemble, startensemble=[], niter=2, mode='mean', useCols
             # score = trainEnsemble(actensemble,mode=mode,score_func='quadratic_weighted_kappa',use_proba=False,subfile=None)
             score = trainEnsemble(actensemble, mode=mode, score_func=score_func, use_proba=True, useCols=None,
                                   subfile=None, dropCorrelated=dropCorrelated)
-            print "##(Current top score: %4.4f | overall best score: %4.4f) current score: %4.4f  - " % (
-                maxscore, bestscore, score)
+            print("##(Current top score: %4.4f | overall best score: %4.4f) current score: %4.4f  - " % (
+                maxscore, bestscore, score))
             if greater_is_better:
                 if score > maxscore:
                     maxscore = score
@@ -1095,8 +1095,8 @@ def selectModelsGreedy(ensemble, startensemble=[], niter=2, mode='mean', useCols
         #    print "Not gain in score anymore, leaving..."
         #    break
         topensemble.append(ensemble[topidx])
-        print "TOP score: %4.4f" % (maxscore),
-        print " - actual ensemble:", topensemble
+        print("TOP score: %4.4f" % (maxscore), end=' ')
+        print(" - actual ensemble:", topensemble)
         score_list.append(maxscore)
         ens_list.append(list(topensemble))
         if greater_is_better:
@@ -1107,8 +1107,8 @@ def selectModelsGreedy(ensemble, startensemble=[], niter=2, mode='mean', useCols
                 bestscore = maxscore
 
     for ens, score in zip(ens_list, score_list):
-        print "SCORE: %4.4f" % (score),
-        print ens
+        print("SCORE: %4.4f" % (score), end=' ')
+        print(ens)
 
     plt.plot(score_list)
     plt.show()

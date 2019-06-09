@@ -28,9 +28,7 @@ import time
 def KLabelFold(labels, n_folds=3, shuffle=False, random_state=None):
     kfold = KFold(labels.nunique(), n_folds=n_folds, shuffle=shuffle, random_state=random_state)
     unique_labels = labels.unique()
-    return PredefinedSplit(pd.concat(map(lambda (i, x): labels.isin(x)*i,
-                                                        enumerate([unique_labels[mask[1]] for mask in kfold])
-                                        ), axis=1).sum(axis=1))
+    return PredefinedSplit(pd.concat([labels.isin(i_x[1])*i_x[0] for i_x in enumerate([unique_labels[mask[1]] for mask in kfold])], axis=1).sum(axis=1))
 
 def KLabelInnerFold(kfold_outer, fold_outer):
     indicies = np.arange(kfold_outer.n)
@@ -57,7 +55,7 @@ def loadDataSet_old(model):
     Xtrain,Xtest = XModel.loadDataSet(xmodel)
     ta = pd.read_csv("./data/train_set.csv", usecols=['tube_assembly_id']).values.ravel()
     y = pd.read_csv("./data/train_set.csv", usecols=['cost']).values.ravel()
-    print "model: %-20s %20r %20r "%(xmodel.name,Xtrain.shape,Xtest.shape)
+    print("model: %-20s %20r %20r "%(xmodel.name,Xtrain.shape,Xtest.shape))
     return Xtrain,Xtest,ta,y.ravel()
 
 def loadDataSet(df_name):
@@ -72,7 +70,7 @@ if __name__=="__main__":
     random_state = 42
     cwd = os.getcwd()
     dataset_model = "nn8_br20"
-    epoch_save_range = range(2, 10, 2)
+    epoch_save_range = list(range(2, 10, 2))
     #reg_orig = nnet_cater3
     reg_orig = nnet_BN1
     #reg_orig = BaggingRegressor(base_estimator=nnet_BN1,n_estimators=3,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=1.0,bootstrap=False)
@@ -89,12 +87,12 @@ if __name__=="__main__":
     test,train,target,_,ta,_ = prepareDataset(seed=123,nsamples='shuffle',log1p=False,loadBN='somefolder')
     #train,test,ta,target = loadDataSet(dataset_model)
     #train,test = scaleData(train,test)
-    print target
+    print(target)
 
 
-    print train.shape
-    print test.shape
-    print ta.shape
+    print(train.shape)
+    print(test.shape)
+    print(ta.shape)
 
 
     t0 = time.time()
@@ -103,34 +101,34 @@ if __name__=="__main__":
 
     kfold_outer = KLabelFold(pd.Series(ta), n_folds, shuffle=True, random_state=42)
     for fold_outer, val_mask in enumerate(kfold_outer):
-        print ''.join(['#']*120)
-        print 'fold_outer ', fold_outer
+        print(''.join(['#']*120))
+        print('fold_outer ', fold_outer)
         fold_outer_dir = 'fold_outer-%s'%(fold_outer)
         X_train_val = train.iloc[val_mask[0]]
         y_train_val = target[val_mask[0]]
         X_val = train.iloc[val_mask[1]]
         y_val = target[val_mask[1]]
 
-        print "X_train_val:",X_train_val.shape
-        print "X_val:",X_val.shape
+        print("X_train_val:",X_train_val.shape)
+        print("X_val:",X_val.shape)
         kfold_inner = KLabelInnerFold(kfold_outer, fold_outer)
         t0_outer = time.time()
 
         for iparam, params in enumerate(param_list):
-            print ''.join(['-']*90)
+            print(''.join(['-']*90))
             name = orig_name+'_param%i'%(iparam)
             for inner_folds_, mask in kfold_inner:
                 train_folds, fold_inner = inner_folds_
-                print ''.join(['-']*60)
-                print 'fold_inner ', fold_inner, 'train_folds_inner ', train_folds
+                print(''.join(['-']*60))
+                print('fold_inner ', fold_inner, 'train_folds_inner ', train_folds)
                 fold_inner_dir = 'fold_inner-%s'%(fold_inner)
 
                 X_train = train.iloc[mask[0]]
-                print "Xtrain:",X_train.shape
+                print("Xtrain:",X_train.shape)
                 y_train = target[mask[0]]
 
                 X_test = train.iloc[mask[1]]
-                print "Xtest:",X_test.shape
+                print("Xtest:",X_test.shape)
                 y_test = target[mask[1]]
 
                 X_train = preprocess.fit_transform( X_train )
@@ -149,10 +147,10 @@ if __name__=="__main__":
                 reg.fit(X_train,np.log1p(y_train))
 
                 y_pred_test = np.expm1( reg.predict( X_test) )
-                print 'RMSLE(Xtest) = %.5f'%( root_mean_squared_logarithmic_error( y_test, y_pred_test ) )
+                print('RMSLE(Xtest) = %.5f'%( root_mean_squared_logarithmic_error( y_test, y_pred_test ) ))
 
                 os.makedirs(directory)
-                print "Saving prediction for (inner) X_test.."
+                print("Saving prediction for (inner) X_test..")
                 with open(os.path.join(directory, 'y_pred_test_float32'), 'w') as f:
                         y_pred_test.astype(np.float32).tofile(f)
 
@@ -161,8 +159,8 @@ if __name__=="__main__":
                         y_pred_val.astype(np.float32).tofile(f)
 
 
-            print ''.join(['#']*90)
-            print 'Inner loop finished - refit on X_train_val set'
+            print(''.join(['#']*90))
+            print('Inner loop finished - refit on X_train_val set')
             X_train_val_ = preprocess.fit_transform( X_train_val )
             X_val_ = preprocess.transform( X_val )
 
@@ -173,7 +171,7 @@ if __name__=="__main__":
                 SavePredictions(epoch_save_range,os.path.join(directory, 'y_pred_test_float32'),X_val_),
                 SavePredictions(epoch_save_range,os.path.join(directory, 'y_pred_val_float32'),X_val_)])
             reg.fit(X_train_val_, np.log1p(y_train_val))
-            print 'RMSLE(X_val) = %.5f'%(root_mean_squared_logarithmic_error( y_val, y_pred_val ) )
+            print('RMSLE(X_val) = %.5f'%(root_mean_squared_logarithmic_error( y_val, y_pred_val ) ))
 
 
             os.makedirs(directory)
@@ -181,8 +179,8 @@ if __name__=="__main__":
                     y_pred_val.astype(np.float32).tofile(f)
 
             if fold_outer == 0:
-                print ''.join(['-']*90)
-                print 'refit on ALL train data'
+                print(''.join(['-']*90))
+                print('refit on ALL train data')
                 train_ = preprocess.fit_transform(train)
                 test_ = preprocess.transform(test)
                 reg = clone(reg_orig)
@@ -201,8 +199,8 @@ if __name__=="__main__":
 
 
             t = (time.time() - t0_outer)/(60*60)
-            print 'finished fold_outer %s  at time %.2fs'%( fold_outer,  t)
+            print('finished fold_outer %s  at time %.2fs'%( fold_outer,  t))
     
     t = (time.time() - t0)/(60*60)   
-    print 'finished fold %s of %s at time %.2fh'%(fold_outer+1, n_folds, t)
+    print('finished fold %s of %s at time %.2fh'%(fold_outer+1, n_folds, t))
         

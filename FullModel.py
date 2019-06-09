@@ -13,7 +13,7 @@ from qsprLib import funcdict, save_sparse_csr, load_sparse_csr
 import scipy as sp
 import numpy as np
 import pandas as pd
-import cPickle as pickle
+import pickle as pickle
 #import dill as pickle
 
 class XModel:
@@ -84,35 +84,35 @@ class XModel:
         XModel.modelcount += 1
 
     def summary(self):
-        print "\n>>Name<<     :", self.name
-        print "classifier   :", self.classifier
+        print("\n>>Name<<     :", self.name)
+        print("classifier   :", self.classifier)
 
         if self.Xtrain is not None:
-            print "Train data   :", self.Xtrain.shape,
-            print " type         :", type(self.Xtrain)
+            print("Train data   :", self.Xtrain.shape, end=' ')
+            print(" type         :", type(self.Xtrain))
 
         if self.Xtest is not None:
-            print "Test data    :", self.Xtest.shape,
-            print " type         :", type(self.Xtest)
+            print("Test data    :", self.Xtest.shape, end=' ')
+            print(" type         :", type(self.Xtest))
 
         if self.Xval is not None:
-            print "Valid. data   : ", self.Xval.shape
+            print("Valid. data   : ", self.Xval.shape)
         if self.sample_weight is not None:
-            print "sample_weight:", self.sample_weight.shape,
-            print " type        :", type(self.sample_weight)
+            print("sample_weight:", self.sample_weight.shape, end=' ')
+            print(" type        :", type(self.sample_weight))
 
         if self.ytrain is not None:
-            print "y <- target   :", self.ytrain.shape
+            print("y <- target   :", self.ytrain.shape)
         # print "sparse data  :" , self.sparse
-        if self.cutoff is not None: print "proba cutoff  :", self.cutoff
-        if self.class_names is not None: print "class names  :", self.class_names
+        if self.cutoff is not None: print("proba cutoff  :", self.cutoff)
+        if self.class_names is not None: print("class names  :", self.class_names)
 
         if self.preds is not None:
-            print "<predictions> : %6.3f" % (np.mean(self.preds)),
-            print " Dim:", self.preds.shape
+            print("<predictions> : %6.3f" % (np.mean(self.preds)), end=' ')
+            print(" Dim:", self.preds.shape)
 
-        print "<oob preds>   : %6.3f" % (np.mean(self.oob_preds)),
-        print " Dim:", self.oob_preds.shape
+        print("<oob preds>   : %6.3f" % (np.mean(self.oob_preds)), end=' ')
+        print(" Dim:", self.oob_preds.shape)
 
     def __repr__(self):
         self.summary()
@@ -122,7 +122,7 @@ class XModel:
         self.generator_dict = generator_dict
 
     def generate_features(self):
-        print("Generating features for model: "+self.name)
+        print(("Generating features for model: "+self.name))
         Xtest, Xtrain, ytrain, ytest, cv_labels, idx, sample_weight, Xval, yval, val_labels = self.generators['prepareDataset'](**self.params)
 
         self.Xtrain = Xtrain
@@ -135,7 +135,7 @@ class XModel:
         self.cv_labels = cv_labels
 
         self.initialize()
-        print("Feature generation finished: " + self.name)
+        print(("Feature generation finished: " + self.name))
 
     @staticmethod
     def saveDataSet(xmodel, restoreOrder=True, basedir='./share/'):
@@ -172,7 +172,7 @@ class XModel:
     @staticmethod
     def saveCoreData(xmodel, filename):
         if 'm__epochs' in xmodel.classifier.get_params():
-            print(type(xmodel.classifier.get_params()))
+            print((type(xmodel.classifier.get_params())))
 
         xmodel.Xtrain = None
         #xmodel.ytrain = None
@@ -269,7 +269,7 @@ class ConstrainedLinearRegressor(BaseEstimator):
             # print "Normalizing coefficients:",self.coef_
 
         if np.isnan(np.sum(self.coef_)):
-            print "We have NaN here..."
+            print("We have NaN here...")
 
     def predict(self, lX):
         ypred = self.blend_mult(lX, self.coef_, self.n_classes)

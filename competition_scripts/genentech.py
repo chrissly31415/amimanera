@@ -36,7 +36,7 @@ def create_df():
     store = pd.HDFStore('./data/diagnosis.h5')
     label = 'diagnosis_code_0'
     for i,chunk in enumerate(df_chunks):
-        print i
+        print(i)
         #print chunk.info()
         #print chunk.head()
         chunk = chunk[['patient_id','diagnosis_code']]
@@ -44,13 +44,13 @@ def create_df():
 
         if i%steps==0:
             label = 'diagnosis_code_'+str(i)
-            print store
+            print(store)
         store.append(label,chunk,index = False)
         #if i>6: break
 
 def merge_diagnosis(X=None,iterations=2,removeRare_freq = 1000, max_features = 100, loadit=False, diagnosisOnly = False):
     store = pd.HDFStore('./data/diagnosis.h5')
-    print store
+    print(store)
     if X is not None and diagnosisOnly:
         col_list = X.columns
         col_list = col_list.remove('patient_id')
@@ -65,13 +65,13 @@ def merge_diagnosis(X=None,iterations=2,removeRare_freq = 1000, max_features = 1
             #label encode diagnoses
             df = removeLowFreq(df, ['diagnosis_code'], removeRare_freq = removeRare_freq, discard_rows= False, fillNA = 'rare')
             #http://stackoverflow.com/questions/27298178/concatenate-strings-from-several-rows-using-pandas-groupby
-            print "Iteration: %d Grouping by... "%(i),
+            print("Iteration: %d Grouping by... "%(i), end=' ')
             df = pd.DataFrame(df.groupby('patient_id',sort=False)['diagnosis_code'].apply(lambda x: ' '.join(x)))
             #print df.head(20)
             #print df.info()
 
             if X is not None:
-                print "...Merging..."
+                print("...Merging...")
                 X = pd.merge(X,df,left_on='patient_id',how='left',right_index=True)
                 #join diagnosis code table
                 if 'diagnosis_code_y' in X.columns:
@@ -87,7 +87,7 @@ def merge_diagnosis(X=None,iterations=2,removeRare_freq = 1000, max_features = 1
         X.to_csv("./data/X_diagnosis.csv", index=False)
     else:
         X = pd.read_csv("./data/X_diagnosis.csv")
-        print X.info()
+        print(X.info())
 
 
     vectorizer = CountVectorizer(min_df=10, max_features=max_features, lowercase=True, analyzer="word",
@@ -98,10 +98,10 @@ def merge_diagnosis(X=None,iterations=2,removeRare_freq = 1000, max_features = 1
     Xtmp = vectorizer.fit_transform(diag).todense()#.astype(np.int32)
     column_names = vectorizer.get_feature_names()
     Xtmp = pd.DataFrame(Xtmp, columns=column_names)
-    keys = vectorizer.vocabulary_.keys()
-    print "Length of dic:", len(keys)
-    print "New features:", Xtmp.shape
-    print "Columns:", column_names
+    keys = list(vectorizer.vocabulary_.keys())
+    print("Length of dic:", len(keys))
+    print("New features:", Xtmp.shape)
+    print("Columns:", column_names)
     X = pd.concat([X, Xtmp], axis=1)
     #print X[column_names].describe()
     return X
@@ -112,11 +112,11 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
 
     large = pd.HDFStore('./data/store_large.h5')
 
-    print large
+    print(large)
 
     if isinstance(quickload,str):
         store = pd.HDFStore(quickload)
-        print store
+        print(store)
         Xtest = store['Xtest']
         Xtrain = store['Xtrain']
         ytrain = store['ytrain']
@@ -127,47 +127,47 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
         return Xtest, Xtrain, ytrain.values, test_id, None, Xval, yval.values
 
     store = pd.HDFStore('./data/store.h5')
-    print store
+    print(store)
 
     Xtrain = pd.read_csv('./data/patients_train.csv')
-    print Xtrain.info()
+    print(Xtrain.info())
     Xtrain.drop(['patient_gender'],axis=1,inplace=True)
 
 
-    print Xtrain.describe(include='all')
-    print "Xtrain.shape:",Xtrain.shape
+    print(Xtrain.describe(include='all'))
+    print("Xtrain.shape:",Xtrain.shape)
 
     Xtest = pd.read_csv('./data/patients_test.csv')
     Xtest.drop(['patient_gender'],axis=1,inplace=True)
-    print "Xtest.shape:",Xtest.shape
+    print("Xtest.shape:",Xtest.shape)
 
     #exclude
     if exludePatients:
-        print "Excluding patients:"
+        print("Excluding patients:")
         do_not_use_train = pd.read_csv('./data/train_patients_to_exclude.csv',header=None,index_col=False,squeeze=True)
         Xtrain = Xtrain.loc[~(Xtrain.patient_id.isin(list(do_not_use_train.values))),:]
         #do_not_use_test = pd.read_csv('./data/test_patients_to_exclude.csv',header=None,index_col=False,squeeze=True)
         #Xtest = Xtest.loc[~(Xtest.patient_id.isin(do_not_use_test.values)),:]
-        print "Xtrain.shape:",Xtrain.shape
-        print "Xtest.shape:",Xtest.shape
+        print("Xtrain.shape:",Xtrain.shape)
+        print("Xtest.shape:",Xtest.shape)
 
-    print "Xtrain - ISNULL:",Xtrain.isnull().any(axis=0)
-    print "Xtest - ISNULL:",Xtest.isnull().any(axis=0)
+    print("Xtrain - ISNULL:",Xtrain.isnull().any(axis=0))
+    print("Xtest - ISNULL:",Xtest.isnull().any(axis=0))
 
 
     if nsamples != -1:
         if isinstance(nsamples, str) and 'shuffle' in nsamples:
-            print "Shuffle train data..."
+            print("Shuffle train data...")
             rows = np.random.choice(len(Xtrain.index), size=len(Xtrain.index), replace=False)
         else:
             rows = np.random.choice(len(Xtrain.index), size=nsamples, replace=False)
 
-        print "unique rows: %6.2f" % (float(np.unique(rows).shape[0]) / float(rows.shape[0]))
+        print("unique rows: %6.2f" % (float(np.unique(rows).shape[0]) / float(rows.shape[0])))
         Xtrain = Xtrain.iloc[rows, :]
-    print Xtrain.shape
+    print(Xtrain.shape)
 
     if createVerticalFeatures:
-        print "Creating Sales per Store features..."
+        print("Creating Sales per Store features...")
         pass
 
 
@@ -189,15 +189,15 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
         # 20 ~ 0.846
 
     if useActivity:
-        print "Reading patient activity..."
+        print("Reading patient activity...")
         df_count = large['df_count']
         df_count1 = df_count.loc[df_count.activity_type==0,:]
         Xall = pd.merge(Xall, df_count1[['patient_id','activity_year']], on='patient_id', how='left')
         df_count2 = df_count.loc[df_count.activity_type==1,:]
         Xall = pd.merge(Xall, df_count2[['patient_id','activity_year']], on='patient_id', how='left')
         Xall.fillna(0, inplace=True)
-        print Xall.head()
-        print Xall.info()
+        print(Xall.head())
+        print(Xall.info())
 
         """
         (262158389, 4)
@@ -212,54 +212,54 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
     Xall.drop(['patient_id'],axis=1,inplace=True)
 
     if dummy_encoding is not None:
-        print "Dummy encoding,skip label encoding"
+        print("Dummy encoding,skip label encoding")
         Xall = pd.get_dummies(Xall,columns=dummy_encoding)
 
     if labelEncode is not None:
-        print "Label encode"
+        print("Label encode")
         for col in labelEncode:
             lbl = preprocessing.LabelEncoder()
             Xall[col] = lbl.fit_transform(Xall[col].values)
             vals = Xall[col].unique()
-            print "Col: %s Vals %r:"%(col,vals)
-            print "Orig:",list(lbl.inverse_transform(Xall[col].unique()))
+            print("Col: %s Vals %r:"%(col,vals))
+            print("Orig:",list(lbl.inverse_transform(Xall[col].unique())))
 
     if removeRare_freq is not None:
-        print "Remove rare features based on frequency..."
+        print("Remove rare features based on frequency...")
         for col in oneHotenc:
             ser = Xall[col]
-            counts = ser.value_counts().keys()
+            counts = list(ser.value_counts().keys())
             idx = ser.value_counts() > removeRare_freq
             threshold = idx.astype(int).sum()
-            print "%s has %d different values before, min freq: %d - threshold %d" % (
-                col, len(counts), removeRare_freq, threshold)
+            print("%s has %d different values before, min freq: %d - threshold %d" % (
+                col, len(counts), removeRare_freq, threshold))
             if len(counts) > threshold:
                 ser[~ser.isin(counts[:threshold])] = 9999
             if len(counts) <= 1:
-                print("Dropping Column %s with %d values" % (col, len(counts)))
+                print(("Dropping Column %s with %d values" % (col, len(counts))))
                 Xall = Xall.drop(col, axis=1)
             else:
                 Xall[col] = ser.astype('category')
-            print ser.value_counts()
-            counts = ser.value_counts().keys()
-            print "%s has %d different values after" % (col, len(counts))
+            print(ser.value_counts())
+            counts = list(ser.value_counts().keys())
+            print("%s has %d different values after" % (col, len(counts)))
 
 
     if oneHotenc is not None:
-        print "1-0 Encoding categoricals...", oneHotenc
+        print("1-0 Encoding categoricals...", oneHotenc)
         for col in oneHotenc:
             #print "Unique values for col:", col, " -", np.unique(Xall[col].values)
             encoder = OneHotEncoder()
             X_onehot = pd.DataFrame(encoder.fit_transform(Xall[[col]].values).todense())
             X_onehot.columns = [col + "_" + str(column) for column in X_onehot.columns]
-            print "One-hot-encoding of %r...new shape: %r" % (col, X_onehot.shape)
+            print("One-hot-encoding of %r...new shape: %r" % (col, X_onehot.shape))
             Xall.drop([col], axis=1, inplace=True)
             Xall = pd.concat([Xall, X_onehot], axis=1)
-            print "One-hot-encoding final shape:", Xall.shape
+            print("One-hot-encoding final shape:", Xall.shape)
             # raw_input()
 
     if logtransform is not None:
-        print "log Transform"
+        print("log Transform")
         for col in logtransform:
             if col in Xall.columns: Xall[col] = Xall[col].map(np.log1p)
             # print Xall[col].describe(include=all)
@@ -269,17 +269,17 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
         dropcols = [col for col in Xall.columns if col not in keepFeatures]
         for col in dropcols:
             if col in Xall.columns:
-                print "Dropping: ", col
+                print("Dropping: ", col)
                 Xall.drop([col], axis=1, inplace=True)
 
     if dropFeatures is not None:
         for col in dropFeatures:
             if col in Xall.columns:
-                print "Dropping: ", col
+                print("Dropping: ", col)
                 Xall.drop([col], axis=1, inplace=True)
 
     #Xall = Xall.astype(np.float32)
-    print "Columns used",list(Xall.columns)
+    print("Columns used",list(Xall.columns))
 
 
     #split data
@@ -289,26 +289,26 @@ def prepareDataset(quickload=False, seed=123, nsamples=-1, holdout=False, keepFe
     yval = None
 
     if holdout:
-        print "Split holdout..."
-        print Xtrain.shape
+        print("Split holdout...")
+        print(Xtrain.shape)
         #print Xval.shape
-        print ytrain.shape
+        print(ytrain.shape)
         Xtrain, Xval, ytrain, yval = train_test_split(Xtrain, ytrain, test_size=0.25, random_state=42)
 
-        print "Shape Xtrain:",Xtrain.shape
-        print "Shape Xval  :",Xval.shape
+        print("Shape Xtrain:",Xtrain.shape)
+        print("Shape Xval  :",Xval.shape)
 
 
-    print "Training data:",Xtrain.info()
+    print("Training data:",Xtrain.info())
 
     df_list = [Xtest,Xtrain,ytrain,Xval,yval,test_id]
     name_list = ['Xtest','Xtrain','ytrain','Xval','yval','test_id']
     for label,ldf in zip(name_list,df_list):
-        print "Store:",label
+        print("Store:",label)
         ldf = ldf.reindex(copy = False)
         store.put(label, ldf, format='table', data_columns=True)
 
-    print store
+    print(store)
     store.close()
 
     return Xtest, Xtrain, ytrain.values, test_id, None, Xval, yval.values
@@ -321,7 +321,7 @@ def mergeWithXval(Xtrain,Xval,ytrain,yval):
 
 
 def makePredictions(model=None,Xtest=None,idx=None,filename='submission.csv'):
-    print "Saving submission: ", filename
+    print("Saving submission: ", filename)
     if model is not None:
         preds = model.predict_proba(Xtest)[:,1]
     else:
@@ -342,9 +342,9 @@ if __name__ == "__main__":
 
     t0 = time()
 
-    print "numpy:", np.__version__
-    print "pandas:", pd.__version__
-    print "scipy:", sp.__version__
+    print("numpy:", np.__version__)
+    print("pandas:", pd.__version__)
+    print("scipy:", sp.__version__)
 
     best30 = ['v72.31 ', 'v70.0 ', 'patient_age_group', 'rare ', 'nan ', 'v22.1 ', 'v76.12 ', 'X616.10 ', 'X401.9 ', 'v27.0 ', 'X272.4 ', 'v58.69 ', 'X780.79 ', 'X244.9 ', 'household_income', 'X789.00 ', 'X729.5 ', 'X599.0 ', 'education_level', 'X724.2 ', 'X626.2 ', 'v04.81 ', 'X530.81 ', 'X401.1 ', 'X311 ', 'X786.50 ', 'X784.0 ', 'X719.46 ', 'X272.0 ', 'X625.9 ', 'X786.2 ', 'X611.72 ', 'v76.51 ', 'X723.1 ', 'X300.00 ', 'X305.1 ', 'X250.00 ', 'X465.9 ', 'X719.41 ', 'X462 ', 'X461.9 ', 'X733.90 ', 'X268.9 ', 'X285.9 ', 'v22.2 ', 'X466.0 ', 'X493.90 ', 'X477.9 ', 'X724.5 ', 'X278.00 ', 'X780.4 ', 'X719.45 ', 'X786.05 ', 'X787.91 ', 'X785.1 ', 'X729.1 ', 'X620.2 ', 'X789.09 ', 'X788.1 ', 'X719.47 ', 'v57.1 ', 'X272.2 ', 'X346.90 ', 'patient_state_9', 'X787.01 ', 'X780.52 ', 'X782.0 ', 'X473.9 ', 'X789.06 ', 'X786.59 ', 'X564.00 ', 'X786.09 ', 'X278.01 ', 'X174.9 ', 'X724.4 ', 'X327.23 ', 'X722.52 ', 'X787.02 ', 'X782.3 ', 'patient_state_20', 'patient_state_10', 'X280.9 ', 'X723.4 ', 'X722.10 ', 'X486 ', 'X250.02 ', 'X496 ', 'X715.96 ', 'X477.0 ', 'X721.3 ', 'patient_state_37', 'patient_state_38', 'X780.2 ', 'patient_state_34', 'patient_state_35', 'X728.85 ', 'ethinicity_2', 'v58.83 ', 'patient_state_47', 'X338.29 ', 'patient_state_4', 'X739.2 ', 'X714.0 ', 'X477.8 ', 'X739.3 ', 'X414.01 ', 'ethinicity_1', 'ethinicity_0', 'patient_state_31', 'X739.1 ', 'v58.61 ', 'patient_state_43', 'X427.31 ', 'patient_state_18', 'patient_state_5', 'patient_state_6', 'ethinicity_3', 'patient_state_36', 'patient_state_22', 'patient_state_27', 'patient_state_1', 'patient_state_45', 'patient_state_3', 'X428.0 ', 'patient_state_23', 'patient_state_15', 'patient_state_14', 'patient_state_19', 'patient_state_8', 'patient_state_40', 'patient_state_42', 'patient_state_24', 'patient_state_17', 'patient_state_44', 'patient_state_12', 'patient_state_49', 'patient_state_26', 'patient_state_48', 'patient_state_25', 'patient_state_2', 'patient_state_29', 'patient_state_33', 'patient_state_16', 'patient_state_21', 'patient_state_7', 'patient_state_0', 'X285.21 ', 'X585.6 ', 'patient_state_11', 'X588.81 ', 'patient_state_32', 'patient_state_39', 'patient_state_13', 'patient_state_30', 'patient_state_46', 'patient_state_50', 'patient_state_41', 'patient_state_28']
 
@@ -400,17 +400,17 @@ if __name__ == "__main__":
     #model = makeGridSearch(model, Xtrain, ytrain, n_jobs=2, refit=True, cv=cv, scoring='roc_auc',parameters=parameters, random_iter=-1)
 
     #Xtrain, ytrain = mergeWithXval(Xtrain,Xval,ytrain,yval)
-    print Xtrain.shape
+    print(Xtrain.shape)
     model = buildModel(model,Xtrain,ytrain,cv=cv, scoring='roc_auc', n_jobs=2,trainFull=True,verbose=True)
     #analyzeLearningCurve(model, Xtrain, ytrain, cv=cv, score_func='roc_auc')
     #model = buildXvalModel(model,Xtrain,ytrain,sample_weight=NoneFalse,class_names=None,refit=True,cv=cv)
 
-    print "Evaluation data set..."
+    print("Evaluation data set...")
     model.fit(Xtrain,ytrain)
     yval_pred = model.predict_proba(Xval)[:,1]
-    print "Eval-score: %5.3f"%(roc_auc_score(yval,yval_pred))
+    print("Eval-score: %5.3f"%(roc_auc_score(yval,yval_pred)))
 
-    print "Training the final model (incl. Xval.)"
+    print("Training the final model (incl. Xval.)")
     Xtrain, ytrain = mergeWithXval(Xtrain,Xval,ytrain,yval)
     model.fit(Xtrain,ytrain)
 
@@ -418,4 +418,4 @@ if __name__ == "__main__":
 
 
     plt.show()
-    print("Model building done in %fs" % (time() - t0))
+    print(("Model building done in %fs" % (time() - t0)))

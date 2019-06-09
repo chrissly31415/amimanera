@@ -38,8 +38,8 @@ def prepareDataset(seed=123, nsamples=-1, holdout=False, removeZeroSales = True,
     Xtrain = pd.read_csv('./data/train.csv', parse_dates=[2],low_memory=True)
     Xtrain.drop(['Customers'],axis=1,inplace=True)
 
-    print Xtrain.describe(include='all')
-    print Xtrain.shape
+    print(Xtrain.describe(include='all'))
+    print(Xtrain.shape)
 
     Xtest = pd.read_csv('./data/test.csv', parse_dates=[3],low_memory=True)
     Xtest.loc[Xtest.Open.isnull(), 'Open'] = 1
@@ -48,7 +48,7 @@ def prepareDataset(seed=123, nsamples=-1, holdout=False, removeZeroSales = True,
     Xtrain = pd.merge(Xtrain, store, on='Store', how='left')
     Xtest = pd.merge(Xtest, store, on='Store', how='left')
 
-    print "Xtrain - ISNULL:",Xtrain.isnull().any(axis=0)
+    print("Xtrain - ISNULL:",Xtrain.isnull().any(axis=0))
     #print "Xtest - ISNULL:",Xtest.isnull().any(axis=0)
     #print "Xtrain - ISNULL:",Xtrain.Store.isnull()
     #print "Xtrain - ISNULL:",Xtrain.Store.isnull().sum()
@@ -56,11 +56,11 @@ def prepareDataset(seed=123, nsamples=-1, holdout=False, removeZeroSales = True,
 
     if removeZeroSales:
         zs = Xtrain["Sales"] > 0
-        print "Removing Zero sales:",np.sum(~zs)
+        print("Removing Zero sales:",np.sum(~zs))
         Xtrain = Xtrain[zs]
     if removeClosed:
         zs = Xtrain.Open==1
-        print "Removing Closed stores:",np.sum(~zs)
+        print("Removing Closed stores:",np.sum(~zs))
         Xtrain = Xtrain[zs]
 
 
@@ -70,11 +70,11 @@ def prepareDataset(seed=123, nsamples=-1, holdout=False, removeZeroSales = True,
         a) remove store where sales is 2times below sdev/median of specific store!
         b) remove store where sales
         """
-        print "Remove Outlier!!!"
+        print("Remove Outlier!!!")
         sdev = np.std(Xtrain.Sales)
         mean = np.mean(Xtrain.Sales)
         idx = np.abs(Xtrain.Sales-mean)< 2* sdev
-        print idx
+        print(idx)
         Xtrain = Xtrain[idx]
 
 
@@ -109,7 +109,7 @@ def prepareDataset(seed=123, nsamples=-1, holdout=False, removeZeroSales = True,
         uniq_features = compareList(uniq_train, uniq_test, verbose=False)
         if uniq_features.shape[0] > 0:
                 # print Xtrain[col].value_counts()
-                print "Removing unique stores values in Train/Test", uniq_features
+                print("Removing unique stores values in Train/Test", uniq_features)
                 replace_dic = {}
                 for feat in uniq_features:
                     replace_dic[feat] = 'AMBIGIOUS'
@@ -117,24 +117,24 @@ def prepareDataset(seed=123, nsamples=-1, holdout=False, removeZeroSales = True,
 
     if nsamples != -1:
         if isinstance(nsamples, str) and 'shuffle' in nsamples:
-            print "Shuffle train data..."
+            print("Shuffle train data...")
             rows = np.random.choice(len(Xtrain.index), size=len(Xtrain.index), replace=False)
         else:
             rows = np.random.choice(len(Xtrain.index), size=nsamples, replace=False)
 
-        print "unique rows: %6.2f" % (float(np.unique(rows).shape[0]) / float(rows.shape[0]))
+        print("unique rows: %6.2f" % (float(np.unique(rows).shape[0]) / float(rows.shape[0])))
         Xtrain = Xtrain.iloc[rows, :]
-    print Xtrain.shape
+    print(Xtrain.shape)
 
     if createVerticalFeatures:
-        print "Creating Sales per Store features..."
+        print("Creating Sales per Store features...")
         stores = Xtrain.groupby('Store')
         Xtrain['mean_sale_per_store'] = 0.0
         Xtest['mean_sale_per_store'] = 0.0
         Xtrain['sdev_sale_per_store'] = 0.0
         Xtest['sdev_sale_per_store'] = 0.0
 
-        for id,indices in stores.groups.items():
+        for id,indices in list(stores.groups.items()):
             #iterate over store
             sys.stdout.write("\rStore %d"%id)
             #print Xtrain.loc[indices]
@@ -150,14 +150,14 @@ def prepareDataset(seed=123, nsamples=-1, holdout=False, removeZeroSales = True,
         #pd.DataFrame(y, columns=['discount']).to_csv('./data/discount.csv', index=False)
 
     if sales_per_day:
-        print "\nCreating Sales per day features..."
+        print("\nCreating Sales per day features...")
         gr = Xtrain.groupby(['DayOfWeek','Store'])
         Xtrain['median_sale_per_day'] = 0.0
         Xtest['median_sale_per_day'] = 0.0
         Xtrain['sdev_sale_per_day'] = 0.0
         Xtest['sdev_sale_per_day'] = 0.0
 
-        for (day_id,store_id),indices in gr.groups.items():
+        for (day_id,store_id),indices in list(gr.groups.items()):
             sys.stdout.write("\rday %r store %r"%(day_id,store_id))
             total_mean = Xtrain.loc[indices,['Sales']].mean()
             variance = Xtrain.loc[indices,['Sales']].std()
@@ -171,7 +171,7 @@ def prepareDataset(seed=123, nsamples=-1, holdout=False, removeZeroSales = True,
             #print Xtest.loc[test_idx,['DayOfWeek','median_sale_per_week']]
 
     if sales_per_week:
-        print "\nCreating Sales per Week features..."
+        print("\nCreating Sales per Week features...")
         Xtrain['WeekOfYear'] = Xtrain.Date.dt.weekofyear
         Xtest['WeekOfYear'] = Xtest.Date.dt.weekofyear
         gr = Xtrain.groupby(['WeekOfYear','Store'])
@@ -180,7 +180,7 @@ def prepareDataset(seed=123, nsamples=-1, holdout=False, removeZeroSales = True,
         Xtrain['sdev_sale_per_week'] = 0.0
         Xtest['sdev_sale_per_week'] = 0.0
 
-        for (day_id,store_id),indices in gr.groups.items():
+        for (day_id,store_id),indices in list(gr.groups.items()):
             sys.stdout.write("\rweek %r store %r"%(day_id,store_id))
             total_mean = Xtrain.loc[indices,['Sales']].mean()
             variance = Xtrain.loc[indices,['Sales']].std()
@@ -228,7 +228,7 @@ def prepareDataset(seed=123, nsamples=-1, holdout=False, removeZeroSales = True,
         Xall.fillna(0, inplace=True)
 
     if usePromoInterval or other_features:
-        print Xall['PromoInterval']
+        print(Xall['PromoInterval'])
     else:
         Xall.drop(['PromoInterval'],axis=1,inplace=True)
 
@@ -239,37 +239,37 @@ def prepareDataset(seed=123, nsamples=-1, holdout=False, removeZeroSales = True,
         Xall['State'] = lbl.fit_transform(Xall['State'].values)
 
     if removeRare_freq is not None:
-        print "Remove rare features based on frequency..."
+        print("Remove rare features based on frequency...")
         for col in oneHotenc:
             ser = Xall[col]
-            counts = ser.value_counts().keys()
+            counts = list(ser.value_counts().keys())
             idx = ser.value_counts() > removeRare_freq
             threshold = idx.astype(int).sum()
-            print "%s has %d different values before, min freq: %d - threshold %d" % (
-                col, len(counts), removeRare_freq, threshold)
+            print("%s has %d different values before, min freq: %d - threshold %d" % (
+                col, len(counts), removeRare_freq, threshold))
             if len(counts) > threshold:
                 ser[~ser.isin(counts[:threshold])] = 9999
             if len(counts) <= 1:
-                print("Dropping Column %s with %d values" % (col, len(counts)))
+                print(("Dropping Column %s with %d values" % (col, len(counts))))
                 Xall = Xall.drop(col, axis=1)
             else:
                 Xall[col] = ser.astype('category')
-            print ser.value_counts()
-            counts = ser.value_counts().keys()
-            print "%s has %d different values after" % (col, len(counts))
+            print(ser.value_counts())
+            counts = list(ser.value_counts().keys())
+            print("%s has %d different values after" % (col, len(counts)))
 
 
     if oneHotenc is not None:
-        print "1-0 Encoding categoricals...", oneHotenc
+        print("1-0 Encoding categoricals...", oneHotenc)
         for col in oneHotenc:
             #print "Unique values for col:", col, " -", np.unique(Xall[col].values)
             encoder = OneHotEncoder()
             X_onehot = pd.DataFrame(encoder.fit_transform(Xall[[col]].values).todense())
             X_onehot.columns = [col + "_" + str(column) for column in X_onehot.columns]
-            print "One-hot-encoding of %r...new shape: %r" % (col, X_onehot.shape)
+            print("One-hot-encoding of %r...new shape: %r" % (col, X_onehot.shape))
             Xall.drop([col], axis=1, inplace=True)
             Xall = pd.concat([Xall, X_onehot], axis=1)
-            print "One-hot-encoding final shape:", Xall.shape
+            print("One-hot-encoding final shape:", Xall.shape)
             # raw_input()
 
 
@@ -302,7 +302,7 @@ def prepareDataset(seed=123, nsamples=-1, holdout=False, removeZeroSales = True,
         Xall.drop(['monthStr','PromoInterval'], axis=1, inplace=True)
 
     if logtransform is not None:
-        print "log Transform"
+        print("log Transform")
         for col in logtransform:
             if col in Xall.columns: Xall[col] = Xall[col].map(np.log1p)
             # print Xall[col].describe(include=all)
@@ -312,17 +312,17 @@ def prepareDataset(seed=123, nsamples=-1, holdout=False, removeZeroSales = True,
         dropcols = [col for col in Xall.columns if col not in keepFeatures]
         for col in dropcols:
             if col in Xall.columns:
-                print "Dropping: ", col
+                print("Dropping: ", col)
                 Xall.drop([col], axis=1, inplace=True)
 
     if dropFeatures is not None:
         for col in dropFeatures:
             if col in Xall.columns:
-                print "Dropping: ", col
+                print("Dropping: ", col)
                 Xall.drop([col], axis=1, inplace=True)
 
-    print Xall
-    print "Columns used",list(Xall.columns)
+    print(Xall)
+    print("Columns used",list(Xall.columns))
 
 
 
@@ -334,7 +334,7 @@ def prepareDataset(seed=123, nsamples=-1, holdout=False, removeZeroSales = True,
     Xtest = Xall[:len(Xtest.index)]
 
     if holdout:
-        print "Split holdout..."
+        print("Split holdout...")
 
         mask = np.logical_and(Xtrain.Year.values == 2014,Xtrain.Month.values == 8)
         mask2 = np.logical_and(Xtrain.Year.values == 2014,Xtrain.Month.values == 9)
@@ -349,8 +349,8 @@ def prepareDataset(seed=123, nsamples=-1, holdout=False, removeZeroSales = True,
         yval = ytrain[mask]
         Xtrain = Xtrain[~mask]
         ytrain = ytrain[~mask]
-        print "Shape Xtrain:",Xtrain.shape
-        print "Shape Xval  :",Xval.shape
+        print("Shape Xtrain:",Xtrain.shape)
+        print("Shape Xval  :",Xval.shape)
 
     #Xtrain.drop(['Date'],axis=1,inplace=True)
     #Xtest.drop(['Date'],axis=1,inplace=True)
@@ -396,10 +396,10 @@ class ForwardDateCV():
             #print unique_labels
             for train, test in cv:
                 test_labels = unique_labels[test]
-                print "test_labels:",test_labels
+                print("test_labels:",test_labels)
                 test_mask = np.in1d(month_label, test_labels)
                 train_mask = np.logical_not(test_mask)
-                print "test sets %d train set %d"%(np.sum(test_mask),np.sum(train_mask))
+                print("test sets %d train set %d"%(np.sum(test_mask),np.sum(train_mask)))
                 train_indices = np.where(train_mask)[0]
                 test_indices = np.where(test_mask)[0]
                 yield (train_indices, test_indices)
@@ -407,7 +407,7 @@ class ForwardDateCV():
 
 
 def makePredictions(model=None,Xtest=None,idx=None,filename='submission.csv',scale=0.985):
-    print "Saving submission: ", filename
+    print("Saving submission: ", filename)
     if model is not None:
         log_preds = model.predict(Xtest)
     else:
@@ -416,7 +416,7 @@ def makePredictions(model=None,Xtest=None,idx=None,filename='submission.csv',sca
         idx = np.arange(Xtest.shape[0])+1
 
     if scale>-1:
-        print "Scaling predictions: %4.2f"%(scale)
+        print("Scaling predictions: %4.2f"%(scale))
         preds = np.expm1(log_preds)*scale
     else:
         preds = np.expm1(log_preds)
@@ -471,9 +471,9 @@ if __name__ == "__main__":
     # Create categorical features corresponding to leaf nodes ->Herra Hu
     t0 = time()
 
-    print "numpy:", np.__version__
-    print "pandas:", pd.__version__
-    print "scipy:", sp.__version__
+    print("numpy:", np.__version__)
+    print("pandas:", pd.__version__)
+    print("scipy:", sp.__version__)
 
     seed = 51176
     nsamples = -1#'shuffle'
@@ -501,7 +501,7 @@ if __name__ == "__main__":
         Xtest.to_csv('./data/Xtest.csv', index=False)
         pd.DataFrame(ytrain, columns=['log_sales']).to_csv('./data/ytrain.csv', index=False)
 
-    print Xtrain.head()
+    print(Xtrain.head())
     #interact_analysis(Xtrain)
     #model = sf.RandomForest(n_estimators=120,mtry=5,node_size=5,max_depth=6,n_jobs=2,verbose_level=0)
     #model = Pipeline([('scaler', StandardScaler()), ('model',ross1)])
@@ -530,18 +530,18 @@ if __name__ == "__main__":
     model = makeGridSearch(model, Xtrain, ytrain, n_jobs=1, refit=True, cv=cv, scoring=scoring_func,parameters=parameters, random_iter=-1)
 
     #Xtrain, ytrain = mergeWithXval(Xtrain,Xval,ytrain,yval)
-    print Xtrain.shape
+    print(Xtrain.shape)
     model = buildModel(model,Xtrain,ytrain,cv=cv, scoring=scoring_func, n_jobs=1,trainFull=True,verbose=True)
     #model = buildXvalModel(model,Xtrain,ytrain,sample_weight=None,class_names=None,refit=True,cv=cv)
 
     yval_pred = model.predict(Xval)
-    print "Eval-score: %5.3f"%(root_mean_squared_percentage_error(np.expm1(yval),np.expm1(yval_pred)))
+    print("Eval-score: %5.3f"%(root_mean_squared_percentage_error(np.expm1(yval),np.expm1(yval_pred))))
 
-    print "Training the final model (incl. Xval.)"
+    print("Training the final model (incl. Xval.)")
     Xtrain, ytrain = mergeWithXval(Xtrain,Xval,ytrain,yval)
     #model.fit(Xtrain,ytrain)
 
     #makePredictions(model,Xtest,idx=idx, filename='./submissions/sub30112015.csv')
 
     plt.show()
-    print("Model building done in %fs" % (time() - t0))
+    print(("Model building done in %fs" % (time() - t0)))
