@@ -86,17 +86,23 @@ class XModel:
     def summary(self):
         print("\n>>Name<<     :", self.name)
         print("classifier   :", self.classifier)
+        print("Parameters for feature generatation:\n %r"%(self.params))
 
         if self.Xtrain is not None:
             print("Train data   :", self.Xtrain.shape, end=' ')
             print(" type         :", type(self.Xtrain))
 
+
         if self.Xtest is not None:
             print("Test data    :", self.Xtest.shape, end=' ')
             print(" type         :", type(self.Xtest))
+            print("Columns: %r" % (list(self.Xtest.columns)))
 
         if self.Xval is not None:
             print("Valid. data   : ", self.Xval.shape)
+        else:
+            print("No validation data defined!")
+
         if self.sample_weight is not None:
             print("sample_weight:", self.sample_weight.shape, end=' ')
             print(" type        :", type(self.sample_weight))
@@ -122,13 +128,12 @@ class XModel:
         self.generator_dict = generator_dict
 
     def generate_features(self):
-        print(("Generating features for model: "+self.name))
-        Xtest, Xtrain, ytrain, ytest, cv_labels, idx, sample_weight, Xval, yval, val_labels = self.generators['prepareDataset'](**self.params)
+        print(("Generating features for model: %s \n"%(self.name)))
+        Xtest, Xtrain, ytrain, cv_labels, sample_weight, Xval, yval = self.generators['prepareDataset'](**self.params)
 
         self.Xtrain = Xtrain
         self.Xtest = Xtest
         self.ytrain = ytrain
-        self.ytest = ytest
         self.sample_weight = sample_weight
         self.Xval = Xval
         self.yval = yval

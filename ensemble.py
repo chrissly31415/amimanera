@@ -11,245 +11,138 @@ for stacking versus blending: see:
 
 http://mlwave.com/kaggle-ensembling-guide/
 
-
 """
 
-from numerai import *
+from nmr import *
 from FullModel import *
 
 import sys
 import itertools
 from random import randint
+import argparse
 
 from scipy.optimize import fmin, fmin_cobyla, minimize
 
-from sklearn.externals.joblib import Parallel, delayed, logger
+from joblib import Parallel, delayed
 from sklearn.base import clone
 from sklearn import preprocessing
 
-def createModels():
+def createModels(models = []):
 
-    global idx
-    global data_id
-    numericals = ['feature1', 'feature2', 'feature3', 'feature4', 'feature5', 'feature6', 'feature7', 'feature8', 'feature9', 'feature10', 'feature11', 'feature12', 'feature13', 'feature14', 'feature15','feature16','feature17', 'feature18','feature19','feature20','feature21']
-
-
+    rseed = 666
     ensemble = []
+    fit_on_validation = True
 
-    #XGB1
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle')
-    #model = XgboostClassifier(n_estimators=200,learning_rate=0.01,max_depth=2, NA=0,subsample=.5,colsample_bytree=1.0,min_child_weight=5,n_jobs=2,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
-    #xmodel = XModel("xgb1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
+    generators = {'prepareDataset' : prepareDataset}
 
-    #XGB2
-    #greedy_fw18b = ['feature14xfeature19', 'feature11xfeature20', 'feature1xfeature9', 'feature8xfeature20', 'feature1xfeature12', 'feature18xfeature21', 'feature11xfeature12', 'feature14xfeature17', 'feature2xfeature21', 'feature5xfeature21', 'feature11xfeature14', 'feature7xfeature10', 'feature12xfeature21']
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,polynomialFeatures='all',keepFeatures=greedy_fw18b)
-    #model = XgboostClassifier(n_estimators=1000,learning_rate=0.01,max_depth=1, NA=0,subsample=.75,colsample_bytree=0.75,min_child_weight=5,n_jobs=4,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
-    #xmodel = XModel("xgb2",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
+    # type
+    if "type" in models:
+        params = {'seed': rseed, 'nsamples': -1, 'makeDistMat': False, 'makeTrainType': True, 'plotDist': False,
+                  'makeDistMean': False, 'makeMolNameMean': False, 'makeLabelEncode': True, 'makeRDKitFeatures': False,
+                  'makeRDKitFingerPrints': False, 'oneHotenc': None, 'removeLowVariance': False,
+                  'dropFeatures': ['atom_index_0', 'atom_index_1', 'molblock']}
+        model = DummyRegressor(strategy='mean', constant=None)
+        xmodel = XModel("type", classifier=model, bag_mode=False, fit_on_validation=fit_on_validation, params=params,
+                        generators=generators)
+        ensemble.append(xmodel)
 
-    #XGB3
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle')
-    #model = XgboostClassifier(n_estimators=200,learning_rate=0.01,max_depth=2, NA=0,subsample=.5,colsample_bytree=1.0,min_child_weight=5,n_jobs=4,objective='binary:logistic',eval_metric='logloss',booster='gbtree',silent=1,eval_size=0.0)
-    #model = BaggingClassifier(base_estimator=model,n_estimators=20,n_jobs=1,verbose=2,random_state=None,bootstrap=True)
-    #xmodel = XModel("xgb3",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
+    # rt1 
+    if "rt1" in models:
+        params = {'seed': rseed, 'nsamples': -1, 'makeDistMat': True, 'makeTrainType': True, 'plotDist': False,
+                  'makeDistMean': True, 'makeMolNameMean': True, 'makeLabelEncode': True, 'makeRDKitFeatures': True,
+                  'makeRDKitFingerPrints': False, 'oneHotenc': None, 'removeLowVariance': False,
+                  'dropFeatures': ['atom_index_0', 'atom_index_1', 'molblock']}
+        model = Pipeline([('rt', RandomTreesEmbedding(n_estimators=40, max_depth=2)),
+                          ('m', LinearRegression(C=0.01, penalty='l2', solver='lbfgs'))])
+        xmodel = XModel("rt1", classifier=model, bag_mode=False, fit_on_validation=fit_on_validation, params=params,
+                        generators=generators)
+        ensemble.append(xmodel)
 
-    #LR1 LL=0.6916
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle')
-    #model = LogisticRegression(C=100.0,penalty='l1')
-    #xmodel = XModel("lr1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
+    # ridge1 
+    if "ridge1" in models:
+        params = {'seed': rseed, 'nsamples': -1, 'makeDistMat': True, 'makeTrainType': True, 'plotDist': False,
+                  'makeDistMean': True, 'makeMolNameMean': True, 'makeLabelEncode': True, 'makeRDKitFeatures': False,
+                  'makeRDKitFingerPrints': False, 'oneHotenc': None, 'removeLowVariance': False,
+                  'dropFeatures': ['atom_index_0', 'atom_index_1', 'molblock']}
 
-    #LR2 LL=0.6916
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',renameFeatures=True)
-    #model = LogisticRegression(C=1.0,penalty='l2')
-    #xmodel = XModel("lr2",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
+        model = RidgeCV()
+        xmodel = XModel("ridge1", classifier=model, bag_mode=False, fit_on_validation=fit_on_validation, params=params,
+                        generators=generators)
+        ensemble.append(xmodel)
 
 
-    #LR3
+    if "lgb1" in models:
+        params = {'seed': rseed, 'nsamples': -1, 'makeDistMat': True, 'makeTrainType': True, 'plotDist': False,
+                  'makeDistMean': True, 'makeMolNameMean': True, 'makeLabelEncode': True, 'makeRDKitFeatures': False,
+                  'makeRDKitFingerPrints': False, 'oneHotenc': None, 'removeLowVariance': False,
+                  'dropFeatures': ['atom_index_0', 'atom_index_1', 'molblock']}
+
+        lgb_params = {'num_leaves': 128, 'min_child_samples': 79, 'objective': 'regression', 'max_depth': 12,
+                      'learning_rate': 0.2, "boosting_type": "gbdt", "subsample_freq": 1, "subsample": 1.0,
+                      "bagging_seed": 11, "metric": 'mae', "verbosity": -1, 'reg_alpha': 0.1, 'reg_lambda': 0.3,
+                      'colsample_bytree': 1.0, 'n_estimators': 10000,'n_jobs':4}
+
+        model = lgb.LGBMRegressor(**lgb_params)
+        xmodel = XModel("lgb1", classifier=model, bag_mode=False, fit_on_validation=fit_on_validation, params=params,
+                        generators=generators)
+        ensemble.append(xmodel)
+
+    if "lgb2" in models:
+        params = {'seed': rseed, 'nsamples': -1, 'makeDistMat': True, 'makeTrainType': True, 'plotDist': False,
+                  'makeDistMean': True, 'makeMolNameMean': True, 'makeLabelEncode': True, 'makeRDKitFeatures': True,
+                  'makeRDKitFingerPrints': False, 'oneHotenc': None, 'removeLowVariance': False,
+                  'dropFeatures': ['atom_index_0', 'atom_index_1', 'molblock']}
+
+        lgb_params = {'num_leaves': 128, 'min_child_samples': 79, 'objective': 'regression', 'max_depth': 12,
+                      'learning_rate': 0.2, "boosting_type": "gbdt", "subsample_freq": 1, "subsample": 1.0,
+                      "bagging_seed": 11, "metric": 'mae', "verbosity": -1, 'reg_alpha': 0.1, 'reg_lambda': 0.3,
+                      'colsample_bytree': 1.0, 'n_estimators': 10000,'n_jobs':4}
+
+        model = lgb.LGBMRegressor(**lgb_params)
+        xmodel = XModel("lgb2", classifier=model, bag_mode=False, fit_on_validation=fit_on_validation, params=params,
+                        generators=generators)
+        ensemble.append(xmodel)
+
+
+    if "xgb1" in models:
+        params = {'seed': rseed, 'nsamples': -1, 'makeDistMat': True, 'makeTrainType': True, 'plotDist': False,
+                  'makeDistMean': True, 'makeMolNameMean': True, 'makeLabelEncode': True, 'makeRDKitFeatures': False,
+                  'makeRDKitFingerPrints': False, 'oneHotenc': None, 'removeLowVariance': False,
+                  'dropFeatures': ['atom_index_0', 'atom_index_1', 'molblock']}
+
+        model = XGBRegressor(n_estimators=5000, learning_rate=0.01, max_depth=10, NA=0, subsample=.5,
+                             colsample_bytree=1.0, min_child_weight=5, n_jobs=4,
+                             eval_metric='mae', booster='gbtree', silent=1, eval_size=0.0)
+        xmodel = XModel("xgb1", classifier=model, bag_mode=False, fit_on_validation=fit_on_validation, params=params,
+                        generators=generators)
+        ensemble.append(xmodel)
+
+
+    """
     #tsnelib= {'numDims': 2, 'perplexity': 30, 'theta':0.5, 'pcaDims':21}
     #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE = tsnelib,renameFeatures = True)
     #model = LogisticRegression(C=1.0,penalty='l2')
     #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
     #xmodel = XModel("lr3",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
     #ensemble.append(xmodel)
+    """
 
-
-    #LR3b
-    tsnelib= {'numDims': 3, 'perplexity': 30, 'theta':0.5, 'pcaDims':21}
-    Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE = tsnelib,renameFeatures = True)
-    model = LogisticRegression(C=1.0,penalty='l2')
-    model = Pipeline([('scaler', StandardScaler()), ('m',model)])
-    xmodel = XModel("lr3b",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    ensemble.append(xmodel)
-
-    #LR3c
-    tsnelib= {'numDims': 2, 'perplexity': 50, 'theta':0.5, 'pcaDims':21}
-    Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE = tsnelib,renameFeatures = True)
-    model = LogisticRegression(C=1.0,penalty='l2')
-    model = Pipeline([('scaler', StandardScaler()), ('m',model)])
-    xmodel = XModel("lr3c",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    ensemble.append(xmodel)
-
-    #LR3d
-    tsnelib= {'numDims': 3, 'perplexity': 50, 'theta':0.5, 'pcaDims':21}
-    Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE = tsnelib,renameFeatures = True)
-    model = LogisticRegression(C=1.0,penalty='l2')
-    model = Pipeline([('scaler', StandardScaler()), ('m',model)])
-    xmodel = XModel("lr3d",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    ensemble.append(xmodel)
-
-    #LR3e
-    #tsnelib= {'numDims': 4, 'perplexity': 30, 'theta':0.5, 'pcaDims':21}
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE = tsnelib)
-    #model = LogisticRegression(C=1.0,penalty='l2')
-    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
-    #xmodel = XModel("lr3e",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #LR3f ~ 5h
-    #tsnelib= {'numDims': 5, 'perplexity': 30, 'theta':0.5, 'pcaDims':21}
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE = tsnelib)
-    #model = LogisticRegression(C=1.0,penalty='l2')
-    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
-    #xmodel = XModel("lr3f",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #LR3g ~>24h
-    #tsnelib= {'numDims': 6, 'perplexity': 30, 'theta':0.5, 'pcaDims':21}
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE = tsnelib)
-    #model = LogisticRegression(C=1.0,penalty='l2')
-    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
-    #xmodel = XModel("lr3g",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-
-    #LR4 LL=0.6916
-    #greedy_fw18b = ['feature14xfeature19', 'feature11xfeature20', 'feature1xfeature9', 'feature8xfeature20', 'feature1xfeature12', 'feature18xfeature21', 'feature11xfeature12', 'feature14xfeature17', 'feature2xfeature21', 'feature5xfeature21', 'feature11xfeature14', 'feature7xfeature10', 'feature12xfeature21']
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,polynomialFeatures='all',keepFeatures=greedy_fw18b)
-    #model = LogisticRegression(C=1.0,penalty='l2')
-    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
-    #xmodel = XModel("lr4",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #LR5 LL=0.6923
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,polynomialFeatures='all',renameFeatures = True)
-    #model = LogisticRegression(C=100.0,penalty='l1')
-    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
-    #xmodel = XModel("lr5",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-
-    #LR6 LL=
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,find_clusters=True,polynomialFeatures='all',dropFeatures=numericals,dimReduce=TruncatedSVD(n_components=5))
-    #model = LogisticRegression(C=1.0,penalty='l1')
-    #model = Pipeline([('svd', RobustScaler()),('m',model)])
-    #xmodel = XModel("lr6",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #LR7 LL=
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,polynomialFeatures='all',dimReduce=TruncatedSVD(n_components=5),renameFeatures = True)
-    #model = LogisticRegression(C=1.0,penalty='l2')
-    #model = Pipeline([('scaler', StandardScaler()),('m',model)])
-    #xmodel = XModel("lr7",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #LR8 LL=
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE={'uselib': 'bh_sne'})
-    #model = LogisticRegression(C=1.0,penalty='l2')
-    #model = Pipeline([('scaler', StandardScaler()),('m',model)])
-    #xmodel = XModel("lr8",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #LR9 LL=0.6916
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,renameFeatures = True,find_clusters=True)
-    #model = LogisticRegression(C=1.0,penalty='l2')
-    #model = Pipeline([('scaler', StandardScaler()),('m',model)])
-    #xmodel = XModel("lr9",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #lr10
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,renameFeatures = True,makeBins=5,oneHotenc=True)
-    #model = LogisticRegression(C=1.0,penalty='l2')
-    #model = Pipeline([('scaler', StandardScaler()),('m',model)])
-    #xmodel = XModel("lr10",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-
-    #LDA LL=0.6916
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,renameFeatures = True)
-    #model = LinearDiscriminantAnalysis(solver='svd', shrinkage=None, priors=None, n_components=None, store_covariance=False, tol=0.0001)
-    #xmodel = XModel("lda1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-
-    #NN1 LLPV=0.6915 LLPL=0.6919 LLPL=0.6916
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,renameFeatures = True)
-    #model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=40,learning_rate=0.05,validation_split=0.0,batch_size=64,verbose=1,activation='sigmoid', layers=[20,20], dropout=[0.0,0.1],loss='categorical_crossentropy')
-    #model = BaggingClassifier(base_estimator=model,n_estimators=20,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=1.0,bootstrap=False)
-    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
-    #xmodel = XModel("nn1",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #NN1b
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,renameFeatures = True)
-    #model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=40,learning_rate=0.05,validation_split=0.0,batch_size=64,verbose=1,activation='sigmoid', layers=[20,20], dropout=[0.0,0.1],loss='categorical_crossentropy')
-    #model = BaggingClassifier(base_estimator=model,n_estimators=20,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=1.0,bootstrap=True)
-    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
-    #xmodel = XModel("nn1b",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #NN2 LLPV=  LLPL=0.69287
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,renameFeatures = True, append_old = [19])
-    #model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=50,learning_rate=0.05,validation_split=0.0,batch_size=64,verbose=1,activation='sigmoid', layers=[20,20], dropout=[0.0,0.1],loss='categorical_crossentropy')
-    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
-    #model = BaggingClassifier(base_estimator=model,n_estimators=20,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=1.0,bootstrap=False)
-    #xmodel = XModel("nn2",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #NN3 LL=6919
-    #Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,renameFeatures = True,makeBins=5,oneHotenc=True)
-    #model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=30,learning_rate=0.0001,validation_split=0.0,batch_size=512,verbose=1,activation='sigmoid', layers=[20], dropout=[0.5],loss='categorical_crossentropy')
-    #model = Pipeline([('scaler', StandardScaler()), ('m',model)])
-    #xmodel = XModel("nn3",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    #ensemble.append(xmodel)
-
-    #NN4 LLPV=0.6915 LLPL=0.6919 LLPL=0.6916
-    tsnelib= {'numDims': 3, 'perplexity': 30, 'theta':0.5, 'pcaDims':21}
-    Xtest,Xtrain,ytrain,idx,sample_weight,Xval,yval = prepareDataset(quickload=False,data_id=data_id,seed=51176, nsamples='shuffle',removeCor = True,makeTSNE = tsnelib,renameFeatures = True)
-    model = KerasNN(dims=Xtrain.shape[1],nb_classes=2,nb_epoch=40,learning_rate=0.05,validation_split=0.0,batch_size=64,verbose=1,activation='sigmoid', layers=[20,20], dropout=[0.5,0.5],loss='categorical_crossentropy')
-    #model = BaggingClassifier(base_estimator=model,n_estimators=20,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=1.0,bootstrap=False)
-    model = Pipeline([('scaler', StandardScaler()), ('m',model)])
-    xmodel = XModel("nn4",classifier=model,Xtrain=Xtrain,Xtest=Xtest,ytrain=ytrain,Xval=Xval,yval=yval,cv_labels=None,bag_mode=False)
-    ensemble.append(xmodel)
-
-
-
-    for m in ensemble:
-        m.summary()
     return (ensemble)
 
 
-def finalizeModel(m, use_proba=True):
+def finalizeModel(m, use_proba=True,basedir="./data/"):
     """
     Make predictions and save them
     """
     print("Make predictions and save them...")
-    # oob from crossvalidation
-    yoob = m.oob_preds
-    # final prediction
-    ypred = m.preds
 
     m.summary()
+    logging.info(m.summary())
 
-    # put data to data.frame and save
-    # OOB DATA
+    # put OOB DATA to data.frame and save
     m.oob_preds = pd.DataFrame(np.asarray(m.oob_preds), columns=['oob'])
 
-    # validation
+    # store validation
     if hasattr(m, 'val_preds') and m.val_preds is not None:
         m.val_preds = pd.DataFrame(np.asarray(m.val_preds), columns=['val'])
 
@@ -257,20 +150,19 @@ def finalizeModel(m, use_proba=True):
     m.preds = pd.DataFrame(np.asarray(m.preds), columns=['prediction'])
 
     # save final model
-    allpred = pd.concat([m.preds, m.oob_preds])
+    allpred = pd.concat([m.preds, m.oob_preds],sort=False)
     # submission data is first, train data is last!
-    filename = "./data/" + m.name + ".csv"
+    filename =  basedir + m.name + ".csv"
     print("Saving oob + predictions as csv to:", filename)
     allpred.to_csv(filename, index=False)
 
-    # XModel.saveModel(m,"/home/loschen/Desktop/datamining-kaggle/higgs/data/"+m.name+".pkl")
-    XModel.saveCoreData(m, "./data/" + m.name + ".pkl")
+    XModel.saveCoreData(m, basedir + m.name + ".pkl")
     return (m)
 
 
 def saveTrainData(ensemble):
     """
-    parallel oob creation
+    save training data
     """
     for m in ensemble:
         print("Saving data for model:", m.name)
@@ -279,13 +171,12 @@ def saveTrainData(ensemble):
 
 def loadDataSet(ensemble):
     """
-    parallel oob creation
+    load saved training data
     """
     basedir = "./data/"
     for i, model in enumerate(ensemble):
 
         xmodel = XModel.loadModel(basedir + model)
-
         Xtrain, Xtest = XModel.loadDataSet(xmodel)
         print("model: %-20s %20r %20r %20r" % (xmodel.name, Xtrain.shape, Xtest.shape, type(xmodel.classifier)))
 
@@ -293,22 +184,33 @@ def loadDataSet(ensemble):
 def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_loss', verbose=False, calibrate=False,
                   use_proba=True):
     """
-    parallel oob creation
+    Creates parallel out-of-bag prediction
     """
+
     global funcdict
 
-    for m in ensemble:
-        print(m.name)
+    print("List of models:")
+    for i,m in enumerate(ensemble):
+        print(("%5d %s"%(i,m.name)))
 
     for m in ensemble:
+        m.generate_features()
+        #m.summary()
+
+
         bag_mode = m.bag_mode
-        print("\nComputing oob predictions for:", m.name)
-        print(m.classifier.get_params)
+        print(("\nComputing oob predictions for:"+m.name))
+        # set nprocs=1 for NN
+        print(m.classifier.get_params())
+        if 'm__epochs' in m.classifier.get_params():
+            print("Switching to serial...")
+            n_jobs = 1
+
         if m.class_names is not None:
             n_classes = len(m.class_names)
+            print(("Number of classes:"+n_classes))
         else:
             n_classes = 1
-        print("n_classes:", n_classes)
 
         oob_preds = np.zeros((m.ytrain.shape[0], n_classes, repeats),dtype=np.float32)
         preds = np.zeros((m.Xtest.shape[0], n_classes, repeats))
@@ -322,14 +224,14 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
         # outer loop
         for j in range(repeats):
             if m.cv_labels is not None:
-                print("ForwardDateCV ...")
-                #cv = ForwardDateCV(m.Xtrain.Month,m.Xtrain.Year,n_iter=8,useAll=True,verbose=True)
+                print("CV using labels...")
+                cv = KLabelFolds(labels=m.cv_labels, n_folds=8, repeats=1)
 
             else:
                 print("KFOLD  ...")
-                cv = StratifiedKFold(m.ytrain, n_folds=n_folds, shuffle=True, random_state=None)
+                cv = KFold(n_splits=n_folds, shuffle=True, random_state = 42)
 
-            scores = np.zeros(len(cv))
+            scores = np.zeros(n_folds)
 
             # parallel stuff
             parallel = Parallel(n_jobs=n_jobs, verbose=True,
@@ -337,17 +239,16 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
 
             # parallel run, returns a list of oob predictions
             results = parallel(
-                delayed(fit_and_score)(clone(m.classifier), m.Xtrain.copy(), m.ytrain, train, test,
-                                       sample_weight=m.sample_weight, use_proba=use_proba, returnModel=bag_mode) for train, test in cv)
+                delayed(fit_and_score)(clone(m.classifier), m.Xtrain, m.ytrain, train, test,
+                                       sample_weight=m.sample_weight, use_proba=use_proba, returnModel=bag_mode) for train, test in cv.split(m.Xtrain))
 
-            for i, (train, test) in enumerate(cv):
+            for i, (train, test) in enumerate(cv.split(m.Xtrain)):
                 oob_pred, cv_model = results[i]
+                scores[i] = funcdict[score_func](m.ytrain.iloc[test], oob_pred, m.Xtrain.iloc[test]['type'])
                 if use_proba:
                     oob_pred = oob_pred[:,1]
                 oob_pred = oob_pred.reshape(oob_pred.shape[0], n_classes)
                 oob_preds[test, :, j] = oob_pred
-
-                scores[i] = funcdict[score_func](m.ytrain[test], oob_preds[test, :, j])
 
                 if bag_mode:
                     print("Using cv models for test set(bag_mode)...")
@@ -362,33 +263,28 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
 
                         if m.Xval is not None:
                             raise Exception("Currently not supported in Bag mode!")
-                            # p = cv_model.predict(m.Xval)
-                            # p = p.reshape(p.shape[0], n_classes)
-                            # val_preds[:, :, j] = p
-                            # print "Fold %d - score:%0.3f " % (i,scores[i])
-                            # scores_mae[i]=funcdict['mae'](ly[test],oob_preds[test,j])
 
-            oobscore[j] = funcdict[score_func](m.ytrain, oob_preds[:, :, j])
-            # maescore[j]=funcdict['mae'](ly,oob_preds[:,j])
+            oobscore[j] = funcdict[score_func](m.ytrain, oob_preds[:, :, j].ravel(),m.Xtrain['type'])
 
-            print("Iteration:", j, end=' ')
-            print(" <score>: %0.3f (+/- %0.3f)" % (scores.mean(), scores.std()), end=' ')
-            print(" score,oob: %0.3f" % (oobscore[j]))
-        # print " ## <mae>: %0.3f (+/- %0.3f)" % (scores_mae.mean(), scores_mae.std()),
-        # print " score3,oob: %0.3f" %(maescore[j])
+            score_str = "Repeat: %2d <score>: %0.4f (+/- %0.4f) score,oob: %0.4f" % (j,scores.mean(), scores.std(),oobscore[j])
+            print(score_str)
+        logging.info(score_str)
 
         # simple averaging of blending
         m.oob_preds = np.mean(oob_preds, axis=2)
 
-        score_oob = funcdict[score_func](m.ytrain, m.oob_preds)
-        print("Summary: <score,oob>: %6.3f +- %6.3f   score,oob-total: %0.3f (after %d repeats)\n" % (
-            oobscore.mean(), oobscore.std(), score_oob, repeats))
+        score_oob = funcdict[score_func](m.ytrain, m.oob_preds.ravel(),m.Xtrain['type'])
+
+        sum_str = "Summary: <score,oob>: %6.4f +- %6.4f   score,oob-total: %0.4f (after %d repeats)\n" % (
+            oobscore.mean(), oobscore.std(), score_oob, repeats)
+        print(sum_str)
+        logging.info(sum_str)
 
         orig_classifier = clone(m.classifier)
         m.classifier = clone(orig_classifier)
         if not bag_mode:
             # Train full model on total train data
-            print("Training on full train set...")
+            print("Training on full train set...really?")
             Xtrain_ = m.Xtrain
             ly_ = m.ytrain
             if m.sample_weight is not None:
@@ -400,41 +296,36 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
                 m.classifier.fit(Xtrain_, ly_)
 
             if m.Xval is not None:
-                print("Prediction for val set...", end=' ')
+                print("\n>>Prediction for val set... ", end=' ')
                 if use_proba:
                     m.val_preds = m.classifier.predict_proba(m.Xval)[:,1]
                 else:
                     m.val_preds = m.classifier.predict(m.Xval)
                 # check
-                score = funcdict[score_func](m.yval, m.val_preds)
-                print(" score,validation: %0.4f" % (score))
+                score = funcdict[score_func](m.yval, m.val_preds,m.Xval['type'])
+                var_str = "score,validation: %0.4f\n" % (score)
+                print(var_str)
+                logging.info(val_str)
 
-            else:
-                print("Predicting on test set...")
-                if use_proba:
-                    m.preds = m.classifier.predict_proba(m.Xtest)[:,1]
-                else:
-                    m.preds = m.classifier.predict(m.Xtest)
 
-            if m.Xval is not None:
+            if m.Xval is not None and m.fit_on_validation:
                 print("Re-training on train & val set...")
                 Xtrain_ = pd.concat([m.Xtrain, m.Xval])
                 ly_ = np.hstack((m.ytrain.ravel(), m.yval.ravel()))
                 if m.sample_weight is not None:
                     raise Exception("Not supported for now...")
 
-                #here we need to clone and retrain!
+                # here we need to clone and retrain!
                 m.classifier = clone(orig_classifier)
                 m.classifier.fit(Xtrain_, ly_)
+            else:
+                print("Skipping validation set for model fit...")
 
-                print("Predicting on test set...")
-                if use_proba:
-                    print(m.Xtest.describe())
-                    input()
-                    m.preds = m.classifier.predict_proba(m.Xtest)[:,1]
-                else:
-                    m.preds = m.classifier.predict(m.Xtest)
-
+            print("Predicting on test set...")
+            if use_proba:
+                m.preds = m.classifier.predict_proba(m.Xtest)[:,1]
+            else:
+                m.preds = m.classifier.predict(m.Xtest)
 
         else:
             print("bag_mode: averaging all cv classifier results")
@@ -451,17 +342,23 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
     return ensemble
 
 
-def fit_and_score(xmodel, X, y, train, valid, sample_weight=None, scale_wt=None, use_proba=False, returnModel=True):
+def fit_and_score(xmodel, X, y, train, valid, sample_weight=None, use_proba=False, returnModel=True):
     """
     Score function for parallel oob creation
     """
     if isinstance(X, pd.DataFrame):
-        X = X.values
+        Xtrain = X.iloc[train]
+        Xvalid = X.iloc[valid]
+    else:
+        Xtrain = X[train]
+        Xvalid = X[valid]
 
-    Xtrain = X[train]
-    Xvalid = X[valid]
-
-    ytrain = y[train]
+    if isinstance(y, pd.Series):
+        ytrain = y.iloc[train]
+        yvalid = y.iloc[valid]
+    else:
+        ytrain = y[train]
+        yvalid = y[valid]
 
     if sample_weight is not None:
         print("Using sample weight...", sample_weight[train])
@@ -471,33 +368,43 @@ def fit_and_score(xmodel, X, y, train, valid, sample_weight=None, scale_wt=None,
 
     if use_proba:
         # saving out-of-bag predictions
-        local_pred = xmodel.predict_proba(Xvalid)
+        oob_pred = xmodel.predict_proba(Xvalid)
     # prediction for test set
     # classification/regression
     else:
-        local_pred = xmodel.predict(Xvalid)
+        oob_pred = xmodel.predict(Xvalid)
+
+    #mae = funcdict['group_mae'](yvalid, oob_pred, Xvalid['type'])
+    #print("mae: %6.4f"%(mae))
+
     if returnModel:
-        return local_pred, xmodel
+        return oob_pred, xmodel
     else:
-        return local_pred, None
+        return oob_pred, None
 
 
-def trainEnsemble(ensemble, mode='linear', score_func='log_loss', useCols=None, addMetaFeatures=False, use_proba=True,
-                  dropCorrelated=False, skipCV=False, subfile=""):
+def trainEnsemble(ensemble,basedir = "./data_numerai/", mode='linear', score_func='log_loss', useCols=None, addMetaFeatures=False, use_proba=True,
+                  dropCorrelated=False, skipCV=False, subfile="",model_dict=dict(),check_consistency=False):
     """
     Train the ensemble
     """
-    basedir = "./data/"
 
     for i, model in enumerate(ensemble):
         print(''.join(['-'] * 60))
-        print("Loading model:", i, " name:", model)
-        xmodel = XModel.loadModel(basedir + model)
+
+        key = basedir + model
+        if key not in model_dict:
+            print("Loading model:", i, " name:", model)
+            xmodel = XModel.loadModel(key)
+            model_dict[key] = xmodel
+        else:
+            print("From cache -  model:", i, " name:", model)
+            xmodel = model_dict[key]
         class_names = xmodel.class_names
         if class_names is None:
             class_names = ['Class']
         print("OOB data:", xmodel.oob_preds.shape)
-        if hasattr(xmodel, 'Xval') and xmodel.Xval is not None:
+        if hasattr(xmodel, 'val_preds') and xmodel.val_preds is not None:
             print("Holdout data:", xmodel.val_preds.shape)
         print("pred data:", xmodel.preds.shape)
         print("y train:", xmodel.ytrain.shape)
@@ -506,7 +413,7 @@ def trainEnsemble(ensemble, mode='linear', score_func='log_loss', useCols=None, 
             xmodel.oob_preds.columns = [model + "_" + n for n in class_names]
             Xtrain = pd.concat([Xtrain, xmodel.oob_preds], axis=1)
             Xtest = pd.concat([Xtest, xmodel.preds], axis=1)
-            if hasattr(xmodel, 'Xval') and xmodel.Xval is not None:
+            if hasattr(xmodel, 'val_preds') and xmodel.val_preds is not None:
                 Xval = pd.concat([Xval, xmodel.val_preds], axis=1)
 
         else:
@@ -517,33 +424,27 @@ def trainEnsemble(ensemble, mode='linear', score_func='log_loss', useCols=None, 
             Xtrain.columns = colnames
             Xval = None
             yval = None
-            if hasattr(xmodel, 'Xval') and xmodel.Xval is not None:
+            if hasattr(xmodel, 'val_preds') and xmodel.val_preds is not None:
                 Xval = xmodel.val_preds
                 yval = xmodel.yval
                 print(Xval.shape)
 
     Xtest.columns = Xtrain.columns
-    if hasattr(xmodel, 'Xval') and xmodel.Xval is not None:
+    if hasattr(xmodel, 'val_preds') and xmodel.val_preds is not None:
         Xval.columns = Xtrain.columns
 
-    print(Xtrain.columns)
-    print(Xtrain.shape)
-
     # print "spearman-correlation:\n",Xtrain.corr(method='spearman')
-    print("pearson-correlation :\n", Xtrain.corr(method='pearson'))
-
-    # print Xtrain.describe()
-    print(Xtest.shape)
-    # print Xtest.describe()
+    if dropCorrelated: print("pearson-correlation :\n", Xtrain.corr(method='pearson'))
 
     if mode is 'classical':
-        results = classicalBlend(ensemble, Xtrain, Xtest, y, valpreds=Xval, yval=yval, score_func=score_func,
-                                 use_proba=use_proba, skipCV=skipCV,
-                                 subfile=subfile, cv_labels=xmodel.cv_labels, dropCorrelated=dropCorrelated)
+        results = classicalBlend(ensemble, Xtrain, Xtest, y, valpreds=Xval, yval=yval,
+                                 use_proba=use_proba, score_func=score_func,
+                                 subfile=subfile,skipCV=skipCV, cv_labels=xmodel.cv_labels, dropCorrelated=dropCorrelated, fit_on_validation=xmodel.fit_on_validation, check_consistency=check_consistency)
+
     elif mode is 'mean':
         results = linearBlend(ensemble, Xtrain, Xtest, y, Xval=Xval, yval=yval, score_func=score_func, takeMean=True,
                               subfile=subfile,
-                              dropCorrelated=dropCorrelated)
+                              dropCorrelated=dropCorrelated,fit_on_validation=xmodel.fit_on_validation, check_consistency=check_consistency)
     elif mode is 'voting':
         results = voting_multiclass(ensemble, Xtrain, Xtest, y, score_func=score_func, n_classes=1, subfile=subfile,
                                     dropCorrelated=dropCorrelated)
@@ -553,8 +454,8 @@ def trainEnsemble(ensemble, mode='linear', score_func='log_loss', useCols=None, 
     else:
         results = linearBlend(ensemble, Xtrain, Xtest, y, Xval=Xval, yval=yval, score_func=score_func, takeMean=False,
                               subfile=subfile,
-                              dropCorrelated=dropCorrelated)
-    return (results)
+                              dropCorrelated=dropCorrelated,check_consistency=check_consistency)
+    return (results,model_dict)
 
 
 def voting_multiclass(ensemble, Xtrain, Xtest, y, n_classes=9, use_proba=False, score_func='log_loss', plotting=True,
@@ -644,71 +545,70 @@ def preprocess(oobpreds, testset, verbose=False):
     return oobpreds, testset
 
 
-def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, use_proba=True, score_func='log_loss',
-                   subfile=None, cv=5,
-                   skipCV=False, **kwargs):
+
+def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, use_proba=True, score_func='log_loss',subfile=None,skipCV=False,cv_labels=None, **kwargs):
     """
-    Blending using sklearn classifier
+    Blending using sklearn API
     """
-    showAVGCorrelations(oobpreds, testset)
+    showAVGCorrelations(oobpreds)
 
     if kwargs['dropCorrelated']:
-        # showCorrelations(oobpreds)
-        oobpreds, testset, valpreds = removeCorrelations(oobpreds, testset,valpreds, 0.995)
+        #showCorrelations(oobpreds)
+        #oobpreds, testset, valpreds = removeCorrelations(oobpreds, testset,valpreds, 0.995)
         print(oobpreds.shape)
 
+    #blender = XgboostClassifier(n_estimators=200, learning_rate=0.01, max_depth=2, NA=0, subsample=.5,colsample_bytree=1.0, min_child_weight=5, n_jobs=4, objective='binary:logistic',eval_metric='logloss', booster='gbtree', silent=1, eval_size=0.0)
+    #blender = Pipeline([('rt', RandomTreesEmbedding(n_estimators=20, max_depth=1)),
+    #                  ('m', LogisticRegression(C=1E-4, penalty='l2', solver='lbfgs'))])
 
-    #blender=Ridge(alpha=10.0)#0.212644
-    blender = LogisticRegression(C=0.5)
-    # blender = Pipeline([('pca', PCA(n_components=19,whiten=False)), ('model', LinearRegression())])
-    # blender = Pipeline([('scaler', StandardScaler()), ('model', Ridge(alpha=1.0))])
+    blender = RidgeCV()
     #blender = ConstrainedLinearRegressor(lowerbound=0, upperbound=.2, n_classes=1, alpha=None, corr_penalty=None,normalize=False, loss='log_loss', greater_is_better=False)  # 0.216467
-    #blender=ExtraTreesClassifier(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4, max_features=4*oobpreds.shape[1]/5,oob_score=False)#0.215702
-    # blender = Pipeline([('ohc', OneHotEncoder(sparse=False)), ('model',ExtraTreesClassifier(n_estimators=300,max_depth=None,min_samples_leaf=7,n_jobs=4,criterion='gini', max_features=3,oob_score=False))])
+    #blender =ExtraTreesClassifier(n_estimators=250, max_depth=2, min_samples_leaf=5, n_jobs=4, max_features=4*oobpreds.shape[1]/5, oob_score=False)
     # blender=RandomForestRegressor(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
-    #model = KerasNN(dims=oobpreds.shape[1],nb_classes=2,nb_epoch=30,learning_rate=0.1,validation_split=0.0,batch_size=512,verbose=1,activation='relu', layers=[20,20], dropout=[0.2,0.2],loss='categorical_crossentropy')
-    #blender = XgboostClassifier(n_estimators=200,learning_rate=0.03,max_depth=2,subsample=.5,n_jobs=4,min_child_weight=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1)#0.216854
-    #blender = CalibratedClassifierCV(blender, method='sigmoid', cv=3)
-    #blender = Pipeline([('scaler', StandardScaler()), ('model',blender)])#0.206
-    #blender = BaggingClassifier(base_estimator=blender, n_estimators=20, n_jobs=4, verbose=2, random_state=None,max_samples=0.7, max_features=1.0, bootstrap=False)
+    #blender = KerasClassifier(build_fn=create_classification_model, layers=[4], dropouts=[0.0], input_dim=oobpreds.shape[1], activation='relu', learning_rate=0.25, epochs=25, batch_size=1024, verbose=2, validation_split=0.0)
+    #blender = KerasClassifier(build_fn=create_classification_model, layers=[64, 64], dropouts=[0.5, 0.5],input_dim=oobpreds.shape[1], activation='relu', learning_rate=0.2, epochs=25,batch_size=512, verbose=0, validation_split=0.0)
+    blender = Pipeline([('scaler', StandardScaler()), ('m',blender)])
+    #blender = BaggingClassifier(base_estimator=blender, n_estimators=20, n_jobs=1, verbose=0, random_state=None,max_samples=0.75, max_features=1.0, bootstrap=False)
 
     if not skipCV:
-        #
-        cv = StratifiedKFold(ly, n_folds=8,shuffle=True)
-        #ForwardDateCV(m.Xtrain.Month,m.Xtrain.Year,n_iter=8,useAll=False,verbose=True)
-        #score_func = make_scorer(funcdict[score_func], greater_is_better = False)
-        # parameters = {'n_estimators':[300],'max_depth':[3],'learning_rate':[0.03],'subsample':[0.5],'colsample_bytree':[0.5],'min_child_weight':[1]}#XGB
+        n_folds = 5
+        cv = KFold(n_splits=n_folds, shuffle=True, random_state = 42)
+        parameters = {'m__C': [1E-2,1E-3,1E-4,1E-5,1E-6]}
+        #parameters = {'m__epochs': [25], 'm__layers': [[4],[2]], 'm__dropouts': [[0.0]],
+        #              'm__batch_size': [1024], 'm__learning_rate': [0.3,0.25], 'm__activation': ['relu']}
+        #parameters = {'n_estimators':[200],'max_depth':[2,3],'learning_rate':[0.01,0.1,0.001],'subsample':[0.5],'colsample_bytree':[1.0],'min_child_weight':[5]}#XGB
         # parameters = {'n_estimators':[200,300],'max_features':[5,7],'min_samples_leaf':[1,5,10],'criterion':['mse']}#XGB
         # parameters = {'max_features':[0.9,0.95,1.0],'max_samples':[0.9,0.95,1.0],'bootstrap':[False,True]}#XGB
         # parameters = {'model__hidden1_num_units': [128],'model__dropout1_p':[0.0],'model__hidden2_num_units': [128],'model__dropout2_p':[0.0],'model__max_epochs':[75],'model__objective_alpha':[0.002]}
-        parameters = {'model__max_epochs':[5,10,15]}
-        #blender=makeGridSearch(blender,oobpreds,ly,n_jobs=1,refit=False,cv=cv,scoring=score_func,parameters=parameters,random_iter=-1)
+        #parameters = {'model__max_epochs':[5,10,15]}
+        #blender=makeGridSearch(blender,oobpreds,ly,n_jobs=1,refit=True,cv=cv,scoring=score_func,parameters=parameters,random_iter=-1)
         #buildXvalModel(blender,oobpreds,ly,sample_weight=None,class_names=None,refit=True,cv=cv)
-        blend_scores = np.zeros(len(cv))
+        blend_scores = np.zeros(n_folds)
         n_classes = 1
         blend_oob = np.zeros((oobpreds.shape[0], n_classes))
-        print(blender)
-        for i, (train, test) in enumerate(cv):
+
+        for i, (train, test) in enumerate(cv.split(oobpreds)):
             clf = clone(blender)
             Xtrain = oobpreds.iloc[train]
             Xtest = oobpreds.iloc[test]
-            clf.fit(Xtrain.values, ly[train])
+            clf.fit(Xtrain.values, ly.iloc[train])
             if use_proba:
                 t = clf.predict_proba(Xtest)[:,1]
                 blend_oob[test] = t.reshape(blend_oob[test].shape)
             else:
                 blend_oob[test] = clf.predict(Xtest).reshape(blend_oob[test].shape)
-            blend_scores[i] = funcdict[score_func](ly[test], blend_oob[test])
+            blend_scores[i] = funcdict[score_func](ly.iloc[test], blend_oob[test].ravel(),Xtest['type'])
             print("Fold: %3d <%s>: %0.6f ~mean: %6.4f std: %6.4f" % (
                 i, score_func, blend_scores[i], blend_scores[:i + 1].mean(), blend_scores[:i + 1].std()))
 
         print(" <" + score_func + ">: %0.5f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()), end=' ')
-        oob_auc = funcdict[score_func](ly, blend_oob)
+        oob_auc = funcdict[score_func](ly, blend_oob.ravel())
         # showMisclass(ly,blend_oob,oobpreds,index=kwargs['cv_labels'])
-        print(" " + score_func + ": %0.5f" % (oob_auc))
+        print("\ntotal out-of-bag " + score_func + ": %0.5f" % (oob_auc))
 
-        if subfile is not None:
-            print("Make model fit on oob data...")
+        penalty = 0.0
+        if subfile is not None or kwargs['fit_on_validation'] is not None:
+            print("Make model fit on full out-of-bag data...")
             blender.fit(oobpreds, ly)
             if valpreds is not None:
                 print("Evaluate full model on validation data...", end=' ')
@@ -719,11 +619,51 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
                 score = funcdict[score_func](yval, y_val_pred)
                 print(" " + score_func + ": %0.5f" % (score))
 
-                print("Make model fit on oob & validation data...")
-                oobpreds = pd.concat([oobpreds, valpreds], axis=0)
-                ly = np.hstack((ly.ravel(), yval.ravel()))
-                blender.fit(oobpreds, ly)
-                # raw_input()
+                if kwargs['fit_on_validation']:
+                    print("Make model fit on out-of-bag & validation data...")
+
+                    oobpreds = pd.concat([oobpreds, valpreds], axis=0)
+                    ly = np.hstack((ly.ravel(), yval.ravel()))
+                    blender.fit(oobpreds, ly)
+
+                else:
+                    print("Skipping fit on validation set..")
+
+                if kwargs['check_consistency']:
+                    add_penalty = False
+                    consist = check_consistency(y_val_pred, yval)
+                    if not consist>0.75 and add_penalty:
+                        print('Consistency failed - fitting on additional data')
+                        store = pd.HDFStore('./data_numerai/store.h5')
+                        val_era = store['val_era']
+                        store.close()
+                        add_eras = ['era89','era92','era93']
+                        mask = np.zeros(val_era.shape,dtype=bool)
+                        for era in add_eras:
+                            mask = mask | (val_era == era ).values
+
+                        #mask =  | (val_era == 'era92' ).values | (val_era == 'era93' ).values
+                        print("Using additional data %d"%(mask.sum()))
+                        print("Make model fit on oob & selected validation data...")
+
+                        valpreds_tmp = valpreds[mask]
+                        yval_tmp = yval[mask]
+
+                        oobpreds_tmp = pd.concat([oobpreds, valpreds_tmp], axis=0)
+                        ly_tmp = np.hstack((ly.ravel(), yval_tmp.ravel()))
+                        blender.fit(oobpreds_tmp, ly_tmp)
+                        y_val_pred = blender.predict_proba(valpreds)[:, 1]
+
+                        consist_ok = check_consistency(y_val_pred, yval)
+                        if not consist>0.75:
+                            penalty +=0.0
+                        else:
+                            print('YEAAH - but refit!')
+
+
+                    else:
+                        print('Skipping penalty addition...')
+
 
         if hasattr(blender, 'coef_'):
             print("%-3s %-24s %10s %10s" % ("nr", "model", score_func, "coef"))
@@ -746,107 +686,12 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
             preds = blender.predict(testset)
             preds = preds.flatten()
 
-        # print preds
         info_dist(preds, "preds")
-        makePredictions(None, preds, idx=idx, filename=subfile)
-        analyze_predictions(blend_oob, preds)
+        makePredictions(None, preds, filename=subfile)
+        #analyze_predictions(blend_oob, preds)
 
     return (blend_scores.mean())
 
-
-# def classicalBlend_old(ensemble, oobpreds, testset, ly, use_proba=True, score_func='log_loss', subfile=None, cv=5,
-# 								   skipCV=False, **kwargs):
-# 	"""
-# 	Blending using sklearn classifier
-# 	"""
-# 	oobpreds, testset = preprocess(oobpreds, testset)
-# 	showAVGCorrelations(oobpreds, testset)
-#
-# 	if kwargs['dropCorrelated']:
-# 		# showCorrelations(oobpreds)
-# 		oobpreds, testset = removeCorrelations(oobpreds, testset, 0.994)
-# 		print oobpreds.shape
-#
-# 	#blender=Ridge(alpha=10.0)#0.212644
-# 	# blender = Pipeline([('pca', PCA(n_components=19,whiten=False)), ('model', LinearRegression())])
-# 	# blender = Pipeline([('scaler', StandardScaler()), ('model', Ridge(alpha=1.0))])
-# 	#blender = ConstrainedLinearRegressor(lowerbound=0, upperbound=.2, n_classes=1, alpha=None, corr_penalty=None,normalize=False, loss='rmse', greater_is_better=False)  # 0.216467
-# 	# blender=ExtraTreesRegressor(n_estimators=500,max_depth=None,min_samples_leaf=5,n_jobs=4,criterion='mse', max_features=4*oobpreds.shape[1]/5,oob_score=False)#0.215702
-# 	# blender = Pipeline([('ohc', OneHotEncoder(sparse=False)), ('model',ExtraTreesClassifier(n_estimators=300,max_depth=None,min_samples_leaf=7,n_jobs=4,criterion='gini', max_features=3,oob_score=False))])
-# 	# blender=RandomForestRegressor(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
-# 	# blender = XgboostRegressor(n_estimators=200,learning_rate=0.03,max_depth=2,subsample=.5,n_jobs=4,min_child_weight=1,objective='reg:linear',eval_metric='rmse',booster='gbtree',silent=1)#0.216854
-#
-# 	#blender = Pipeline([('scaler', StandardScaler()), ('model',nnet_ensembler1)])#0.206
-# 	#blender = Pipeline([('scaler', StandardScaler()), ('model',nnet_ensembler2)])
-# 	blender = Pipeline([('scaler', StandardScaler()), ('model', nnet_ensembler3)])
-#
-# 	blender = BaggingRegressor(base_estimator=blender,n_estimators=20,n_jobs=1,verbose=2,random_state=None,max_samples=1.0,max_features=.9,bootstrap=False)
-#
-# 	if not skipCV:
-# 		# blender = CalibratedClassifierCV(baseblender, method='sigmoid', cv=3)
-# 		# cv = KFold(ly.shape[0], n_folds=10,shuffle=True)
-# 		print kwargs['cv_labels']
-# 		cv = KLabelFolds(pd.Series(kwargs['cv_labels']), n_folds=2, repeats=10)
-# 		# cv = LeavePLabelOutWrapper(ta,n_folds=8,p=1)
-# 		# score_func = make_scorer(funcdict[score_func], greater_is_better = False)
-# 		# parameters = {'n_estimators':[300],'max_depth':[3],'learning_rate':[0.03],'subsample':[0.5],'colsample_bytree':[0.5],'min_child_weight':[1]}#XGB
-# 		# parameters = {'n_estimators':[200,300],'max_features':[5,7],'min_samples_leaf':[1,5,10],'criterion':['mse']}#XGB
-# 		# parameters = {'max_features':[0.9,0.95,1.0],'max_samples':[0.9,0.95,1.0],'bootstrap':[False,True]}#XGB
-# 		# parameters = {'model__hidden1_num_units': [128],'model__dropout1_p':[0.0],'model__hidden2_num_units': [128],'model__dropout2_p':[0.0],'model__max_epochs':[75],'model__objective_alpha':[0.002]}
-# 		# blender=makeGridSearch(blender,oobpreds,ly,n_jobs=1,refit=False,cv=cv,scoring=score_func,parameters=parameters,random_iter=-1)
-# 		blend_scores = np.zeros(len(cv))
-# 		n_classes = 1
-# 		blend_oob = np.zeros((oobpreds.shape[0], n_classes))
-# 		print blender
-# 		for i, (train, test) in enumerate(cv):
-# 			clf = clone(blender)
-# 			Xtrain = oobpreds.iloc[train]
-# 			Xtest = oobpreds.iloc[test]
-# 			clf.fit(Xtrain.values, ly[train])
-# 			if use_proba:
-# 				blend_oob[test] = clf.predict_proba(Xtest)
-# 			else:
-# 				blend_oob[test] = clf.predict(Xtest).reshape(blend_oob[test].shape)
-# 			blend_scores[i] = funcdict[score_func](ly[test], blend_oob[test])
-# 			print "Fold: %3d <%s>: %0.6f ~mean: %6.4f std: %6.4f" % (
-# 			i, score_func, blend_scores[i], blend_scores[:i + 1].mean(), blend_scores[:i + 1].std())
-#
-# 		print " <" + score_func + ">: %0.6f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()),
-# 		oob_auc = funcdict[score_func](ly, blend_oob)
-# 		# showMisclass(ly,blend_oob,oobpreds,index=kwargs['cv_labels'])
-# 		print " " + score_func + ": %0.6f" % (oob_auc)
-#
-# 		if subfile is not None:
-# 			print "Make full model fit..."
-# 			blender.fit(oobpreds, ly)
-#
-# 		if hasattr(blender, 'coef_'):
-# 			print "%-3s %-24s %10s %10s" % ("nr", "model", score_func, "coef")
-# 			for i, model in enumerate(oobpreds.columns):
-# 				coldata = np.asarray(oobpreds.iloc[:, i])
-# 				score = funcdict[score_func](ly, coldata)
-# 				print "%-3d %-24s %10.4f%10.4f" % (i + 1, model.replace("_Class", ""), score, blender.coef_[i])
-# 			print "sum coef: %4.4f" % (np.sum(blender.coef_))
-#
-# 		if subfile is not None:
-# 			info_dist(ly, "orig")
-# 			info_dist(blender.predict(oobpreds), "fit")
-#
-# 	if subfile is not None:
-# 		print "Make final ensemble prediction..."
-# 		# blend results
-# 		if use_proba:
-# 			preds = blender.predict_proba(testset)
-# 		else:
-# 			preds = blender.predict(testset)
-# 			preds = preds.flatten()
-#
-# 		# print preds
-# 		info_dist(preds, "preds")
-# 		makePredictions(None, preds, filename=subfile)
-# 		analyze_predictions(blend_oob, preds)
-#
-# 	return (blend_scores.mean())
 
 def multiclass_mult(Xtrain, params, n_classes):
     """
@@ -868,10 +713,7 @@ def blend_mult(Xtrain, params, n_classes=None):
         return multiclass_mult(Xtrain, params, n_classes)
 
 
-def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='log_loss', greater_is_better=True,
-                use_proba=False,
-                normalize=False, removeZeroModels=-1, takeMean=False, alpha=None, subfile=None, plotting=False,
-                **kwargs):
+def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='log_loss', greater_is_better=True,use_proba=True,normalize=False, removeZeroModels=-1, takeMean=False, alpha=None, subfile=None, plotting=False, **kwargs):
     """
     Blending for multiclass systems
     """
@@ -885,10 +727,11 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
             ypred = blend_mult(Xtrain, params, n_classes)
             # if not use_proba: ypred = np.round(ypred).astype(int)
             score = funcdict[score_func](y, ypred)
+            #print "orig score:%8.5f" % (score)
             # regularization
             if alpha is not None:
                 penalty = alpha * np.sum(np.square(params))
-                #print "orig score:%8.3f" % (score),
+
                 score = score - penalty
                 print(" - Regularization - alpha: %8.3f penalty: %8.3f regularized score: %8.3f" % (
                     alpha, penalty, score))
@@ -899,20 +742,19 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
     n_models = len(ensemble)
     n_classes = Xtrain.shape[1] / len(ensemble)
 
-    lowerbound = -100
-    upperbound = 0.5
+    lowerbound = 0.0
+    upperbound = 1.0
     #constr = None
     constr = [lambda x, z=i: x[z] - lowerbound for i in range(n_models)]
-    #constr2 = [lambda x, z=i: upperbound - x[z] for i in range(n_models)]
-    #constr = constr + constr2
+    constr2 = [lambda x, z=i: upperbound - x[z] for i in range(n_models)]
+    constr = constr + constr2
 
-    #cons = ({'type': 'ineq', 'fun': [lambda x, z=i: x[z] - lowerbound for i in range(n_models)]},
-     #       {'type': 'ineq', 'fun': [lambda x, z=i: upperbound - x[z] for i in range(n_models)]})
+    #cons = ({'type': 'ineq', 'fun': [lambda x, z=i: x[z] - lowerbound for i in range(n_models)]}, {'type': 'ineq', 'fun': [lambda x, z=i: upperbound - x[z] for i in range(n_models)]})
 
     x0 = np.ones((n_models, 1)) / float(n_models)
 
     if not takeMean:
-        xopt = fmin_cobyla(fopt, x0, constr, rhoend=1e-5, maxfun=2000)
+        xopt = fmin_cobyla(fopt, x0, constr, rhoend=1e-5, maxfun=200)
         # xopt = minimize(fopt, x0,method='Nelder-Mead')
         # xopt = minimize(fopt, x0,method='COBYLA',constraints=cons)
         print(xopt)
@@ -929,7 +771,6 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
         print("We have NaN here!!")
 
     ypred = blend_mult(Xtrain, xopt, n_classes)
-    # ymean= blend_mult(Xtrain,x0,n_classes).flatten()
     ymean = np.mean(Xtrain.values, axis=1)
     # ymean=np.median(Xtrain.values,axis=1)
 
@@ -937,34 +778,38 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
         print("Taking the mean/median...")
         ypred = ymean
 
-    # print ymean[:10]
-    # if not use_proba:
-    #  ymean = np.round(ymean+1E-2).astype(int)
-    #  ypred = np.round(ypred+1E-6).astype(int)
-
-    print("ypred:", ypred.sum())
-    print("ypred:", ypred)
-    print("ymean:", ymean.sum())
-    print("ymean:", ymean)
-
     score = funcdict[score_func](y, ymean)
-    print("->score,mean: %4.4f" % (score))
+    print(">>score,mean: %4.4f" % (score))
     oob_score = funcdict[score_func](y, ypred)
-    print("->score,opt: %4.4f" % (oob_score))
+    print(">>score,opt: %4.4f" % (oob_score))
+
+
     if Xval is not None:
-        print("Evaluating on validation set...")
+        print("\nEvaluating on validation set...")
         yval_mean = np.mean(Xval.values, axis=1)
         pred_score = funcdict[score_func](yval, yval_mean)
-        print("->score,mean: %4.4f" % (pred_score))
+        print(">>score,mean: %4.4f" % (pred_score))
         yval_pred = blend_mult(Xval, xopt, n_classes)
         pred_score = funcdict[score_func](yval, yval_pred)
-        print("->score,opt: %4.4f" % (pred_score))
+        print(">>score,opt: %4.4f" % (pred_score))
+
+        if kwargs['check_consistency'] == True:
+            consist = check_consistency(yval_pred,yval)
+            if not consist>=0.75:
+                print('Failing consistency!\n')
+                #oob_score += 1.0
+            else:
+                print('Consistency OK!')
+
+
 
     zero_models = []
     print("%4s %-48s %6s %6s" % ("nr", "model", "score", "coeff"))
     for i, model in enumerate(ensemble):
+        n_classes = int(n_classes) # not sure when n_classes becomes float..
         idx_start = n_classes * i
         idx_end = n_classes * (i + 1)
+        
         coldata = np.asarray(Xtrain.iloc[:, idx_start:idx_end])
         score = funcdict[score_func](y, coldata)
         print("%4d %-48s %6.4f %6.3f" % (i + 1, model, score, xopt[i]), end=' ')
@@ -973,7 +818,9 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
         if Xval is not None:
             coldata_val = np.asarray(Xval.iloc[:, idx_start:idx_end])
             score = funcdict[score_func](yval, coldata_val)
-            print("(val: %6.3f)" % (score))
+            print("(val: %6.4f)" % (score), end=' ')
+            cst = check_consistency(coldata_val,yval,verbose=False)
+            print(" (cst: %4.2f)" % (cst))
         else:
             print("")
 
@@ -993,13 +840,14 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
         preds = blend_mult(Xtest, xopt, n_classes).flatten()
     # if not use_proba: preds = np.round(preds).astype(int)
 
+
     if subfile is not None:
         info_dist(y, "orig")
-        info_dist(ypred, "fit")
+        info_dist(ypred, "fit ")
         info_dist(preds, "pred")
-        plt.hist(y,bins=50)
-        plt.hist(preds,bins=50)
-        plt.show()
+        #plt.hist(y,bins=50)
+        #plt.hist(preds,bins=50)
+        #plt.show()
 
         makePredictions(None, Xtest=preds, idx=idx, filename=subfile)
     else:
@@ -1052,6 +900,9 @@ def selectModelsGreedy(ensemble, startensemble=[], niter=2, mode='mean', useCols
     """
     Select best models in a greedy forward selection
     """
+
+    model_dict = dict()
+
     topensemble = startensemble
     score_list = []
     ens_list = []
@@ -1074,12 +925,9 @@ def selectModelsGreedy(ensemble, startensemble=[], niter=2, mode='mean', useCols
             else:
                 actensemble = topensemble + [ensemble[j]]
 
-            # score=trainEnsemble(actensemble,mode=mode,useCols=useCols,addMetaFeatures=False,dropCorrelated=dropCorrelated)
-            # score=trainEnsemble(actensemble,mode=mode,useCols=None,use_proba=False)
-            # score = trainEnsemble(actensemble,mode=mode,score_func='quadratic_weighted_kappa',use_proba=False,subfile=None)
-            score = trainEnsemble(actensemble, mode=mode, score_func=score_func, use_proba=True, useCols=None,
-                                  subfile=None, dropCorrelated=dropCorrelated)
-            print("##(Current top score: %4.4f | overall best score: %4.4f) current score: %4.4f  - " % (
+            score, model_dict = trainEnsemble(actensemble, mode=mode, score_func=score_func, use_proba=True, useCols=None,
+                                  subfile=None, dropCorrelated=dropCorrelated,model_dict=model_dict)
+            print("##(Current top score: %7.5f | overall best score: %7.5f) current score: %4.4f  - " % (
                 maxscore, bestscore, score))
             if greater_is_better:
                 if score > maxscore:
@@ -1095,7 +943,7 @@ def selectModelsGreedy(ensemble, startensemble=[], niter=2, mode='mean', useCols
         #    print "Not gain in score anymore, leaving..."
         #    break
         topensemble.append(ensemble[topidx])
-        print("TOP score: %4.4f" % (maxscore), end=' ')
+        print("TOP score: %7.5f" % (maxscore), end=' ')
         print(" - actual ensemble:", topensemble)
         score_list.append(maxscore)
         ens_list.append(list(topensemble))
@@ -1107,45 +955,95 @@ def selectModelsGreedy(ensemble, startensemble=[], niter=2, mode='mean', useCols
                 bestscore = maxscore
 
     for ens, score in zip(ens_list, score_list):
-        print("SCORE: %4.4f" % (score), end=' ')
+        print("SCORE: %7.5f" % (score), end=' ')
         print(ens)
 
     plt.plot(score_list)
     plt.show()
     return topensemble
 
+# def updatePredictions(model_list=[],basedir='./data/',storedir='./data/',score_func='log_loss',use_proba=True):
+#     #download_data(numerai.DATA_ID)
+#     for model in model_list:
+#         xmodel = XModel.loadModel(basedir+model)
+#         xmodel.summary()
+#         xmodel.params['data_id'] = numerai.DATA_ID
+#         model = createPredictionData(xmodel,score_func,use_proba=use_proba)
+#         finalizeModel(model, use_proba=True, basedir=storedir)
 
-def blendSubmissions(fileList, coefList):
+def createPredictionData(m,score_func,use_proba=True):
+    #Reset old prediction
+    m.preds = None
+    m.Xtest = None
+    m.ytest = None
+    m.Xval = None
+    m.yval = None
+
+    # numerai training data is the same but shuffled
+    # hence backup old training data!
+    y_bk = m.ytrain.copy()
+    oob_preds_bk = m.oob_preds.copy()
+    m.generate_features()
+    m.ytrain = y_bk
+    m.oob_preds = oob_preds_bk
+    score_oob = funcdict[score_func](m.ytrain, m.oob_preds)
+    print(">>score,oob-total,after: %0.4f\n" % (score_oob))
+
+    #print m.generators
+    print(type(m.classifier))
+    classifier = m.classifier
+    #predict new data
+    if m.Xval is not None:
+        print("\n>>Prediction on val set...", end=' ')
+        if use_proba:
+            m.val_preds = classifier.predict_proba(m.Xval)[:, 1]
+        else:
+            m.val_preds = classifier.predict(m.Xval)
+        # check
+        score = funcdict[score_func](m.yval, m.val_preds)
+        print(" score,validation set: %0.4f\n" % (score))
+
+    print("Prediction on test set...")
+    if use_proba:
+        m.preds = m.classifier.predict_proba(m.Xtest)[:, 1]
+    else:
+        m.preds = m.classifier.predict(m.Xtest)
+
+    return m
+
+def main():
+    logging.basicConfig(filename='log.txt', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    np.random.seed(123)
+    #make_keras_picklable()
+    subfile = 'nmr.csv'
+    plt.interactive(False)
+
+    models = ['ridge1','xgb1','lgb1']
+    act_model = ['lgb2','xgb1']
+
     """
-    Simple blend dataframes from fileList
+    # 1nd LEVEL MODEL BUILDING
     """
-    pass
+    ensemble = createModels(act_model)
+    ensemble = createOOBdata(ensemble, repeats=1, n_folds=5, n_jobs=1, use_proba=False,score_func='group_mae')
+    #createDataSets()
+    #saveTrainData(ensemble)
+    basedir = './data/'
+
+    """
+    # 1nd LEVEL ENSEMBLING
+    """
+    # act_model= filterConsistency(act_model,threshold=0.7)
+    #trainEnsemble(act_model, basedir=basedir, mode='classical', score_func='group_mae', useCols=None,
+    #              addMetaFeatures=False, use_proba=False, dropCorrelated=False, subfile=subfile)
+
+
+    # selectModelsGreedy(act_model,startensemble=[],niter=12,mode='mean',greater_is_better=False, replacement = True)
+    #upload_submission(filename=subfile, account=account)
 
 
 if __name__ == "__main__":
     np.random.seed(123)
     plt.interactive(False)
-    idx = pd.HDFStore('./data_numerai/store.h5')['test_id']
-    data_id = 21
-    #print idx
-
-    """
-    # 1nd LEVEL MODEL BUILDING
-    """
-    #ensemble = createModels()
-    #ensemble = createOOBdata(ensemble, repeats=1, n_folds=8, n_jobs=1, use_proba=True,score_func='log_loss')  # oob data averaging leads to significant variance reduction
-
-    # createDataSets()
-    # saveTrainData(ensemble)
-
-    """
-    # 1nd LEVEL ENSEMBLING
-    """
-    old_models = ['nn1','lda1','lr1','lr2','lr3','lr3b','lr3c','lr3d','lr3e','lr3f','lr3g','lr5','lr6','lr7','lr8','xgb1','xgb2','xgb3']
-    new_models = ['nn1','lr3','lr5','nn3','lr3b','lr3c','lr3d','nn4']
-    best_models = ['nn1','lr3b','lr5']
-    models = best_models
-    trainEnsemble(models, mode='mean', score_func='log_loss', useCols=None, addMetaFeatures=False, use_proba=True,
-                dropCorrelated=False, subfile='./submissions/num_ens031016a.csv')
-    #selectModelsGreedy(new_models,startensemble=['nn1'],niter=10,mode='mean',greater_is_better=False, replacement = True)
+    main()
 

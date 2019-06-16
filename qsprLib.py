@@ -338,57 +338,66 @@ def runningMean(x, N):
     return np.convolve(x, np.ones((N,)) / N, mode='valid')
 
 
-def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, refit=False, cv=None):
+def buildXvalModel(clf_orig, lX, ly, sample_weight=None, class_names=None, refit=False, cv=None, regression=True):
     """
   Final model building part
   """
     print("Cross-validate the model ...")
 
-    if isinstance(lX_df, pd.DataFrame):
-        #lX = lX_df
-        lX = lX_df.values
+    if isinstance(lX, pd.DataFrame):
+        pass
     else:
-        lX = lX_df
-    if isinstance(ly, pd.DataFrame) or isinstance(ly, pd.Series): ly = ly.values
+        print("WARNING: No DataFrame found for X...!")
+
+    if isinstance(ly, pd.DataFrame) or isinstance(ly, pd.Series):
+        print(type(ly))
+        pass
+    else:
+        print("WARNING: No DataFrame found for y...!")
+
+        #ly = ly.values
     if isinstance(sample_weight, pd.Series): sample_weight = sample_weight.values
 
     ypred = np.zeros((len(ly),))
-    score1 = np.zeros((len(cv), 1))
-    score2 = np.zeros((len(cv), 1))
-    #score3 = np.zeros((len(cv), 1))
-    for i, (train, test) in enumerate(cv):
+    score1 = np.zeros((cv.get_n_splits(), 1))
+    score2 = np.zeros((cv.get_n_splits(), 1))
+
+    for i, (train_idx, test_idx) in enumerate(cv.split(lX)):
         clf = clone(clf_orig)
-        ytrain, ytest = ly[train], ly[test]
+        ytrain, ytest = ly.iloc[train_idx], ly.iloc[test_idx]
 
         sw = "nosw"
         if sample_weight is not None:
             sw = "sw"
             print(sample_weight)
-            clf.fit(lX[train, :], ytrain, sample_weight=sample_weight[train])
+            clf.fit(lX.iloc[train_idx], ytrain, sample_weight=sample_weight[train_idx])
         else:
-            clf.fit(lX[train, :], ytrain)
+            clf.fit(lX.iloc[train_idx], ytrain)
 
-        #ypred[test] = clf.predict(lX[test, :])
+        if regression:
+            ypred[test_idx] = clf.predict(lX.iloc[test_idx])
+            #score1[i] = mean_abs_percentage_error(np.expm1(ly[test_idx]), np.expm1(ypred[test_idx]))
+            score1[i] = mean_absolute_error(ly.iloc[test_idx], ypred[test_idx])
+            #score2[i] = root_mean_squared_error(ly[test], ypred[test])
+            score2[i] = group_mean_log_mae(ly.iloc[test_idx], ypred[test_idx],lX.iloc[test_idx]['type'])
+            print("train set: %2d samples: %5d/%5d mae: %6.3f  mean: %6.3f group_mae: %6.3f  mean: %6.3f" % (i, lX.iloc[train_idx].shape[0], lX.iloc[test_idx].shape[0],score1[i], score1[:i + 1].mean(), score2[i], score2[:i + 1].mean()))
+        else:
+            ypred[test_idx] = clf.predict_proba(lX.iloc[test_idx])[:,1]
+            score1[i] = log_loss(ly[test_idx], ypred[test_idx],eps=1e-15)
+            score2[i] = accuracy_score(ly[test_idx], clf.predict(lX.iloc[test_idx]))
+            #score2[i] = roc_auc_score(ly[test_idx], ypred[test_idx])
 
-        #score1[i] = mean_abs_percentage_error(np.expm1(ly[test]), np.expm1(ypred[test]))
-        #score1[i] = mean_absolute_error(ly[test], ypred[test])
-        #score2[i] = root_mean_squared_error(ly[test], ypred[test])
-        #score2[i] = root_mean_squared_percentage_error_mod(ly[test], ypred[test])
-        ypred[test] = clf.predict_proba(lX[test, :])[:,1]
-        score1[i] = log_loss(ly[test], ypred[test],eps=1e-15)
-        #score2[i] = accuracy_score(ly[test], clf.predict(lX[test, :]))
-        score2[i] = roc_auc_score(ly[test], ypred[test])
 
-        #print "train set: %2d samples: %5d/%5d rmse: %6.4f  mean: %6.4f %s " % (
-        #i, lX[train, :].shape[0], lX[test, :].shape[0], score2[i], score2[:i + 1].mean(), sw)
-        print("train set: %2d samples: %5d/%5d logloss: %6.4f  mean: %6.4f auc: %6.4f " % (
-            i, lX[train, :].shape[0], lX[test, :].shape[0], score1[i], score1[:i + 1].mean(), score2[i]))
-        #showMisclass(ly[test],ypred[test],lX[test,:],index=lX_df.search_term[test],t=2.0)
+            print("train set: %2d samples: %5d/%5d logloss: %6.4f  mean: %6.4f auc: %6.4f " % (
+            i, lX.iloc[train_idx].shape[0], lX.iloc[test_idx].shape[0], score1[i], score1[:i + 1].mean(), score2[i]))
+        #showMisclass(ly[test_idx],ypred[test_idx],lX[test_idx,:],index=lX_df.search_term[test_idx],t=2.0)
 
-    #print("MAE       :%6.4f +/-%6.4f" % (score1.mean(), score1.std()))
-    #print("RMSE      :%6.4f +/-%6.4f" % (score2.mean(), score2.std()))
-    print(("LOGLOSS   :%6.4f +/-%6.4f" % (score1.mean(), score1.std())))
-    print(("ACC       :%6.4f +/-%6.4f" % (score2.mean(), score2.std())))
+    if regression:
+        print("MAE       :%6.4f +/-%6.4f" % (score1.mean(), score1.std()))
+        print("group MAE :%6.4f +/-%6.4f" % (score2.mean(), score2.std()))
+    else:
+        print(("LOGLOSS   :%6.4f +/-%6.4f" % (score1.mean(), score1.std())))
+        print(("ACC       :%6.4f +/-%6.4f" % (score2.mean(), score2.std())))
 
     # training on all data
     if refit:
@@ -396,7 +405,13 @@ def buildXvalModel(clf_orig, lX_df, ly, sample_weight=None, class_names=None, re
             clf_orig.fit(lX, ly, sample_weight=sample_weight)
         else:
             clf_orig.fit(lX, ly)
-    return (clf_orig)
+
+    result_dict = {}
+    result_dict['model'] = clf_orig
+    result_dict['cv'] = cv
+    result_dict['scores'] = score2
+
+    return (result_dict)
 
 
 def shuffleDF(df, n=1, axis=0):
@@ -920,22 +935,18 @@ def removeLowVar(X_all, threshhold=1E-5):
     """
     remove useless data
     """
-    print(X_all.std())
+    df_std = X_all.std()
+    #print(df_std)
 
     if isinstance(X_all, sparse.csc_matrix):
         print("Making matrix dense again...")
         X_all = pd.DataFrame(X_all.toarray())
 
-    idx = np.asarray(X_all.std() <= threshhold)
-    # for col in X_all.columns[idx]:
-    # print "Column:",col
-    # print X_all[[col]].describe()
-    # raw_input()
-
-    if len(X_all.columns[idx]) > 0:
+    idx = df_std[df_std<threshhold].index.values
+    if len(X_all[idx]) > 0:
         print("Dropped %4d zero variance columns (threshold=%6.3f): %r" % (
-            np.sum(idx), threshhold, list(X_all.columns[idx]).sort()))
-        X_all.drop(X_all.columns[idx], axis=1, inplace=True)
+            len(idx), threshhold, list([idx])))
+        X_all.drop(idx, axis=1, inplace=True)
     else:
         print("Variance filter dropped nothing (threshhold = %6.3f)." % (threshhold))
 
@@ -1069,18 +1080,22 @@ def root_mean_squared_error(x, y):
     mse = mean_squared_error(x, y)
     return mse ** 0.5
 
-
-def mean_absolute_error(x, y):
-    x = x.flatten()
-    y = y.flatten()
+def mean_absolute_error(x, y, dummy=None):
     return np.mean(np.abs(x - y))
-
 
 def multiclass_log_loss(y_true, y_pred, eps=1e-15):
     return log_loss(y_true, y_pred, eps=eps, normalize=True)
 
 def neg_log_loss(y_true, y_pred, eps=1e-15):
     return -1.0*log_loss(y_true, y_pred, eps=eps)
+
+def group_mean_log_mae(y_true, y_pred, types, floor=1e-9):
+    """
+    Fast metric computation for this competition: https://www.kaggle.com/c/champs-scalar-coupling
+    Code is from this kernel: https://www.kaggle.com/uberkinder/efficient-metric
+    """
+    maes = (y_true - y_pred).abs().groupby(types).mean()
+    return np.log(maes.map(lambda x: max(x, floor))).mean()
 
 
 def getOOBCVPredictions(lmodel, lXs, ly, repeats=1, cv=5, returnSD=True, score_func='rmse'):
@@ -1675,11 +1690,7 @@ def showMemUsageGB():
     mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     print(("Memory usage: %6.2f GB"%(float(mem)/to_gb)))
 
-
-
-
-
-# some global vars
+# some special metrics
 funcdict = {}
 funcdict['rmse'] = root_mean_squared_error
 funcdict['rmsle'] = root_mean_squared_log_error
@@ -1693,3 +1704,4 @@ funcdict['neg_log_loss'] = neg_log_loss
 funcdict['accuracy_score'] = accuracy_score
 funcdict['quadratic_weighted_kappa'] = quadratic_weighted_kappa
 funcdict['roc_auc'] = roc_auc_score
+funcdict['group_mae'] = group_mean_log_mae
