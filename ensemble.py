@@ -14,7 +14,7 @@ http://mlwave.com/kaggle-ensembling-guide/
 """
 
 from nmr import *
-from FullModel import *
+from FullModel import XModel, FeaturePredictor
 
 import sys
 import itertools
@@ -27,6 +27,13 @@ from joblib import Parallel, delayed
 from sklearn.base import clone
 from sklearn import preprocessing
 
+from qsprLib import funcdict
+
+lbl = LabelEncoder()
+tmp = pd.read_csv('./data/train.csv')
+lbl.fit(list(tmp['type'].values))
+
+
 def createModels(models = []):
 
     rseed = 666
@@ -37,11 +44,8 @@ def createModels(models = []):
 
     # type
     if "type" in models:
-        params = {'seed': rseed, 'nsamples': -1, 'makeDistMat': False, 'makeTrainType': True, 'plotDist': False,
-                  'makeDistMean': False, 'makeMolNameMean': False, 'makeLabelEncode': True, 'makeRDKitFeatures': False,
-                  'makeRDKitFingerPrints': False, 'oneHotenc': None, 'removeLowVariance': False,
-                  'dropFeatures': ['atom_index_0', 'atom_index_1', 'molblock']}
-        model = DummyRegressor(strategy='mean', constant=None)
+        params = {'seed': rseed, 'nsamples': -1,'makeLabelEncode': True}
+        model = FeaturePredictor('type')
         xmodel = XModel("type", classifier=model, bag_mode=False, fit_on_validation=fit_on_validation, params=params,
                         generators=generators)
         ensemble.append(xmodel)
@@ -71,7 +75,7 @@ def createModels(models = []):
         ensemble.append(xmodel)
 
 
-    if "lgb1" in models:
+    if "lgb1" in models:#defaul
         params = {'seed': rseed, 'nsamples': -1, 'makeDistMat': True, 'makeTrainType': True, 'plotDist': False,
                   'makeDistMean': True, 'makeMolNameMean': True, 'makeLabelEncode': True, 'makeRDKitFeatures': False,
                   'makeRDKitFingerPrints': False, 'oneHotenc': None, 'removeLowVariance': False,
@@ -87,22 +91,74 @@ def createModels(models = []):
                         generators=generators)
         ensemble.append(xmodel)
 
-    if "lgb2" in models:
+    if "lgb2" in models:#makeRDKitFingerPrints
         params = {'seed': rseed, 'nsamples': -1, 'makeDistMat': True, 'makeTrainType': True, 'plotDist': False,
-                  'makeDistMean': True, 'makeMolNameMean': True, 'makeLabelEncode': True, 'makeRDKitFeatures': True,
-                  'makeRDKitFingerPrints': False, 'oneHotenc': None, 'removeLowVariance': False,
+                  'makeDistMean': True, 'makeMolNameMean': True, 'makeLabelEncode': True, 'makeRDKitFingerPrints': True,
                   'dropFeatures': ['atom_index_0', 'atom_index_1', 'molblock']}
 
-        lgb_params = {'num_leaves': 128, 'min_child_samples': 79, 'objective': 'regression', 'max_depth': 12,
+        lgb_params = {'num_leaves': 128, 'min_child_samples': 79, 'objective': 'regression', 'max_depth': 10,
                       'learning_rate': 0.2, "boosting_type": "gbdt", "subsample_freq": 1, "subsample": 1.0,
                       "bagging_seed": 11, "metric": 'mae', "verbosity": -1, 'reg_alpha': 0.1, 'reg_lambda': 0.3,
-                      'colsample_bytree': 1.0, 'n_estimators': 10000,'n_jobs':4}
+                      'colsample_bytree': 1.0, 'n_estimators': 5000,'n_jobs':-1}
 
         model = lgb.LGBMRegressor(**lgb_params)
         xmodel = XModel("lgb2", classifier=model, bag_mode=False, fit_on_validation=fit_on_validation, params=params,
                         generators=generators)
         ensemble.append(xmodel)
 
+    if "lgb3" in models: #bruteForceFeatures
+        params = {'seed': rseed, 'nsamples': -1, 'makeDistMat': True, 'makeTrainType': True,
+                  'makeDistMean': True, 'makeMolNameMean': True, 'makeLabelEncode': True, 'bruteForceFeatures': True,
+                  'dropFeatures': ['atom_index_0', 'atom_index_1', 'molblock']}
+
+        lgb_params = {'num_leaves': 128, 'min_child_samples': 79, 'objective': 'regression', 'max_depth': 9,
+                      'learning_rate': 0.2, "boosting_type": "gbdt", "subsample_freq": 1, "subsample": 0.9,
+                      "bagging_seed": 11, "metric": 'mae', "verbosity": -1, 'reg_alpha': 0.1, 'reg_lambda': 0.3,
+                      'colsample_bytree': 1.0, 'n_estimators': 5000,'n_jobs':-1}
+
+        model = lgb.LGBMRegressor(**lgb_params)
+        xmodel = XModel("lgb3", classifier=model, bag_mode=False, fit_on_validation=fit_on_validation, params=params,
+                        generators=generators)
+        ensemble.append(xmodel)
+
+    if "lgb4" in models: #obCharges
+        params = {'seed': rseed, 'nsamples': -1, 'makeDistMat': True, 'makeTrainType': True,
+                  'makeDistMean': True, 'makeMolNameMean': True, 'makeLabelEncode': True, 'obCharges': True,
+                  'dropFeatures': ['atom_index_0', 'atom_index_1', 'molblock']}
+
+        lgb_params = {'num_leaves': 128, 'min_child_samples': 79, 'objective': 'regression', 'max_depth': 10,
+                      'learning_rate': 0.2, "boosting_type": "gbdt", "subsample_freq": 1, "subsample": 1.0,
+                      "bagging_seed": 11, "metric": 'mae', "verbosity": -1, 'reg_alpha': 0.1, 'reg_lambda': 0.3,
+                      'colsample_bytree': 1.0, 'n_estimators': 5000,'n_jobs':-1}
+    if "lgb5" in models:  # makeRDKitAtomicFeatures
+        params = {'seed': rseed, 'nsamples': -1, 'makeDistMat': True, 'makeTrainType': True,
+                  'makeDistMean': True, 'makeMolNameMean': True, 'makeLabelEncode': True, 'makeRDKitAtomFeatures': True,
+                  'dropFeatures': ['atom_index_0', 'atom_index_1', 'molblock']}
+
+        lgb_params = {'num_leaves': 128, 'min_child_samples': 79, 'objective': 'regression', 'max_depth': 10,
+                      'learning_rate': 0.2, "boosting_type": "gbdt", "subsample_freq": 1, "subsample": 1.0,
+                      "bagging_seed": 11, "metric": 'mae', "verbosity": -1, 'reg_alpha': 0.1, 'reg_lambda': 0.3,
+                      'colsample_bytree': 1.0, 'n_estimators': 5000, 'n_jobs': -1}
+
+        model = lgb.LGBMRegressor(**lgb_params)
+        xmodel = XModel("lgb5", classifier=model, bag_mode=False, fit_on_validation=fit_on_validation, params=params,
+                        generators=generators)
+        ensemble.append(xmodel)
+
+    if "lgb6" in models:  # makeRDKitFeatures
+        params = {'seed': rseed, 'nsamples': -1, 'makeDistMat': True, 'makeTrainType': True,
+                  'makeDistMean': True, 'makeMolNameMean': True, 'makeLabelEncode': True, 'makeRDKitFeatures': True,
+                  'keepFeatures' : descRDkitTop80, 'dropFeatures': ['atom_index_0', 'atom_index_1', 'molblock']}
+
+        lgb_params = {'num_leaves': 128, 'min_child_samples': 79, 'objective': 'regression', 'max_depth': 10,
+                      'learning_rate': 0.2, "boosting_type": "gbdt", "subsample_freq": 1, "subsample": 1.0,
+                      "bagging_seed": 11, "metric": 'mae', "verbosity": -1, 'reg_alpha': 0.1, 'reg_lambda': 0.3,
+                      'colsample_bytree': 1.0, 'n_estimators': 5000, 'n_jobs': -1}
+
+        model = lgb.LGBMRegressor(**lgb_params)
+        xmodel = XModel("lgb6", classifier=model, bag_mode=False, fit_on_validation=fit_on_validation, params=params,
+                        generators=generators)
+        ensemble.append(xmodel)
 
     if "xgb1" in models:
         params = {'seed': rseed, 'nsamples': -1, 'makeDistMat': True, 'makeTrainType': True, 'plotDist': False,
@@ -116,7 +172,6 @@ def createModels(models = []):
         xmodel = XModel("xgb1", classifier=model, bag_mode=False, fit_on_validation=fit_on_validation, params=params,
                         generators=generators)
         ensemble.append(xmodel)
-
 
     """
     #tsnelib= {'numDims': 2, 'perplexity': 30, 'theta':0.5, 'pcaDims':21}
@@ -136,7 +191,7 @@ def finalizeModel(m, use_proba=True,basedir="./data/"):
     """
     print("Make predictions and save them...")
 
-    m.summary()
+    print(m.summary())
     logging.info(m.summary())
 
     # put OOB DATA to data.frame and save
@@ -195,8 +250,6 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
 
     for m in ensemble:
         m.generate_features()
-        #m.summary()
-
 
         bag_mode = m.bag_mode
         print(("\nComputing oob predictions for:"+m.name))
@@ -303,8 +356,8 @@ def createOOBdata(ensemble, repeats=1, n_folds=10, n_jobs=1, score_func='log_los
                     m.val_preds = m.classifier.predict(m.Xval)
                 # check
                 score = funcdict[score_func](m.yval, m.val_preds,m.Xval['type'])
-                var_str = "score,validation: %0.4f\n" % (score)
-                print(var_str)
+                val_str = "score,validation: %0.4f\n" % (score)
+                print(val_str)
                 logging.info(val_str)
 
 
@@ -384,7 +437,7 @@ def fit_and_score(xmodel, X, y, train, valid, sample_weight=None, use_proba=Fals
 
 
 def trainEnsemble(ensemble,basedir = "./data_numerai/", mode='linear', score_func='log_loss', useCols=None, addMetaFeatures=False, use_proba=True,
-                  dropCorrelated=False, skipCV=False, subfile="",model_dict=dict(),check_consistency=False):
+                  dropCorrelated=False, skipCV=False, subfile="",model_dict=dict()):
     """
     Train the ensemble
     """
@@ -439,12 +492,12 @@ def trainEnsemble(ensemble,basedir = "./data_numerai/", mode='linear', score_fun
     if mode is 'classical':
         results = classicalBlend(ensemble, Xtrain, Xtest, y, valpreds=Xval, yval=yval,
                                  use_proba=use_proba, score_func=score_func,
-                                 subfile=subfile,skipCV=skipCV, cv_labels=xmodel.cv_labels, dropCorrelated=dropCorrelated, fit_on_validation=xmodel.fit_on_validation, check_consistency=check_consistency)
+                                 subfile=subfile,skipCV=skipCV, cv_labels=xmodel.cv_labels, dropCorrelated=dropCorrelated, fit_on_validation=xmodel.fit_on_validation)
 
     elif mode is 'mean':
         results = linearBlend(ensemble, Xtrain, Xtest, y, Xval=Xval, yval=yval, score_func=score_func, takeMean=True,
                               subfile=subfile,
-                              dropCorrelated=dropCorrelated,fit_on_validation=xmodel.fit_on_validation, check_consistency=check_consistency)
+                              dropCorrelated=dropCorrelated,fit_on_validation=xmodel.fit_on_validation)
     elif mode is 'voting':
         results = voting_multiclass(ensemble, Xtrain, Xtest, y, score_func=score_func, n_classes=1, subfile=subfile,
                                     dropCorrelated=dropCorrelated)
@@ -454,7 +507,7 @@ def trainEnsemble(ensemble,basedir = "./data_numerai/", mode='linear', score_fun
     else:
         results = linearBlend(ensemble, Xtrain, Xtest, y, Xval=Xval, yval=yval, score_func=score_func, takeMean=False,
                               subfile=subfile,
-                              dropCorrelated=dropCorrelated,check_consistency=check_consistency)
+                              dropCorrelated=dropCorrelated)
     return (results,model_dict)
 
 
@@ -563,11 +616,11 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
 
     blender = RidgeCV()
     #blender = ConstrainedLinearRegressor(lowerbound=0, upperbound=.2, n_classes=1, alpha=None, corr_penalty=None,normalize=False, loss='log_loss', greater_is_better=False)  # 0.216467
-    #blender =ExtraTreesClassifier(n_estimators=250, max_depth=2, min_samples_leaf=5, n_jobs=4, max_features=4*oobpreds.shape[1]/5, oob_score=False)
-    # blender=RandomForestRegressor(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
+    #blender =ExtraTreesRegressor(n_estimators=250, max_depth=6, min_samples_leaf=5, n_jobs=4, max_features=3, oob_score=False)
+    #blender=RandomForestRegressor(n_estimators=100,max_depth=None,min_samples_leaf=10,n_jobs=1,criterion='entropy', max_features=5,oob_score=False)
     #blender = KerasClassifier(build_fn=create_classification_model, layers=[4], dropouts=[0.0], input_dim=oobpreds.shape[1], activation='relu', learning_rate=0.25, epochs=25, batch_size=1024, verbose=2, validation_split=0.0)
     #blender = KerasClassifier(build_fn=create_classification_model, layers=[64, 64], dropouts=[0.5, 0.5],input_dim=oobpreds.shape[1], activation='relu', learning_rate=0.2, epochs=25,batch_size=512, verbose=0, validation_split=0.0)
-    blender = Pipeline([('scaler', StandardScaler()), ('m',blender)])
+    #blender = Pipeline([('scaler', StandardScaler()), ('m',blender)])
     #blender = BaggingClassifier(base_estimator=blender, n_estimators=20, n_jobs=1, verbose=0, random_state=None,max_samples=0.75, max_features=1.0, bootstrap=False)
 
     if not skipCV:
@@ -597,12 +650,12 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
                 blend_oob[test] = t.reshape(blend_oob[test].shape)
             else:
                 blend_oob[test] = clf.predict(Xtest).reshape(blend_oob[test].shape)
-            blend_scores[i] = funcdict[score_func](ly.iloc[test], blend_oob[test].ravel(),Xtest['type'])
+            blend_scores[i] = funcdict[score_func](ly.iloc[test], blend_oob[test].ravel(),Xtest['type_Class'])
             print("Fold: %3d <%s>: %0.6f ~mean: %6.4f std: %6.4f" % (
                 i, score_func, blend_scores[i], blend_scores[:i + 1].mean(), blend_scores[:i + 1].std()))
 
         print(" <" + score_func + ">: %0.5f (+/- %0.4f)" % (blend_scores.mean(), blend_scores.std()), end=' ')
-        oob_auc = funcdict[score_func](ly, blend_oob.ravel())
+        oob_auc = funcdict[score_func](ly, blend_oob.ravel(),oobpreds['type_Class'])
         # showMisclass(ly,blend_oob,oobpreds,index=kwargs['cv_labels'])
         print("\ntotal out-of-bag " + score_func + ": %0.5f" % (oob_auc))
 
@@ -616,7 +669,7 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
                     y_val_pred = blender.predict_proba(valpreds)[:,1]
                 else:
                     y_val_pred = blender.predict(valpreds)
-                score = funcdict[score_func](yval, y_val_pred)
+                score = funcdict[score_func](yval, y_val_pred,valpreds['type_Class'])
                 print(" " + score_func + ": %0.5f" % (score))
 
                 if kwargs['fit_on_validation']:
@@ -629,47 +682,11 @@ def classicalBlend(ensemble, oobpreds, testset, ly, valpreds=None, yval=None, us
                 else:
                     print("Skipping fit on validation set..")
 
-                if kwargs['check_consistency']:
-                    add_penalty = False
-                    consist = check_consistency(y_val_pred, yval)
-                    if not consist>0.75 and add_penalty:
-                        print('Consistency failed - fitting on additional data')
-                        store = pd.HDFStore('./data_numerai/store.h5')
-                        val_era = store['val_era']
-                        store.close()
-                        add_eras = ['era89','era92','era93']
-                        mask = np.zeros(val_era.shape,dtype=bool)
-                        for era in add_eras:
-                            mask = mask | (val_era == era ).values
-
-                        #mask =  | (val_era == 'era92' ).values | (val_era == 'era93' ).values
-                        print("Using additional data %d"%(mask.sum()))
-                        print("Make model fit on oob & selected validation data...")
-
-                        valpreds_tmp = valpreds[mask]
-                        yval_tmp = yval[mask]
-
-                        oobpreds_tmp = pd.concat([oobpreds, valpreds_tmp], axis=0)
-                        ly_tmp = np.hstack((ly.ravel(), yval_tmp.ravel()))
-                        blender.fit(oobpreds_tmp, ly_tmp)
-                        y_val_pred = blender.predict_proba(valpreds)[:, 1]
-
-                        consist_ok = check_consistency(y_val_pred, yval)
-                        if not consist>0.75:
-                            penalty +=0.0
-                        else:
-                            print('YEAAH - but refit!')
-
-
-                    else:
-                        print('Skipping penalty addition...')
-
-
         if hasattr(blender, 'coef_'):
             print("%-3s %-24s %10s %10s" % ("nr", "model", score_func, "coef"))
             for i, model in enumerate(oobpreds.columns):
                 coldata = np.asarray(oobpreds.iloc[:, i])
-                score = funcdict[score_func](ly, coldata)
+                score = funcdict[score_func](ly, coldata,oobpreds['type_Class'])
                 print("%-3d %-24s %10.4f%10.4f" % (i + 1, model.replace("_Class", ""), score, blender.coef_.flatten()[i]))
             print("sum coef: %4.4f" % (np.sum(blender.coef_)))
 
@@ -713,7 +730,7 @@ def blend_mult(Xtrain, params, n_classes=None):
         return multiclass_mult(Xtrain, params, n_classes)
 
 
-def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='log_loss', greater_is_better=True,use_proba=True,normalize=False, removeZeroModels=-1, takeMean=False, alpha=None, subfile=None, plotting=False, **kwargs):
+def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='log_loss', greater_is_better=False,use_proba=True,normalize=False, removeZeroModels=-1, takeMean=False, alpha=None, subfile=None, plotting=False, **kwargs):
     """
     Blending for multiclass systems
     """
@@ -726,7 +743,7 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
         else:
             ypred = blend_mult(Xtrain, params, n_classes)
             # if not use_proba: ypred = np.round(ypred).astype(int)
-            score = funcdict[score_func](y, ypred)
+            score = funcdict[score_func](y, ypred,Xtrain['type_Class'])
             #print "orig score:%8.5f" % (score)
             # regularization
             if alpha is not None:
@@ -778,49 +795,48 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
         print("Taking the mean/median...")
         ypred = ymean
 
-    score = funcdict[score_func](y, ymean)
+    score = funcdict[score_func](y, ymean, Xtrain['type_Class'])
+    pscore = funcdict['mae'](y, ymean)
     print(">>score,mean: %4.4f" % (score))
-    oob_score = funcdict[score_func](y, ypred)
+    if n_classes==1: ypred = ypred.flatten()
+    oob_score = funcdict[score_func](y, ypred, Xtrain['type_Class'])
     print(">>score,opt: %4.4f" % (oob_score))
 
+    #plotting = True
+    #if plotting:
+    #    plot_types(y, ymean, Xtrain['type_Class'].astype(int))
 
     if Xval is not None:
         print("\nEvaluating on validation set...")
         yval_mean = np.mean(Xval.values, axis=1)
-        pred_score = funcdict[score_func](yval, yval_mean)
+        pred_score = funcdict[score_func](yval, yval_mean, Xval['type_Class'])
+        ppred_score = funcdict['mae'](yval, yval_mean)
         print(">>score,mean: %4.4f" % (pred_score))
         yval_pred = blend_mult(Xval, xopt, n_classes)
-        pred_score = funcdict[score_func](yval, yval_pred)
+        if n_classes ==1: yval_pred = yval_pred.flatten()
+        pred_score = funcdict[score_func](yval, yval_pred, Xval['type_Class'])
         print(">>score,opt: %4.4f" % (pred_score))
 
-        if kwargs['check_consistency'] == True:
-            consist = check_consistency(yval_pred,yval)
-            if not consist>=0.75:
-                print('Failing consistency!\n')
-                #oob_score += 1.0
-            else:
-                print('Consistency OK!')
-
-
+        #if plotting:
+        #    plot_types(yval, yval_mean, Xval['type_Class'].astype(int))
 
     zero_models = []
-    print("%4s %-48s %6s %6s" % ("nr", "model", "score", "coeff"))
+    print("%4s %-48s %7s %6s" % ("nr", "model", "score", "coeff"))
     for i, model in enumerate(ensemble):
         n_classes = int(n_classes) # not sure when n_classes becomes float..
         idx_start = n_classes * i
         idx_end = n_classes * (i + 1)
-        
         coldata = np.asarray(Xtrain.iloc[:, idx_start:idx_end])
-        score = funcdict[score_func](y, coldata)
-        print("%4d %-48s %6.4f %6.3f" % (i + 1, model, score, xopt[i]), end=' ')
+        if n_classes == 1: coldata = coldata.flatten()
+        score = funcdict[score_func](y, pd.Series(coldata), Xtrain['type_Class'])
+        print("%4d %-48s %7.4f %6.3f" % (i + 1, model, score, xopt[i]), end='')
         if xopt[i] < removeZeroModels:
             zero_models.append(model)
         if Xval is not None:
             coldata_val = np.asarray(Xval.iloc[:, idx_start:idx_end])
-            score = funcdict[score_func](yval, coldata_val)
-            print("(val: %6.4f)" % (score), end=' ')
-            cst = check_consistency(coldata_val,yval,verbose=False)
-            print(" (cst: %4.2f)" % (cst))
+            if n_classes == 1: coldata_val = coldata_val.flatten()
+            score = funcdict[score_func](yval, pd.Series(coldata_val), Xval['type_Class'])
+            print("(val: %6.4f)" % (score))
         else:
             print("")
 
@@ -849,7 +865,7 @@ def linearBlend(ensemble, Xtrain, Xtest, y, Xval=None, yval=None, score_func='lo
         #plt.hist(preds,bins=50)
         #plt.show()
 
-        makePredictions(None, Xtest=preds, idx=idx, filename=subfile)
+        makePredictions(None, Xtest=preds,filename=subfile)
     else:
         if Xval is not None:
             #print "Returning the validation score...!"
@@ -1011,6 +1027,7 @@ def createPredictionData(m,score_func,use_proba=True):
 
     return m
 
+
 def main():
     logging.basicConfig(filename='log.txt', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     np.random.seed(123)
@@ -1018,8 +1035,8 @@ def main():
     subfile = 'nmr.csv'
     plt.interactive(False)
 
-    models = ['ridge1','xgb1','lgb1']
-    act_model = ['lgb2','xgb1']
+    models = ['ridge1','xgb1','lgb1','lgb2','lgb3','lgb4','type']
+    act_model = ['lgb6']
 
     """
     # 1nd LEVEL MODEL BUILDING
@@ -1033,10 +1050,8 @@ def main():
     """
     # 1nd LEVEL ENSEMBLING
     """
-    # act_model= filterConsistency(act_model,threshold=0.7)
-    #trainEnsemble(act_model, basedir=basedir, mode='classical', score_func='group_mae', useCols=None,
-    #              addMetaFeatures=False, use_proba=False, dropCorrelated=False, subfile=subfile)
 
+    #trainEnsemble(models, basedir=basedir, mode='classical', score_func='group_mae', useCols=None, addMetaFeatures=False, use_proba=False, dropCorrelated=False, subfile=subfile)
 
     # selectModelsGreedy(act_model,startensemble=[],niter=12,mode='mean',greater_is_better=False, replacement = True)
     #upload_submission(filename=subfile, account=account)

@@ -1094,7 +1094,14 @@ def group_mean_log_mae(y_true, y_pred, types, floor=1e-9):
     Fast metric computation for this competition: https://www.kaggle.com/c/champs-scalar-coupling
     Code is from this kernel: https://www.kaggle.com/uberkinder/efficient-metric
     """
-    maes = (y_true - y_pred).abs().groupby(types).mean()
+    if not isinstance(y_pred,pd.Series):
+        y_pred = pd.Series(y_pred)
+
+    if not isinstance(y_true,pd.Series):
+        y_true = pd.Series(y_true)
+
+    #unfortunately sometimes index is mixed up
+    maes = (y_true.reset_index(drop=True) - y_pred.reset_index(drop=True)).abs().groupby(types.reset_index(drop=True)).mean()
     return np.log(maes.map(lambda x: max(x, floor))).mean()
 
 

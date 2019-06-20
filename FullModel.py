@@ -84,41 +84,40 @@ class XModel:
         XModel.modelcount += 1
 
     def summary(self):
-        print("\n>>Name<<     :", self.name)
-        print("classifier   :", self.classifier)
-        print("Parameters for feature generatation:\n %r"%(self.params))
+        sum_str = "\n>>Name<<     : %s\n"%(self.name)
+        sum_str+= "classifier   : %s\n"%(self.classifier)
+        sum_str += "Parameters for feature generatation:\n %r\n"%(self.params)
 
         if self.Xtrain is not None:
-            print("Train data   :", self.Xtrain.shape, end=' ')
-            print(" type         :", type(self.Xtrain))
-
+            sum_str +="Train data   : %s %s\n" %(self.Xtrain.shape)
 
         if self.Xtest is not None:
-            print("Test data    :", self.Xtest.shape, end=' ')
-            print(" type         :", type(self.Xtest))
-            print("Columns: %r" % (list(self.Xtest.columns)))
+            sum_str +="Test data    : %s %s\n"%(self.Xtest.shape)
 
         if self.Xval is not None:
-            print("Valid. data   : ", self.Xval.shape)
+            sum_str += "Valid data  : %s %s\n" % (self.Xval.shape)
         else:
-            print("No validation data defined!")
+            sum_str +=("No validation data defined!\n")
+
+        sum_str += "Columns: %r\n" % (list(self.Xtest.columns))
 
         if self.sample_weight is not None:
-            print("sample_weight:", self.sample_weight.shape, end=' ')
-            print(" type        :", type(self.sample_weight))
+            sum_str +="sample_weight: %r\n" %(self.sample_weight.shape)
 
         if self.ytrain is not None:
-            print("y <- target   :", self.ytrain.shape)
+            sum_str += "y <- target   : %r\n"%(self.ytrain.shape)
+
         # print "sparse data  :" , self.sparse
-        if self.cutoff is not None: print("proba cutoff  :", self.cutoff)
-        if self.class_names is not None: print("class names  :", self.class_names)
+        if self.cutoff is not None: sum_str +=("proba cutoff  :", self.cutoff)
+        if self.class_names is not None: sum_str +=("class names  :", self.class_names)
 
         if self.preds is not None:
-            print("<predictions> : %6.3f" % (np.mean(self.preds)), end=' ')
-            print(" Dim:", self.preds.shape)
+            sum_str +="<predictions> : %6.3f\n" % (np.mean(self.preds))
+            sum_str +=" Dim: %s \n" %(self.preds.shape)
 
-        print("<oob preds>   : %6.3f" % (np.mean(self.oob_preds)), end=' ')
-        print(" Dim:", self.oob_preds.shape)
+        sum_str +="<oob preds>   : %6.3f\n" % (np.mean(self.oob_preds))
+        sum_str +=" Dim: %s %s\n" %(self.oob_preds.shape)
+        return sum_str
 
     def __repr__(self):
         self.summary()
@@ -143,28 +142,28 @@ class XModel:
         print(("Feature generation finished: " + self.name))
 
     @staticmethod
-    def saveDataSet(xmodel, restoreOrder=True, basedir='./share/'):
+    def saveDataSet(xmodel, basedir='./share/'):
         if xmodel.sparse:
             save_sparse_csr(basedir + "Xtrain_" + xmodel.name + "_sparse.csv", xmodel.Xtrain)
+            save_sparse_csr(basedir + "Xval" + xmodel.name + "_sparse.csv", xmodel.Xval)
             save_sparse_csr(basedir + "Xtest_" + xmodel.name + "_sparse.csv", xmodel.Xtest)
         else:
-            # Xtrain_ta = pd.concat([pd.DataFrame(self.cv_labels,columns=['tube_assembly_id'],index=self.Xtrain.index),self.Xtrain],axis=1)
-            xmodel.Xtrain.to_csv(basedir + "Xtrain_" + xmodel.name + ".csv", index=False)
-            # Xtest_ta = pd.concat([pd.DataFrame(_,columns=['tube_assembly_id'],index=Xtest.index),Xtest],axis=1)
-            xmodel.Xtest.to_csv(basedir + "Xtest_" + xmodel.name + ".csv", index=False)
+            xmodel.Xtrain.to_csv(basedir + "Xtrain_" + xmodel.name + ".csv")
+            xmodel.Xval.to_csv(basedir + "Xval_" + xmodel.name + ".csv")
+            xmodel.Xtest.to_csv(basedir + "Xtest_" + xmodel.name + ".csv")
 
     @staticmethod
-    def loadDataSet(xmodel, restoreOrder=True, basedir='./share/'):
+    def loadDataSet(xmodel, basedir='./share/'):
         if xmodel.sparse:
             xmodel.Xtrain = load_sparse_csr(basedir + "Xtrain_" + xmodel.name + "_sparse.csv.npz")
+            xmodel.XVal = load_sparse_csr(basedir + "Xval_" + xmodel.name + "_sparse.csv.npz")
             xmodel.Xtest = load_sparse_csr(basedir + "Xtest_" + xmodel.name + "_sparse.csv.npz")
         else:
-            # Xtrain_ta = pd.concat([pd.DataFrame(self.cv_labels,columns=['tube_assembly_id'],index=self.Xtrain.index),self.Xtrain],axis=1)
-            xmodel.Xtrain = pd.read_csv(basedir + "Xtrain_" + xmodel.name + ".csv")
-            # Xtest_ta = pd.concat([pd.DataFrame(_,columns=['tube_assembly_id'],index=Xtest.index),Xtest],axis=1)
-            xmodel.Xtest = pd.read_csv(basedir + "Xtest_" + xmodel.name + ".csv")
+            xmodel.Xtrain = pd.read_csv(basedir + "Xtrain_" + xmodel.name + ".csv",index_col=0)
+            xmodel.Xval = pd.read_csv(basedir + "Xval_" + xmodel.name + ".csv", index_col=0)
+            xmodel.Xtest = pd.read_csv(basedir + "Xtest_" + xmodel.name + ".csv",index_col=0)
 
-        return (xmodel.Xtrain, xmodel.Xtest)
+        return (xmodel.Xtrain, xmodel.Xval, xmodel.Xtest)
 
     # static function for saving
     @staticmethod
@@ -221,7 +220,7 @@ class FeaturePredictor(BaseEstimator):
         pass
 
     def predict(self, lX):
-        return lX[self.fname].values
+        return lX[self.fname].values.astype(int)
 
 
 class NothingTransform(BaseEstimator):
