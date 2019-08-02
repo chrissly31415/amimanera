@@ -30,12 +30,12 @@ with warnings.catch_warnings():
     from sklearn.model_selection import StratifiedKFold, KFold, GroupKFold, GroupShuffleSplit,  StratifiedShuffleSplit, ShuffleSplit, train_test_split, \
         LeavePGroupsOut
     from sklearn.metrics import roc_auc_score, classification_report, make_scorer, f1_score, precision_score, \
-        mean_squared_error, accuracy_score, log_loss, cohen_kappa_score
+        mean_squared_error, accuracy_score, log_loss, cohen_kappa_score, SCORERS
     from sklearn.preprocessing import StandardScaler, PolynomialFeatures, OneHotEncoder, RobustScaler
     from sklearn.pipeline import Pipeline
     from sklearn.feature_selection import SelectKBest, SelectPercentile, chi2, f_classif, f_regression, \
         GenericUnivariateSelect, VarianceThreshold, RFECV
-    from sklearn.model_selection import learning_curve
+    from sklearn.model_selection import learning_curve, GridSearchCV,RandomizedSearchCV
     # import models
     from sklearn.base import BaseEstimator, TransformerMixin, clone
     from sklearn.dummy import DummyRegressor,DummyClassifier
@@ -305,7 +305,7 @@ def weightedGridsearch(lmodel, lX, ly, lw, fitWithWeights=False, n_folds=5, useP
     # parameters['model__n_neighbors']=[40,60]}#knn
     # parameters['model__alpha']=[1.0,0.8,0.5,0.1]#opt nb
     # parameters = {'n_neighbors':[10,30,40,50],'algorithm':['ball_tree'],'weights':['distance']}#knn
-    clf_opt = grid_search.GridSearchCV(lmodel, parameters, n_jobs=n_jobs, verbose=1, scoring=local_scorer, cv=n_folds,
+    clf_opt = GridSearchCV(lmodel, parameters, n_jobs=n_jobs, verbose=1, scoring=local_scorer, cv=n_folds,
                                        fit_params=fit_params, refit=True)
     clf_opt.fit(lX, ly)
     # dir(clf_opt)
@@ -1030,6 +1030,27 @@ def pcAnalysis(X, Xtest, w=None, ncomp=2, transform=False, classification=False,
         plt.show()
 
 
+def duplicate_columns(frame):
+    groups = frame.columns.to_series().groupby(frame.dtypes).groups
+    dups = []
+
+    for t, v in groups.items():
+
+        cs = frame[v].columns
+        vs = frame[v]
+        lcs = len(cs)
+
+        for i in range(lcs):
+            ia = vs.iloc[:,i].values
+            for j in range(i+1, lcs):
+                ja = vs.iloc[:,j].values
+                if array_equivalent(ia, ja):
+                    dups.append(cs[i])
+                    break
+
+    return dups
+
+
 def root_mean_squared_percentage_error(ytrue, y, factor=1.0):
     assert (len(ytrue) == len(y))
     if factor > -1.0:
@@ -1081,6 +1102,12 @@ def root_mean_squared_error(x, y):
     return mse ** 0.5
 
 def mean_absolute_error(x, y, dummy=None):
+    if isinstance(x,pd.Series):
+        x = x.reset_index(drop=True)
+
+    if isinstance(y,pd.Series):
+        y = y.reset_index(drop=True)
+
     return np.mean(np.abs(x - y))
 
 def multiclass_log_loss(y_true, y_pred, eps=1e-15):
@@ -1388,25 +1415,26 @@ def report(grid_scores, n_top=3):
 
 def makeGridSearch(lmodel, lX, ly, n_jobs=1, refit=True, cv=5, scoring='roc_auc', random_iter=-1, parameters={},score_sign = -1.0):
     print("Start GridSearch...")
+    print(sorted(SCORERS.keys()))
     if parameters is None:
         parameters = {}
 
     if random_iter < 0:
-        search = grid_search.GridSearchCV(lmodel, parameters, n_jobs=n_jobs, verbose=2, scoring=scoring, cv=cv,
+        search = GridSearchCV(lmodel, parameters, n_jobs=n_jobs, verbose=2, scoring=scoring, cv=cv,
                                           refit=refit)
     else:
-        search = grid_search.RandomizedSearchCV(lmodel, param_distributions=parameters, n_jobs=n_jobs, verbose=2,
+        search = RandomizedSearchCV(lmodel, param_distributions=parameters, n_jobs=n_jobs, verbose=2,
                                                 scoring=scoring, cv=cv, refit=refit, n_iter=random_iter)
 
     search.fit(lX, ly)
     best_score = 1.0E5
-    print(("%6s %6s %6s %r" % ("OOB", "MEAN", "SDEV", "PARAMS")))
-    for params, mean_score, cvscores in search.grid_scores_:
-        oob_score = score_sign*mean_score
-        cvscores = score_sign*cvscores
-        mean_score = score_sign*cvscores.mean()
-        print(("%6.4f %6.4f %6.4f %r" % (oob_score, mean_score, cvscores.std(), params)))
+    df_cv = pd.DataFrame(search.cv_results_)
+    print(df_cv.head(100))
+    #df_cv['mean_test_score'] = -1.0*df_cv['mean_test_score']
+    #df_cv['mean_train_score'] = -1.0 * df_cv['mean_train_score']
 
+    #print(df_cv[['mean_train_score','mean_test_score','std_test_score','rank_test_score','mean_fit_time','params']].head(100))
+    df_cv.to_csv('makeGridSearch.csv')
     if refit:
         return search.best_estimator_
     else:
@@ -1509,6 +1537,36 @@ def confusion_matrix(rater_a, rater_b, min_rating=None, max_rating=None):
         conf_mat[a - min_rating][b - min_rating] += 1
     return conf_mat
 
+def reduce_mem_usage(df, verbose=True):
+    #https://www.kaggle.com/artgor/artgor-utils
+    numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
+    start_mem = df.memory_usage().sum() / 1024 ** 2
+    for col in df.columns:
+        col_type = df[col].dtypes
+        if col_type in numerics:
+            c_min = df[col].min()
+            c_max = df[col].max()
+            if str(col_type)[:3] == 'int':
+                if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
+                    df[col] = df[col].astype(np.int8)
+                elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
+                    df[col] = df[col].astype(np.int16)
+                elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
+                    df[col] = df[col].astype(np.int32)
+                elif c_min > np.iinfo(nartgor_utils.p.int64).min and c_max < np.iinfo(np.int64).max:
+                    df[col] = df[col].astype(np.int64)
+            else:
+                #float16 not fully supported by pandas
+                #if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
+                #    df[col] = df[col].astype(np.float16)
+                if c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
+                    df[col] = df[col].astype(np.float32)
+                else:
+                    df[col] = df[col].astype(np.float64)
+    end_mem = df.memory_usage().sum() / 1024 ** 2
+    if verbose: print('Mem. usage decreased to {:5.2f} Mb ({:.1f}% reduction)'.format(end_mem, 100 * (
+    start_mem - end_mem) / start_mem))
+    return df
 
 def histogram(ratings, min_rating=None, max_rating=None):
     """

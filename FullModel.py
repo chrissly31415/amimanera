@@ -84,43 +84,53 @@ class XModel:
         XModel.modelcount += 1
 
     def summary(self):
-        sum_str = "\n>>Name<<     : %s\n"%(self.name)
-        sum_str+= "classifier   : %s\n"%(self.classifier)
-        sum_str += "Parameters for feature generatation:\n %r\n"%(self.params)
+        sum_str = "\n##########################################################################\n"
+        sum_str += ">>name         : %s\n"%(self.name)
+        sum_str+=  ">>classifier   : %s\n"%(self.classifier)
+        sum_str += ">>parameters for feature generatation:\n %r\n"%(self.params)
 
         if self.Xtrain is not None:
-            sum_str +="Train data   : %s %s\n" %(self.Xtrain.shape)
+            sum_str += ">>train data   : %s %s\n" %(self.Xtrain.shape)
 
         if self.Xtest is not None:
-            sum_str +="Test data    : %s %s\n"%(self.Xtest.shape)
+            sum_str += ">>test data    : %s %s\n"%(self.Xtest.shape)
 
         if self.Xval is not None:
-            sum_str += "Valid data  : %s %s\n" % (self.Xval.shape)
-        else:
-            sum_str +=("No validation data defined!\n")
+            sum_str += ">>valid data   : %s %s\n" % (self.Xval.shape)
 
-        sum_str += "Columns: %r\n" % (list(self.Xtest.columns))
+        if self.Xtrain is not None:
+            sum_str += ">>columns: %r\n" % (list(self.Xtrain.columns))
 
         if self.sample_weight is not None:
             sum_str +="sample_weight: %r\n" %(self.sample_weight.shape)
 
         if self.ytrain is not None:
-            sum_str += "y <- target   : %r\n"%(self.ytrain.shape)
+            sum_str += ">>target(y)   : %r\n"%(self.ytrain.shape)
 
         # print "sparse data  :" , self.sparse
         if self.cutoff is not None: sum_str +=("proba cutoff  :", self.cutoff)
         if self.class_names is not None: sum_str +=("class names  :", self.class_names)
 
         if self.preds is not None:
-            sum_str +="<predictions> : %6.3f\n" % (np.mean(self.preds))
-            sum_str +=" Dim: %s \n" %(self.preds.shape)
+            sum_str += ">>predictions,mean       : %6.3f " % (np.mean(self.preds))
+            sum_str +=f" shape: {self.preds.shape}  \n"
 
-        sum_str +="<oob preds>   : %6.3f\n" % (np.mean(self.oob_preds))
-        sum_str +=" Dim: %s %s\n" %(self.oob_preds.shape)
+        sum_str +=     ">>oob predictions,mean   : %6.3f " % (np.mean(self.oob_preds))
+        sum_str +=f" shape: {self.oob_preds.shape}\n"
+
+        if self.val_preds is not None:
+            sum_str += ">>valid predictions,mean : %6.3f " % (np.mean(self.val_preds))
+            sum_str += f" shape: {self.val_preds.shape}\n"
+
+        #if self.cv_labels is not None:
+        #    sum_str += ">>cv_labels : %s " % (self.cv_labels[:10])
+        #    sum_str += f" cv_labels: {self.val_preds.shape}\n"
+
+        sum_str +="##########################################################################"
         return sum_str
 
     def __repr__(self):
-        self.summary()
+        return self.summary()
 
     def set_feature_params(self,params_dict,generator_dict):
         self.params = params_dict
@@ -175,7 +185,7 @@ class XModel:
     # static function for saving only the important data
     @staticmethod
     def saveCoreData(xmodel, filename):
-        if 'm__epochs' in xmodel.classifier.get_params():
+        if xmodel.classifier is not None and 'm__epochs' in xmodel.classifier.get_params():
             print((type(xmodel.classifier.get_params())))
 
         xmodel.Xtrain = None
@@ -213,14 +223,19 @@ class FeaturePredictor(BaseEstimator):
     Yields single column(s) with Feature
     """
 
-    def __init__(self, fname):
+    def __init__(self, fname, pos=0):
         self.fname = fname
+        self.pos = pos
 
     def fit(self, lX, ly=None, sample_weight=None):
         pass
 
     def predict(self, lX):
-        return lX[self.fname].values.astype(int)
+        if isinstance(lX,pd.DataFrame):
+            return lX[self.fname].values.astype(int)
+        else:
+            preds = lX[:,self.pos].astype(int)
+            return preds
 
 
 class NothingTransform(BaseEstimator):

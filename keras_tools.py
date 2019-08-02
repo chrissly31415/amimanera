@@ -1,12 +1,13 @@
 #!/usr/bin/python 
 # coding: utf-8
 
-
-
 import numpy as np
-from keras.models import Sequential, load_model
+from keras.models import Sequential, Model, load_model
 from keras.optimizers import SGD,Adagrad,RMSprop,Adam
-from keras.layers.core import Dense, Dropout, Activation
+
+from keras.layers import Dense, Input, Activation
+from keras.layers import BatchNormalization, Add, Dropout
+
 from keras import optimizers
 
 from keras.layers.normalization import BatchNormalization
@@ -116,7 +117,7 @@ def create_classification_model(input_dim=64,learning_rate=0.001,activation='rel
     model.compile(loss='binary_crossentropy',optimizer=optimizer,metrics=['accuracy'])
     return model
 
-def create_regression_model(input_dim=64,learning_rate=0.001,activation='sigmoid',layers=[256,256],dropouts=[0.0,0.0],optimizer=None):
+def create_regression_model_old(input_dim=64,learning_rate=0.001,activation='sigmoid',layers=[256,256],dropouts=[0.0,0.0],loss='mean_absolute_error',optimizer=None):
     # create model
     model = Sequential()
     for i,(layer,dropout) in enumerate(zip(layers,dropouts)):
@@ -133,8 +134,27 @@ def create_regression_model(input_dim=64,learning_rate=0.001,activation='sigmoid
     #model.compile(loss='mean_squared_error', optimizer=Adagrad(lr=self.learning_rate) # 0.01
     if optimizer is None:
         optimizer = optimizers.RMSprop(lr=learning_rate)
-    model.compile(loss='mean_squared_error',optimizer=optimizer)
+    model.compile(loss=loss,optimizer=optimizer)
     return model
+
+
+def create_regression_model(input_dim=64,learning_rate=0.001,layers=[256,256],dropouts=[0.0,0.0],loss='mean_absolute_error',optimizer=None):
+
+    inp = Input(shape=(input_dim,))
+    for i,(layer,dropout) in enumerate(zip(layers,dropouts)):
+        x = Dense(layer)(inp)
+        x = BatchNormalization()(x)
+        x = LeakyReLU(alpha=0.05)(x)
+        x = Dropout(dropout)(x)
+
+    out = Dense(1, activation="linear")(x)
+    model = Model(inputs=inp, outputs=[out])
+    if optimizer is None:
+        #optimizer = optimizers.RMSprop(lr=learning_rate)
+        optimizer = Adam()
+    model.compile(loss=loss, optimizer=optimizer)
+    return model
+
 
 class KerasNN(BaseEstimator):
     def __init__(self, dims=66, nb_classes=1, nb_epoch=30, learning_rate=0.5, validation_split=0.0, batch_size=64,
