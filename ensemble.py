@@ -456,16 +456,20 @@ def createModels(models = [], jtype=None, quickload=False):
     if "lgb16" in models:
         modelname = "lgb16" + '_' + jtype
 
-        params = {'seed': rseed, 'nsamples': -1, 'makeDistMat': True, 'makeLabelEncode': True,
-                  'load_oof_fermi': True, 'makeSOAP': True,'loadGibaFeatures': True,
-                  'dropFeatures': dropFeatures}
+        dropfeatures = set(dropFeatures) | (set(descr_top_1J[60:]) & set(descr_top_2J[40:]) & set(descr_top_3J[40:]))
+
+        params = {'seed': rseed, 'nsamples': -1, 'makeDistMat': True, 'makeLabelEncode': True,  'makeTrainType': True,
+                  'makeDistMean': True, 'makeMolNameMean': True,
+                  'load_oof_fermi': True, 'makeSOAP': True,'loadGibaFeatures': True, 'getNeighbours': True,'makeRDKitAtomFeatures': True,'makeRDKitAnglesPairFP': True,'obCharges': True,
+                  'dropFeatures': list(dropfeatures)}
 
         lgb_params = {'num_leaves': 128, 'min_child_samples': 79, 'objective': 'regression', 'max_depth': 16,
-                      'learning_rate': 0.3, "boosting_type": "gbdt", "subsample_freq": 1, "subsample": 1.0,
+                      'learning_rate': 0.2, "boosting_type": "gbdt", "subsample_freq": 1, "subsample": 1.0,
                       "bagging_seed": 42, "metric": 'mse', "verbosity": -1, 'reg_alpha': 0.1, 'reg_lambda': 0.3,
-                      'colsample_bytree': 1.0, 'n_estimators': 12000, 'n_jobs': -1}
+                      'colsample_bytree': 1.0, 'n_estimators': 10000, 'n_jobs': -1}
         params = checkDataState(params, jtype)  # create dataset only for first coupling
         model = lgb.LGBMRegressor(**lgb_params)
+        #model = Pipeline([('filter',GenericUnivariateSelect(f_regression, param=100,mode='k_best') ), ('model', lgb.LGBMRegressor(**lgb_params))])
         xmodel = XModel(modelname, classifier=model, bag_mode=False, fit_on_validation=fit_on_validation,
                         params=params,
                         generators=generators)
@@ -1473,14 +1477,17 @@ def main():
     #make_keras_picklable()
     basedir = './data/'
     plt.interactive(False)
-    train_single_models = False
+    train_single_models = True
 
     mulliken= ['lgb7','lgb11','xgb1'] # probably overfitted
     #models = ['ridge1', 'ridge2', 'xgb1', 'lgb1', 'lgb2', 'lgb3', 'lgb4', 'type']
     act_models = ['ridge1', 'ridge2', 'lgb1','lgb2', 'lgb3', 'lgb3b','lgb4', 'lgb5', 'lgb6','lgb7','lgb8','lgb9','lgb10','lgb10b','lgb11','lgb12','lgb12b','lgb12c','lgb13','lgb14','lgb15','xgb1','keras']
+    act_models = ['ridge1', 'ridge2', 'lgb1', 'lgb2', 'lgb3', 'lgb3b', 'lgb4', 'lgb5', 'lgb7', 'lgb8', 'lgb9',
+                  'lgb10', 'lgb10b', 'lgb11', 'lgb12', 'lgb13', 'lgb14', 'xgb1', 'keras'] # less correlated
+
     act_models = ['type']+ list(set(act_models) - set(mulliken))
     act_models = sorted(act_models)
-    #act_models = ['type','lgb16']
+    act_models = ['type','lgb16']
     print(act_models)
     j_list = ['1JHC','1JHN','2JHC','2JHH','2JHN','3JHC','3JHH','3JHN']
     #j_list = [ '1JHC']

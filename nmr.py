@@ -698,7 +698,7 @@ def get_charges_df(molecule_names,structures_idx, ob_methods = ['eem']):
     return ob_charges
 
 
-def prepareDataset(seed = 42, nsamples = -1,storedata=True, selectType=None, quickload=None,keepID=False,  makeDistMat=False, makeTrainType=False, plotDist = False, makeDistMean=False, makeMolNameMean=False, bruteForceFeatures=False, bruteForceFeaturesPhysical=False,dropFeatures=None, keepFeatures=None, makeLabelEncode = False,getNeighbours=False, makeRDKitFeatures=False,makeRDKitFingerPrints=False, makeRDKitAtomFeatures=False, makeRDKitAnglesPairFP=False, coulombMatrix=False, useMulliken_acsf=False, oneHotenc=None, obCharges=False,makeSOAP=False, oof_fermi=False,load_oof_fermi=False, makeMAMBAfeatures=False, yukawaPotentials=False, cosineFeatures=False,loadGibaFeatures=False, loadQM9Features=False, dropNonPhysicalFeatures=None, removeLowVariance=False, removeCorr=False,featureSelect=None, dimReduce=None):
+def prepareDataset(seed = 42, nsamples = -1,storedata=True, selectType=None, quickload=None,keepID=False,  makeDistMat=False, makeTrainType=False, plotDist = False, makeDistMean=False, makeMolNameMean=False, bruteForceFeatures=False, bruteForceFeaturesPhysical=False,dropFeatures=None, keepFeatures=None, makeLabelEncode = False,getNeighbours=False, makeRDKitFeatures=False,makeRDKitFingerPrints=False, makeRDKitAtomFeatures=False, makeRDKitAnglesPairFP=False, coulombMatrix=False, useMulliken_acsf=False, oneHotenc=None, obCharges=False,makeSOAP=False, oof_fermi=False,load_oof_fermi=False, makeMAMBAfeatures=False, yukawaPotentials=False, cosineFeatures=False,distanceIsAllYouNeed=False,loadGibaFeatures=False, loadQM9Features=False, dropNonPhysicalFeatures=None, removeLowVariance=False, removeCorr=False,featureSelect=None, dimReduce=None):
     np.random.seed(seed)
 
     if storedata is not None:
@@ -712,7 +712,7 @@ def prepareDataset(seed = 42, nsamples = -1,storedata=True, selectType=None, qui
         Xtrain = store2['Xtrain']
         cv_labels = store2['cv_labels']
         ytrain = store2['ytrain']
-        if 'Xval' in store2:
+        if 'Xval' in store2 and not oof_fermi:
             Xval = store2['Xval']
             yval = store2['yval']
         else:
@@ -1194,6 +1194,11 @@ def prepareDataset(seed = 42, nsamples = -1,storedata=True, selectType=None, qui
         Xall = Xall.fillna(0.0)
         print(Xall.head())
 
+    if distanceIsAllYouNeed:
+        #https://www.kaggle.com/criskiev/distance-is-all-you-need-lb-1-481
+        print("distanceIsAllYouNeed...")
+
+
     if makeMAMBAfeatures:
         print("Finally MAMBA features...")
 
@@ -1259,7 +1264,7 @@ def prepareDataset(seed = 42, nsamples = -1,storedata=True, selectType=None, qui
         print("Try dropping: ", dropFeatures)
 
         if not keepID:
-            dropFeatures + ['id']
+            dropFeatures = dropFeatures + ['id']
         else:
             print('WARNING: Keeping ID')
         Xtrain.drop(dropFeatures, axis=1, errors='ignore', inplace=True)
@@ -1558,20 +1563,21 @@ def main():
         'bruteForceFeatures' : False,
         'bruteForceFeaturesPhysical': False, # -> check it out
         'makeLabelEncode' : True,
-        'getNeighbours' : False, #X
+        'getNeighbours' : True, #X
         'makeRDKitFeatures': False,
         'makeRDKitFingerPrints': False,
-        'makeRDKitAtomFeatures': False,
-        'makeRDKitAnglesPairFP': False,
+        'makeRDKitAtomFeatures': True,
+        'makeRDKitAnglesPairFP': True,
         'makeMAMBAfeatures': False,
         'useMulliken_acsf': False, #X
         'coulombMatrix': False, #X
-        'obCharges' : False, #X
+        'obCharges' : True, #X
         'yukawaPotentials': False,
         'cosineFeatures' : False,
         'loadGibaFeatures' : True,
-        'makeSOAP' : True,
-        'oof_fermi' : False,
+        'makeSOAP' : False,
+        'distanceIsAllYouNeed': True,
+        'oof_fermi' : True,
         'load_oof_fermi' : False,
         'loadQM9Features': False, # not so good :-(
         'oneHotenc' : None,
@@ -1589,7 +1595,7 @@ def main():
     print("Xtrain shape: %s %s" % (Xtrain.shape))
     print("Xtrain columns: %r"%(list(Xtrain.columns)))
 
-    n_fold = 2
+    n_fold = 5
     lgb_params = {'num_leaves': 128,
               'min_child_samples': 79,
               'objective': 'regression',
@@ -1634,13 +1640,16 @@ def main():
 
     gridsearch = False
     #fit_types = [['2JHC'],['3JHC']]
-    fit_types = [['1JHC'], ['2JHC'], ['3JHC']]
+    #fit_types = [['1JHC'], ['2JHC'], ['3JHC']]
     #fit_types = [['1JHC'],['2JHC'],['3JHC']]
     scores = []
     for i,t  in enumerate(fit_types):
         print("\n>>%d - Coupling-type %r<<"%(i,t))
+
         data_params['quickload'] = t
         Xtest, Xtrain, ytrain, cv_labels, _, Xval, yval = prepareDataset(**data_params)
+        if Xval is  None:
+            print("Xval is None!")
 
         print("Xtest shape:    %s %s" % (Xtest.shape))
         print("Xtrain shape:   %s %s" % (Xtrain.shape))
@@ -1661,9 +1670,9 @@ def main():
             Xtrain_f.loc[Xtrain_f.type.isin(le.transform(t)), 'oof'] = result_dict['oof']
             Xtest_f.loc[Xtest_f.type.isin(le.transform(t)), 'prediction'] = result_dict['prediction']
 
-            doVal = True
+            doVal = False
             valscore = 0
-            if Xval is not None and doVal:
+            if isinstance(Xval,pd.DataFrame) and doVal:
                 if isinstance(model,lgb.LGBMRegressor):
                     early_stopping_rounds = 200
                     model.fit(Xtrain,ytrain,verbose=1000,early_stopping_rounds=early_stopping_rounds,eval_metric='mse',eval_set=[(Xtrain, ytrain), (Xval, yval)],)
